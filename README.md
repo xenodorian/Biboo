@@ -1,6 +1,6 @@
 # Biboo
 
-Procedural pixel-art pipeline for a 12-frame greatsword swing in a sunset side-scroller scene.
+Procedural pixel-art pipeline for a 10-frame greatsword chop in a sunset side-scroller scene.
 One command rebuilds everything: the tileable background layers, the character sprite frames,
 the effect overlays, a scene manifest for a game engine, and the preview GIFs.
 
@@ -38,9 +38,9 @@ pytest
 | Path | Contents |
 |---|---|
 | `swing_x3.gif`, `swing_x1.gif` | The looping animation, exact palette, no dithering |
-| `frames/` | The 12 composited frames, 384x216 |
+| `frames/` | The 10 composited frames, 384x216 |
 | `layers/` | `sky`, `mountains_far`, `mountains_near`, `trees_back`, `trees_front`, `ground`, `fringe`. Each is 384 wide and tiles seamlessly in x, with 8 margin rows above and below the view for camera shake |
-| `character/` | 12 transparent sprite frames sharing one crop box and anchor, plus `char_sheet.png` |
+| `character/` | 10 transparent sprite frames sharing one crop box and anchor, plus `char_sheet.png` |
 | `fx_back/`, `fx_front/` | Per-frame effect overlays (smears behind the character; glint, flash, dust, debris in front) |
 | `scene_manifest.json` | Layer order and parallax factors, ground line, sprite anchor, per-frame timing, sword angle and camera shake |
 | `contact_sheet.png` | All frames at a glance |
@@ -55,21 +55,18 @@ measurements, never scaled, so proportions stay identical.
 
 | Frame | Name | ms | What happens |
 |---|---|---|---|
-| 1 | ready | 320 | Original design pose, two hands, blade forward, both feet planted |
-| 2 | dip | 80 | Down before up: knees bend, blade dips below the ready line |
-| 3 | rise1 | 90 | Both hands lift the blade past vertical; weight rocks back onto the rear leg, upper body starts to bend back |
-| 4 | rise2 | 80 | Hands go over the head, blade tipping back; front foot lifts; eyes look up |
-| 5 | peak | 250 | Arms raised over the head with bent elbows, sword pointed backwards, torso bent back, glint; front foot 3 px up |
-| 6 | smearA | 50 | Smear over the top, arms straightening; rear heel lifts onto the toe, front foot travels |
-| 7 | smearB | 40 | Arms at full forward extension; upper body bends into the strike; hair and hem lift |
-| 8 | impact | 110 | Blade buried, arms extended, deepest waist bend, front foot stomps 4 px forward, flash, dirt, shake |
-| 9-10 | plume1, settle | 90, 120 | Dust plume and debris; body stays braced low on the buried blade, skirt bounces, hair settles |
-| 11-12 | recover1, recover2 | 110, 130 | Blade pulled free, front foot steps back, ease into frame 1 |
+| 1 | plow | 320 | Plow guard (Pflug): hands low at the hip, blade angled up at the opponent's face, knees bent |
+| 2-3 | raise1, raise2 | 90, 80 | Both hands lift the sword past vertical; weight rocks back, front foot lifts, eyes look up |
+| 4 | high | 250 | High guard: fists above and in front of the forehead, blade up and back at 45 degrees, glint |
+| 5 | chop | 40 | One fast frame: arms thrown forward, the blade blurred through the whole arc (smear) |
+| 6 | impact | 120 | Steady, unblurred low point: shoulder, straight arm and blade in one line, blade buried, front foot stomps 4 px forward, flash, dirt eruption, camera shake |
+| 7-8 | plume, settle | 100, 120 | Dust plume and debris come down; body stays braced low on the buried blade, shake decays |
+| 9-10 | return1, return2 | 110, 130 | Blade pulled free, front foot steps back, ease into plow (frame 1) |
 
-Techniques: the fast part of the swing is carried by smear frames instead of in-between poses;
-the hands go over the head at the peak and the arms straighten into a full forward extension on
+Techniques: the fast part of the swing is carried by one smear frame instead of in-between poses;
+the hands go over the head in the high guard and the arms straighten into a full forward extension on
 the way down. The rear hand holds the base of the handle, just above the pommel, in every frame
-(`anim.REAR_HAND`, `anim.GRIP_SPAN`), with the lead hand one fist's gap above it (`anim.HAND_GAP`).
+(`anim.REAR_HAND`, `anim.GRIP_SPAN`), with the lead hand up the grip by `anim.GRIP_GAP` (below the guard in plow and the strike).
 Arms are two fixed-length segments (`anim.ARM_LEN`) that bend at the elbow. The head is drawn in
 its own pass, so the lead arm goes behind the head and the rear arm in front of it; the blade and
 guard never cover the face. Legs are two fixed-length

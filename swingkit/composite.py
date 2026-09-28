@@ -1,4 +1,4 @@
-"""Assemble the 12 frames: background layers (with parallax camera shake), back FX,
+"""Assemble the frames: background layers (with parallax camera shake), back FX,
 character, front FX, foreground grass fringe. Writes the GIF and per-frame PNGs."""
 import numpy as np
 from . import bg, rig, anim, fx
@@ -11,7 +11,7 @@ def layers():
     if _LAYERS is None:
         _LAYERS = bg.build_all()
     return _LAYERS
-SHAKE_BY_NAME = dict(impact=(0, 3), plume1=(2, -2), settle=(-1, 1), recover1=(0, -1))
+SHAKE_BY_NAME = dict(impact=(0, 3), plume=(2, -2), settle=(-1, 1), return1=(0, -1))
 SHAKE = {i: SHAKE_BY_NAME[fr['name']] for i, fr in enumerate(anim.FRAMES) if fr['name'] in SHAKE_BY_NAME}
 SHAKE_PARALLAX = dict(sky=0.25, mountains_far=0.35, mountains_near=0.5, trees_back=0.65,
                       trees_front=0.8, ground=1.0, fx=1.0, char=1.0, fringe=1.0)
@@ -50,24 +50,20 @@ def render_frame(i, parts_out=None):
     I = fx.impact_point()
     T = impact_times()
     if fr.get('glint'): fx.glint(front, fr)
-    if 'smear_from' in fr:
-        frA = anim.by_name(fr['smear_from'])
-        if fr.get('residual'):
-            fx.smear(back, frA, fr, u_head=56, s_from=0.5, residual=True)
-        else:
-            fx.smear(back, frA, fr, u_head=50 if name == 'smearA' else 46)
+    if 'smear_from' in fr:          # the chop: one blurred frame through the whole arc
+        fx.smear(back, anim.by_name(fr['smear_from']), fr, u_head=40)
     if name == 'impact':
         fx.crown(front, I); fx.mound(front, I)
         fx.particles(front, I, T[i], back=back); fx.flash(front, I)
-    elif name in ('plume1', 'settle'):
+    elif name in ('plume', 'settle'):
         fx.mound(front, I)
         fx.particles(front, I, T[i], back=back)
-        if name == 'plume1': fx.flash(front, I, remnant=True)
-    elif name in ('recover1', 'recover2'):
+        if name == 'plume': fx.flash(front, I, remnant=True)
+    elif name in ('return1', 'return2'):
         fx.particles(front, I, T[i], back=back)
-        fx.clod(front, fr, 0 if name == 'recover1' else 1.4)
-    if name in ('impact', 'plume1', 'settle'):
-        fx.stomp(front, fr, ('impact', 'plume1', 'settle').index(name))
+        fx.clod(front, fr, 0 if name == 'return1' else 1.4)
+    if name in ('impact', 'plume', 'settle'):
+        fx.stomp(front, fr, ('impact', 'plume', 'settle').index(name))
     back.clip_below(fx.GROUND_LY); front.clip_below(fx.GROUND_LY + 1)
     C, sw, parts = anim.render_character(i)
     ch = char_layer(C)
