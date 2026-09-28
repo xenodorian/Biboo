@@ -186,6 +186,18 @@ frames or fewer.
 - Result: Rear foot is now the drawn boot mirrored about its shaft (`rig.REAR_FOOT`): toe cap forward, heel at the back; the heel-up variant is mirrored the same way (heel lifts at the back, toe planted in front). The rear knee's IK bend side is flipped so it bends forward toward the strike (neutral knee moves about 1 px). Front leg unchanged. This supersedes the outward-toe part of step 8 for the back leg. docs preview GIF and sprite sheet refreshed. All checks and tests pass.
 - Signed off: Claude, 2026-09-28
 
+### Step 15. Fix the ankles
+- [ ] User feedback (2026-09-28): the ankles look broken. The foot is a separate stamp under the
+      shin, leaving a notch and an outline jog where they meet.
+- [ ] Draw the foot together with the shin as one outlined boot: heel flares back from the shin's
+      rear edge, instep flows forward from its front edge, toe forward, sole on the ground; heel-up
+      tilts the sole with the toe planted.
+- Acceptance: continuous ankle curve with no notch in every frame; planted and leg-length checks
+  pass; all checks and tests pass.
+- Status: TODO
+- Result:
+- Signed off:
+
 ## Open questions
 - None.
 
