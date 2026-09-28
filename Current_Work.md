@@ -115,12 +115,12 @@ frames or fewer.
 - Signed off: Claude, 2026-09-27
 
 ### Step 7. Review and publish
-- [ ] Render every frame and review each one zoomed in and at 1x. Fix any issues found.
-- [ ] Update `docs/swing_x3.gif`, the README frame table, and the manifest notes.
+- [x] Render every frame and review each one zoomed in and at 1x. Fix any issues found.
+- [x] Update `docs/swing_x3.gif`, the README frame table, and the manifest notes.
 - Acceptance: all checks and tests pass, and the preview GIF on `main` shows the upgraded animation.
-- Status: IN PROGRESS (Claude, 2026-09-27)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: All 12 frames reviewed zoomed and at 1x; no blocking issues (the bent front knee's sock cuff reads slightly round in frames 3 and 4, acceptable at this scale). `docs/swing_x3.gif` and `docs/char_sheet.png` updated, README frame table and techniques rewritten, manifest now records hips, lean, front foot, skirt and hair per frame. All 8 checks and 7 tests pass.
+- Signed off: Claude, 2026-09-27
 
 ### Optional steps (need the user's approval before starting)
 - [ ] A. Hand-drawn heel-up boot variant, so the rear heel can lift during the swing.
@@ -133,6 +133,7 @@ frames or fewer.
 - Approve optional steps A to D? (asked 2026-09-27)
 
 ## Log
+- 2026-09-27: Step 7 (review and publish) done. Kinetic upgrade workflow complete; optional steps A to D await the user's approval. (Claude)
 - 2026-09-27: Step 6 (hair) done. Hair values in `anim.HAIR`; keep sway within 4 px and lift within 3 px (tested range). (Claude)
 - 2026-09-27: Step 5 (skirt) done. Cloth values in `anim.CLOTH`. (Claude)
 - 2026-09-27: Step 4 (lean) done. Never shear the head row by row; it jogs the face. (Claude)

@@ -55,33 +55,39 @@ measurements, never scaled, so proportions stay identical.
 
 | Frame | Name | ms | What happens |
 |---|---|---|---|
-| 1 | ready | 360 | Original design pose, two hands, blade forward |
-| 2 | rise1 | 90 | Both hands lift the blade, body leans back |
-| 3 | rise2 | 80 | Near hand lets go to a guard fist, far hand carries the sword up |
-| 4 | peak | 250 | One-handed high guard at ear height, blade leaning back over the head, glint |
-| 5 | smearA | 50 | Hands rejoin, smear over the top |
-| 6 | smearB | 40 | Body drops into the strike, second smear |
-| 7 | impact | 110 | Blade buried at the feet line, flash, dirt crown, camera shake |
-| 8-10 | plume1, plume2, settle | 80, 80, 100 | Dust plume rises and erodes, debris arcs and lands, hair overshoots and settles |
-| 11-12 | recover1, recover2 | 110, 130 | Blade pulled free, dirt falls off, ease back into frame 1 |
+| 1 | ready | 360 | Original design pose, two hands, blade forward, both feet planted |
+| 2 | rise1 | 90 | Both hands lift the blade; weight rocks back onto the rear leg, body leans back |
+| 3 | rise2 | 80 | Near hand lets go to a guard fist; front foot lifts; skirt and hair float up |
+| 4 | peak | 250 | One-handed high guard, blade over the head, glint; front foot 3 px off the ground |
+| 5 | smearA | 50 | Hands rejoin, smear over the top; front foot travels forward, hair trails |
+| 6 | smearB | 40 | Body drops and leans into the strike; hair and hem lift from the speed |
+| 7 | impact | 110 | Blade buried, front foot stomps down 4 px forward, knees bent, flash, dirt, shake |
+| 8-10 | plume1, plume2, settle | 80, 80, 100 | Dust plume and debris; body overshoots 1 px lower, skirt bounces, hair swings forward and settles |
+| 11-12 | recover1, recover2 | 110, 130 | Blade pulled free, front foot steps back, ease into frame 1 |
 
 Techniques: the fast part of the swing is carried by smear frames instead of in-between poses;
-hands never go above head height (the sword provides the height); the body shifts by whole pixels
-per layer (head, torso, skirt) for lean and crouch; long hair bends by per-row resampling; debris
-and dust use simple deterministic physics; camera shake applies less movement to distant layers.
+hands never go above head height (the sword provides the height). Legs are two fixed-length
+segments solved by inverse kinematics, so the hips can drop and the knees bend without changing
+leg length; the front foot steps and stomps while planted feet are checked to stay on the ground.
+The torso leans row by row while the head moves as one rigid piece (the face is never sheared).
+The skirt hem lifts, trails, flares and bounces; the long hair sways and lifts with lag. Debris and
+dust use simple deterministic physics; camera shake moves distant layers less.
+
+Per-frame motion tables live in `swingkit/anim.py`: `HIPS` (hip offset and lean), `FEET` (front
+foot), `CLOTH` (skirt hem) and `HAIR` (sway and lift).
 
 ## Project layout
 
 ```
 swingkit/
   bg.py         background layers (sky, mountains, trees, ground, fringe), all periodic in x
-  rig.py        character rig: body layers, hair bending, parametric arms, fists and sword
+  rig.py        character rig: body layers, IK legs, skirt cloth, hair bending, arms, fists, sword
   anim.py       the 12 pose specifications and the character renderer
   fx.py         smears, glint, impact flash, dirt crown, mound, debris, dust cloud
   composite.py  frame assembly with parallax camera shake
   gifwrite.py   exact-palette GIF writer and verifier
   build.py      writes every deliverable
-  checks.py     frame count, arm lengths, face clearance, layer tiling, GIF fidelity
+  checks.py     frame count, arm and leg lengths, planted feet, face clearance, tiling, GIF fidelity
 data/
   pal.npy       20-colour character palette
   body_old.npy  character body (no arms or sword), 128x82 palette indices

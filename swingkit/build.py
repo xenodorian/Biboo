@@ -75,6 +75,10 @@ def build(out_dir, scales=(3, 1), clean=True, log=print):
         fx=dict(note='fx_back / fx_front are full layer-size overlays (same size and margins as the layers)',
                 impact_point_view=[float(I[0]), float(I[1] - bg.M)]),
         animation=[dict(frame=i + 1, name=f['name'], ms=f['ms'], sword_angle_deg=f['theta'],
+                        hip_offset_px=list(f.get('hip', (0, 0))), lean_px=f.get('lean', 0),
+                        front_foot_ankle=[round(float(v), 2) for v in f['legs']['right']['ankle']],
+                        front_foot_planted=bool(f.get('front_planted', True)),
+                        skirt=f.get('cloth', {}), hair=dict(sway=f.get('sway', 0), lift=f.get('hair_lift', 0)),
                         camera_shake_px=list(cp.SHAKE.get(i, (0, 0)))) for i, f in enumerate(anim.FRAMES)],
         camera_shake_parallax=cp.SHAKE_PARALLAX,
         total_ms=sum(durs), loops=True)
