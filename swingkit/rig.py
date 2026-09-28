@@ -75,15 +75,16 @@ def _underskirt():
 UNDERSKIRT = _underskirt()
 
 # ---------------------------------------------------------------- hair and dress tones
-# User request (2026-09-28): lighter long hair and a darker dress so the two read apart. The long
-# hair and the dress shared the purple indices 5, 7, 8, 9, 10 (the eyes and sword gems use them
-# too), so those entries stay as they are; hair and dress pixels are remapped to added entries.
-_HAIR_SRC, _DRESS_SRC = (5, 7, 8, 9, 10), (5, 7, 9, 10)
+# User request (2026-09-28): the long hair and the dress shared the purple indices 5, 7, 8, 9, 10
+# (the eyes and sword gems use them too), so they read as one mass. As in the base painting, the
+# hair is a mid-toned pinkish purple and the dress is white with dark, saturated violet. The shared
+# entries stay as they are; hair and dress pixels are remapped to added entries.
+_HAIR_SRC, _DRESS_SRC = (5, 7, 8, 9, 10), (5, 7, 8, 9, 10)
+_HAIR_RGB = [(100, 76, 138), (124, 98, 160), (146, 122, 164), (160, 132, 186), (172, 145, 200)]
+_DRESS_RGB = [(48, 38, 104), (62, 50, 130), (84, 72, 146), (76, 62, 158), (98, 82, 184)]
 HAIR_TONE = {c: len(PAL) + k for k, c in enumerate(_HAIR_SRC)}
 DRESS_TONE = {c: len(PAL) + len(_HAIR_SRC) + k for k, c in enumerate(_DRESS_SRC)}
-PAL = np.vstack([PAL,
-                 [PAL[c] + 0.45 * (PAL[16] - PAL[c]) for c in _HAIR_SRC],    # toward the light head hair
-                 [PAL[c] * 0.75 for c in _DRESS_SRC]])                       # darker dress
+PAL = np.vstack([PAL, np.array(_HAIR_RGB, float), np.array(_DRESS_RGB, float)])
 
 def _retone(a, table, mask):
     out = a.copy()
@@ -388,12 +389,20 @@ def draw_hair_pass(C, head=(0, 0), skirt=(0, 0), sway=0, lean=0.0, bend=0.0, hai
     _hair(C, M['hl'], 26, 50, inner=15, side=-1, top_off=head, bot_off=skirt, sway=sway, lift=hair_lift)
     _hair(C, M['hr'], 14, 44, inner=40, side=+1, top_off=head, bot_off=skirt, sway=sway, lift=hair_lift)
 
+def draw_torso_pass(C, torso=(0, 0), lean=0.0, bend=0.0):
+    """The upper body (bodice): bends at the waist, then leans row by row."""
+    ys, xs, cols = rotate_layer(BODY, MASKS['torso'], bend)
+    for y, x, c in zip(ys, xs, cols):
+        dx = torso[0] + int(round(torso_shear(lean, y)))
+        C[y + torso[1] + PY, x + dx + PX] = c
+
 def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0, cloth=None, hair_lift=0.0,
-         gaze=0, bend=0.0, draw_head=True, draw_hair=True):
+         gaze=0, bend=0.0, draw_head=True, draw_hair=True, draw_torso=True):
     """Draw the body into canvas C (index array, -1 = transparent). `legs` maps
     'left'/'right' to dict(hip=..., ankle=...) overrides; default is the neutral stance.
     With draw_head=False the head is left for a later pass (see draw_head), so arms can be
-    layered behind it; with draw_hair=False the long hair is left for draw_hair_pass."""
+    layered behind it; with draw_hair=False the long hair is left for draw_hair_pass, and with
+    draw_torso=False the upper body is left for draw_torso_pass."""
     M = MASKS
     if draw_hair:
         draw_hair_pass(C, head, skirt, sway, lean, bend, hair_lift)
@@ -413,10 +422,8 @@ def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0
     shade = {SK: SKS, SKS: SKS, WHITE: 13, WHITE2: 13, LAV: 13, 13: 13}
     for y, x in zip(*np.nonzero(edge)):
         C[y, x] = shade.get(int(C[y, x]), OUT)
-    ys, xs, cols = rotate_layer(BODY, M['torso'], bend)   # torso bends at the waist, then leans row by row
-    for y, x, c in zip(ys, xs, cols):
-        dx = torso[0] + int(round(torso_shear(lean, y)))
-        C[y + torso[1] + PY, x + dx + PX] = c
+    if draw_torso:
+        draw_torso_pass(C, torso, lean, bend)
     info['head'] = head
     if draw_head:
         draw_head_pass(C, head, gaze)

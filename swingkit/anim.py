@@ -32,8 +32,9 @@ def two_hand(theta, Hl):
 # guard and grip pass behind the head while the rear hand stays in front.
 LOW = ['hair', 'body', 'far', 'grip', 'lead_fist', 'head', 'near', 'rear_fist', 'guard', 'blade']
 HIGH = ['hair', 'body', 'blade', 'guard', 'far', 'grip', 'lead_fist', 'head', 'near', 'rear_fist']
-# PLOW: hands low at the hip, so the lead arm runs behind the body; only its fist shows on the grip.
-PLOW = ['hair', 'far', 'body', 'grip', 'lead_fist', 'head', 'near', 'rear_fist', 'guard', 'blade']
+# PLOW: hands low at the hip. The lead arm hangs on the far side: behind the upper body (torso),
+# in front of the hair and skirt, so it stays visible where the body does not cover it.
+PLOW = ['hair', 'body', 'far', 'torso', 'grip', 'lead_fist', 'head', 'near', 'rear_fist', 'guard', 'blade']
 
 # Each frame: name, duration, sword angle (degrees, 0 = pointing forward, 90 = up, 180 = back),
 # arm sleeves, elbow direction ('down' or 'fwd'), draw order and effect flags. Hand positions are
@@ -211,7 +212,7 @@ FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
 # Rear (near) hand position per frame in final sprite coordinates, solved so both arms stay in
 # reach with fixed-length arms. The lead hand is always HAND_GAP further along the grip. While the
 # blade is buried (impact, plume1, settle) the grip stays fixed in the world as the body moves.
-REAR_HAND = dict(ready=(34.0, 43.0), dip=(36.6, 33.0), rise1=(38.0, 17.1), rise2=(31.7, 9.3),
+REAR_HAND = dict(ready=(37.5, 37.4), dip=(36.6, 33.0), rise1=(38.0, 17.1), rise2=(31.7, 9.3),
                  peak=(34.5, 7.5), smearA=(36.5, 10.0), smearB=(49.5, 30.9),
                  impact=(50.4, 38.5), plume1=(50.4, 38.5), settle=(50.4, 38.5),
                  recover1=(42.9, 38.4), recover2=(36.6, 32.2))
@@ -287,9 +288,11 @@ def render_character(i):
             info = body(cv.C, head=fr['head'], torso=fr['torso'], skirt=fr['skirt'], sway=fr['sway'],
                         legs=fr.get('legs'), lean=fr.get('lean', 0), bend=fr.get('bend', 0),
                         cloth=fr.get('cloth'), hair_lift=fr.get('hair_lift', 0), draw_head=False,
-                        draw_hair=False)
+                        draw_hair=False, draw_torso='torso' not in fr['order'])
             parts['head_offset'] = info.pop('head')
             parts['legs'] = info
+        elif op == 'torso':
+            rig.draw_torso_pass(cv.C, fr['torso'], fr.get('lean', 0), fr.get('bend', 0))
         elif op == 'head':
             m0 = cv.C.copy()
             rig.draw_head_pass(cv.C, parts['head_offset'], fr.get('gaze', 0))
