@@ -78,14 +78,14 @@ frames or fewer.
 - Signed off: Claude, 2026-09-27
 
 ### Step 3. Step into the strike (with stomp)
-- [ ] Wind-up: weight rocks back onto the rear leg, and the front foot lifts slightly at the peak.
-- [ ] Impact: the front foot plants 3 to 5 px forward on the impact frame.
-- [ ] Add a small stomp dust puff at the planted foot.
-- [ ] Add a check that any planted boot sits exactly on the feet row.
+- [x] Wind-up: weight rocks back onto the rear leg, and the front foot lifts slightly at the peak.
+- [x] Impact: the front foot plants 3 to 5 px forward on the impact frame.
+- [x] Add a small stomp dust puff at the planted foot.
+- [x] Add a check that any planted boot sits exactly on the feet row.
 - Acceptance: the step reads at 1x, planted feet never float or sink, and the checks pass.
-- Status: IN PROGRESS (Claude, 2026-09-27)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: `anim.FEET` drives the front (right) foot: planted, lifts 1.5 px then 3 px while drawing back during the wind-up, travels forward through the smears, stomps down 4 px forward at impact with its own dust (`fx.stomp`), then steps back in the recovery so the loop closes. The rear foot never moves. New planted-feet check and test; all 8 checks and 7 tests pass.
+- Signed off: Claude, 2026-09-27
 
 ### Step 4. Torso and head lean
 - [ ] Tilt the upper body with per-row horizontal shifts, not rotation: 1 to 2 px back at the peak,
@@ -133,6 +133,7 @@ frames or fewer.
 - Approve optional steps A to D? (asked 2026-09-27)
 
 ## Log
+- 2026-09-27: Step 3 (step into the strike) done. Front foot keyframes in `anim.FEET`; mark a frame `planted=True` only if the ankle row equals the neutral row. (Claude)
 - 2026-09-27: Step 2 (hips and knee bend) done. Hip offsets live in `anim.HIPS`; a deeper crouch than 4 px hides the thighs under the skirt, so keep it at or below that. (Claude)
 - 2026-09-27: Step 1 (leg rig) done. `rig.draw_leg`, `rig.leg_ik`, `LEG_NEUTRAL`, `LEG_LEN`; frames accept `legs={'left': dict(hip=..., ankle=...)}`. (Claude)
 - 2026-09-27: Board created, Step 0 done. (Claude)

@@ -34,6 +34,22 @@ def check_leg_lengths():
     return not bad, 'leg lengths constant' if not bad else '; '.join(bad)
 
 
+def check_feet_planted():
+    """Planted boots must sit exactly on the ground: the rear foot in every frame and the
+    front foot whenever it is marked planted (its drawn ankle row equals the neutral row)."""
+    bad = []
+    for i, fr in enumerate(anim.FRAMES):
+        _, _, parts = anim.render_character(i)
+        for name in ('left', 'right'):
+            if name == 'right' and not fr.get('front_planted', True):
+                continue
+            j = parts['legs'][name]
+            dy = int(round(j['ankle'][1] - rig.LEG_NEUTRAL[name]['ankle'][1]))
+            if dy != 0:
+                bad.append(f'frame {i+1} {name} foot off the ground by {-dy} px')
+    return not bad, 'planted feet on the ground' if not bad else '; '.join(bad)
+
+
 def check_face_clear():
     hits = []
     for i, fr in enumerate(anim.FRAMES):
@@ -68,7 +84,7 @@ def check_gif(path, frames, scale):
 
 def run_all(frames=None, gif_paths=()):
     results = [('frame count', check_frame_count()), ('arm lengths', check_arm_lengths()),
-               ('leg lengths', check_leg_lengths()),
+               ('leg lengths', check_leg_lengths()), ('planted feet', check_feet_planted()),
                ('face clearance', check_face_clear()), ('layer tiling', check_tiling())]
     for p, s in gif_paths:
         results.append((f'gif x{s}', check_gif(p, frames, s)))

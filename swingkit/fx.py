@@ -273,6 +273,22 @@ def particles(layer, I, t, back=None):
     discs = [dsc for dsc in discs if dsc[2] >= 1.6]
     cloud(layer, discs)
 
+def stomp(layer, fr, t):
+    """Small dust kicked out from under the front boot when it stomps down (t = frames
+    since the stomp, 0 on the impact frame)."""
+    ankle = fr['legs']['right']['ankle']
+    x = ankle[0] + X0 + 1                    # boot centre, view x
+    gy = rig.FEET_ROW + Y0 + M               # ground, layer row
+    discs = []
+    for side, r0, rm in ((-1, 2.0, 4.0), (1, 2.5, 5.0), (1, 1.5, 3.0)):
+        spread = 6 + 7 * (1 - 0.55 ** (t + 0.6))
+        r = r0 + (rm - r0) * (1 - np.exp(-(t + 0.5) / 1.1))
+        fade = min(max((t - 1.2) / 1.4, 0), 1)
+        rr = r * (1 - 0.75 * fade)
+        cx = x + side * spread * (1.0 if rm > 3.5 else 1.7)
+        discs.append((cx, gy - rr * 0.5, rr, 1.5, fade))
+    cloud(layer, [d for d in discs if d[2] >= 1.2])
+
 def clod(layer, fr, t):
     """Dirt still clinging to the blade tip as it is pulled free, falling off."""
     sw = sword_of(fr)

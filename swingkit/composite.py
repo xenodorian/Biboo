@@ -63,6 +63,8 @@ def render_frame(i, parts_out=None):
     elif i in (10, 11):
         fx.particles(front, I, T[i], back=back)
         fx.clod(front, fr, 0 if i == 10 else 1.4)
+    if i in (6, 7, 8):
+        fx.stomp(front, fr, i - 6)
     back.clip_below(fx.GROUND_LY); front.clip_below(fx.GROUND_LY + 1)
     C, sw, parts = anim.render_character(i)
     ch = char_layer(C)

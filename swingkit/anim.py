@@ -112,7 +112,32 @@ def _rebase(fr, spec):
     fr['legs'] = {n: dict(hip=_add(rig.LEG_NEUTRAL[n]['hip'], hip)) for n in ('left', 'right')}
     return fr
 
+# ---------------------------------------------------------------- footwork (step 3)
+# Front (right) foot: planted, lifts and draws back as weight rocks onto the rear leg,
+# travels forward during the swing, stomps down 4 px forward at impact, then steps back
+# during the recovery so the loop returns to the ready stance. The rear foot never moves.
+# 'planted' feet must sit exactly on the ground (ankle row unchanged).
+R0 = rig.LEG_NEUTRAL['right']['ankle']
+FEET = dict(
+    ready=dict(right=(R0[0], R0[1]), planted=True),
+    rise1=dict(right=(R0[0], R0[1]), planted=True),
+    rise2=dict(right=(R0[0] - 0.5, R0[1] - 1.5), planted=False),
+    peak=dict(right=(R0[0] - 1.0, R0[1] - 3.0), planted=False),
+    smearA=dict(right=(R0[0] + 1.0, R0[1] - 2.0), planted=False),
+    smearB=dict(right=(R0[0] + 3.0, R0[1] - 1.0), planted=False),
+    impact=dict(right=(R0[0] + 4.0, R0[1]), planted=True),
+    plume1=dict(right=(R0[0] + 4.0, R0[1]), planted=True),
+    plume2=dict(right=(R0[0] + 4.0, R0[1]), planted=True),
+    settle=dict(right=(R0[0] + 4.0, R0[1]), planted=True),
+    recover1=dict(right=(R0[0] + 2.5, R0[1] - 1.5), planted=False),
+    recover2=dict(right=(R0[0] + 0.5, R0[1]), planted=True),
+)
+
 FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
+for fr in FRAMES:
+    ft = FEET[fr['name']]
+    fr['legs']['right']['ankle'] = ft['right']
+    fr['front_planted'] = ft['planted']
 
 def shoulders(fr):
     t = np.array(fr['torso'], float)
