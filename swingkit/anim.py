@@ -32,9 +32,9 @@ def two_hand(theta, Hl):
 # guard and grip pass behind the head while the rear hand stays in front.
 LOW = ['hair', 'body', 'far', 'grip', 'lead_fist', 'head', 'near', 'rear_fist', 'guard', 'blade']
 HIGH = ['hair', 'body', 'blade', 'guard', 'far', 'grip', 'lead_fist', 'head', 'near', 'rear_fist']
-# PLOW: hands low at the hip. The lead arm hangs on the far side: behind the upper body (torso),
-# in front of the hair and skirt, so it stays visible where the body does not cover it.
-PLOW = ['hair', 'body', 'far', 'torso', 'grip', 'lead_fist', 'head', 'near', 'rear_fist', 'guard', 'blade']
+# PLOW: hands low at the hip. The lead arm hangs on the far side, behind the torso and skirt (so the
+# elbow never sticks out), in front of the hair; its forearm shows where it leaves the body.
+PLOW = ['hair', 'far', 'body', 'grip', 'lead_fist', 'head', 'near', 'rear_fist', 'guard', 'blade']
 
 # Each frame: name, duration, sword angle (degrees, 0 = pointing forward, 90 = up, 180 = back),
 # arm sleeves, elbow direction ('down' or 'fwd'), draw order and effect flags. Hand positions are
@@ -61,11 +61,12 @@ F(name='peak', ms=250, theta=135, sway=0, elbows='fwd', order=HIGH, glint=True)
 F(name='smearA', ms=50, theta=55, sway=-2, elbows='fwd', order=HIGH, smear_from='peak')
 # 7 SMEAR B - arms at full forward extension, upper body bends into the strike
 F(name='smearB', ms=40, theta=-4, sway=-3, smear_from='smearA')
-# 8 IMPACT - blade buried, arms extended, deepest bend
-F(name='impact', ms=110, theta=-28, sway=-1, smear_from='smearB', residual=True)
+# 8 IMPACT - blade buried, deepest bend. Low point (user reference): the near shoulder, straight
+# near arm, grip and blade form one line; rear hand by the pommel, lead hand below the guard
+F(name='impact', ms=110, theta=-31.7, sway=-1, smear_from='smearB', residual=True)
 # 9-10 hold while debris flies; hair overshoots then settles; body eases up
-F(name='plume1', ms=90, theta=-28, sway=2)
-F(name='settle', ms=120, theta=-28, sway=0)
+F(name='plume1', ms=90, theta=-31.7, sway=2)
+F(name='settle', ms=120, theta=-31.7, sway=0)
 # 11 RECOVER 1 - pull the blade free, arms bend again
 F(name='recover1', ms=110, theta=-16, sway=-1)
 # 12 RECOVER 2 - ease back into the ready pose (loops to frame 1)
@@ -87,7 +88,7 @@ HIPS = dict(
     smearB=dict(hip=(1, 2), torso=(0, 0), head=(0, 0), lean=2, bend=12),
     impact=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=2, bend=20),
     plume1=dict(hip=(2, 4), torso=(0, 0), head=(0, 0), lean=2, bend=22),
-    settle=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=2, bend=18),   # stays down while the blade is buried
+    settle=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=2, bend=20),   # stays down while the blade is buried
     recover1=dict(hip=(1, 1), torso=(0, 0), head=(0, 0), lean=1, bend=8),
     recover2=dict(hip=(0, 1), torso=(0, 0), head=(0, 0), lean=0, bend=2),
 )
@@ -189,7 +190,7 @@ SHOULDERS = dict(
     impact=dict(near=(1.0, 1.5), far=(0.5, 1.0), near_sleeve=-1.0, rs=0.4),
     plume1=dict(near=(1.0, 1.5), far=(0.5, 1.0), near_sleeve=-1.0, rs=0.4),
     plume2=dict(near=(0.5, 1.0), far=(0.5, 0.5), near_sleeve=-0.5, rs=0.2),
-    settle=dict(near=(0.5, 1.0), far=(0.5, 1.0), near_sleeve=-0.5, rs=0.2),   # still braced on the buried blade
+    settle=dict(near=(1.0, 1.5), far=(0.5, 1.0), near_sleeve=-0.5, rs=0.2),   # still braced on the buried blade
     recover1=dict(),
     recover2=dict(),
 )
@@ -214,12 +215,12 @@ FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
 # blade is buried (impact, plume1, settle) the grip stays fixed in the world as the body moves.
 REAR_HAND = dict(ready=(37.5, 37.4), dip=(36.6, 33.0), rise1=(38.0, 17.1), rise2=(31.7, 9.3),
                  peak=(34.5, 7.5), smearA=(36.5, 10.0), smearB=(49.5, 30.9),
-                 impact=(50.4, 38.5), plume1=(50.4, 38.5), settle=(50.4, 38.5),
+                 impact=(48.36, 45.69), plume1=(48.36, 45.69), settle=(48.36, 45.69),
                  recover1=(42.9, 38.4), recover2=(36.6, 32.2))
 
 # Hand gap along the grip where a frame differs from HAND_GAP. Peak (high guard): lead hand 12 px
 # up the grip so both fists sit clear above the head. Ready (Plow): lead hand just below the guard.
-GRIP_GAP = dict(peak=12.0, ready=14.0)
+GRIP_GAP = dict(peak=12.0, ready=14.0, impact=14.0, plume1=14.0, settle=14.0)
 
 def apply_grip(fr, Hl):
     Hl, Hu = two_hand(fr['theta'], Hl)                     # Hu = sword reference point
