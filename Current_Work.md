@@ -225,22 +225,23 @@ frames or fewer.
 - Signed off: Claude, 2026-09-28
 
 ### Step 18. Arms bend at the elbow (fixed lengths)
-- [ ] User request (2026-09-28): the rear arm bends down at the elbow instead of shortening.
-- [ ] The lead (far) arm's upper arm rises only until it is parallel to the ground; beyond that the
+- [x] User request (2026-09-28): the rear arm bends down at the elbow instead of shortening.
+- [x] The lead (far) arm's upper arm rises only until it is parallel to the ground; beyond that the
       elbow bends to keep lifting the sword.
-- [ ] Both arms become two-bone IK with fixed upper-arm and forearm lengths. Re-solve the hand
+- [x] Both arms become two-bone IK with fixed upper-arm and forearm lengths. Re-solve the hand
       positions per frame under the new limits (face clearance, rear hand on the pommel end, blade
       buried at impact).
 - Acceptance: upper-arm and forearm lengths constant in every frame; rear elbow bends downward;
   lead upper arm never above horizontal; all checks and tests pass.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: Both arms are two-bone IK with fixed lengths (`anim.ARM_LEN`: upper 10, forearm 10.8; `rig.arm_ik`, elbow-down solution), so they bend at the elbow instead of shortening. The lead upper arm never rises above horizontal (new check); in the rise and peak it stays level and the forearm bends up. Hand positions re-solved per frame under the new limits (peak hands now at head height, blade 76 degrees). Checks now verify fixed segment lengths and the lead-arm limit; all 10 checks and 9 tests pass.
+- Signed off: Claude, 2026-09-28
 
 ## Open questions
 - None.
 
 ## Log
+- 2026-09-28: Step 18 (elbows) done. Arm segment lengths in `anim.ARM_LEN`; hands must stay reachable with the lead elbow at or below shoulder height. (Claude)
 - 2026-09-28: Step 17 (rear hand on the pommel end) done. Hand positions live in `anim.REAR_HAND` in final coordinates; keep the buried-blade frames on one shared grip. (Claude)
 - 2026-09-28: Step 16 (lead foot toes forward) done. Foot shape per leg lives in `rig.LEG_NEUTRAL`. (Claude)
 - 2026-09-28: Step 15 (ankles) done. Feet are drawn with the shin in `rig._foot_mask`; the hand-drawn foot grids are gone. (Claude)

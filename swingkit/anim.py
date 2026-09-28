@@ -11,6 +11,8 @@ from . import rig
 from .rig import V, Canvas, Sword, arm, fist, body, finish
 
 S_NEAR = np.array([20.0, 29.5])     # viewer-left shoulder (arm crosses in front)
+# Fixed arm segment lengths (upper arm, forearm), step 18. Arms bend at the elbow, never shorten.
+ARM_LEN = dict(near=(10.0, 10.8), far=(10.0, 10.8))
 S_FAR = np.array([35.5, 29.0])      # viewer-right shoulder
 
 # Rear (near) hand holds the base of the handle just above the pommel in every frame; the front
@@ -49,8 +51,8 @@ F(name='rise2', ms=80, theta=62, H=Hu, Hl=Hl, head=(-2, -1), torso=(-1, -1), ski
   order=['body', 'grip', 'far', 'near', 'fists', 'guard', 'blade'])
 # 4 PEAK - two-handed high guard beside the head, blade near upright (the pommel is in the
 # rear hand, so the blade cannot lean back over the head)
-Hl, Hu = two_hand(80, (38.5, 28.5))
-F(name='peak', ms=250, theta=80, H=Hu, Hl=Hl, head=(-2, -1), torso=(-1, -1), skirt=(0, 0), sway=0,
+Hl, Hu = two_hand(76, (38.5, 28.5))
+F(name='peak', ms=250, theta=76, H=Hu, Hl=Hl, head=(-2, -1), torso=(-1, -1), skirt=(0, 0), sway=0,
   far=dict(to=Hu, elbow=(47.0, 20.0), sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
   order=['body', 'grip', 'far', 'near', 'fists', 'guard', 'blade'], glint=True)
 # 5 SMEAR A - both hands rejoin on the grip, blade sweeping over the top
@@ -231,12 +233,13 @@ def by_name(name):
 FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
 # ---------------------------------------------------------------- grip (step 17)
 # Rear (near) hand position per frame in final sprite coordinates, solved so both arms stay in
-# their design ranges (near 16-20.5 px, far 6-20 px) with the rear arm below the chin. The front
+# reach with fixed-length arms (elbows bend, step 18), the lead upper arm never above horizontal,
+# and the rear arm below the chin. The front
 # hand is always GRIP_SPAN further along the grip. While the blade is buried (impact, plume1,
 # settle) the grip stays fixed in the world as the body moves.
-REAR_HAND = dict(ready=(36.3, 30.5), dip=(36.5, 33.0), rise1=(37.5, 30.0), rise2=(36.5, 30.5),
-                 peak=(38.5, 29.5), smearA=(38.5, 29.5), smearB=(39.0, 34.5),
-                 impact=(39.5, 37.0), plume1=(39.5, 37.0), settle=(39.5, 37.0),
+REAR_HAND = dict(ready=(36.3, 30.5), dip=(36.5, 33.0), rise1=(36.0, 31.0), rise2=(36.5, 32.5),
+                 peak=(38.5, 34.0), smearA=(37.5, 31.0), smearB=(39.0, 34.5),
+                 impact=(39.0, 37.0), plume1=(39.0, 37.0), settle=(39.0, 37.0),
                  recover1=(38.0, 34.0), recover2=(36.5, 32.0))
 
 for fr in FRAMES:
@@ -264,12 +267,22 @@ def shoulders(fr):
     sd = fr.get('shoulders', {})
     return S_NEAR + t + np.array(sd.get('near', (0, 0))), S_FAR + t + np.array(sd.get('far', (0, 0)))
 
-def arm_lengths(fr):
+def arm_reach(fr):
+    """Shoulder-to-hand distance for the near and far arm."""
     sn, sf = shoulders(fr)
-    def plen(S, spec):
-        pts = [S] + ([np.array(spec['elbow'])] if spec.get('elbow') is not None else []) + [np.array(spec['to'])]
-        return sum(np.linalg.norm(b - a) for a, b in zip(pts[:-1], pts[1:]))
-    return plen(sn, fr['near']), plen(sf, fr['far'])
+    return float(np.linalg.norm(np.array(fr['near']['to']) - sn)), float(np.linalg.norm(np.array(fr['far']['to']) - sf))
+
+def arm_joints(fr):
+    """Shoulder, elbow and hand for both arms (elbow from two-bone IK, elbow down)."""
+    sn, sf = shoulders(fr)
+    out = {}
+    for k, S in (('near', sn), ('far', sf)):
+        H = np.array(fr[k]['to'], float)
+        E = rig.arm_ik(S, H, *ARM_LEN[k])
+        out[k] = (S, E, H)
+    return out
+
+arm_lengths = arm_reach        # backward-compatible name
 
 def render_character(i):
     fr = FRAMES[i]
@@ -286,12 +299,14 @@ def render_character(i):
         elif op == 'far':
             a = fr['far']
             sd = fr.get('shoulders', {})
-            parts['far'] = arm(cv, sf, a['to'], elbow=a.get('elbow'), sleeve=a.get('sleeve', 3.5) + sd.get('far_sleeve', 0),
+            E = rig.arm_ik(sf, a['to'], *ARM_LEN['far'])
+            parts['far'] = arm(cv, sf, a['to'], elbow=tuple(E), sleeve=a.get('sleeve', 3.5) + sd.get('far_sleeve', 0),
                                rs=a.get('rs', 2.6) + sd.get('rs', 0))
         elif op == 'near':
             a = fr['near']
             sd = fr.get('shoulders', {})
-            parts['near'] = arm(cv, sn, a['to'], elbow=a.get('elbow'), sleeve=a.get('sleeve', 7.0) + sd.get('near_sleeve', 0),
+            E = rig.arm_ik(sn, a['to'], *ARM_LEN['near'])
+            parts['near'] = arm(cv, sn, a['to'], elbow=tuple(E), sleeve=a.get('sleeve', 7.0) + sd.get('near_sleeve', 0),
                                 rs=a.get('rs', 2.7) + sd.get('rs', 0))
         elif op == 'grip':
             parts['grip'] = sw.grip(cv)

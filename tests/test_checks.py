@@ -9,6 +9,10 @@ def test_arm_lengths():
     ok, msg = checks.check_arm_lengths(); assert ok, msg
 
 
+def test_lead_upper_arm():
+    ok, msg = checks.check_lead_upper_arm(); assert ok, msg
+
+
 def test_leg_lengths():
     ok, msg = checks.check_leg_lengths(); assert ok, msg
 

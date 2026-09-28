@@ -399,6 +399,20 @@ def _beyond(q, pts, M):
         acc += L
     return qpos >= mpos - 1e-6
 
+def arm_ik(S, H, L1, L2):
+    """Two-bone arm IK: elbow for fixed upper-arm (L1) and forearm (L2) lengths, taking the
+    elbow-down solution. If the hand is out of reach the arm is straight toward it."""
+    S = np.asarray(S, float); H = np.asarray(H, float)
+    d = H - S; dist = float(np.hypot(*d))
+    u = d / max(dist, 1e-9)
+    if dist >= L1 + L2: return S + u * L1
+    dist = max(dist, abs(L1 - L2) + 1e-6)
+    a = (L1 * L1 - L2 * L2 + dist * dist) / (2 * dist)
+    h = np.sqrt(max(L1 * L1 - a * a, 0.0))
+    perp = np.array([-u[1], u[0]])
+    e1, e2 = S + u * a + perp * h, S + u * a - perp * h
+    return e1 if e1[1] >= e2[1] else e2
+
 def fist(cv, c):
     c = V(*c)
     def f(p):

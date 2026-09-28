@@ -13,12 +13,27 @@ def check_frame_count():
 
 
 def check_arm_lengths():
+    """Arms bend, never stretch or shrink: upper arm and forearm keep their fixed lengths and
+    every hand is actually reached."""
     bad = []
     for i, fr in enumerate(anim.FRAMES):
-        near, far = anim.arm_lengths(fr)
-        if not NEAR_ARM_RANGE[0] <= near <= NEAR_ARM_RANGE[1]: bad.append(f'frame {i+1} near {near:.1f}')
-        if not FAR_ARM_RANGE[0] <= far <= FAR_ARM_RANGE[1]: bad.append(f'frame {i+1} far {far:.1f}')
-    return not bad, 'arm lengths in range' if not bad else '; '.join(bad)
+        for k, (S, E, H) in anim.arm_joints(fr).items():
+            L1, L2 = anim.ARM_LEN[k]
+            u, f = float(np.linalg.norm(E - S)), float(np.linalg.norm(H - E))
+            if abs(u - L1) > 0.05 or abs(f - L2) > 0.05:
+                bad.append(f'frame {i+1} {k} arm upper {u:.1f}/{L1} fore {f:.1f}/{L2} (hand out of reach)')
+    return not bad, 'arm segments fixed, hands reached' if not bad else '; '.join(bad)
+
+
+def check_lead_upper_arm():
+    """The lead (far) upper arm rises only until it is parallel to the ground; above that the
+    elbow bends. Elbow must not be higher than the shoulder."""
+    bad = []
+    for i, fr in enumerate(anim.FRAMES):
+        S, E, H = anim.arm_joints(fr)['far']
+        if E[1] < S[1] - 0.3:
+            bad.append(f'frame {i+1} lead upper arm {S[1] - E[1]:.1f} px above horizontal')
+    return not bad, 'lead upper arm never above horizontal' if not bad else '; '.join(bad)
 
 
 def check_leg_lengths():
@@ -101,6 +116,7 @@ def check_gif(path, frames, scale):
 
 def run_all(frames=None, gif_paths=()):
     results = [('frame count', check_frame_count()), ('arm lengths', check_arm_lengths()),
+               ('lead upper arm', check_lead_upper_arm()),
                ('leg lengths', check_leg_lengths()), ('planted feet', check_feet_planted()),
                ('rear grip', check_rear_hand_on_pommel()),
                ('face clearance', check_face_clear()), ('layer tiling', check_tiling())]
