@@ -168,16 +168,17 @@ frames or fewer.
 - Signed off: Claude, 2026-09-28
 
 ### Step 13. Review and publish follow-ups
-- [ ] Review every frame zoomed and at 1x, update `docs/swing_x3.gif`, the README table and the
+- [x] Review every frame zoomed and at 1x, update `docs/swing_x3.gif`, the README table and the
       manifest.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: Reviewed all 12 frames zoomed and at 1x; no blocking issues. `docs/swing_x3.gif` and `docs/char_sheet.png` updated, README frame table rewritten for the new frame list (dip added, plume2 removed), manifest now also records gaze, rear heel and shoulders per frame. All 8 checks and 7 tests pass.
+- Signed off: Claude, 2026-09-28
 
 ## Open questions
 - None.
 
 ## Log
+- 2026-09-28: Step 13 done. All approved follow-ups (steps 8 to 13) are complete; nothing is waiting on approval. (Claude)
 - 2026-09-28: Step 12 (dip) done. Frames are referenced by name everywhere now; never use hard-coded frame indices. (Claude)
 - 2026-09-28: Step 11 (heel-up boot) done. Heel is down at the peak on purpose (weight is on the rear foot there). (Claude)
 - 2026-09-28: Step 10 (shoulder drive, sleeve squash) done. Values in `anim.SHOULDERS`. (Claude)

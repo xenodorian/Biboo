@@ -79,6 +79,8 @@ def build(out_dir, scales=(3, 1), clean=True, log=print):
                         front_foot_ankle=[round(float(v), 2) for v in f['legs']['right']['ankle']],
                         front_foot_planted=bool(f.get('front_planted', True)),
                         skirt=f.get('cloth', {}), hair=dict(sway=f.get('sway', 0), lift=f.get('hair_lift', 0)),
+                        gaze=f.get('gaze', 0), rear_heel_up=bool(f['legs']['left'].get('heel_up', False)),
+                        shoulders=f.get('shoulders', {}),
                         camera_shake_px=list(cp.SHAKE.get(i, (0, 0)))) for i, f in enumerate(anim.FRAMES)],
         camera_shake_parallax=cp.SHAKE_PARALLAX,
         total_ms=sum(durs), loops=True)

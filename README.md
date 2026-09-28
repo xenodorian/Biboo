@@ -55,14 +55,15 @@ measurements, never scaled, so proportions stay identical.
 
 | Frame | Name | ms | What happens |
 |---|---|---|---|
-| 1 | ready | 360 | Original design pose, two hands, blade forward, both feet planted |
-| 2 | rise1 | 90 | Both hands lift the blade; weight rocks back onto the rear leg, body leans back |
-| 3 | rise2 | 80 | Near hand lets go to a guard fist; front foot lifts; skirt and hair float up |
-| 4 | peak | 250 | One-handed high guard, blade over the head, glint; front foot 3 px off the ground |
-| 5 | smearA | 50 | Hands rejoin, smear over the top; front foot travels forward, hair trails |
-| 6 | smearB | 40 | Body drops and leans into the strike; hair and hem lift from the speed |
-| 7 | impact | 110 | Blade buried, front foot stomps down 4 px forward, knees bent, flash, dirt, shake |
-| 8-10 | plume1, plume2, settle | 80, 80, 100 | Dust plume and debris; body overshoots 1 px lower, skirt bounces, hair swings forward and settles |
+| 1 | ready | 320 | Original design pose, two hands, blade forward, both feet planted |
+| 2 | dip | 80 | Down before up: knees bend, blade dips below the ready line |
+| 3 | rise1 | 90 | Both hands lift the blade; weight rocks back onto the rear leg, body leans back |
+| 4 | rise2 | 80 | Near hand lets go to a guard fist; front foot lifts; eyes look up at the blade |
+| 5 | peak | 250 | One-handed high guard, blade over the head, glint; front foot 3 px up, far shoulder lifted |
+| 6 | smearA | 50 | Hands rejoin, smear over the top; rear heel lifts onto the toe, front foot travels |
+| 7 | smearB | 40 | Body drops and leans into the strike; near shoulder drives down; hair and hem lift |
+| 8 | impact | 110 | Blade buried, front foot stomps 4 px forward, knees bent, sleeves squash, flash, dirt, shake |
+| 9-10 | plume1, settle | 90, 120 | Dust plume and debris; body overshoots 1 px lower, skirt bounces, hair swings and settles |
 | 11-12 | recover1, recover2 | 110, 130 | Blade pulled free, front foot steps back, ease into frame 1 |
 
 Techniques: the fast part of the swing is carried by smear frames instead of in-between poses;
@@ -74,7 +75,9 @@ The skirt hem lifts, trails, flares and bounces; the long hair sways and lifts w
 dust use simple deterministic physics; camera shake moves distant layers less.
 
 Per-frame motion tables live in `swingkit/anim.py`: `HIPS` (hip offset and lean), `FEET` (front
-foot), `CLOTH` (skirt hem) and `HAIR` (sway and lift).
+foot), `REAR_HEEL_UP`, `CLOTH` (skirt hem), `HAIR` (sway and lift), `GAZE` (eye direction) and
+`SHOULDERS` (shoulder drive and sleeve squash). Frames are always looked up by name
+(`anim.by_name`), never by index. Boot feet are hand-drawn grids in `swingkit/rig.py`.
 
 ## Project layout
 
