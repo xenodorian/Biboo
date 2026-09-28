@@ -379,24 +379,27 @@ Framework: `swingkit/moves/base.py` (pose specs, tween, reach fitting), `swingki
 - Signed off: Claude, 2026-09-28
 
 ### Step 31. Combo attacks
-- [ ] A+B: horizontal slash charged with glittering blue energy
-- [ ] B+L: heavy push kick; A+B+L: heavy push kick with blue energy
-- [ ] L+R: energy burst in all directions
-- [ ] X+Y: taunt
-- [ ] X+A: dash forward in a blur, then thrust
-- [ ] Y-A: jump, then crash down with a heavy attack
-- [ ] Down-Y: dash up 6 body lengths
-- [ ] Left-Right-A: spin attack
-- [ ] B-X-A: dash forward into a heavy thrust with blue energy
-- [ ] Down-Right-A-B: large energy projectile from the sword
-- [ ] Down-Down-Down-Down-A: earthquake
-- [ ] Up-Up-Up-Up-A: meteor shower
-- Status: TODO
+- [x] A+B: horizontal slash charged with glittering blue energy
+- [x] B+L: heavy push kick; A+B+L: heavy push kick with blue energy
+- [x] L+R: energy burst in all directions
+- [x] X+Y: taunt
+- [x] X+A: dash forward in a blur, then thrust
+- [x] Y-A: jump, then crash down with a heavy attack
+- [x] Down-Y: dash up 6 body lengths
+- [x] Left-Right-A: spin attack
+- [x] B-X-A: dash forward into a heavy thrust with blue energy
+- [x] Down-Right-A-B: large energy projectile from the sword
+- [x] Down-Down-Down-Down-A: earthquake
+- [x] Up-Up-Up-Up-A: meteor shower
+- Status: DONE
+- Result: All 13 combos built from the basic moves plus new effects (`movefx`: energy glitter and glow, aura, burst ring, afterimages, speed lines, ring smear with mirrored turn frames, energy crescent projectile, earthquake cracks, rocks and dust on an unclipped ground layer, meteors). Jump crash and earthquake reuse the heavy attack's impact pose and black-and-white frame.
+- Signed off: Claude, 2026-09-28
 
 ## Open questions
 - Ready is now Plow (blade 27 degrees up, hands at the hip). The dip (blade -6, hands at chest) and recover2 (blade 0) still match the old ready pose, so they jump. Re-pose them to lead into and out of Plow? (asked 2026-09-28)
 
 ## Log
+- 2026-09-28: Step 31 done: 13 combo moves. Library now has 29 moves (28 new plus the heavy attack); previews in `docs/moves/`. (Claude)
 - 2026-09-28: Steps 29 and 30 done: move framework, input map, 9 non-combat moves and 6 basic attacks. Build: `python -m swingkit` (add `--no-moves` to skip the library). (Claude)
 - 2026-09-28: User request: strike motion blur regenerated (`fx.blur_strike`: stepped crescent trailing the blade with speed streaks; the old `fx.smear` is removed). New frame 6 'impactbw' (`fx.impact_frame_bw`): anime-style black-and-white impact frame with radial speed lines, flagged `impact_frame_bw` in the manifest. 11 frames. (Claude)
 - 2026-09-28: User request: blur arc moved back so it trails the blade (`composite.SMEAR_END` = 0.85); new frame 6 'burst' (same pose as impact) carries the first dust cloud, which moved off the impact frame; particle timing now starts at burst; 10 frames. (Claude)

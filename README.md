@@ -84,6 +84,51 @@ foot), `REAR_HEEL_UP`, `CLOTH` (skirt hem), `HAIR` (sway and lift), `GAZE` (eye 
 (`anim.by_name`), never by index. Each boot foot is drawn together with its shin as one shape
 (`rig._foot_mask`), so the ankle is continuous; both feet point toward the strike.
 
+## Move library
+
+Every other move the character has lives in `swingkit/moves/` and is built with the main
+animation (`python -m swingkit`; add `--no-moves` to skip it). Each move writes composited preview
+frames, transparent sprites on one shared anchor, a sprite sheet and a 2x GIF to
+`out/moves/<id>/`. `out/moves/moves.json` holds the game data for all of them: frame timing, root
+motion (how far the character travels, y up), hitbox capsules on active frames, loop points and the
+input. `game/input_map.json` maps the Dreamcast pad to the moves ('+' = pressed together, '-' = in
+sequence) with chord, sequence and tap windows. Previews of every move are in `docs/moves/`.
+
+| Input | Move | Notes |
+|---|---|---|
+| none | idle | Plow guard, breathing loop |
+| Right / Left (hold) | walk_right / walk_left | Shuffle steps in guard, 12 px per cycle |
+| Down (hold) | duck | Crouch, holds |
+| Up (hold) | charge | Rises into the high guard, blue aura loop; release into Up+A |
+| B hold / tap | block / parry | Upright sword; tap gives a spark parry window |
+| Y | jump | Two body heights (164 px) |
+| X | dash | 92 px, afterimages and speed lines |
+| A | slash | Horizontal slash, flat crescent smear |
+| Up+A | heavy | The main chop animation above |
+| Right+A | thrust | Lunging thrust, 18 px forward |
+| Down+A | upswing | Duck, then rising cut |
+| Left+A | backstep_upswing | Rising cut while hopping 36 px back |
+| L | push_kick | Chamber, hip-height push, recoil |
+| R (hold) | recover | Kneel on the planted sword, green glow, rising + signs |
+| A+B | energy_slash | Slash with glittering blue energy |
+| B+L / A+B+L | heavy_kick / energy_kick | Bigger push kick; with blue energy |
+| L+R | energy_burst | Ring and rays in all directions |
+| X+Y | taunt | Plants the sword and beckons |
+| X+A | dash_thrust | Blurred dash into the thrust |
+| Y-A | jump_crash | Jump, then crash down into the heavy impact |
+| Down-Y | sky_dash | Rises 6 body lengths (492 px) |
+| Left-Right-A | spin_attack | Two turns with a ring smear |
+| B-X-A | energy_dash_thrust | Dash thrust with blue energy |
+| Down-Right-A-B | energy_wave | Upswing that launches a large energy crescent |
+| Down x4, A | earthquake | Slam, cracks and rocks along the ground, heavy shake |
+| Up x4, A | meteor_shower | Sword to the sky, meteors rain ahead |
+
+Moves are written as short pose specs (only what differs from the plow guard) in
+`swingkit/moves/`; `base.frame()` turns them into rig frames, `base.tween()` makes in-betweens and
+`base.fit()` pulls the grip into reach. Effects are in `swingkit/movefx.py`, the compositor
+(root motion, follow camera, afterimages) in `swingkit/movekit.py`. The `moves` check keeps every
+move on the rig rules (fixed limb lengths, planted feet, grip, draw order, face clear).
+
 ## Project layout
 
 ```

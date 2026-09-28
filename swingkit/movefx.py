@@ -246,7 +246,7 @@ def projectile(ctx, x=90, y=40, size=1.0, color='blue'):
     """Large energy crescent flying forward; x, y in sprite coords of the character."""
     t = TONES[color]
     c = ctx.L((x, y))
-    R = 26 * size
+    R = 40 * size
     for rr, col, frac in ((R, t[0], 1.0), (R * 0.9, t[1], 0.85), (R * 0.78, t[2], 0.7), (R * 0.66, t[3], 0.55)):
         pts = []
         for a in np.radians(np.linspace(-80, 80, 25)):
@@ -270,29 +270,39 @@ def impact(ctx, u=None, big=True, flash=True):
 
 
 def quake(ctx, t=0.0, reach=150):
-    """Earthquake: cracks racing along the ground both ways, rocks thrown up, dust."""
+    """Earthquake: cracks racing along and down into the ground both ways, rocks thrown up, dust."""
     sw = ctx.sw
     u = (rig.FEET_ROW - sw.B0[1]) / sw.d[1] if abs(sw.d[1]) > 1e-3 else Sword.L
     I = ctx.L(sw.B0 + u * sw.d)
     gy = ctx.gy
     rng = np.random.default_rng(13)
-    for side in (-1, 1):
+    L = reach * min(1.0, 0.35 + t * 0.4)
+    for side in (-1, 1):                          # main crack along the surface, branches into the soil
         x, y = I[0], gy
-        L = reach * min(1.0, 0.35 + t * 0.4)
         while abs(x - I[0]) < L:
-            nx = x + side * rng.uniform(4, 9); ny = gy + rng.uniform(-1.5, 3.5)
-            ctx.front.line((x, y), (nx, ny), C['k_dark'], thick=2)
-            if rng.random() < 0.3:
-                ctx.front.line((nx, ny), (nx + side * 4, ny + rng.uniform(2, 5)), C['k_dark'])
+            nx = x + side * rng.uniform(4, 9); ny = gy + rng.uniform(-1, 4)
+            ctx.ground.line((x, y), (nx, ny), C['k_dark'], thick=2)
+            if rng.random() < 0.45:
+                bx, by = nx, ny
+                for _ in range(int(rng.integers(2, 4))):
+                    cx, cy = bx + side * rng.uniform(1, 4), by + rng.uniform(3, 6)
+                    ctx.ground.line((bx, by), (cx, cy), C['k_dark'])
+                    bx, by = cx, cy
             x, y = nx, ny
-    for k in range(10):                        # rocks
-        x = I[0] + rng.uniform(-reach, reach) * min(1.0, 0.35 + t * 0.4)
-        h = (np.sin(min(t, 2.0) * 1.3 + k) * 0.5 + 0.5) * rng.uniform(8, 30)
-        s = int(rng.integers(2, 4))
+    for k in range(9):                            # rocks thrown up along the crack
+        x = I[0] + rng.uniform(-L, L)
+        h = (np.sin(min(t, 2.0) * 1.3 + k) * 0.5 + 0.5) * rng.uniform(10, 34)
+        s = int(rng.integers(2, 5))
         for dx in range(-s, s + 1):
             for dy in range(-s, s + 1):
                 if abs(dx) + abs(dy) <= s + 1:
                     ctx.front.px(x + dx, gy - h + dy, C['k_mid'] if dy < 0 else C['k_dark'])
+    if t > 0.5:                                   # dust bursting out of the crack, irregular
+        discs = []
+        for k in range(10):
+            x = I[0] + rng.uniform(-L, L); r = rng.uniform(3.0, 7.5) * (1.1 - 0.15 * (t - 1))
+            discs.append((x, gy - r * 0.6 - rng.uniform(0, 5), r, rng.uniform(1.2, 1.8), 0.0))
+        fx.cloud(ctx.front, discs)
     fx.flash(ctx.front, I, scale=0.8, remnant=t > 0.5)
 
 
@@ -307,17 +317,20 @@ def meteors(ctx, t=0.0, n=9, seed=17):
         fall = tt * spd
         y = -20 + fall; x = x_land - (gy + 20 - fall) * 0.55
         if y < gy:
-            for j in range(18):
-                q = (x - j * 0.55 * 1.4, y - j * 1.4)
-                col = C['m_hi'] if j < 3 else (C['m_lite'] if j < 7 else (C['m_mid'] if j < 12 else C['m_dark']))
-                ctx.back.disc(q[0], q[1], max(3.0 - j * 0.15, 0.6), col)
-            ctx.back.disc(x, y, 3.4, C['m_hi'])
+            for j in range(34):
+                q = (x - j * 0.55 * 1.6, y - j * 1.6)
+                col = C['m_hi'] if j < 4 else (C['m_lite'] if j < 10 else (C['m_mid'] if j < 20 else C['m_dark']))
+                ctx.back.disc(q[0], q[1], max(5.0 - j * 0.14, 0.7), col)
+            ctx.back.disc(x, y, 5.5, C['m_lite']); ctx.back.disc(x + 1, y + 1, 3.5, C['m_hi'])
         else:
             age = (y - gy) / spd
-            if age < 1.2:
-                ctx.front.disc(x_land, gy - 3, 7 * (1 - age * 0.5), C['m_lite'])
-                ctx.front.disc(x_land, gy - 3, 4 * (1 - age * 0.6), C['m_hi'])
+            if age < 1.4:
+                ctx.front.disc(x_land, gy - 4, 12 * (1 - age * 0.45), C['m_mid'])
+                ctx.front.disc(x_land, gy - 4, 8 * (1 - age * 0.5), C['m_lite'])
+                ctx.front.disc(x_land, gy - 4, 4 * (1 - age * 0.6), C['m_hi'])
                 fx.crown(ctx.front, np.array([x_land, gy]))
+            elif age < 3.0:
+                fx.cloud(ctx.front, [(x_land + dx, gy - 5 - (age - 1.4) * 4, 6 - (age - 1.4) * 2.5, 1.4, 0.0) for dx in (-6, 0, 6)])
 
 
 def kickwave(ctx, big=False, color='white'):
@@ -336,3 +349,21 @@ EFFECTS = dict(energy=energy, aura=aura, plus=plus, arc=arc, hsmear=hsmear, spin
                thrust_lines=thrust_lines, speedlines=speedlines, vlines=vlines, ghosts=ghosts,
                dust=dust, spark=spark, glint=glint, burst=burst, charge=charge,
                projectile=projectile, impact=impact, quake=quake, meteors=meteors, kickwave=kickwave)
+
+
+def glitter(ctx, at='foot', n=12, color='blue', r=10):
+    """Twinkling sparkles around the kicking foot, the body or a point (sprite coords)."""
+    t = TONES[color]
+    if at == 'foot':
+        c = np.array(ctx.fr['legs']['right']['ankle'], float) + np.array([6.0, 0.0])
+    elif at == 'body':
+        c = np.array([32.0, 45.0]); r = max(r, 30)
+    else:
+        c = np.array(at, float)
+    rng = np.random.default_rng(200 + ctx.i)
+    for _ in range(n):
+        p = ctx.L(c + rng.uniform(-r, r, 2))
+        _star(ctx.front, p[0], p[1], int(rng.integers(1, 3)), t)
+
+
+EFFECTS['glitter'] = glitter

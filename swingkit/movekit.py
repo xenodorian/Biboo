@@ -82,6 +82,7 @@ def render(move, i, offset=(0, 0)):
     back, front = fx.Layer(), fx.Layer()
     ctx = movefx.Ctx(back, front, fr, Sword_at(fr), root, ch[..., 3] > 0, i, move)
     ctx.gy = gy
+    ctx.ground = fx.Layer()                       # drawn over the ground, never clipped (cracks)
     for name, kw in fr.get('fx', []):
         movefx.EFFECTS[name](ctx, **kw)
     if fr['root'][1] <= 0:
@@ -97,7 +98,7 @@ def render(move, i, offset=(0, 0)):
         f = cp.SHAKE_PARALLAX[name]
         par = bg.PARALLAX.get(name, 1.0) if isinstance(bg.PARALLAX, dict) else 1.0
         cp.over(out, view(cp.layers()[name], -cam[0] * par + sx * f, int(round(cam[1] * par + sy * f)), True))
-    for Lr in (back.a, ch, front.a):
+    for Lr in (ctx.ground.a, back.a, ch, front.a):
         cp.over(out, view(Lr, dx, int(round(dy)), False))
     cp.over(out, view(cp.layers()['fringe'], -cam[0] + sx, int(round(cam[1] + sy)), True))
     return out, dict(char=C, back=back.a, front=front.a)
