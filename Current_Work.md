@@ -122,17 +122,61 @@ frames or fewer.
 - Result: All 12 frames reviewed zoomed and at 1x; no blocking issues (the bent front knee's sock cuff reads slightly round in frames 3 and 4, acceptable at this scale). `docs/swing_x3.gif` and `docs/char_sheet.png` updated, README frame table and techniques rewritten, manifest now records hips, lean, front foot, skirt and hair per frame. All 8 checks and 7 tests pass.
 - Signed off: Claude, 2026-09-27
 
-### Optional steps (need the user's approval before starting)
-- [ ] A. Hand-drawn heel-up boot variant, so the rear heel can lift during the swing.
-- [ ] B. A one-frame down-before-up dip at the start of the wind-up. This needs a frame taken from
-      the plume hold (frames 8 to 10).
-- [ ] C. Head direction: chin up at the peak, chin tucked at impact.
-- [ ] D. Shoulder drive and sleeve squash.
+### Approved follow-up steps (user approved all on 2026-09-28)
+
+### Step 8. Sock cuff tidy
+- [ ] Keep the sock cuff a clean band across the leg when the knee bends, instead of a round blob
+      (frames 3 and 4).
+- Acceptance: the cuff reads as a band in every frame; neutral frame visually unchanged; checks pass.
+- Status: TODO
+- Result:
+- Signed off:
+
+### Step 9. Head direction (was optional C)
+- [ ] Chin up at the peak, chin tucked at impact, without redrawing or shearing the face.
+- Acceptance: reads at 1x, face clearance passes, no seams at the neck.
+- Status: TODO
+- Result:
+- Signed off:
+
+### Step 10. Shoulder drive and sleeve squash (was optional D)
+- [ ] Shoulders move independently of the torso: far shoulder rises at the peak, near shoulder
+      drives down at the strike.
+- [ ] Sleeve puffs stretch 1 px at the peak and squash 1 px at impact.
+- Acceptance: arm length check still passes, no seams at the shoulders.
+- Status: TODO
+- Result:
+- Signed off:
+
+### Step 11. Heel-up boot (was optional A)
+- [ ] Hand-draw one heel-up variant of the rear boot (same palette and outline style).
+- [ ] Use it during the wind-up peak and the swing so the rear heel lifts and she pivots on the toe.
+- Acceptance: the toe stays on the ground row (planted check updated for heel-up frames), the variant
+  matches the original boot style, checks pass.
+- Status: TODO
+- Result:
+- Signed off:
+
+### Step 12. Down-before-up dip (was optional B)
+- [ ] Add a one-frame dip before the rise: knees bend, sword dips.
+- [ ] Take the frame from the plume hold (frames 8 to 10 become two frames) so the total stays at 12.
+- Acceptance: 12 frames or fewer, the loop still closes, effects still read, checks pass.
+- Status: TODO
+- Result:
+- Signed off:
+
+### Step 13. Review and publish follow-ups
+- [ ] Review every frame zoomed and at 1x, update `docs/swing_x3.gif`, the README table and the
+      manifest.
+- Status: TODO
+- Result:
+- Signed off:
 
 ## Open questions
-- Approve optional steps A to D? (asked 2026-09-27)
+- None.
 
 ## Log
+- 2026-09-28: User approved optional steps A to D and the sock cuff tidy; added as steps 8 to 13. (Claude)
 - 2026-09-27: Step 7 (review and publish) done. Kinetic upgrade workflow complete; optional steps A to D await the user's approval. (Claude)
 - 2026-09-27: Step 6 (hair) done. Hair values in `anim.HAIR`; keep sway within 4 px and lift within 3 px (tested range). (Claude)
 - 2026-09-27: Step 5 (skirt) done. Cloth values in `anim.CLOTH`. (Claude)
