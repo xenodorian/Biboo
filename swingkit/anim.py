@@ -32,6 +32,8 @@ def two_hand(theta, Hl):
 # guard and grip pass behind the head while the rear hand stays in front.
 LOW = ['body', 'far', 'grip', 'lead_fist', 'head', 'near', 'rear_fist', 'guard', 'blade']
 HIGH = ['body', 'blade', 'guard', 'far', 'grip', 'lead_fist', 'head', 'near', 'rear_fist']
+# PLOW: hands low at the hip, so the lead arm runs behind the body; only its fist shows on the grip.
+PLOW = ['far', 'body', 'grip', 'lead_fist', 'head', 'near', 'rear_fist', 'guard', 'blade']
 
 # Each frame: name, duration, sword angle (degrees, 0 = pointing forward, 90 = up, 180 = back),
 # arm sleeves, elbow direction ('down' or 'fwd'), draw order and effect flags. Hand positions are
@@ -44,7 +46,7 @@ def F(**k):
 
 # 1 READY - Plow (Pflug): hands low at the hip, elbows bent back by the body, blade angled up
 # so the point aims at the opponent's face; knees bent, slight forward lean
-F(name='ready', ms=320, theta=27, sway=0, far=dict(sleeve=2.5, rs=2.6))
+F(name='ready', ms=320, theta=27, sway=0, far=dict(sleeve=2.5, rs=2.6), order=PLOW)
 # 2 DIP - down before up: knees bend, blade dips below the ready line (step 12)
 F(name='dip', ms=80, theta=-6, sway=0, far=dict(sleeve=2.5, rs=2.6))
 # 3 RISE 1 - hands lift the blade past vertical, upper body starts to bend back
@@ -215,8 +217,8 @@ REAR_HAND = dict(ready=(34.0, 43.0), dip=(36.6, 33.0), rise1=(38.0, 17.1), rise2
                  recover1=(42.9, 38.4), recover2=(36.6, 32.2))
 
 # Hand gap along the grip where a frame differs from HAND_GAP. Peak (high guard): lead hand 12 px
-# up the grip so both fists sit clear above the head.
-GRIP_GAP = dict(peak=12.0)
+# up the grip so both fists sit clear above the head. Ready (Plow): lead hand just below the guard.
+GRIP_GAP = dict(peak=12.0, ready=14.0)
 
 def apply_grip(fr, Hl):
     Hl, Hu = two_hand(fr['theta'], Hl)                     # Hu = sword reference point

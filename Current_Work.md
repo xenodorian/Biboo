@@ -343,6 +343,7 @@ by this request, because the arms now rise over the head.
 - Ready is now Plow (blade 27 degrees up, hands at the hip). The dip (blade -6, hands at chest) and recover2 (blade 0) still match the old ready pose, so they jump. Re-pose them to lead into and out of Plow? (asked 2026-09-28)
 
 ## Log
+- 2026-09-28: Plow fix (user): lead arm drawn behind the body (`anim.PLOW` draw order), lead hand moved up to just below the guard (`GRIP_GAP['ready']` = 14). (Claude)
 - 2026-09-28: User request: ready (idle and first frame) is now Plow from a reference photo: hands low at the hip, elbows bent back, blade 27 degrees up, hips 1 px lower, 3 degree forward bend. (Claude)
 - 2026-09-28: User request: peak reworked into a high guard from four reference images (fists just above and in front of the forehead, blade up and back at 45 degrees, lead hand 12 px up the grip via `anim.GRIP_GAP`, peak waist bend -12 to -8 so the fists clear the head). Fixed arm length limits how far above the head the hands can go. Step 28 owner: the peak is already done, so leave it unless the user asks. (Claude)
 - 2026-09-28: Steps 23 to 27 done: wide canvas, head draw pass with the occlusion rule, arms +30%, waist bend, overhead wind-up and extended downswing. Hands are solved by the scratchpad-style search in the step notes; keep the buried-blade frames on one shared grip. (Claude)
