@@ -170,6 +170,13 @@ HAIR = dict(
     recover2=dict(sway=1, lift=0),
 )
 
+# ---------------------------------------------------------------- head direction (step 9)
+# gaze: -1 chin up / eyes up (watching the blade rise), +1 chin tucked / eyes down (driving
+# the strike), 0 neutral. (A physical 1 px head tuck was tried and removed: it pushes the chin
+# onto the near arm at impact and fails face clearance.)
+GAZE = dict(ready=0, rise1=0, rise2=-1, peak=-1, smearA=0, smearB=1, impact=1,
+            plume1=1, plume2=1, settle=0, recover1=0, recover2=0)
+
 FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
 for fr in FRAMES:
     ft = FEET[fr['name']]
@@ -177,6 +184,7 @@ for fr in FRAMES:
     fr['front_planted'] = ft['planted']
     fr['cloth'] = CLOTH[fr['name']]
     fr['sway'] = HAIR[fr['name']]['sway']; fr['hair_lift'] = HAIR[fr['name']]['lift']
+    fr['gaze'] = GAZE[fr['name']]
 
 def shoulders(fr):
     t = np.array(fr['torso'], float)
@@ -200,7 +208,8 @@ def render_character(i):
         if op == 'body':
             parts['legs'] = body(cv.C, head=fr['head'], torso=fr['torso'], skirt=fr['skirt'], sway=fr['sway'],
                                  legs=fr.get('legs'), lean=fr.get('lean', 0),
-                                 cloth=fr.get('cloth'), hair_lift=fr.get('hair_lift', 0))
+                                 cloth=fr.get('cloth'), hair_lift=fr.get('hair_lift', 0),
+                                 gaze=fr.get('gaze', 0))
         elif op == 'far':
             a = fr['far']
             parts['far'] = arm(cv, sf, a['to'], elbow=a.get('elbow'), sleeve=a.get('sleeve', 3.5), rs=a.get('rs', 2.6))

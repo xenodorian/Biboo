@@ -135,11 +135,11 @@ frames or fewer.
 - Signed off: Claude, 2026-09-28
 
 ### Step 9. Head direction (was optional C)
-- [ ] Chin up at the peak, chin tucked at impact, without redrawing or shearing the face.
+- [x] Chin up at the peak, chin tucked at impact, without redrawing or shearing the face.
 - Acceptance: reads at 1x, face clearance passes, no seams at the neck.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: `anim.GAZE`: the eye block (rows 18-20) moves 1 px up at the rise and peak (looking at the blade) and 1 px down from the drop through the impact hold (focused, chin-down read). Eye pixels are only translated, never redrawn. A physical 1 px head tuck was tried and removed because it pushed the chin onto the near arm (face clearance failed). All checks and tests pass.
+- Signed off: Claude, 2026-09-28
 
 ### Step 10. Shoulder drive and sleeve squash (was optional D)
 - [ ] Shoulders move independently of the torso: far shoulder rises at the peak, near shoulder
@@ -178,6 +178,7 @@ frames or fewer.
 - None.
 
 ## Log
+- 2026-09-28: Step 9 (head direction) done via eye-block gaze; do not tuck the head at impact, it collides with the near arm. (Claude)
 - 2026-09-28: Step 8 (sock cuff, toe direction) done. Boot feet are hand-drawn grids in `rig.LEFT_FOOT`; the right foot is its mirror. (Claude)
 - 2026-09-28: User approved optional steps A to D and the sock cuff tidy; added as steps 8 to 13. (Claude)
 - 2026-09-27: Step 7 (review and publish) done. Kinetic upgrade workflow complete; optional steps A to D await the user's approval. (Claude)

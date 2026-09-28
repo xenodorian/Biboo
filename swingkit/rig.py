@@ -259,7 +259,27 @@ def torso_shear(lean, row):
     half the lean at the top of the torso."""
     return 0.5 * lean * (WAIST - row) / (WAIST - TORSO_TOP)
 
-def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0, cloth=None, hair_lift=0.0):
+EYE_ROWS, EYE_X = (18, 20), (22, 33)
+
+def _gaze(C, head, gaze):
+    """Head direction without redrawing the face: the eye block (rows 18-20) is moved as a
+    whole by one row. gaze=-1 looks up (chin up; the row below fills with skin),
+    +1 looks down (chin tucked; the row above fills with the bangs)."""
+    if gaze == 0: return
+    (r0, r1), (x0, x1) = EYE_ROWS, EYE_X
+    xs = np.arange(x0, x1 + 1) + head[0] + PX
+    def row(r): return r + head[1] + PY
+    block = [C[row(r), xs].copy() for r in range(r0, r1 + 1)]
+    if gaze < 0:
+        filler = C[row(r1 + 1), xs].copy()
+        for k, r in enumerate(range(r0 - 1, r1)): C[row(r), xs] = block[k]
+        C[row(r1), xs] = filler
+    else:
+        filler = C[row(r0 - 1), xs].copy()
+        for k, r in enumerate(range(r0 + 1, r1 + 2)): C[row(r), xs] = block[k]
+        C[row(r0), xs] = filler
+
+def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0, cloth=None, hair_lift=0.0, gaze=0):
     """Draw the body into canvas C (index array, -1 = transparent). `legs` maps
     'left'/'right' to dict(hip=..., ankle=...) overrides; default is the neutral stance."""
     M = MASKS
@@ -288,6 +308,7 @@ def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0
         dx = torso[0] + int(round(torso_shear(lean, r)))
         C[r + torso[1] + PY, xs[sel] + dx + PX] = BODY[r, xs[sel]]
     _paste(C, BODY, M['head'], *head)
+    _gaze(C, head, gaze)
     return info
 
 # ---------------------------------------------------------------- parametric parts
