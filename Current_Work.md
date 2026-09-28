@@ -118,7 +118,7 @@ frames or fewer.
 - [ ] Render every frame and review each one zoomed in and at 1x. Fix any issues found.
 - [ ] Update `docs/swing_x3.gif`, the README frame table, and the manifest notes.
 - Acceptance: all checks and tests pass, and the preview GIF on `main` shows the upgraded animation.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-27)
 - Result:
 - Signed off:
 
