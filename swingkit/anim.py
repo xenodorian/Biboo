@@ -134,11 +134,30 @@ FEET = dict(
     recover2=dict(right=(R0[0] + 0.5, R0[1]), planted=True),
 )
 
+# ---------------------------------------------------------------- cloth (step 5)
+# Skirt hem motion per frame: lift (px up at the hem, negative = below rest), trail
+# (px sideways at the hem, lagging behind the body), flare (px outward on both sides).
+CLOTH = dict(
+    ready=dict(lift=0, trail=0, flare=0),
+    rise1=dict(lift=1, trail=1, flare=0),
+    rise2=dict(lift=1, trail=1, flare=1),
+    peak=dict(lift=3, trail=0, flare=1),
+    smearA=dict(lift=1, trail=-1, flare=1),
+    smearB=dict(lift=3, trail=-2, flare=1),
+    impact=dict(lift=1, trail=-1, flare=3),
+    plume1=dict(lift=-1, trail=1, flare=1),
+    plume2=dict(lift=0, trail=1, flare=0),
+    settle=dict(lift=0, trail=0, flare=0),
+    recover1=dict(lift=1, trail=0, flare=0),
+    recover2=dict(lift=0, trail=0, flare=0),
+)
+
 FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
 for fr in FRAMES:
     ft = FEET[fr['name']]
     fr['legs']['right']['ankle'] = ft['right']
     fr['front_planted'] = ft['planted']
+    fr['cloth'] = CLOTH[fr['name']]
 
 def shoulders(fr):
     t = np.array(fr['torso'], float)
@@ -161,7 +180,8 @@ def render_character(i):
     for op in fr['order']:
         if op == 'body':
             parts['legs'] = body(cv.C, head=fr['head'], torso=fr['torso'], skirt=fr['skirt'], sway=fr['sway'],
-                                 legs=fr.get('legs'), lean=fr.get('lean', 0))
+                                 legs=fr.get('legs'), lean=fr.get('lean', 0),
+                                 cloth=fr.get('cloth'))
         elif op == 'far':
             a = fr['far']
             parts['far'] = arm(cv, sf, a['to'], elbow=a.get('elbow'), sleeve=a.get('sleeve', 3.5), rs=a.get('rs', 2.6))

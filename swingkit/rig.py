@@ -192,6 +192,35 @@ def draw_leg(cv, name, hip=None, ankle=None):
     cv.C[ring & ((cv.C < 0) | ~m)] = OUT
     return dict(hip=hip, knee=knee, ankle=ankle, mask=m)
 
+SKIRT_R0, SKIRT_R1, SKIRT_CX = 40, 57, 33.0
+
+def _deform_paste(C, src, mask, off, lift=0.0, trail=0.0, flare=0.0):
+    """Paste a skirt-like layer with cloth motion below row SKIRT_R0. Destination pixels
+    are inverse-mapped (nearest sample), so no holes can open. lift > 0 raises the hem,
+    trail shifts the hem sideways, flare spreads both sides outward. Returns the placed mask."""
+    placed = np.zeros(C.shape, bool)
+    ys, xs = np.nonzero(mask)
+    rigid = ys < SKIRT_R0
+    C[ys[rigid] + off[1] + PY, xs[rigid] + off[0] + PX] = src[ys[rigid], xs[rigid]]
+    placed[ys[rigid] + off[1] + PY, xs[rigid] + off[0] + PX] = True
+    if not (~rigid).any(): return placed
+    x0, x1 = xs.min() - 5, xs.max() + 6
+    span = SKIRT_R1 - SKIRT_R0
+    for rd in range(SKIRT_R0, SKIRT_R1 + 3):
+        b = min(max((rd - SKIRT_R0) / span, 0.0), 1.2)
+        rs = SKIRT_R0 + (rd - SKIRT_R0) * span / max(span - lift, 1e-6)
+        ri = int(round(rs))
+        if ri < SKIRT_R0 or ri >= mask.shape[0]: continue
+        for xd in range(x0, x1):
+            side = np.sign(xd - SKIRT_CX)
+            xsrc = xd - (trail * b ** 1.3 + flare * b * side)
+            xi = int(round(xsrc))
+            if 0 <= xi < mask.shape[1] and mask[ri, xi]:
+                yy, xx = rd + off[1] + PY, xd + off[0] + PX
+                if 0 <= yy < CH and 0 <= xx < CW:
+                    C[yy, xx] = src[ri, xi]; placed[yy, xx] = True
+    return placed
+
 TORSO_TOP, WAIST = 26, 33.5
 
 def torso_shear(lean, row):
@@ -199,7 +228,7 @@ def torso_shear(lean, row):
     half the lean at the top of the torso."""
     return 0.5 * lean * (WAIST - row) / (WAIST - TORSO_TOP)
 
-def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0):
+def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0, cloth=None):
     """Draw the body into canvas C (index array, -1 = transparent). `legs` maps
     'left'/'right' to dict(hip=..., ankle=...) overrides; default is the neutral stance."""
     M = MASKS
@@ -207,16 +236,15 @@ def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0
     _paste(C, UNDER, UNDER >= 0, *skirt)            # underpaint rides with the skirt/waist
     _hair(C, M['hl'], 26, 50, inner=15, side=-1, top_off=head, bot_off=skirt, sway=sway)
     _hair(C, M['hr'], 14, 44, inner=40, side=+1, top_off=head, bot_off=skirt, sway=sway)
-    _paste(C, UNDERSKIRT, UNDERSKIRT >= 0, *skirt)
+    cloth = cloth or {}
+    _deform_paste(C, UNDERSKIRT, UNDERSKIRT >= 0, skirt, **cloth)
     cv = Canvas(); cv.C = C
     legs = legs or {}
     info = {}
     for name in ('left', 'right'):
         info[name] = draw_leg(cv, name, **legs.get(name, {}))
-    _paste(C, BODY, M['skirt'], *skirt)
+    sk = _deform_paste(C, BODY, M['skirt'], skirt, **cloth)
     # hem shadow: the row of leg directly below the skirt gets a shade tone
-    sk = np.zeros(C.shape, bool)
-    ys, xs = np.nonzero(M['skirt']); sk[ys + skirt[1] + PY, xs + skirt[0] + PX] = True
     legm = info['left']['mask'] | info['right']['mask']
     below = np.zeros_like(sk); below[1:] = sk[:-1]
     edge = below & legm & ~sk

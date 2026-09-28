@@ -98,12 +98,12 @@ frames or fewer.
 - Signed off: Claude, 2026-09-27
 
 ### Step 5. Skirt motion
-- [ ] Hem lifts and flares during the rise, trails behind during the swing, bounces past rest at
+- [x] Hem lifts and flares during the rise, trails behind during the swing, bounces past rest at
       impact, then settles.
 - Acceptance: smooth motion across frames, no holes, and the silhouette outline stays clean.
-- Status: IN PROGRESS (Claude, 2026-09-27)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: `anim.CLOTH` gives each frame a hem lift, trail and flare; `rig._deform_paste` bends the skirt below row 40 by inverse-mapped sampling (no holes possible), and the under-skirt shadow and hem shading follow the same deformation. Hem lifts 3 px at the peak, trails through the swing, flares 3 px at impact, bounces 1 px below rest, then settles. Neutral frame unchanged; all checks and tests pass.
+- Signed off: Claude, 2026-09-27
 
 ### Step 6. Stronger hair motion
 - [ ] Add vertical lag to the existing sideways sway: the hair lifts as the body drops, overshoots
@@ -133,6 +133,7 @@ frames or fewer.
 - Approve optional steps A to D? (asked 2026-09-27)
 
 ## Log
+- 2026-09-27: Step 5 (skirt) done. Cloth values in `anim.CLOTH`. (Claude)
 - 2026-09-27: Step 4 (lean) done. Never shear the head row by row; it jogs the face. (Claude)
 - 2026-09-27: Step 3 (step into the strike) done. Front foot keyframes in `anim.FEET`; mark a frame `planted=True` only if the ankle row equals the neutral row. (Claude)
 - 2026-09-27: Step 2 (hips and knee bend) done. Hip offsets live in `anim.HIPS`; a deeper crouch than 4 px hides the thighs under the skirt, so keep it at or below that. (Claude)
