@@ -128,7 +128,7 @@ frames or fewer.
 - [ ] Keep the sock cuff a clean band across the leg when the knee bends, instead of a round blob
       (frames 3 and 4).
 - Acceptance: the cuff reads as a band in every frame; neutral frame visually unchanged; checks pass.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-28)
 - Result:
 - Signed off:
 
