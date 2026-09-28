@@ -182,7 +182,7 @@ frames or fewer.
 - [ ] Rear knee bends forward instead of outward. Front leg unchanged (it already points forward).
 - Acceptance: both feet and both knees point toward the strike; leg lengths and planted feet checks
   pass; all checks and tests pass.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-28)
 - Result:
 - Signed off:
 
