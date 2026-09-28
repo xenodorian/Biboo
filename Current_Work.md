@@ -155,7 +155,7 @@ frames or fewer.
 - [ ] Use it during the wind-up peak and the swing so the rear heel lifts and she pivots on the toe.
 - Acceptance: the toe stays on the ground row (planted check updated for heel-up frames), the variant
   matches the original boot style, checks pass.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-28)
 - Result:
 - Signed off:
 
