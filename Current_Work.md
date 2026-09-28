@@ -237,6 +237,16 @@ frames or fewer.
 - Result: Both arms are two-bone IK with fixed lengths (`anim.ARM_LEN`: upper 10, forearm 10.8; `rig.arm_ik`, elbow-down solution), so they bend at the elbow instead of shortening. The lead upper arm never rises above horizontal (new check); in the rise and peak it stays level and the forearm bends up. Hand positions re-solved per frame under the new limits (peak hands now at head height, blade 76 degrees). Checks now verify fixed segment lengths and the lead-arm limit; all 10 checks and 9 tests pass.
 - Signed off: Claude, 2026-09-28
 
+### Step 19. Knees bend at a natural pivot
+- [ ] User feedback (2026-09-28): the knee joint is too low; the legs bend just above the boot.
+- [ ] Move the knee pivot up the leg to a natural height. The shin now shows skin between the knee
+      and the sock cuff before the boot starts; the boot top stays where it was.
+- Acceptance: bends read at the knee, not at the boot top; leg lengths constant; planted feet and
+  all other checks pass.
+- Status: TODO
+- Result:
+- Signed off:
+
 ## Open questions
 - None.
 
