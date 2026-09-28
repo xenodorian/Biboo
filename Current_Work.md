@@ -163,7 +163,7 @@ frames or fewer.
 - [ ] Add a one-frame dip before the rise: knees bend, sword dips.
 - [ ] Take the frame from the plume hold (frames 8 to 10 become two frames) so the total stays at 12.
 - Acceptance: 12 frames or fewer, the loop still closes, effects still read, checks pass.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-28)
 - Result:
 - Signed off:
 
