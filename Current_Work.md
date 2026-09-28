@@ -83,7 +83,7 @@ frames or fewer.
 - [ ] Add a small stomp dust puff at the planted foot.
 - [ ] Add a check that any planted boot sits exactly on the feet row.
 - Acceptance: the step reads at 1x, planted feet never float or sink, and the checks pass.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-27)
 - Result:
 - Signed off:
 
