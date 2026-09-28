@@ -170,7 +170,7 @@ frames or fewer.
 ### Step 13. Review and publish follow-ups
 - [ ] Review every frame zoomed and at 1x, update `docs/swing_x3.gif`, the README table and the
       manifest.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-28)
 - Result:
 - Signed off:
 
