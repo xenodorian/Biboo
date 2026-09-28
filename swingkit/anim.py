@@ -42,8 +42,9 @@ def F(**k):
     k.setdefault('order', LOW); k.setdefault('head', (0, 0)); k.setdefault('torso', (0, 0))
     FRAMES.append(k)
 
-# 1 READY - the original design pose, both hands, blade forward
-F(name='ready', ms=320, theta=4.9, sway=0, far=dict(sleeve=2.5, rs=2.6))
+# 1 READY - Plow (Pflug): hands low at the hip, elbows bent back by the body, blade angled up
+# so the point aims at the opponent's face; knees bent, slight forward lean
+F(name='ready', ms=320, theta=27, sway=0, far=dict(sleeve=2.5, rs=2.6))
 # 2 DIP - down before up: knees bend, blade dips below the ready line (step 12)
 F(name='dip', ms=80, theta=-6, sway=0, far=dict(sleeve=2.5, rs=2.6))
 # 3 RISE 1 - hands lift the blade past vertical, upper body starts to bend back
@@ -74,7 +75,7 @@ F(name='recover2', ms=130, theta=0, sway=1, far=dict(sleeve=2.5, rs=2.6))
 HIPS = dict(
     # hip: hip offset; torso/head: extra offsets relative to the hips; lean: px the head moves
     # sideways (row shear, step 4); bend: waist bend in degrees, + forward (step 26).
-    ready=dict(hip=(0, 0), torso=(0, 0), head=(0, 0), lean=0, bend=0),
+    ready=dict(hip=(0, 1), torso=(0, 0), head=(0, 0), lean=0, bend=3),
     dip=dict(hip=(0, 2), torso=(0, 0), head=(0, 0), lean=1, bend=4),
     rise1=dict(hip=(-1, 1), torso=(0, 0), head=(0, 0), lean=-1, bend=-4),
     rise2=dict(hip=(-1, 0), torso=(0, -1), head=(0, -1), lean=-1, bend=-9),
@@ -208,7 +209,7 @@ FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
 # Rear (near) hand position per frame in final sprite coordinates, solved so both arms stay in
 # reach with fixed-length arms. The lead hand is always HAND_GAP further along the grip. While the
 # blade is buried (impact, plume1, settle) the grip stays fixed in the world as the body moves.
-REAR_HAND = dict(ready=(36.5, 30.5), dip=(36.6, 33.0), rise1=(38.0, 17.1), rise2=(31.7, 9.3),
+REAR_HAND = dict(ready=(34.0, 43.0), dip=(36.6, 33.0), rise1=(38.0, 17.1), rise2=(31.7, 9.3),
                  peak=(34.5, 7.5), smearA=(36.5, 10.0), smearB=(49.5, 30.9),
                  impact=(50.4, 38.5), plume1=(50.4, 38.5), settle=(50.4, 38.5),
                  recover1=(42.9, 38.4), recover2=(36.6, 32.2))
