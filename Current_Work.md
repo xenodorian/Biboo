@@ -210,6 +210,20 @@ frames or fewer.
 - Result: Per-leg foot shape in `LEG_NEUTRAL` (`toe_reach`, `heel_flare`): the lead foot now reaches 13 px forward from the ankle (was 9) with its heel flush to the back of the shin, so the boot clearly points forward instead of folding back under the forward-slanted shin. Rear foot unchanged. docs preview refreshed; all checks and tests pass.
 - Signed off: Claude, 2026-09-28
 
+### Step 17. Rear hand grips the pommel end the whole time
+- [ ] User request (2026-09-28): the rear (near) arm no longer lets go during the raise or
+      re-grips near the guard. It holds the base of the handle, just above the pommel, in every
+      frame; the front (far) hand stays near the guard.
+- [ ] Re-pose the two-handed frames with the new hand spacing, and make the rise and peak
+      two-handed. With the pommel in the rear hand the blade cannot lean back over the head at the
+      peak (the pommel would be out of reach), so the peak becomes a two-handed near-upright guard
+      beside the head.
+- Acceptance: rear hand on the pommel end in all 12 frames; arm lengths in range; face clearance
+  passes; all checks and tests pass.
+- Status: TODO
+- Result:
+- Signed off:
+
 ## Open questions
 - None.
 
