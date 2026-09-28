@@ -26,9 +26,11 @@ Read the rules first, claim a step before starting it, and sign off when it is d
 8. Before every push, run `python -m swingkit` and `pytest`. Do not push if any check fails. A step
    that changes the animation must also leave every existing check passing.
 9. Proportions are fixed. Never scale limbs, the head, or the sword. Change angles, positions and
-   overlap only. If a step needs a new check (for example, leg length), add it to
+   overlap only. The only exception is a change the user approves (step 25 lengthened both arms). If a step needs a new check (for example, leg length), add it to
    `swingkit/checks.py` and to `tests/`.
-10. Never add pixels over the character's face (the face-clearance check enforces this).
+10. Face occlusion (user rule, 2026-09-28): the lead (far) arm and its fist are drawn behind the head;
+    the rear (near) arm and its fist may pass in front of the face; the blade and guard never cover
+    the face. The occlusion check enforces this.
 11. Keep all randomness seeded so builds are reproducible.
 12. Never commit generated output. `out/` stays ignored. Only update `docs/swing_x3.gif` in the
     review step, or when a step explicitly says to.
@@ -284,10 +286,55 @@ frames or fewer.
 - Result: Lead hand moved down to one fist's gap (HAND_GAP=8) above the rear hand; downswing re-solved so both hands finish stacked at hip level. Rear hand y 34-37 -> 39-40, lead hand now only 1.4-4 px below the rear hand (was 4-10), angles smearB -14, impact group -30, recover1 -10; blade still buries ahead of the front foot. All 11 checks and 10 tests pass.
 - Signed off: Claude, 2026-09-28
 
+## Workflow: overhead wind-up rework
+
+Goal (user request, 2026-09-28, with three reference animations): more room to swing, a high point
+with bent arms raised over the head and the sword pointed backwards, a downswing that straightens
+the arms to a full forward extension, and torso lean and bend. The user approved lengthening the
+arms by about 30% so the hands can reach over the head, and replaced the face-clearance rule with
+the occlusion rule (rule 10). Step 18's "lead upper arm never above horizontal" limit is retired
+by this request, because the arms now rise over the head.
+
+### Step 23. Wider sprite canvas
+- [ ] Enlarge the character canvas so a sword pointed backwards over the head is never clipped.
+      The sprite anchor, the feet row and the scene placement stay the same.
+- Status: IN PROGRESS (Claude, 2026-09-28)
+- Result:
+- Signed off:
+
+### Step 24. Occlusion layers
+- [ ] Split the head into its own draw pass so the lead arm and fist can go behind it and the rear
+      arm and fist in front of it. Replace the face-clearance check with the occlusion check.
+- Status: IN PROGRESS (Claude, 2026-09-28)
+- Result:
+- Signed off:
+
+### Step 25. Longer arms
+- [ ] Lengthen both arms by about 30% (user approved), same for every frame.
+- Status: IN PROGRESS (Claude, 2026-09-28)
+- Result:
+- Signed off:
+
+### Step 26. Torso lean and bend
+- [ ] Add a per-frame waist bend (upper body pivots at the waist, forward and back) alongside the
+      existing lean, with the shoulders, head and arms following it.
+- Status: IN PROGRESS (Claude, 2026-09-28)
+- Result:
+- Signed off:
+
+### Step 27. Overhead wind-up and extended downswing
+- [ ] Peak: arms raised over the head with bent elbows, sword pointed backwards, torso bent back.
+- [ ] Downswing: arms straighten to a full forward extension, torso bends forward into the strike.
+- [ ] Re-solve every frame, verify, refresh the docs GIF and sprite sheet.
+- Status: IN PROGRESS (Claude, 2026-09-28)
+- Result:
+- Signed off:
+
 ## Open questions
 - None.
 
 ## Log
+- 2026-09-28: User approved a ~30% arm lengthening and the new face occlusion rule; steps 23 to 27 added and claimed. (Claude)
 - 2026-09-28: Step 22 done: low-swing grip from reference poses. (Claude)
 - 2026-09-28: Step 21 (ankle bend near the heel) done. (Claude)
 - 2026-09-28: Step 20 (lead arm behind the handle) done. Draw order must keep far < grip < fists (checked). (Claude)
