@@ -252,7 +252,7 @@ frames or fewer.
       arm behind the grip in every frame; only the fists sit on top of it.
 - [ ] Add a check that no lead-arm pixel covers the handle.
 - Acceptance: no lead-arm pixels over the grip in any frame; all checks and tests pass.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-28)
 - Result:
 - Signed off:
 
