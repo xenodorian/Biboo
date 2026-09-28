@@ -27,13 +27,13 @@ def two_hand(theta, Hl):
     Hl = np.array(Hl, float); Hu = Hl + GRIP_SPAN * d
     return Hl, Hu
 
-# Draw orders (step 24). The lead arm and fist are always behind the head, the rear arm and fist
-# in front of it. LOW: sword in front of the body. HIGH: the sword is up and back, so the blade,
+# Draw orders (step 24). The long hair is always drawn first, behind everything. The lead arm and
+# fist are always behind the head, the rear arm and fist in front of it. LOW: sword in front of the body. HIGH: the sword is up and back, so the blade,
 # guard and grip pass behind the head while the rear hand stays in front.
-LOW = ['body', 'far', 'grip', 'lead_fist', 'head', 'near', 'rear_fist', 'guard', 'blade']
-HIGH = ['body', 'blade', 'guard', 'far', 'grip', 'lead_fist', 'head', 'near', 'rear_fist']
+LOW = ['hair', 'body', 'far', 'grip', 'lead_fist', 'head', 'near', 'rear_fist', 'guard', 'blade']
+HIGH = ['hair', 'body', 'blade', 'guard', 'far', 'grip', 'lead_fist', 'head', 'near', 'rear_fist']
 # PLOW: hands low at the hip, so the lead arm runs behind the body; only its fist shows on the grip.
-PLOW = ['far', 'body', 'grip', 'lead_fist', 'head', 'near', 'rear_fist', 'guard', 'blade']
+PLOW = ['hair', 'far', 'body', 'grip', 'lead_fist', 'head', 'near', 'rear_fist', 'guard', 'blade']
 
 # Each frame: name, duration, sword angle (degrees, 0 = pointing forward, 90 = up, 180 = back),
 # arm sleeves, elbow direction ('down' or 'fwd'), draw order and effect flags. Hand positions are
@@ -280,10 +280,14 @@ def render_character(i):
     sd = fr.get('shoulders', {})
     parts = {}
     for op in fr['order']:
-        if op == 'body':
+        if op == 'hair':
+            rig.draw_hair_pass(cv.C, head=fr['head'], skirt=fr['skirt'], sway=fr['sway'], lean=fr.get('lean', 0),
+                               bend=fr.get('bend', 0), hair_lift=fr.get('hair_lift', 0))
+        elif op == 'body':
             info = body(cv.C, head=fr['head'], torso=fr['torso'], skirt=fr['skirt'], sway=fr['sway'],
                         legs=fr.get('legs'), lean=fr.get('lean', 0), bend=fr.get('bend', 0),
-                        cloth=fr.get('cloth'), hair_lift=fr.get('hair_lift', 0), draw_head=False)
+                        cloth=fr.get('cloth'), hair_lift=fr.get('hair_lift', 0), draw_head=False,
+                        draw_hair=False)
             parts['head_offset'] = info.pop('head')
             parts['legs'] = info
         elif op == 'head':

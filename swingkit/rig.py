@@ -22,7 +22,7 @@ FEET_ROW = 81                            # sprite row of the boot soles
 # palette indices used by the parametric parts
 OUT, SK, SKS = 0, 17, 14
 WHITE, WHITE2, LAV, LAV2 = 19, 18, 16, 15
-TRIM, TRIM2 = 10, 7
+TRIM, TRIM2 = 10, 7                      # sleeve cuff; retoned to the dress below
 BLADE_L, BLADE_D, CORE1, CORE2, FULLER, GEM, GEM2 = 16, 11, 2, 1, 12, 7, 5
 METAL_L, METAL, METAL_D = 6, 3, 1
 
@@ -73,6 +73,36 @@ def _underskirt():
     return u
 
 UNDERSKIRT = _underskirt()
+
+# ---------------------------------------------------------------- hair and dress tones
+# User request (2026-09-28): lighter long hair and a darker dress so the two read apart. The long
+# hair and the dress shared the purple indices 5, 7, 8, 9, 10 (the eyes and sword gems use them
+# too), so those entries stay as they are; hair and dress pixels are remapped to added entries.
+_HAIR_SRC, _DRESS_SRC = (5, 7, 8, 9, 10), (5, 7, 9, 10)
+HAIR_TONE = {c: len(PAL) + k for k, c in enumerate(_HAIR_SRC)}
+DRESS_TONE = {c: len(PAL) + len(_HAIR_SRC) + k for k, c in enumerate(_DRESS_SRC)}
+PAL = np.vstack([PAL,
+                 [PAL[c] + 0.45 * (PAL[16] - PAL[c]) for c in _HAIR_SRC],    # toward the light head hair
+                 [PAL[c] * 0.75 for c in _DRESS_SRC]])                       # darker dress
+
+def _retone(a, table, mask):
+    out = a.copy()
+    for src, dst in table.items():
+        out[mask & (a == src)] = dst
+    return out
+
+def _hair_region():
+    Y, X = np.mgrid[0:BODY.shape[0], 0:BODY.shape[1]]
+    eyes = (Y >= EYE_ROWS[0] - 1) & (Y <= EYE_ROWS[1] + 1) & (X >= EYE_X[0] - 1) & (X <= EYE_X[1] + 1)
+    return MASKS['hl'] | MASKS['hr'] | (MASKS['head'] & ~eyes)
+
+EYE_ROWS, EYE_X = (18, 20), (22, 33)              # eye block (moved by _gaze), kept out of the hair tone
+BODY = _retone(BODY, HAIR_TONE, _hair_region())
+BODY = _retone(BODY, DRESS_TONE, MASKS['torso'] | MASKS['skirt'])
+UNDER = _retone(UNDER, HAIR_TONE, UNDER == 9)          # hair behind the head and beside the torso
+UNDER = _retone(UNDER, DRESS_TONE, UNDER == 7)         # waist / dress
+UNDERSKIRT = _retone(UNDERSKIRT, DRESS_TONE, UNDERSKIRT >= 0)
+TRIM, TRIM2 = DRESS_TONE[TRIM], DRESS_TONE[TRIM2]
 
 def _paste(C, src, mask, dx, dy):
     ys, xs = np.nonzero(mask)
@@ -331,7 +361,6 @@ def rotate_layer(src, mask, bend, pad=8):
     sel = col >= 0
     return Y[sel], X[sel], col[sel]
 
-EYE_ROWS, EYE_X = (18, 20), (22, 33)
 
 def _gaze(C, head, gaze):
     """Head direction without redrawing the face: the eye block (rows 18-20) is moved as a
@@ -351,17 +380,24 @@ def _gaze(C, head, gaze):
         for k, r in enumerate(range(r0 + 1, r1 + 2)): C[row(r), xs] = block[k]
         C[row(r0), xs] = filler
 
-def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0, cloth=None, hair_lift=0.0,
-         gaze=0, bend=0.0, draw_head=True):
-    """Draw the body into canvas C (index array, -1 = transparent). `legs` maps
-    'left'/'right' to dict(hip=..., ankle=...) overrides; default is the neutral stance.
-    With draw_head=False the head is left for a later pass (see draw_head), so arms can be
-    layered behind it."""
+def draw_hair_pass(C, head=(0, 0), skirt=(0, 0), sway=0, lean=0.0, bend=0.0, hair_lift=0.0):
+    """Underpaint and the long hair, drawn first so the hair sits behind everything else."""
     M = MASKS
-    head = head_offset(head, lean, bend)            # head leans and bends as one rigid piece
+    head = head_offset(head, lean, bend)
     _paste(C, UNDER, UNDER >= 0, *skirt)            # underpaint rides with the skirt/waist
     _hair(C, M['hl'], 26, 50, inner=15, side=-1, top_off=head, bot_off=skirt, sway=sway, lift=hair_lift)
     _hair(C, M['hr'], 14, 44, inner=40, side=+1, top_off=head, bot_off=skirt, sway=sway, lift=hair_lift)
+
+def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0, cloth=None, hair_lift=0.0,
+         gaze=0, bend=0.0, draw_head=True, draw_hair=True):
+    """Draw the body into canvas C (index array, -1 = transparent). `legs` maps
+    'left'/'right' to dict(hip=..., ankle=...) overrides; default is the neutral stance.
+    With draw_head=False the head is left for a later pass (see draw_head), so arms can be
+    layered behind it; with draw_hair=False the long hair is left for draw_hair_pass."""
+    M = MASKS
+    if draw_hair:
+        draw_hair_pass(C, head, skirt, sway, lean, bend, hair_lift)
+    head = head_offset(head, lean, bend)            # head leans and bends as one rigid piece
     cloth = cloth or {}
     _deform_paste(C, UNDERSKIRT, UNDERSKIRT >= 0, skirt, **cloth)
     cv = Canvas(); cv.C = C
