@@ -63,7 +63,7 @@ frames or fewer.
 - [ ] Add a check that the thigh and shin lengths are identical in every frame.
 - Acceptance: all checks pass, the neutral frame matches the current legs, and leg lengths are
   constant.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-27)
 - Result:
 - Signed off:
 
