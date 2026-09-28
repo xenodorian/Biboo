@@ -124,6 +124,15 @@ LEG_NEUTRAL = dict(
     right=dict(hip=(42.0, 51.0), knee=(53.1, 62.0), ankle=(60.9, 71.0), side=+1,
                r_thigh=4.1, r_shaft=3.7, toe_reach=13.0, heel_flare=0.0),
 )
+# Step 19: the knee pivot sits higher than the boot top (a natural knee), so the shin shows skin
+# between the knee and the sock cuff. KNEE_RAISE moves each knee up along its thigh; the boot top
+# stays where the fitted knee was.
+KNEE_RAISE = dict(left=4.5, right=4.0)
+for _k, _v in LEG_NEUTRAL.items():
+    _h, _kn = np.array(_v['hip']), np.array(_v['knee'])
+    _v['boot_top'] = tuple(_kn)
+    _v['knee'] = tuple(_kn + (_h - _kn) / np.linalg.norm(_h - _kn) * KNEE_RAISE[_k])
+    _v['shin_skin'] = KNEE_RAISE[_k]
 LEG_LEN = {k: (float(np.hypot(*np.subtract(v['knee'], v['hip']))),
                float(np.hypot(*np.subtract(v['ankle'], v['knee'])))) for k, v in LEG_NEUTRAL.items()}
 SOCK_LEN = 3.2
@@ -191,12 +200,16 @@ def draw_leg(cv, name, hip=None, ankle=None, heel_up=False):
     def f(p):
         # shin / sock measured along the shin axis: a clean band, no rounded cap at the knee
         q = p - knee; u = float(q @ sh_dir); s = float(q @ nb)
-        if 0.0 <= u <= L2 and abs(s) <= rb + (0.6 if u < SOCK_LEN else 0):
-            if u < SOCK_LEN:                          # small frilled cuff at the knee
-                if u > SOCK_LEN - 1.0:
+        skin = v['shin_skin']
+        if 0.0 <= u <= L2 and abs(s) <= rb + (0.6 if skin <= u < skin + SOCK_LEN else 0):
+            if u < skin:                              # bare shin between the knee and the sock
+                return SKS if s > rb * 0.5 else SK
+            u2 = u - skin
+            if u2 < SOCK_LEN:                         # small frilled cuff at the boot top
+                if u2 > SOCK_LEN - 1.0:
                     return 16 if int(round(p[0] + p[1])) % 2 else 18
                 return 16 if s > 1.8 else 19
-            if abs(s) < 1.1 and int(np.floor(u)) % 3 == 0: return 4   # laces
+            if abs(s) < 1.1 and int(np.floor(u2)) % 3 == 0: return 4   # laces
             return 1 if s > 1.2 else (3 if s < -2.6 else 2)
         d, t, off = seg(p, hip, knee)
         if d <= rt:

@@ -238,19 +238,20 @@ frames or fewer.
 - Signed off: Claude, 2026-09-28
 
 ### Step 19. Knees bend at a natural pivot
-- [ ] User feedback (2026-09-28): the knee joint is too low; the legs bend just above the boot.
-- [ ] Move the knee pivot up the leg to a natural height. The shin now shows skin between the knee
+- [x] User feedback (2026-09-28): the knee joint is too low; the legs bend just above the boot.
+- [x] Move the knee pivot up the leg to a natural height. The shin now shows skin between the knee
       and the sock cuff before the boot starts; the boot top stays where it was.
 - Acceptance: bends read at the knee, not at the boot top; leg lengths constant; planted feet and
   all other checks pass.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: Knee pivots moved up each thigh (`rig.KNEE_RAISE`: rear 4.5 px, front 4 px) to a natural knee height. The shin now shows bare skin from the knee down to the sock cuff, and the boot top stays where it was, so bends read at the knee instead of just above the boot. Thigh and shin lengths are re-derived once and stay fixed; all 10 checks and 9 tests pass.
+- Signed off: Claude, 2026-09-28
 
 ## Open questions
 - None.
 
 ## Log
+- 2026-09-28: Step 19 (knee pivot) done. Knee height is `rig.KNEE_RAISE`. (Claude)
 - 2026-09-28: Step 18 (elbows) done. Arm segment lengths in `anim.ARM_LEN`; hands must stay reachable with the lead elbow at or below shoulder height. (Claude)
 - 2026-09-28: Step 17 (rear hand on the pommel end) done. Hand positions live in `anim.REAR_HAND` in final coordinates; keep the buried-blade frames on one shared grip. (Claude)
 - 2026-09-28: Step 16 (lead foot toes forward) done. Foot shape per leg lives in `rig.LEG_NEUTRAL`. (Claude)
