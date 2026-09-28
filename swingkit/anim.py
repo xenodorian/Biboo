@@ -72,6 +72,48 @@ F(name='recover2', ms=130, theta=0, H=Hu, Hl=Hl, head=(0, 0), torso=(0, 0), skir
   far=dict(to=Hu, sleeve=2.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
   order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'])
 
+# ---------------------------------------------------------------- hips (step 2)
+# Hip offset per frame. The skirt sits on the hips, and the torso, head and hands ride
+# on top of them; the feet stay planted and the knees bend (IK) to absorb the change.
+# torso/head are given relative to the hips (small lean/stretch offsets only).
+HIPS = dict(
+    ready=dict(hip=(0, 0), torso=(0, 0), head=(0, 0)),
+    rise1=dict(hip=(-1, 1), torso=(0, 0), head=(0, 0)),
+    rise2=dict(hip=(-1, 1), torso=(0, -1), head=(-1, -1)),
+    peak=dict(hip=(-1, 1), torso=(0, -1), head=(-1, -1)),
+    smearA=dict(hip=(0, 1), torso=(0, 0), head=(0, 0)),
+    smearB=dict(hip=(1, 2), torso=(0, 0), head=(1, 0)),
+    impact=dict(hip=(2, 3), torso=(0, 0), head=(0, 0)),
+    plume1=dict(hip=(2, 4), torso=(0, 0), head=(0, 0)),
+    plume2=dict(hip=(2, 3), torso=(0, 0), head=(0, 0)),
+    settle=dict(hip=(2, 2), torso=(0, 0), head=(0, 0)),
+    recover1=dict(hip=(1, 1), torso=(0, 0), head=(0, 0)),
+    recover2=dict(hip=(0, 1), torso=(0, 0), head=(0, 0)),
+)
+
+def _add(p, d):
+    return None if p is None else (p[0] + d[0], p[1] + d[1])
+
+def _rebase(fr, spec):
+    """Apply the hip offsets. Hand positions were authored against the old torso offset,
+    so every hand-related point moves by (new torso - old torso)."""
+    hip = spec['hip']
+    new_torso = (hip[0] + spec['torso'][0], hip[1] + spec['torso'][1])
+    new_head = (hip[0] + spec['head'][0], hip[1] + spec['head'][1])
+    d = (new_torso[0] - fr['torso'][0], new_torso[1] - fr['torso'][1])
+    fr = dict(fr)
+    fr['H'] = _add(fr['H'], d); fr['Hl'] = _add(fr['Hl'], d)
+    fr['fists'] = [_add(c, d) for c in fr['fists']]
+    for k in ('far', 'near'):
+        a = dict(fr[k]); a['to'] = _add(a['to'], d)
+        if a.get('elbow') is not None: a['elbow'] = _add(a['elbow'], d)
+        fr[k] = a
+    fr['skirt'] = hip; fr['torso'] = new_torso; fr['head'] = new_head; fr['hip'] = hip
+    fr['legs'] = {n: dict(hip=_add(rig.LEG_NEUTRAL[n]['hip'], hip)) for n in ('left', 'right')}
+    return fr
+
+FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
+
 def shoulders(fr):
     t = np.array(fr['torso'], float)
     return S_NEAR + t, S_FAR + t

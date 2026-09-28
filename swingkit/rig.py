@@ -57,6 +57,22 @@ def _underpaint():
 
 UNDER = _underpaint()
 
+def _underskirt():
+    """Shadowed inside of the skirt, filling the hem notches the fixed thighs used to
+    occupy. Drawn behind the legs, so it only shows where a bent thigh has moved away."""
+    u = np.full(BODY.shape, -1)
+    sk = MASKS['skirt']
+    cols = [x for x in range(BODY.shape[1]) if sk[:, x].any()]
+    bottom = {x: int(np.nonzero(sk[:, x])[0].max()) for x in cols}
+    for x in cols:
+        win = [bottom[c] for c in range(x - 6, x + 7) if c in bottom]
+        target = min(max(win), 56)
+        for y in range(bottom[x] + 1, target + 1):
+            u[y, x] = 5 if y > bottom[x] + 1 else 4
+    return u
+
+UNDERSKIRT = _underskirt()
+
 def _paste(C, src, mask, dx, dy):
     ys, xs = np.nonzero(mask)
     C[ys + dy + PY, xs + dx + PX] = src[ys, xs]
@@ -133,13 +149,10 @@ def draw_leg(cv, name, hip=None, ankle=None):
     v = LEG_NEUTRAL[name]; L1, L2 = LEG_LEN[name]
     hip = np.array(v['hip'] if hip is None else hip, float)
     ankle = np.array(v['ankle'] if ankle is None else ankle, float)
-    if hip is None and ankle is None:
-        knee = np.array(v['knee'], float)
-    else:
-        knee = leg_ik(hip, ankle, L1, L2, v['side'])
-    # neutral-exact knee when nothing moved
-    if np.allclose(hip, v['hip']) and np.allclose(ankle, v['ankle']):
-        knee = np.array(v['knee'], float)
+    reach = float(np.hypot(*(ankle - hip)))
+    if reach > L1 + L2:          # out of reach: the foot is pulled toward the hip, never stretched
+        ankle = hip + (ankle - hip) / reach * (L1 + L2 - 1e-6)
+    knee = leg_ik(hip, ankle, L1, L2, v['side'])
     rt, rb = v['r_thigh'], v['r_shaft']
     sh_dir = (ankle - knee) / max(np.linalg.norm(ankle - knee), 1e-9)
     sock_end = knee + sh_dir * SOCK_LEN
@@ -186,12 +199,22 @@ def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None):
     _paste(C, UNDER, UNDER >= 0, *skirt)            # underpaint rides with the skirt/waist
     _hair(C, M['hl'], 26, 50, inner=15, side=-1, top_off=head, bot_off=skirt, sway=sway)
     _hair(C, M['hr'], 14, 44, inner=40, side=+1, top_off=head, bot_off=skirt, sway=sway)
+    _paste(C, UNDERSKIRT, UNDERSKIRT >= 0, *skirt)
     cv = Canvas(); cv.C = C
     legs = legs or {}
     info = {}
     for name in ('left', 'right'):
         info[name] = draw_leg(cv, name, **legs.get(name, {}))
     _paste(C, BODY, M['skirt'], *skirt)
+    # hem shadow: the row of leg directly below the skirt gets a shade tone
+    sk = np.zeros(C.shape, bool)
+    ys, xs = np.nonzero(M['skirt']); sk[ys + skirt[1] + PY, xs + skirt[0] + PX] = True
+    legm = info['left']['mask'] | info['right']['mask']
+    below = np.zeros_like(sk); below[1:] = sk[:-1]
+    edge = below & legm & ~sk
+    shade = {SK: SKS, SKS: SKS, WHITE: 13, WHITE2: 13, LAV: 13, 13: 13}
+    for y, x in zip(*np.nonzero(edge)):
+        C[y, x] = shade.get(int(C[y, x]), OUT)
     _paste(C, BODY, M['torso'], *torso)
     _paste(C, BODY, M['head'], *head)
     return info

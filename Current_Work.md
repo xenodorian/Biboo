@@ -68,14 +68,14 @@ frames or fewer.
 - Signed off: Claude, 2026-09-27
 
 ### Step 2. Hip height and real knee bend
-- [ ] Add a hip offset to each frame in `FRAMES`: hips rise at the peak and drop at impact.
-- [ ] Legs bend at the knee to absorb the change (knees push outward) instead of the upper body
+- [x] Add a hip offset to each frame in `FRAMES`: hips rise at the peak and drop at impact.
+- [x] Legs bend at the knee to absorb the change (knees push outward) instead of the upper body
       sliding down over the legs.
 - Acceptance: the crouch reads as bent knees, leg lengths stay constant, and no seams or holes
   appear between the skirt and legs.
-- Status: IN PROGRESS (Claude, 2026-09-27)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: `anim.HIPS` sets a hip offset per frame (weight back 1 px in the wind-up, 3 px crouch at impact, 4 px overshoot, then recovery). Skirt, torso, head and hands ride on the hips; feet stay planted and the knees bend outward by IK. Added an under-skirt shadow layer so bent thighs never show through the old hem notches, and a hem shade row on the legs. Out-of-reach poses pull the foot in rather than stretching the leg. All checks and tests pass.
+- Signed off: Claude, 2026-09-27
 
 ### Step 3. Step into the strike (with stomp)
 - [ ] Wind-up: weight rocks back onto the rear leg, and the front foot lifts slightly at the peak.
@@ -133,5 +133,6 @@ frames or fewer.
 - Approve optional steps A to D? (asked 2026-09-27)
 
 ## Log
+- 2026-09-27: Step 2 (hips and knee bend) done. Hip offsets live in `anim.HIPS`; a deeper crouch than 4 px hides the thighs under the skirt, so keep it at or below that. (Claude)
 - 2026-09-27: Step 1 (leg rig) done. `rig.draw_leg`, `rig.leg_ik`, `LEG_NEUTRAL`, `LEG_LEN`; frames accept `legs={'left': dict(hip=..., ankle=...)}`. (Claude)
 - 2026-09-27: Board created, Step 0 done. (Claude)
