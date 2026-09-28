@@ -224,6 +224,19 @@ frames or fewer.
 - Result: The rear (near) hand now holds the base of the handle, 17.5 px down the grip from the front hand and just above the pommel, in all 12 frames (`anim.GRIP_SPAN`, `anim.REAR_HAND`); rise and peak are two-handed. Hand positions were solved per frame so both arms stay in range and nothing covers the face. Consequences: the peak is now a two-handed near-upright guard beside the head (the blade can no longer lean back over the head), and during settle she stays braced low on the buried blade (hips and front shoulder held down) because rising would over-stretch the front arm. New rear-grip check and test. All 9 checks and 8 tests pass.
 - Signed off: Claude, 2026-09-28
 
+### Step 18. Arms bend at the elbow (fixed lengths)
+- [ ] User request (2026-09-28): the rear arm bends down at the elbow instead of shortening.
+- [ ] The lead (far) arm's upper arm rises only until it is parallel to the ground; beyond that the
+      elbow bends to keep lifting the sword.
+- [ ] Both arms become two-bone IK with fixed upper-arm and forearm lengths. Re-solve the hand
+      positions per frame under the new limits (face clearance, rear hand on the pommel end, blade
+      buried at impact).
+- Acceptance: upper-arm and forearm lengths constant in every frame; rear elbow bends downward;
+  lead upper arm never above horizontal; all checks and tests pass.
+- Status: TODO
+- Result:
+- Signed off:
+
 ## Open questions
 - None.
 
