@@ -124,13 +124,15 @@ frames or fewer.
 
 ### Approved follow-up steps (user approved all on 2026-09-28)
 
-### Step 8. Sock cuff tidy
-- [ ] Keep the sock cuff a clean band across the leg when the knee bends, instead of a round blob
+### Step 8. Sock cuff tidy and toe direction
+- [x] Keep the sock cuff a clean band across the leg when the knee bends, instead of a round blob
       (frames 3 and 4).
+- [x] Toes read as pointing inward while the knees bend outward (user, 2026-09-28). Fix the toes:
+      redraw both boot feet so they clearly point outward (toe cap outward, heel under the shaft).
 - Acceptance: the cuff reads as a band in every frame; neutral frame visually unchanged; checks pass.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: Sock cuff is now measured along the shin axis, so it stays a clean band when the knee bends (no round blob in frames 3 and 4). Both boot feet are redrawn by hand (`rig.LEFT_FOOT`, mirrored for the right): toe cap points outward, heel under the shaft, arch gap between, so the toes now agree with the outward knee bend. All checks and tests pass.
+- Signed off: Claude, 2026-09-28
 
 ### Step 9. Head direction (was optional C)
 - [ ] Chin up at the peak, chin tucked at impact, without redrawing or shearing the face.
@@ -176,6 +178,7 @@ frames or fewer.
 - None.
 
 ## Log
+- 2026-09-28: Step 8 (sock cuff, toe direction) done. Boot feet are hand-drawn grids in `rig.LEFT_FOOT`; the right foot is its mirror. (Claude)
 - 2026-09-28: User approved optional steps A to D and the sock cuff tidy; added as steps 8 to 13. (Claude)
 - 2026-09-27: Step 7 (review and publish) done. Kinetic upgrade workflow complete; optional steps A to D await the user's approval. (Claude)
 - 2026-09-27: Step 6 (hair) done. Hair values in `anim.HAIR`; keep sway within 4 px and lift within 3 px (tested range). (Claude)

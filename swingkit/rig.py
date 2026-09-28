@@ -120,22 +120,48 @@ def _hair(C, mask, r0, r1, inner, side, top_off, bot_off, sway, lift=0.0):
 # lengths are derived from these once and never change.
 LEG_NEUTRAL = dict(
     left=dict(hip=(23.4, 47.0), knee=(12.5, 60.0), ankle=(4.2, 72.0), side=-1,
-              r_thigh=4.3, r_shaft=4.0, foot=lambda Y, X: (Y >= 73) & (X <= 12)),
+              r_thigh=4.3, r_shaft=4.0),
     right=dict(hip=(42.0, 51.0), knee=(53.1, 62.0), ankle=(60.9, 71.0), side=+1,
-               r_thigh=4.1, r_shaft=3.7, foot=lambda Y, X: (Y >= 73) & (X >= 52)),
+               r_thigh=4.1, r_shaft=3.7),
 )
 LEG_LEN = {k: (float(np.hypot(*np.subtract(v['knee'], v['hip']))),
                float(np.hypot(*np.subtract(v['ankle'], v['knee'])))) for k, v in LEG_NEUTRAL.items()}
 SOCK_LEN = 3.2
 
+# Hand-drawn boot feet (sprite space). The toe cap points OUTWARD (knees bend outward, so
+# the toes must too), the heel sits under the shaft, and an arch gap separates them. The
+# bottom outline is the ground row. Characters: '.' empty, 'O' outline, digits = palette index.
+LEFT_FOOT = (-3, 73, [          # (x of first column, y of first row, rows)
+    "...O2222222222O",
+    "..O23222222222O",
+    ".O233222222222O",
+    "O2332222222212O",
+    "O2222222221112O",
+    "O1111111111111O",
+    "O1111111111111O",
+    ".O11111O..O111O",
+    "..OOOOOO..OOOOO",
+])
+
+def _mirror(foot, axis):
+    x0, y0, rows = foot
+    w = len(rows[0])
+    return (axis - (x0 + w - 1), y0, [r[::-1] for r in rows])
+
+RIGHT_FOOT = _mirror(LEFT_FOOT, 66)     # left x=1..10 shaft maps onto right x=65..56
+
+def _stamp_pixels(foot):
+    x0, y0, rows = foot
+    assert len({len(r) for r in rows}) == 1
+    px = []
+    for j, row in enumerate(rows):
+        for i, ch in enumerate(row):
+            if ch == '.': continue
+            px.append((x0 + i, y0 + j, OUT if ch == 'O' else int(ch)))
+    return px
+
 def _foot_stamps():
-    h, w = BODY.shape
-    Y, X = np.mgrid[0:h, 0:w]
-    out = {}
-    for k, v in LEG_NEUTRAL.items():
-        m = MASKS['legs'] & v['foot'](Y, X)
-        out[k] = m
-    return out
+    return dict(left=_stamp_pixels(LEFT_FOOT), right=_stamp_pixels(RIGHT_FOOT))
 
 FOOT = _foot_stamps()
 
@@ -168,15 +194,14 @@ def draw_leg(cv, name, hip=None, ankle=None):
         return nr if nr[0] > 0 else -nr          # points to the viewer's right
     nt = normal(hip, knee); nb = normal(knee, ankle)
     def f(p):
-        d, t, off = seg(p, knee, ankle)
-        if d <= rb + (0.6 if t * L2 < SOCK_LEN else 0):
-            along = t * L2
-            s = off @ nb
-            if along < SOCK_LEN:                      # small frilled cuff at the knee
-                if along > SOCK_LEN - 1.0:
+        # shin / sock measured along the shin axis: a clean band, no rounded cap at the knee
+        q = p - knee; u = float(q @ sh_dir); s = float(q @ nb)
+        if 0.0 <= u <= L2 and abs(s) <= rb + (0.6 if u < SOCK_LEN else 0):
+            if u < SOCK_LEN:                          # small frilled cuff at the knee
+                if u > SOCK_LEN - 1.0:
                     return 16 if int(round(p[0] + p[1])) % 2 else 18
                 return 16 if s > 1.8 else 19
-            if abs(s) < 1.1 and int(np.floor(along)) % 3 == 0: return 4   # laces
+            if abs(s) < 1.1 and int(np.floor(u)) % 3 == 0: return 4   # laces
             return 1 if s > 1.2 else (3 if s < -2.6 else 2)
         d, t, off = seg(p, hip, knee)
         if d <= rt:
@@ -187,13 +212,12 @@ def draw_leg(cv, name, hip=None, ankle=None):
     m = cv.part((pts[:, 0].min() - 6, pts[:, 1].min() - 6, pts[:, 0].max() + 6, pts[:, 1].max() + 6), f, outline=False)
     # foot stamp, translated with the ankle (never rotated or scaled)
     dx, dy = int(round(ankle[0] - v['ankle'][0])), int(round(ankle[1] - v['ankle'][1]))
-    ys, xs = np.nonzero(FOOT[name])
     body_part = np.zeros(cv.C.shape, bool)
-    for y, x in zip(ys, xs):
+    for x, y, c in FOOT[name]:
         yy, xx = y + dy + PY, x + dx + PX
         if 0 <= yy < CH and 0 <= xx < CW:
-            cv.C[yy, xx] = BODY[y, x]
-            if BODY[y, x] != OUT: body_part[yy, xx] = True
+            cv.C[yy, xx] = c
+            if c != OUT: body_part[yy, xx] = True
     m = m | body_part
     ring = ndimage.binary_dilation(m) & ~m
     cv.C[ring & ((cv.C < 0) | ~m)] = OUT
