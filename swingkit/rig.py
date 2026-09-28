@@ -119,7 +119,7 @@ def _hair(C, mask, r0, r1, inner, side, top_off, bot_off, sway, lift=0.0):
 # Neutral joint positions fitted to the original sprite (sprite space). Thigh and shin
 # lengths are derived from these once and never change.
 LEG_NEUTRAL = dict(
-    left=dict(hip=(23.4, 47.0), knee=(12.5, 60.0), ankle=(4.2, 72.0), side=-1,
+    left=dict(hip=(23.4, 47.0), knee=(12.5, 60.0), ankle=(4.2, 72.0), side=+1,
               r_thigh=4.3, r_shaft=4.0),
     right=dict(hip=(42.0, 51.0), knee=(53.1, 62.0), ankle=(60.9, 71.0), side=+1,
                r_thigh=4.1, r_shaft=3.7),
@@ -164,7 +164,10 @@ def _heel_up(foot, toe_cols=4, lift=3):
                 grid[j + lift - up][i] = rows[j][i]
     return (x0, y0 - lift, [''.join(r) for r in grid])
 
-LEFT_FOOT_HEEL_UP = _heel_up(LEFT_FOOT)
+# Rear (left) foot points FORWARD, toward the strike (user, 2026-09-28): mirror of the drawn
+# boot about its shaft, so the toe cap is on the right and the heel is at the back.
+REAR_FOOT = _mirror(LEFT_FOOT, 11)
+LEFT_FOOT_HEEL_UP = _mirror(_heel_up(LEFT_FOOT), 11)
 HEEL_UP_ANKLE_LIFT = 2.0      # the ankle rises with the heel (sprite px)
 
 def _stamp_pixels(foot):
@@ -178,7 +181,7 @@ def _stamp_pixels(foot):
     return px
 
 def _foot_stamps():
-    return dict(left=_stamp_pixels(LEFT_FOOT), right=_stamp_pixels(RIGHT_FOOT),
+    return dict(left=_stamp_pixels(REAR_FOOT), right=_stamp_pixels(RIGHT_FOOT),
                 left_heel_up=_stamp_pixels(LEFT_FOOT_HEEL_UP))
 
 FOOT = _foot_stamps()

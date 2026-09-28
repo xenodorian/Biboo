@@ -175,21 +175,22 @@ frames or fewer.
 - Signed off: Claude, 2026-09-28
 
 ### Step 14. Rear foot and rear knee point forward
-- [ ] User feedback (2026-09-28): the outward-toe fix from step 8 is not wanted for the back leg.
+- [x] User feedback (2026-09-28): the outward-toe fix from step 8 is not wanted for the back leg.
       Point the back (left) foot and the back knee forward, toward the strike (to the right).
-- [ ] Rear foot: toe cap on the forward side, heel under the shaft on the back side; heel-up variant
+- [x] Rear foot: toe cap on the forward side, heel under the shaft on the back side; heel-up variant
       to match (heel lifts at the back, toe planted in front).
-- [ ] Rear knee bends forward instead of outward. Front leg unchanged (it already points forward).
+- [x] Rear knee bends forward instead of outward. Front leg unchanged (it already points forward).
 - Acceptance: both feet and both knees point toward the strike; leg lengths and planted feet checks
   pass; all checks and tests pass.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: Rear foot is now the drawn boot mirrored about its shaft (`rig.REAR_FOOT`): toe cap forward, heel at the back; the heel-up variant is mirrored the same way (heel lifts at the back, toe planted in front). The rear knee's IK bend side is flipped so it bends forward toward the strike (neutral knee moves about 1 px). Front leg unchanged. This supersedes the outward-toe part of step 8 for the back leg. docs preview GIF and sprite sheet refreshed. All checks and tests pass.
+- Signed off: Claude, 2026-09-28
 
 ## Open questions
 - None.
 
 ## Log
+- 2026-09-28: Step 14 done: both feet and both knees now point toward the strike. Do not reintroduce outward toes on the back leg. (Claude)
 - 2026-09-28: Step 13 done. All approved follow-ups (steps 8 to 13) are complete; nothing is waiting on approval. (Claude)
 - 2026-09-28: Step 12 (dip) done. Frames are referenced by name everywhere now; never use hard-coded frame indices. (Claude)
 - 2026-09-28: Step 11 (heel-up boot) done. Heel is down at the peak on purpose (weight is on the rear foot there). (Claude)
