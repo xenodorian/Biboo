@@ -150,6 +150,23 @@ def _mirror(foot, axis):
 
 RIGHT_FOOT = _mirror(LEFT_FOOT, 66)     # left x=1..10 shaft maps onto right x=65..56
 
+def _heel_up(foot, toe_cols=4, lift=3):
+    """Heel-up variant built from the hand-drawn flat foot: each pixel column is raised by a
+    whole number of pixels, 0 at the toe rising to `lift` at the heel, so pixels stay crisp
+    and the toe keeps touching the ground row."""
+    x0, y0, rows = foot
+    h, w = len(rows), len(rows[0])
+    grid = [['.'] * w for _ in range(h + lift)]
+    for i in range(w):
+        up = 0 if i < toe_cols else int(round(lift * (i - toe_cols + 1) / (w - toe_cols)))
+        for j in range(h):
+            if rows[j][i] != '.':
+                grid[j + lift - up][i] = rows[j][i]
+    return (x0, y0 - lift, [''.join(r) for r in grid])
+
+LEFT_FOOT_HEEL_UP = _heel_up(LEFT_FOOT)
+HEEL_UP_ANKLE_LIFT = 2.0      # the ankle rises with the heel (sprite px)
+
 def _stamp_pixels(foot):
     x0, y0, rows = foot
     assert len({len(r) for r in rows}) == 1
@@ -161,7 +178,8 @@ def _stamp_pixels(foot):
     return px
 
 def _foot_stamps():
-    return dict(left=_stamp_pixels(LEFT_FOOT), right=_stamp_pixels(RIGHT_FOOT))
+    return dict(left=_stamp_pixels(LEFT_FOOT), right=_stamp_pixels(RIGHT_FOOT),
+                left_heel_up=_stamp_pixels(LEFT_FOOT_HEEL_UP))
 
 FOOT = _foot_stamps()
 
@@ -178,7 +196,7 @@ def leg_ik(hip, ankle, L1, L2, side):
     knee = hip + u * a - perp * hgt * side * np.sign(u[1] if abs(u[1]) > 1e-9 else 1)
     return knee
 
-def draw_leg(cv, name, hip=None, ankle=None):
+def draw_leg(cv, name, hip=None, ankle=None, heel_up=False):
     v = LEG_NEUTRAL[name]; L1, L2 = LEG_LEN[name]
     hip = np.array(v['hip'] if hip is None else hip, float)
     ankle = np.array(v['ankle'] if ankle is None else ankle, float)
@@ -211,9 +229,12 @@ def draw_leg(cv, name, hip=None, ankle=None):
     pts = np.array([hip, knee, ankle])
     m = cv.part((pts[:, 0].min() - 6, pts[:, 1].min() - 6, pts[:, 0].max() + 6, pts[:, 1].max() + 6), f, outline=False)
     # foot stamp, translated with the ankle (never rotated or scaled)
-    dx, dy = int(round(ankle[0] - v['ankle'][0])), int(round(ankle[1] - v['ankle'][1]))
+    ref = np.array(v['ankle'], float)
+    if heel_up: ref = ref + np.array([0.0, -HEEL_UP_ANKLE_LIFT])
+    dx, dy = int(round(ankle[0] - ref[0])), int(round(ankle[1] - ref[1]))
+    stamp = FOOT[name + '_heel_up'] if heel_up else FOOT[name]
     body_part = np.zeros(cv.C.shape, bool)
-    for x, y, c in FOOT[name]:
+    for x, y, c in stamp:
         yy, xx = y + dy + PY, x + dx + PX
         if 0 <= yy < CH and 0 <= xx < CW:
             cv.C[yy, xx] = c
@@ -221,7 +242,7 @@ def draw_leg(cv, name, hip=None, ankle=None):
     m = m | body_part
     ring = ndimage.binary_dilation(m) & ~m
     cv.C[ring & ((cv.C < 0) | ~m)] = OUT
-    return dict(hip=hip, knee=knee, ankle=ankle, mask=m)
+    return dict(hip=hip, knee=knee, ankle=ankle, mask=m, heel_up=heel_up)
 
 SKIRT_R0, SKIRT_R1, SKIRT_CX = 40, 57, 33.0
 

@@ -36,7 +36,8 @@ def check_leg_lengths():
 
 def check_feet_planted():
     """Planted boots must sit exactly on the ground: the rear foot in every frame and the
-    front foot whenever it is marked planted (its drawn ankle row equals the neutral row)."""
+    front foot whenever it is marked planted. A heel-up rear foot is planted on its toe, so its
+    ankle row must equal the neutral row minus the heel lift."""
     bad = []
     for i, fr in enumerate(anim.FRAMES):
         _, _, parts = anim.render_character(i)
@@ -44,7 +45,8 @@ def check_feet_planted():
             if name == 'right' and not fr.get('front_planted', True):
                 continue
             j = parts['legs'][name]
-            dy = int(round(j['ankle'][1] - rig.LEG_NEUTRAL[name]['ankle'][1]))
+            ref = rig.LEG_NEUTRAL[name]['ankle'][1] - (rig.HEEL_UP_ANKLE_LIFT if j.get('heel_up') else 0)
+            dy = int(round(j['ankle'][1] - ref))
             if dy != 0:
                 bad.append(f'frame {i+1} {name} foot off the ground by {-dy} px')
     return not bad, 'planted feet on the ground' if not bad else '; '.join(bad)

@@ -197,6 +197,12 @@ SHOULDERS = dict(
     recover2=dict(),
 )
 
+# ---------------------------------------------------------------- rear heel (step 11)
+# The rear (left) heel lifts while the weight transfers forward (swing and impact) and she
+# pivots on the toe. At the wind-up peak the front foot is in the air, so all the weight is on
+# the rear foot and its heel stays down.
+REAR_HEEL_UP = {'smearA', 'smearB', 'impact', 'plume1'}
+
 FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
 for fr in FRAMES:
     ft = FEET[fr['name']]
@@ -206,6 +212,10 @@ for fr in FRAMES:
     fr['sway'] = HAIR[fr['name']]['sway']; fr['hair_lift'] = HAIR[fr['name']]['lift']
     fr['gaze'] = GAZE[fr['name']]
     fr['shoulders'] = SHOULDERS[fr['name']]
+    if fr['name'] in REAR_HEEL_UP:
+        L0 = rig.LEG_NEUTRAL['left']['ankle']
+        fr['legs']['left']['ankle'] = (L0[0], L0[1] - rig.HEEL_UP_ANKLE_LIFT)
+        fr['legs']['left']['heel_up'] = True
 
 def shoulders(fr):
     t = np.array(fr['torso'], float)

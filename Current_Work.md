@@ -151,13 +151,13 @@ frames or fewer.
 - Signed off: Claude, 2026-09-28
 
 ### Step 11. Heel-up boot (was optional A)
-- [ ] Hand-draw one heel-up variant of the rear boot (same palette and outline style).
-- [ ] Use it during the wind-up peak and the swing so the rear heel lifts and she pivots on the toe.
+- [x] Hand-draw one heel-up variant of the rear boot (same palette and outline style).
+- [x] Use it during the wind-up peak and the swing so the rear heel lifts and she pivots on the toe.
 - Acceptance: the toe stays on the ground row (planted check updated for heel-up frames), the variant
   matches the original boot style, checks pass.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: `rig.LEFT_FOOT_HEEL_UP` is built from the hand-drawn flat boot by raising whole pixel columns (0 at the toe to 3 px at the heel), so it keeps the same palette and outline style. The rear heel lifts in frames 5 to 8 (`anim.REAR_HEEL_UP`) as the weight moves forward, ankle raised 2 px, toe planted. Deviation from the plan: the heel stays down at the wind-up peak, because the front foot is in the air there and all the weight is on the rear foot. The planted-feet check now accepts a heel-up foot planted on its toe. All checks and tests pass.
+- Signed off: Claude, 2026-09-28
 
 ### Step 12. Down-before-up dip (was optional B)
 - [ ] Add a one-frame dip before the rise: knees bend, sword dips.
@@ -178,6 +178,7 @@ frames or fewer.
 - None.
 
 ## Log
+- 2026-09-28: Step 11 (heel-up boot) done. Heel is down at the peak on purpose (weight is on the rear foot there). (Claude)
 - 2026-09-28: Step 10 (shoulder drive, sleeve squash) done. Values in `anim.SHOULDERS`. (Claude)
 - 2026-09-28: Step 9 (head direction) done via eye-block gaze; do not tuck the head at impact, it collides with the near arm. (Claude)
 - 2026-09-28: Step 8 (sock cuff, toe direction) done. Boot feet are hand-drawn grids in `rig.LEFT_FOOT`; the right foot is its mirror. (Claude)
