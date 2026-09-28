@@ -280,7 +280,7 @@ frames or fewer.
       the body and the lead arm extends; the blade must still bury itself in the ground.
 - Acceptance: lead hand drop on the low frames about half of before or less; rear hand at hip level
   on the low frames; all checks and tests pass.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-28)
 - Result:
 - Signed off:
 
