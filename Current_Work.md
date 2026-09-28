@@ -194,7 +194,7 @@ frames or fewer.
       tilts the sole with the toe planted.
 - Acceptance: continuous ankle curve with no notch in every frame; planted and leg-length checks
   pass; all checks and tests pass.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-28)
 - Result:
 - Signed off:
 
