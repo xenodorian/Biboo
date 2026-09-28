@@ -88,14 +88,14 @@ frames or fewer.
 - Signed off: Claude, 2026-09-27
 
 ### Step 4. Torso and head lean
-- [ ] Tilt the upper body with per-row horizontal shifts, not rotation: 1 to 2 px back at the peak,
+- [x] Tilt the upper body with per-row horizontal shifts, not rotation: 1 to 2 px back at the peak,
       up to 3 px forward at impact.
-- [ ] Keep the head and the arm attachment points consistent with the lean.
+- [x] Keep the head and the arm attachment points consistent with the lean.
 - Acceptance: the lean reads, there are no seams at the waist or neck, and face clearance still
   passes.
-- Status: IN PROGRESS (Claude, 2026-09-27)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: `lean` per frame in `anim.HIPS` (2 px back at the wind-up peak, 3 px forward at impact, easing back). The torso shifts row by row (0 at the waist, half the lean at its top, `rig.torso_shear`); the head moves as one rigid piece so the face is never sheared. Shoulders follow the torso shear. Face clearance still passes; all checks and tests pass.
+- Signed off: Claude, 2026-09-27
 
 ### Step 5. Skirt motion
 - [ ] Hem lifts and flares during the rise, trails behind during the swing, bounces past rest at
@@ -133,6 +133,7 @@ frames or fewer.
 - Approve optional steps A to D? (asked 2026-09-27)
 
 ## Log
+- 2026-09-27: Step 4 (lean) done. Never shear the head row by row; it jogs the face. (Claude)
 - 2026-09-27: Step 3 (step into the strike) done. Front foot keyframes in `anim.FEET`; mark a frame `planted=True` only if the ankle row equals the neutral row. (Claude)
 - 2026-09-27: Step 2 (hips and knee bend) done. Hip offsets live in `anim.HIPS`; a deeper crouch than 4 px hides the thighs under the skirt, so keep it at or below that. (Claude)
 - 2026-09-27: Step 1 (leg rig) done. `rig.draw_leg`, `rig.leg_ik`, `LEG_NEUTRAL`, `LEG_LEN`; frames accept `legs={'left': dict(hip=..., ankle=...)}`. (Claude)

@@ -192,10 +192,18 @@ def draw_leg(cv, name, hip=None, ankle=None):
     cv.C[ring & ((cv.C < 0) | ~m)] = OUT
     return dict(hip=hip, knee=knee, ankle=ankle, mask=m)
 
-def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None):
+TORSO_TOP, WAIST = 26, 33.5
+
+def torso_shear(lean, row):
+    """Horizontal shift of a torso row for a given lean (px at the head): 0 at the waist,
+    half the lean at the top of the torso."""
+    return 0.5 * lean * (WAIST - row) / (WAIST - TORSO_TOP)
+
+def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0):
     """Draw the body into canvas C (index array, -1 = transparent). `legs` maps
     'left'/'right' to dict(hip=..., ankle=...) overrides; default is the neutral stance."""
     M = MASKS
+    head = (head[0] + int(round(lean)), head[1])   # head leans as one rigid piece
     _paste(C, UNDER, UNDER >= 0, *skirt)            # underpaint rides with the skirt/waist
     _hair(C, M['hl'], 26, 50, inner=15, side=-1, top_off=head, bot_off=skirt, sway=sway)
     _hair(C, M['hr'], 14, 44, inner=40, side=+1, top_off=head, bot_off=skirt, sway=sway)
@@ -215,7 +223,11 @@ def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None):
     shade = {SK: SKS, SKS: SKS, WHITE: 13, WHITE2: 13, LAV: 13, 13: 13}
     for y, x in zip(*np.nonzero(edge)):
         C[y, x] = shade.get(int(C[y, x]), OUT)
-    _paste(C, BODY, M['torso'], *torso)
+    ys, xs = np.nonzero(M['torso'])                  # torso leans row by row
+    for r in np.unique(ys):
+        sel = ys == r
+        dx = torso[0] + int(round(torso_shear(lean, r)))
+        C[r + torso[1] + PY, xs[sel] + dx + PX] = BODY[r, xs[sel]]
     _paste(C, BODY, M['head'], *head)
     return info
 

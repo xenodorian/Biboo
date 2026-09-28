@@ -77,18 +77,18 @@ F(name='recover2', ms=130, theta=0, H=Hu, Hl=Hl, head=(0, 0), torso=(0, 0), skir
 # on top of them; the feet stay planted and the knees bend (IK) to absorb the change.
 # torso/head are given relative to the hips (small lean/stretch offsets only).
 HIPS = dict(
-    ready=dict(hip=(0, 0), torso=(0, 0), head=(0, 0)),
-    rise1=dict(hip=(-1, 1), torso=(0, 0), head=(0, 0)),
-    rise2=dict(hip=(-1, 1), torso=(0, -1), head=(-1, -1)),
-    peak=dict(hip=(-1, 1), torso=(0, -1), head=(-1, -1)),
-    smearA=dict(hip=(0, 1), torso=(0, 0), head=(0, 0)),
-    smearB=dict(hip=(1, 2), torso=(0, 0), head=(1, 0)),
-    impact=dict(hip=(2, 3), torso=(0, 0), head=(0, 0)),
-    plume1=dict(hip=(2, 4), torso=(0, 0), head=(0, 0)),
-    plume2=dict(hip=(2, 3), torso=(0, 0), head=(0, 0)),
-    settle=dict(hip=(2, 2), torso=(0, 0), head=(0, 0)),
-    recover1=dict(hip=(1, 1), torso=(0, 0), head=(0, 0)),
-    recover2=dict(hip=(0, 1), torso=(0, 0), head=(0, 0)),
+    ready=dict(hip=(0, 0), torso=(0, 0), head=(0, 0), lean=0),
+    rise1=dict(hip=(-1, 1), torso=(0, 0), head=(0, 0), lean=-1),
+    rise2=dict(hip=(-1, 1), torso=(0, -1), head=(0, -1), lean=-2),
+    peak=dict(hip=(-1, 1), torso=(0, -1), head=(0, -1), lean=-2),
+    smearA=dict(hip=(0, 1), torso=(0, 0), head=(0, 0), lean=0),
+    smearB=dict(hip=(1, 2), torso=(0, 0), head=(0, 0), lean=2),
+    impact=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=3),
+    plume1=dict(hip=(2, 4), torso=(0, 0), head=(0, 0), lean=3),
+    plume2=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=2),
+    settle=dict(hip=(2, 2), torso=(0, 0), head=(0, 0), lean=2),
+    recover1=dict(hip=(1, 1), torso=(0, 0), head=(0, 0), lean=1),
+    recover2=dict(hip=(0, 1), torso=(0, 0), head=(0, 0), lean=0),
 )
 
 def _add(p, d):
@@ -109,6 +109,7 @@ def _rebase(fr, spec):
         if a.get('elbow') is not None: a['elbow'] = _add(a['elbow'], d)
         fr[k] = a
     fr['skirt'] = hip; fr['torso'] = new_torso; fr['head'] = new_head; fr['hip'] = hip
+    fr['lean'] = spec.get('lean', 0)
     fr['legs'] = {n: dict(hip=_add(rig.LEG_NEUTRAL[n]['hip'], hip)) for n in ('left', 'right')}
     return fr
 
@@ -141,6 +142,7 @@ for fr in FRAMES:
 
 def shoulders(fr):
     t = np.array(fr['torso'], float)
+    t[0] += rig.torso_shear(fr.get('lean', 0), 29.5)      # shoulders follow the torso lean
     return S_NEAR + t, S_FAR + t
 
 def arm_lengths(fr):
@@ -159,7 +161,7 @@ def render_character(i):
     for op in fr['order']:
         if op == 'body':
             parts['legs'] = body(cv.C, head=fr['head'], torso=fr['torso'], skirt=fr['skirt'], sway=fr['sway'],
-                                 legs=fr.get('legs'))
+                                 legs=fr.get('legs'), lean=fr.get('lean', 0))
         elif op == 'far':
             a = fr['far']
             parts['far'] = arm(cv, sf, a['to'], elbow=a.get('elbow'), sleeve=a.get('sleeve', 3.5), rs=a.get('rs', 2.6))
@@ -180,6 +182,7 @@ def render_character(i):
 
 def face_box(fr):
     hx, hy = fr['head']
+    hx += int(round(fr.get('lean', 0)))
     return (21 + hx, 12 + hy, 33 + hx, 25 + hy)     # x0,y0,x1,y1 inclusive, sprite space
 
 if __name__ == '__main__':
