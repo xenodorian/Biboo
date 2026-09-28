@@ -37,3 +37,7 @@ def test_gif_roundtrip(tmp_path):
     from swingkit import build
     frames = build.build(tmp_path, scales=(1,), log=lambda *a: None)
     ok, msg = checks.check_gif(tmp_path / 'swing_x1.gif', frames, 1); assert ok, msg
+
+
+def test_moves():
+    ok, msg = checks.check_moves(); assert ok, msg

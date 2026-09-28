@@ -66,9 +66,12 @@ def camera(move, fr):
     return (0, 0)
 
 
-def render(move, i):
-    """Composite frame i of a move. Returns (view rgba, parts) with parts for export."""
+def render(move, i, offset=(0, 0)):
+    """Composite frame i of a move. Returns (view rgba, parts) with parts for export. offset adds
+    to the root (used to chain walk cycles in the preview)."""
     fr = move.frames[i]
+    if offset != (0, 0):
+        fr = dict(fr, root=(fr['root'][0] + offset[0], fr['root'][1] + offset[1]))
     C, sw, parts = anim.render_pose(fr)
     if fr.get('flip'): C = mirror(C)
     cam = camera(move, fr)
@@ -96,7 +99,7 @@ def render(move, i):
         cp.over(out, view(cp.layers()[name], -cam[0] * par + sx * f, int(round(cam[1] * par + sy * f)), True))
     for Lr in (back.a, ch, front.a):
         cp.over(out, view(Lr, dx, int(round(dy)), False))
-    cp.over(out, view(cp.layers()['fringe'], -cam[0] + sx, int(round(dy)), True))
+    cp.over(out, view(cp.layers()['fringe'], -cam[0] + sx, int(round(cam[1] + sy)), True))
     return out, dict(char=C, back=back.a, front=front.a)
 
 
@@ -141,8 +144,16 @@ def build_move(move, out_dir, scales=(2,)):
         crop.save(d / 'character' / f'{move.id}_{i + 1:02d}.png'); sheet.paste(crop, (i * cw, 0))
     sheet.save(d / 'character' / f'{move.id}_sheet.png')
     durs = [f['ms'] for f in move.frames]
+    gif_frames, gif_durs = frames, durs
+    if move.preview_cycles > 1:                   # chain cycles so the preview walks on
+        r = [f['root'][0] for f in move.frames]
+        step = r[-1] + (r[-1] - r[-2])
+        gif_frames, gif_durs = [], []
+        for c in range(move.preview_cycles):
+            off = step * (c - (move.preview_cycles - 1) / 2)
+            gif_frames += [render(move, i, (off, 0))[0] for i in range(len(move.frames))]; gif_durs += durs
     for s in scales:
-        gifwrite.write_gif(frames, d / f'{move.id}_x{s}.gif', s, durs)
+        gifwrite.write_gif(gif_frames, d / f'{move.id}_x{s}.gif', s, gif_durs)
     entry = dict(
         id=move.id, title=move.title, input=move.inputs, kind=move.kind, loop=move.loop, notes=move.notes,
         sheet=f'{move.id}/character/{move.id}_sheet.png', frame_size=[cw, chh],
@@ -155,3 +166,33 @@ def build_move(move, out_dir, scales=(2,)):
                      shake=list(f.get('shake', (0, 0))), sword_angle_deg=round(float(f['theta']), 1))
                 for i, f in enumerate(move.frames)])
     return frames, entry
+
+
+def heavy_entry(frames_ms):
+    """The heavy attack (up + A) from the main build, described like the library moves."""
+    from . import composite
+    return dict(id='heavy', title='Heavy overhead chop', input='Up+A', kind='basic', loop=False,
+                notes='the main animation (swing_x3.gif); high damage; impact frame 5, black-and-white frame 6',
+                sheet='character/char_sheet.png', total_ms=sum(frames_ms),
+                frames=[dict(i=i + 1, name=f['name'], ms=f['ms'], root=[0.0, 0.0],
+                             active=f['name'] == 'impact', impact_frame_bw=bool(f.get('bw', False)),
+                             shake=list(composite.SHAKE.get(i, (0, 0))), sword_angle_deg=round(float(f['theta']), 1))
+                        for i, f in enumerate(anim.FRAMES)])
+
+
+def build_all(out_dir, scales=(2,), log=print):
+    from . import moves
+    out = Path(out_dir) / 'moves'
+    out.mkdir(parents=True, exist_ok=True)
+    entries = [heavy_entry([f['ms'] for f in anim.FRAMES])]
+    for m in moves.all_moves():
+        _, e = build_move(m, out, scales)
+        e.update(input_type=m.input_type, loop_from=m.loop_from)
+        entries.append(e)
+    doc = dict(note='Frame data for every move. root = character position in px (y up), relative to where '
+                    'the move starts; hitbox capsules are in sprite px relative to the anchor (x right, y up '
+                    'from the feet row); loop moves repeat from loop_from (1-based frame index = loop_from + 1).',
+               buttons=['A', 'B', 'X', 'Y', 'L', 'R', 'Up', 'Down', 'Left', 'Right'], moves=entries)
+    (out / 'moves.json').write_text(json.dumps(doc, indent=1))
+    log(f'moves: {len(entries)}')
+    return entries

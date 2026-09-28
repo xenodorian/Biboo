@@ -117,11 +117,52 @@ def check_gif(path, frames, scale):
     return bad == 0, f'{path.name}: {bad} pixels differ from source frames'
 
 
+def _move_frames():
+    from . import moves
+    for m in moves.all_moves():
+        for i, fr in enumerate(m.frames):
+            yield m, i, fr
+
+
+def check_moves():
+    """Every move in the library keeps the rig rules: arms reach their hands at fixed lengths,
+    legs keep their lengths, planted feet sit on the ground (when the character stands on it),
+    the rear hand holds the pommel end, the lead arm is behind the head and the sword never
+    covers the face."""
+    bad = []
+    want = rig.PY + rig.FEET_ROW - 1
+    for m, i, fr in _move_frames():
+        tag = f'{m.id} frame {i + 1}'
+        if len(m.frames) > 16: bad.append(f'{m.id}: {len(m.frames)} frames (limit 16)')
+        for k, (S, E, H) in anim.arm_joints(fr).items():
+            L1, L2 = anim.ARM_LEN[k]
+            if abs(np.linalg.norm(E - S) - L1) > 0.05 or abs(np.linalg.norm(H - E) - L2) > 0.05:
+                bad.append(f'{tag} {k} arm out of reach')
+        _, _, parts = anim.render_pose(fr)
+        for name, j in parts['legs'].items():
+            L1, L2 = rig.LEG_LEN[name]
+            if abs(np.hypot(*(j['knee'] - j['hip'])) - L1) > 0.05 or abs(np.hypot(*(j['ankle'] - j['knee'])) - L2) > 0.05:
+                bad.append(f'{tag} {name} leg length')
+            planted = fr.get('front_planted' if name == 'right' else 'rear_planted', True)
+            if planted and fr['root'][1] <= 0:
+                low = int(np.nonzero(j['mask'].any(1))[0].max())
+                if low != want: bad.append(f'{tag} {name} sole {want - low:+d} px from the ground')
+        o = fr['order']; h = o.index('head')
+        lead = 'lead_fist' if 'lead_fist' in o else 'lead_hand'
+        if not (o.index('far') < h and o.index(lead) < h and o.index('near') > h and o.index('rear_fist') > h):
+            bad.append(f'{tag} arm draw order')
+        x0, y0, x1, y1 = anim.face_box(fr)
+        win = (slice(y0 + rig.PY, y1 + rig.PY + 1), slice(x0 + rig.PX, x1 + rig.PX + 1))
+        for k in ('blade', 'guard'):
+            if o.index(k) > h and parts[k][win].any(): bad.append(f'{tag} {k} over the face')
+    return not bad, 'all moves keep the rig rules' if not bad else '; '.join(bad[:12]) + (f' (+{len(bad) - 12} more)' if len(bad) > 12 else '')
+
+
 def run_all(frames=None, gif_paths=()):
     results = [('frame count', check_frame_count()), ('arm lengths', check_arm_lengths()),
                ('leg lengths', check_leg_lengths()), ('planted feet', check_feet_planted()),
                ('rear grip', check_rear_hand_on_pommel()), ('lead arm behind grip', check_lead_arm_behind_grip()),
-               ('occlusion', check_occlusion()), ('layer tiling', check_tiling())]
+               ('occlusion', check_occlusion()), ('layer tiling', check_tiling()), ('moves', check_moves())]
     for p, s in gif_paths:
         results.append((f'gif x{s}', check_gif(p, frames, s)))
     return results

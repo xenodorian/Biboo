@@ -166,9 +166,13 @@ def ghosts(ctx, offsets=((-14, 0), (-28, 0)), color='blue'):
     """Afterimages: the current silhouette repeated at offsets (world px), fading with distance."""
     t = TONES[color]
     cols = [t[2], t[1], t[0]]
+    Y, X = np.mgrid[0:fx.H, 0:fx.W]
     for k, (dx, dy) in list(enumerate(offsets))[::-1]:
         m = np.roll(np.roll(ctx.mask, int(round(dx)), axis=1), int(round(-dy)), axis=0)
-        ctx.back.a[m, :3] = C[cols[min(k, 2)]]; ctx.back.a[m, 3] = 255
+        edge = m & ~ndi.binary_erosion(m)
+        dither = m & (((X + Y) % 2 == 0) if k == 0 else ((X % 2 == 0) & (Y % 2 == 0)))   # see-through
+        for mm, col in ((dither, cols[min(k, 2)]), (edge, cols[min(k, 2)])):
+            ctx.back.a[mm, :3] = C[col]; ctx.back.a[mm, 3] = 255
 
 
 def dust(ctx, foot='both', t=0.0, big=1.0):

@@ -357,22 +357,26 @@ Framework: `swingkit/moves/base.py` (pose specs, tween, reach fitting), `swingki
 (effects), `swingkit/movekit.py` (compositor with root motion and camera, exports).
 
 ### Step 29. Framework, input map and non-combat moves
-- [ ] Idle: plow guard (breathing loop)
-- [ ] Right: walk right; Left: walk left (backpedal in guard)
-- [ ] Down: duck; Y: jump 2 body heights; X: dash forward
-- [ ] B: block when held, parry when tapped
-- [ ] Up: raise into the high guard and charge for Up+A
-- [ ] Build output per move, `game/moves.json`, `game/input_map.json`, checks over all moves
-- Status: IN PROGRESS (Claude, 2026-09-28)
+- [x] Idle: plow guard (breathing loop)
+- [x] Right: walk right; Left: walk left (backpedal in guard)
+- [x] Down: duck; Y: jump 2 body heights; X: dash forward
+- [x] B: block when held, parry when tapped
+- [x] Up: raise into the high guard and charge for Up+A
+- [x] Build output per move, `game/moves.json`, `game/input_map.json`, checks over all moves
+- Status: DONE
+- Result: Move framework (`swingkit/moves`, `movefx`, `movekit`), `game/input_map.json`, per-move output in `out/moves/<id>/` and `out/moves/moves.json` (timing, root motion, hitbox capsules, loops). Nine non-combat moves (idle, walk right/left, duck, jump, dash, block, parry, charge). New `moves` check covers the rig rules for every move.
+- Signed off: Claude, 2026-09-28
 
 ### Step 30. Basic attacks
-- [ ] A: medium horizontal slash
-- [ ] Right+A: quick long-range thrust with a forward lunge
-- [ ] Down+A: duck into a medium-range upswing
-- [ ] Left+A: upswing while jumping back
-- [ ] L: push kick
-- [ ] R: kneel, glow green, floating + signs (recover HP)
-- Status: TODO
+- [x] A: medium horizontal slash
+- [x] Right+A: quick long-range thrust with a forward lunge
+- [x] Down+A: duck into a medium-range upswing
+- [x] Left+A: upswing while jumping back
+- [x] L: push kick
+- [x] R: kneel, glow green, floating + signs (recover HP)
+- Status: DONE
+- Result: Slash (flat crescent smear), lunging thrust (18 px forward), ducking upswing, upswing with a 36 px back hop, push kick (chamber, hip-height extension, recoil; per the teep references), kneeling recovery (green aura, rising + signs, loops while R is held).
+- Signed off: Claude, 2026-09-28
 
 ### Step 31. Combo attacks
 - [ ] A+B: horizontal slash charged with glittering blue energy
@@ -393,6 +397,7 @@ Framework: `swingkit/moves/base.py` (pose specs, tween, reach fitting), `swingki
 - Ready is now Plow (blade 27 degrees up, hands at the hip). The dip (blade -6, hands at chest) and recover2 (blade 0) still match the old ready pose, so they jump. Re-pose them to lead into and out of Plow? (asked 2026-09-28)
 
 ## Log
+- 2026-09-28: Steps 29 and 30 done: move framework, input map, 9 non-combat moves and 6 basic attacks. Build: `python -m swingkit` (add `--no-moves` to skip the library). (Claude)
 - 2026-09-28: User request: strike motion blur regenerated (`fx.blur_strike`: stepped crescent trailing the blade with speed streaks; the old `fx.smear` is removed). New frame 6 'impactbw' (`fx.impact_frame_bw`): anime-style black-and-white impact frame with radial speed lines, flagged `impact_frame_bw` in the manifest. 11 frames. (Claude)
 - 2026-09-28: User request: blur arc moved back so it trails the blade (`composite.SMEAR_END` = 0.85); new frame 6 'burst' (same pose as impact) carries the first dust cloud, which moved off the impact frame; particle timing now starts at burst; 10 frames. (Claude)
 - 2026-09-28: User request: the motion-blur arc moved onto the impact frame (smear from the high guard) and the chop frame deleted; 9 frames. (Claude)

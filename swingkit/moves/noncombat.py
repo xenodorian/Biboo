@@ -115,12 +115,12 @@ def parry():
 
 
 def charge():
-    loop = [dict(HIGH, name=f'charge{k + 1}', ms=90, hair=(0, 1 + k % 2),
+    loop = [dict(HIGH, name=f'charge{k + 1}', ms=90, front=(-2, 0), hair=(0, 1 + k % 2),
                  fx=[('aura', dict(color='blue', width=1 + k % 2)), ('energy', dict(color='blue', n=10 + 4 * k)),
                      ('charge', dict(t=k / 3))]) for k in range(3)]
     return Move('charge', 'Raise and charge (hold Up)', 'Up (hold)', 'non-combat', [
         dict(RAISE1, name='raise1', ms=90), dict(RAISE2, name='raise2', ms=80),
-        dict(HIGH, name='high', ms=120, fx=[('glint', {})]),
+        dict(HIGH, name='high', ms=120, front=(-2, 0), fx=[('glint', {})]),
     ] + loop, loop=True, loop_from=3, input_type='hold',
         notes='lifts into the high guard, then loops the charge; release into up + A (heavy attack)')
 

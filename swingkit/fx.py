@@ -284,9 +284,10 @@ def blur_strike(layer, frA, frB, s0=0.5, u_min=24):
     def pose(s):
         return Sword(thA + (thB - thA) * s, HA + (HB - HA) * s)
     def u_in(s):                                  # inner edge: near the tip at the tail, wide at the blade
-        k = (s - s0) / (1 - s0)
+        k = max((s - s0) / (1 - s0), 0.0)
         return L - (L - u_min) * k ** 0.8
-    bands = [(0.50, 0.66, 'lav2'), (0.66, 0.80, 'lav'), (0.80, 0.92, 'light'), (0.92, 1.0, 'white')]
+    sc = lambda b: s0 + (b - 0.5) / 0.5 * (1 - s0)      # band edges scale to start at s0
+    bands = [(sc(0.50), sc(0.66), 'lav2'), (sc(0.66), sc(0.80), 'lav'), (sc(0.80), sc(0.92), 'light'), (sc(0.92), 1.0, 'white')]
     for sa, sb, col in bands:
         outer, inner = [], []
         for i in range(13):
@@ -295,7 +296,7 @@ def blur_strike(layer, frA, frB, s0=0.5, u_min=24):
             outer.append(to_layer(sw.B0 + (L + 1) * sw.d)); inner.append(to_layer(sw.B0 + u_in(s) * sw.d))
         layer.poly(outer + inner[::-1], C[col])
     # speed streaks: bright arcs along the crescent, longest at the tip
-    for u, start, thick in ((L, 0.52, 2), (L - 9, 0.64, 1), (L - 20, 0.74, 1), (L - 32, 0.84, 1)):
+    for u, start, thick in ((L, sc(0.52), 2), (L - 9, sc(0.64), 1), (L - 20, sc(0.74), 1), (L - 32, sc(0.84), 1)):
         pts = [pose(start + (0.995 - start) * i / 40) for i in range(41)]
         for p, q in zip(pts[:-1], pts[1:]):
             layer.line(to_layer(p.B0 + u * p.d), to_layer(q.B0 + u * q.d), C['white'], thick=thick)

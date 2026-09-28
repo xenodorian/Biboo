@@ -3,11 +3,11 @@
 Inputs use the Dreamcast pad names (A, B, X, Y, L, R, Up, Down, Left, Right). '+' means pressed
 together; '-' means pressed in sequence.
 """
-from . import noncombat
+from . import noncombat, basic
 
 
 def all_moves():
     out = []
-    for mod in (noncombat,):
+    for mod in (noncombat, basic):
         out += [f() for f in mod.ALL]
     return out
