@@ -264,7 +264,10 @@ def arm_joints(fr):
 arm_lengths = arm_reach        # backward-compatible name
 
 def render_character(i):
-    fr = FRAMES[i]
+    return render_pose(FRAMES[i])
+
+def render_pose(fr):
+    """Render one frame description (a FRAMES entry, or a move frame from swingkit.moves)."""
     cv = Canvas()
     sw = Sword(fr['theta'], fr['H'])
     J = arm_joints(fr)
@@ -304,7 +307,12 @@ def render_character(i):
             parts['guard'] = sw.guard(cv)
         elif op == 'blade':
             parts['blade'] = sw.blade(cv)
-    finish(cv.C)
+        elif op == 'lead_hand':                     # free lead hand (not on the grip)
+            parts['lead_fist'] = fist(cv, fr['fists'][0])
+    if fr.get('clip_row', rig.FEET_ROW) is not None:
+        finish(cv.C, fr.get('clip_row', rig.FEET_ROW))
+    else:
+        finish(cv.C, clip_row=rig.CH)
     return cv.C, sw, parts
 
 def face_box(fr):
