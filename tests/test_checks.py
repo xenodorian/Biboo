@@ -1,0 +1,23 @@
+from swingkit import checks
+
+
+def test_frame_count():
+    ok, msg = checks.check_frame_count(); assert ok, msg
+
+
+def test_arm_lengths():
+    ok, msg = checks.check_arm_lengths(); assert ok, msg
+
+
+def test_face_clear():
+    ok, msg = checks.check_face_clear(); assert ok, msg
+
+
+def test_tiling():
+    ok, msg = checks.check_tiling(); assert ok, msg
+
+
+def test_gif_roundtrip(tmp_path):
+    from swingkit import build
+    frames = build.build(tmp_path, scales=(1,), log=lambda *a: None)
+    ok, msg = checks.check_gif(tmp_path / 'swing_x1.gif', frames, 1); assert ok, msg
