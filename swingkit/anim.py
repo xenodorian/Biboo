@@ -1,10 +1,10 @@
-"""Pose specifications for the 10-frame overhead chop and the character renderer.
+"""Pose specifications for the 9-frame overhead chop and the character renderer.
 
 Structure (user request, 2026-09-28):
   1 plow (Pflug guard, held) | 2-3 raise the sword | 4 high guard (held, glint) |
-  5 chop: one fast frame with a motion-blur smear | 6 impact: steady, unblurred low point with
-  flash, dirt eruption and camera shake | 7-8 debris settles while the pose holds |
-  9-10 pull the blade free and return to plow (loops to frame 1).
+  5 impact: the low point with the motion-blur arc from the high guard, flash, dirt eruption and
+  camera shake | 6-7 debris settles while the pose holds | 8-9 pull the blade free and return to
+  plow (loops to frame 1).
 """
 import numpy as np
 from . import rig
@@ -54,17 +54,16 @@ F(name='raise2', ms=80, theta=108, sway=1, elbows='fwd', order=HIGH)
 # 4 HIGH GUARD - fists just above and in front of the forehead, elbows bent, blade pointing up
 # and back at 45 degrees, torso bent back
 F(name='high', ms=250, theta=135, sway=0, elbows='fwd', order=HIGH, glint=True)
-# 5 CHOP - one fast frame: arms thrown forward, the blade blurred through the whole arc
-F(name='chop', ms=40, theta=-4, sway=-3, smear_from='high')
-# 6 IMPACT - steady, unblurred low point: the near shoulder, straight near arm, grip and blade form
-# one line; rear hand by the pommel, lead hand below the guard; flash, dirt and camera shake
-F(name='impact', ms=120, theta=-31.7, sway=-1)
-# 7-8 hold on the buried blade while the dirt comes down; hair overshoots then settles
+# 5 IMPACT - the low point: the near shoulder, straight near arm, grip and blade form one line;
+# rear hand by the pommel, lead hand below the guard. The motion-blur arc from the high guard
+# trails the blade; flash, dirt and camera shake
+F(name='impact', ms=120, theta=-31.7, sway=-1, smear_from='high')
+# 6-7 hold on the buried blade while the dirt comes down; hair overshoots then settles
 F(name='plume', ms=100, theta=-31.7, sway=2)
 F(name='settle', ms=120, theta=-31.7, sway=0)
-# 9 RETURN 1 - pull the blade free, arms bend again
+# 8 RETURN 1 - pull the blade free, arms bend again
 F(name='return1', ms=110, theta=-14, sway=-1)
-# 10 RETURN 2 - ease back into plow (loops to frame 1)
+# 9 RETURN 2 - ease back into plow (loops to frame 1)
 F(name='return2', ms=130, theta=12, sway=1, far=dict(sleeve=2.5, rs=2.6))
 
 # ---------------------------------------------------------------- hips (step 2)
@@ -78,7 +77,6 @@ HIPS = dict(
     raise1=dict(hip=(-1, 1), torso=(0, 0), head=(0, 0), lean=-1, bend=-3),
     raise2=dict(hip=(-1, 0), torso=(0, -1), head=(0, -1), lean=-1, bend=-6),
     high=dict(hip=(-2, 0), torso=(0, -1), head=(0, -1), lean=-2, bend=-8),
-    chop=dict(hip=(1, 2), torso=(0, 0), head=(0, 0), lean=2, bend=12),
     impact=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=2, bend=20),
     plume=dict(hip=(2, 4), torso=(0, 0), head=(0, 0), lean=2, bend=22),
     settle=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=2, bend=20),   # stays down while the blade is buried
@@ -102,7 +100,7 @@ def _rebase(fr, spec):
 
 # ---------------------------------------------------------------- footwork (step 3)
 # Front (right) foot: planted, lifts and draws back as weight rocks onto the rear leg during the
-# raise, travels forward with the chop, stomps down 4 px forward at impact, then steps back during
+# raise, stomps down 4 px forward at impact, then steps back during
 # the return so the loop closes in plow. The rear foot never moves. 'planted' feet must sit
 # exactly on the ground (ankle row unchanged).
 R0 = rig.LEG_NEUTRAL['right']['ankle']
@@ -111,7 +109,6 @@ FEET = dict(
     raise1=dict(right=(R0[0], R0[1]), planted=True),
     raise2=dict(right=(R0[0] - 0.5, R0[1] - 1.5), planted=False),
     high=dict(right=(R0[0] - 1.0, R0[1] - 3.0), planted=False),
-    chop=dict(right=(R0[0] + 3.0, R0[1] - 1.0), planted=False),
     impact=dict(right=(R0[0] + 4.0, R0[1]), planted=True),
     plume=dict(right=(R0[0] + 4.0, R0[1]), planted=True),
     settle=dict(right=(R0[0] + 4.0, R0[1]), planted=True),
@@ -127,7 +124,6 @@ CLOTH = dict(
     raise1=dict(lift=1, trail=1, flare=0),
     raise2=dict(lift=1, trail=1, flare=1),
     high=dict(lift=3, trail=0, flare=1),
-    chop=dict(lift=3, trail=-2, flare=1),
     impact=dict(lift=1, trail=-1, flare=3),
     plume=dict(lift=-1, trail=1, flare=1),
     settle=dict(lift=0, trail=0, flare=0),
@@ -143,7 +139,6 @@ HAIR = dict(
     raise1=dict(sway=1, lift=-1),
     raise2=dict(sway=2, lift=-1),
     high=dict(sway=1, lift=1),
-    chop=dict(sway=-4, lift=3),
     impact=dict(sway=-2, lift=2),
     plume=dict(sway=3, lift=-1),
     settle=dict(sway=0, lift=0),
@@ -155,7 +150,7 @@ HAIR = dict(
 # gaze: -1 chin up / eyes up (watching the blade rise), +1 chin tucked / eyes down (driving
 # the strike), 0 neutral. (A physical 1 px head tuck was tried and removed: it pushes the chin
 # onto the near arm at impact.)
-GAZE = dict(plow=0, raise1=0, raise2=-1, high=-1, chop=1, impact=1, plume=1, settle=0,
+GAZE = dict(plow=0, raise1=0, raise2=-1, high=-1, impact=1, plume=1, settle=0,
             return1=0, return2=0)
 
 # ---------------------------------------------------------------- shoulders (step 10)
@@ -168,7 +163,6 @@ SHOULDERS = dict(
     raise1=dict(far=(0, -0.5)),
     raise2=dict(near=(0, -1.0), far=(0, -1.5)),
     high=dict(near=(0, -2.0), far=(0.5, -2.0), far_sleeve=1.0),
-    chop=dict(near=(0.5, 1.0), far=(0.5, 0.5), near_sleeve=-0.5),
     impact=dict(near=(1.0, 1.5), far=(0.5, 1.0), near_sleeve=-1.0, rs=0.4),
     plume=dict(near=(1.0, 1.5), far=(0.5, 1.0), near_sleeve=-1.0, rs=0.4),
     settle=dict(near=(1.0, 1.5), far=(0.5, 1.0), near_sleeve=-0.5, rs=0.2),   # still braced on the buried blade
@@ -177,9 +171,9 @@ SHOULDERS = dict(
 )
 
 # ---------------------------------------------------------------- rear heel (step 11)
-# The rear (left) heel lifts while the weight transfers forward (chop and impact) and she pivots
+# The rear (left) heel lifts while the weight transfers forward (impact) and she pivots
 # on the toe. In the high guard the front foot is in the air, so the rear heel stays down.
-REAR_HEEL_UP = {'chop', 'impact', 'plume'}
+REAR_HEEL_UP = {'impact', 'plume'}
 
 
 def index(name):
@@ -194,12 +188,12 @@ FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
 # reach with fixed-length arms. The lead hand is GRIP_GAP (or HAND_GAP) further along the grip.
 # While the blade is buried (impact, plume, settle) the grip stays fixed in the world.
 REAR_HAND = dict(plow=(37.5, 37.4), raise1=(38.0, 22.0), raise2=(36.0, 13.0), high=(34.5, 7.5),
-                 chop=(49.5, 30.9), impact=(48.36, 45.69), plume=(48.36, 45.69),
+                 impact=(48.36, 45.69), plume=(48.36, 45.69),
                  settle=(48.36, 45.69), return1=(43.0, 40.5), return2=(39.0, 38.5))
 
 # Hand gap along the grip where a frame differs from HAND_GAP. High guard: lead hand 12 px up the
 # grip so both fists sit clear above the head. Plow and the low point: lead hand below the guard.
-GRIP_GAP = dict(plow=14.0, raise1=13.0, raise2=12.0, high=12.0, chop=14.0, impact=14.0,
+GRIP_GAP = dict(plow=14.0, raise1=13.0, raise2=12.0, high=12.0, impact=14.0,
                 plume=14.0, settle=14.0, return1=14.0, return2=14.0)
 
 def apply_grip(fr, Hl):

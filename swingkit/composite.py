@@ -50,7 +50,7 @@ def render_frame(i, parts_out=None):
     I = fx.impact_point()
     T = impact_times()
     if fr.get('glint'): fx.glint(front, fr)
-    if 'smear_from' in fr:          # the chop: one blurred frame through the whole arc
+    if 'smear_from' in fr:          # motion-blur arc swept by the blade from the high guard
         fx.smear(back, anim.by_name(fr['smear_from']), fr, u_head=40)
     if name == 'impact':
         fx.crown(front, I); fx.mound(front, I)
