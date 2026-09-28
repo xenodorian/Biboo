@@ -73,7 +73,7 @@ frames or fewer.
       sliding down over the legs.
 - Acceptance: the crouch reads as bent knees, leg lengths stay constant, and no seams or holes
   appear between the skirt and legs.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-27)
 - Result:
 - Signed off:
 
