@@ -14,8 +14,9 @@ PAL = np.load(DATA / 'pal.npy')                 # 20-colour character palette
 BODY = np.load(DATA / 'body_old.npy')           # 82x128, body without arms/sword
 # left boot sole extended one row so both soles end on row 81 (ground contact)
 BODY[80, 2:11] = 1; BODY[80, 1] = 0; BODY[80, 11] = 0; BODY[81, 2:11] = 0
-PX, PY = 24, 104                         # sprite (x,y) -> canvas (x+PX, y+PY)
-CW, CH = 176, 190
+# Step 23: wide canvas so a sword pointed backwards over the head is never clipped.
+PX, PY = 104, 124                        # sprite (x,y) -> canvas (x+PX, y+PY)
+CW, CH = 320, 224
 FEET_ROW = 81                            # sprite row of the boot soles
 
 # palette indices used by the parametric parts
@@ -273,6 +274,63 @@ def torso_shear(lean, row):
     half the lean at the top of the torso."""
     return 0.5 * lean * (WAIST - row) / (WAIST - TORSO_TOP)
 
+# Step 26: waist bend. The upper body (torso, shoulders, head) pivots at the waist. bend is in
+# degrees, positive = forward (toward the strike, the top moves to +x). The torso pixels are
+# rotated with a RotSprite-style resample (scale2x three times, then nearest), the head is moved
+# rigidly (never rotated, so the face is untouched) along the arc of HEAD_ANCHOR.
+PIVOT = np.array([28.0, WAIST])
+HEAD_ANCHOR = np.array([28.0, 19.0])     # the head rides the arc of this point
+
+def bend_point(p, bend):
+    """Where sprite point p (on the upper body) goes when the upper body bends."""
+    if not bend: return np.asarray(p, float)
+    t = np.radians(bend); c, s = np.cos(t), np.sin(t)
+    q = np.asarray(p, float) - PIVOT
+    return PIVOT + np.array([c * q[0] - s * q[1], s * q[0] + c * q[1]])
+
+def upper_point(p, lean=0.0, bend=0.0, torso=(0, 0)):
+    """Final sprite position of a point on the torso: bend, then lean shear, then torso offset."""
+    q = bend_point(p, bend)
+    return np.array([q[0] + torso[0] + torso_shear(lean, p[1]), q[1] + torso[1]])
+
+def head_offset(head, lean=0.0, bend=0.0):
+    """Whole-pixel head offset including lean and bend (the head moves as one rigid piece)."""
+    d = bend_point(HEAD_ANCHOR, bend) - HEAD_ANCHOR
+    return (int(head[0] + round(lean) + round(d[0])), int(head[1] + round(d[1])))
+
+def _scale2x(A):
+    """EPX / Scale2x on an index image (-1 = transparent)."""
+    P = np.pad(A, 1, mode='edge')
+    B, D, F, H = P[:-2, 1:-1], P[1:-1, :-2], P[1:-1, 2:], P[2:, 1:-1]
+    E = A
+    out = np.empty((A.shape[0] * 2, A.shape[1] * 2), A.dtype)
+    ok = (B != H) & (D != F)
+    out[0::2, 0::2] = np.where(ok & (D == B), D, E)
+    out[0::2, 1::2] = np.where(ok & (B == F), F, E)
+    out[1::2, 0::2] = np.where(ok & (D == H), D, E)
+    out[1::2, 1::2] = np.where(ok & (H == F), F, E)
+    return out
+
+def rotate_layer(src, mask, bend, pad=8):
+    """Rotate the masked pixels of src about PIVOT by bend degrees (positive = top moves
+    to +x). Returns (ys, xs, colours) in sprite space."""
+    ys, xs = np.nonzero(mask)
+    if not bend:
+        return ys, xs, src[ys, xs]
+    y0, y1, x0, x1 = ys.min() - pad, ys.max() + pad, xs.min() - pad, xs.max() + pad
+    tile = np.full((y1 - y0 + 1, x1 - x0 + 1), -1)
+    tile[ys - y0, xs - x0] = src[ys, xs]
+    big = _scale2x(_scale2x(_scale2x(tile)))
+    t = np.radians(bend); c, s = np.cos(t), np.sin(t)
+    Y, X = np.mgrid[y0:y1 + 1, x0:x1 + 1]
+    qx, qy = X + 0.5 - PIVOT[0], Y + 0.5 - PIVOT[1]
+    sx = c * qx + s * qy + PIVOT[0]; sy = -s * qx + c * qy + PIVOT[1]   # inverse rotation
+    bx = np.floor((sx - x0) * 8).astype(int); by = np.floor((sy - y0) * 8).astype(int)
+    ok = (bx >= 0) & (by >= 0) & (bx < big.shape[1]) & (by < big.shape[0])
+    col = np.full(Y.shape, -1); col[ok] = big[by[ok], bx[ok]]
+    sel = col >= 0
+    return Y[sel], X[sel], col[sel]
+
 EYE_ROWS, EYE_X = (18, 20), (22, 33)
 
 def _gaze(C, head, gaze):
@@ -293,11 +351,14 @@ def _gaze(C, head, gaze):
         for k, r in enumerate(range(r0 + 1, r1 + 2)): C[row(r), xs] = block[k]
         C[row(r0), xs] = filler
 
-def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0, cloth=None, hair_lift=0.0, gaze=0):
+def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0, cloth=None, hair_lift=0.0,
+         gaze=0, bend=0.0, draw_head=True):
     """Draw the body into canvas C (index array, -1 = transparent). `legs` maps
-    'left'/'right' to dict(hip=..., ankle=...) overrides; default is the neutral stance."""
+    'left'/'right' to dict(hip=..., ankle=...) overrides; default is the neutral stance.
+    With draw_head=False the head is left for a later pass (see draw_head), so arms can be
+    layered behind it."""
     M = MASKS
-    head = (head[0] + int(round(lean)), head[1])   # head leans as one rigid piece
+    head = head_offset(head, lean, bend)            # head leans and bends as one rigid piece
     _paste(C, UNDER, UNDER >= 0, *skirt)            # underpaint rides with the skirt/waist
     _hair(C, M['hl'], 26, 50, inner=15, side=-1, top_off=head, bot_off=skirt, sway=sway, lift=hair_lift)
     _hair(C, M['hr'], 14, 44, inner=40, side=+1, top_off=head, bot_off=skirt, sway=sway, lift=hair_lift)
@@ -316,14 +377,19 @@ def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0
     shade = {SK: SKS, SKS: SKS, WHITE: 13, WHITE2: 13, LAV: 13, 13: 13}
     for y, x in zip(*np.nonzero(edge)):
         C[y, x] = shade.get(int(C[y, x]), OUT)
-    ys, xs = np.nonzero(M['torso'])                  # torso leans row by row
-    for r in np.unique(ys):
-        sel = ys == r
-        dx = torso[0] + int(round(torso_shear(lean, r)))
-        C[r + torso[1] + PY, xs[sel] + dx + PX] = BODY[r, xs[sel]]
-    _paste(C, BODY, M['head'], *head)
-    _gaze(C, head, gaze)
+    ys, xs, cols = rotate_layer(BODY, M['torso'], bend)   # torso bends at the waist, then leans row by row
+    for y, x, c in zip(ys, xs, cols):
+        dx = torso[0] + int(round(torso_shear(lean, y)))
+        C[y + torso[1] + PY, x + dx + PX] = c
+    info['head'] = head
+    if draw_head:
+        draw_head_pass(C, head, gaze)
     return info
+
+def draw_head_pass(C, head, gaze=0):
+    """Paste the head at its final whole-pixel offset (from body()['head']) and set the gaze."""
+    _paste(C, BODY, MASKS['head'], *head)
+    _gaze(C, head, gaze)
 
 # ---------------------------------------------------------------- parametric parts
 V = lambda x, y: np.array([x, y], float)
@@ -413,9 +479,10 @@ def _beyond(q, pts, M):
         acc += L
     return qpos >= mpos - 1e-6
 
-def arm_ik(S, H, L1, L2):
-    """Two-bone arm IK: elbow for fixed upper-arm (L1) and forearm (L2) lengths, taking the
-    elbow-down solution. If the hand is out of reach the arm is straight toward it."""
+def arm_ik(S, H, L1, L2, prefer='down'):
+    """Two-bone arm IK: elbow for fixed upper-arm (L1) and forearm (L2) lengths. prefer='down'
+    takes the lower elbow, 'fwd' the elbow further toward the strike (+x, used when the arms are
+    raised over the head). If the hand is out of reach the arm is straight toward it."""
     S = np.asarray(S, float); H = np.asarray(H, float)
     d = H - S; dist = float(np.hypot(*d))
     u = d / max(dist, 1e-9)
@@ -425,6 +492,7 @@ def arm_ik(S, H, L1, L2):
     h = np.sqrt(max(L1 * L1 - a * a, 0.0))
     perp = np.array([-u[1], u[0]])
     e1, e2 = S + u * a + perp * h, S + u * a - perp * h
+    if prefer == 'fwd': return e1 if e1[0] >= e2[0] else e2
     return e1 if e1[1] >= e2[1] else e2
 
 def fist(cv, c):

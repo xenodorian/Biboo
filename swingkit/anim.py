@@ -10,17 +10,16 @@ import numpy as np
 from . import rig
 from .rig import V, Canvas, Sword, arm, fist, body, finish
 
-S_NEAR = np.array([20.0, 29.5])     # viewer-left shoulder (arm crosses in front)
-# Fixed arm segment lengths (upper arm, forearm), step 18. Arms bend at the elbow, never shorten.
-ARM_LEN = dict(near=(10.0, 10.8), far=(10.0, 10.8))
-S_FAR = np.array([35.5, 29.0])      # viewer-right shoulder
+S_NEAR = np.array([20.0, 29.5])     # viewer-left shoulder (rear arm, crosses in front)
+S_FAR = np.array([35.5, 29.0])      # viewer-right shoulder (lead arm)
+# Fixed arm segment lengths (upper arm, forearm). Arms bend at the elbow, never shorten (step 18).
+# Step 25: both arms lengthened by about 30% (user approved) so the hands can go over the head.
+ARM_LEN = dict(near=(13.0, 14.0), far=(13.0, 14.0))
 
-# Rear (near) hand holds the base of the handle just above the pommel in every frame; the front
-# (far) hand is near the guard. GRIP_SPAN is the distance between them along the grip
-# (the sword's grip runs 21 px from the guard-side hand to the pommel end).
+# Rear (near) hand holds the base of the handle just above the pommel in every frame. H is the
+# sword reference point GRIP_SPAN further along the grip (see rig.Sword). The lead (far) hand
+# sits HAND_GAP up the handle from the rear hand (step 22: hands close together).
 GRIP_SPAN = 17.5
-# Lead (far) hand sits one fist's gap up the handle from the rear hand (step 22, from the low-cut
-# reference poses: hands close together, not spread along the grip).
 HAND_GAP = 8.0
 
 def two_hand(theta, Hl):
@@ -28,105 +27,77 @@ def two_hand(theta, Hl):
     Hl = np.array(Hl, float); Hu = Hl + GRIP_SPAN * d
     return Hl, Hu
 
-# Each frame: sword angle, hand(s), body offsets, hair sway, arm routing, draw order
+# Draw orders (step 24). The lead arm and fist are always behind the head, the rear arm and fist
+# in front of it. LOW: sword in front of the body. HIGH: the sword is up and back, so the blade,
+# guard and grip pass behind the head while the rear hand stays in front.
+LOW = ['body', 'far', 'grip', 'lead_fist', 'head', 'near', 'rear_fist', 'guard', 'blade']
+HIGH = ['body', 'blade', 'guard', 'far', 'grip', 'lead_fist', 'head', 'near', 'rear_fist']
+
+# Each frame: name, duration, sword angle (degrees, 0 = pointing forward, 90 = up, 180 = back),
+# arm sleeves, elbow direction ('down' or 'fwd'), draw order and effect flags. Hand positions are
+# in REAR_HAND below; body motion is in the tables that follow.
 FRAMES = []
-def F(**k): FRAMES.append(k)
+def F(**k):
+    k.setdefault('far', dict(sleeve=3.5, rs=2.6)); k.setdefault('near', dict())
+    k.setdefault('order', LOW); k.setdefault('head', (0, 0)); k.setdefault('torso', (0, 0))
+    FRAMES.append(k)
 
 # 1 READY - the original design pose, both hands, blade forward
-Hl, Hu = two_hand(4.9, (35.8, 30.5))
-F(name='ready', ms=320, theta=4.9, H=Hu, Hl=Hl, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0,
-  far=dict(to=Hu, sleeve=2.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
-  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'])
-# 1b DIP - down before up: knees bend, blade dips below the ready line (step 12)
-Hl, Hu = two_hand(-6, (36.5, 31.0))
-F(name='dip', ms=80, theta=-6, H=Hu, Hl=Hl, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0,
-  far=dict(to=Hu, sleeve=2.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
-  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'])
-# 2 RISE 1 - both hands lift the blade up and forward, body leans back
-Hl, Hu = two_hand(40, (39.5, 27.5))
-F(name='rise1', ms=90, theta=40, H=Hu, Hl=Hl, head=(-1, 0), torso=(-1, 0), skirt=(0, 0), sway=1,
-  far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
-  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'])
-# 3 RISE 2 - both hands carry the sword up; rear hand stays on the pommel end
-Hl, Hu = two_hand(62, (36.5, 29.5))
-F(name='rise2', ms=80, theta=62, H=Hu, Hl=Hl, head=(-2, -1), torso=(-1, -1), skirt=(0, 0), sway=1,
-  far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
-  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'])
-# 4 PEAK - two-handed high guard beside the head, blade near upright (the pommel is in the
-# rear hand, so the blade cannot lean back over the head)
-Hl, Hu = two_hand(76, (38.5, 28.5))
-F(name='peak', ms=250, theta=76, H=Hu, Hl=Hl, head=(-2, -1), torso=(-1, -1), skirt=(0, 0), sway=0,
-  far=dict(to=Hu, elbow=(47.0, 20.0), sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
-  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'], glint=True)
-# 5 SMEAR A - both hands rejoin on the grip, blade sweeping over the top
-Hl, Hu = two_hand(38, (40.5, 27.5))
-F(name='smearA', ms=50, theta=38, H=Hu, Hl=Hl, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=-2,
-  far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
-  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'], smear_from='peak')
-# 6 SMEAR B - body drops into the strike
-Hl, Hu = two_hand(-18, (40.0, 34.5))
-F(name='smearB', ms=40, theta=-14, H=Hu, Hl=Hl, head=(2, 1), torso=(1, 1), skirt=(0, 1), sway=-3,
-  far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
-  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'], smear_from='smearA')
-# 7 IMPACT - blade buried, deepest crouch
-Hl, Hu = two_hand(-34, (38.0, 40.0))
-IMPACT = dict(theta=-30, H=Hu, Hl=Hl, far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
-              order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'])
-F(name='impact', ms=110, head=(2, 2), torso=(1, 2), skirt=(0, 1), sway=-1, smear_from='smearB', residual=True, **IMPACT)
-# 8-10 hold while debris flies; hair overshoots then settles; body eases up
-F(name='plume1', ms=90, head=(2, 2), torso=(1, 2), skirt=(0, 1), sway=2, **IMPACT)
-F(name='plume2', ms=80, head=(2, 2), torso=(1, 2), skirt=(0, 1), sway=1, **IMPACT)
-F(name='settle', ms=120, head=(1, 1), torso=(1, 1), skirt=(0, 1), sway=0, **IMPACT)
-# 11 RECOVER 1 - pull the blade free
-Hl, Hu = two_hand(-14, (37.5, 34.5))
-F(name='recover1', ms=110, theta=-10, H=Hu, Hl=Hl, head=(1, 1), torso=(0, 1), skirt=(0, 0), sway=-1,
-  far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
-  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'])
+F(name='ready', ms=320, theta=4.9, sway=0, far=dict(sleeve=2.5, rs=2.6))
+# 2 DIP - down before up: knees bend, blade dips below the ready line (step 12)
+F(name='dip', ms=80, theta=-6, sway=0, far=dict(sleeve=2.5, rs=2.6))
+# 3 RISE 1 - hands lift the blade past vertical, upper body starts to bend back
+F(name='rise1', ms=90, theta=75, sway=1, elbows='fwd', order=HIGH)
+# 4 RISE 2 - hands go over the head, blade tipping back
+F(name='rise2', ms=80, theta=120, sway=1, elbows='fwd', order=HIGH)
+# 5 PEAK - arms raised over the head with bent elbows, sword pointed backwards, torso bent back
+F(name='peak', ms=250, theta=159, sway=0, elbows='fwd', order=HIGH, glint=True)
+# 6 SMEAR A - arms swing forward over the head and start to straighten
+F(name='smearA', ms=50, theta=55, sway=-2, elbows='fwd', order=HIGH, smear_from='peak')
+# 7 SMEAR B - arms at full forward extension, upper body bends into the strike
+F(name='smearB', ms=40, theta=-4, sway=-3, smear_from='smearA')
+# 8 IMPACT - blade buried, arms extended, deepest bend
+F(name='impact', ms=110, theta=-28, sway=-1, smear_from='smearB', residual=True)
+# 9-10 hold while debris flies; hair overshoots then settles; body eases up
+F(name='plume1', ms=90, theta=-28, sway=2)
+F(name='settle', ms=120, theta=-28, sway=0)
+# 11 RECOVER 1 - pull the blade free, arms bend again
+F(name='recover1', ms=110, theta=-16, sway=-1)
 # 12 RECOVER 2 - ease back into the ready pose (loops to frame 1)
-Hl, Hu = two_hand(0, (36.5, 31.0))
-F(name='recover2', ms=130, theta=0, H=Hu, Hl=Hl, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=1,
-  far=dict(to=Hu, sleeve=2.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
-  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'])
+F(name='recover2', ms=130, theta=0, sway=1, far=dict(sleeve=2.5, rs=2.6))
 
 # ---------------------------------------------------------------- hips (step 2)
 # Hip offset per frame. The skirt sits on the hips, and the torso, head and hands ride
 # on top of them; the feet stay planted and the knees bend (IK) to absorb the change.
 # torso/head are given relative to the hips (small lean/stretch offsets only).
 HIPS = dict(
-    ready=dict(hip=(0, 0), torso=(0, 0), head=(0, 0), lean=0),
-    dip=dict(hip=(0, 2), torso=(0, 0), head=(0, 0), lean=1),
-    rise1=dict(hip=(-1, 1), torso=(0, 0), head=(0, 0), lean=-1),
-    rise2=dict(hip=(-1, 1), torso=(0, -1), head=(0, -1), lean=-2),
-    peak=dict(hip=(-1, 1), torso=(0, -1), head=(0, -1), lean=-2),
-    smearA=dict(hip=(0, 1), torso=(0, 0), head=(0, 0), lean=0),
-    smearB=dict(hip=(1, 2), torso=(0, 0), head=(0, 0), lean=2),
-    impact=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=3),
-    plume1=dict(hip=(2, 4), torso=(0, 0), head=(0, 0), lean=3),
-    plume2=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=2),
-    settle=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=2),   # stays down while the blade is buried
-    recover1=dict(hip=(1, 1), torso=(0, 0), head=(0, 0), lean=1),
-    recover2=dict(hip=(0, 1), torso=(0, 0), head=(0, 0), lean=0),
+    # hip: hip offset; torso/head: extra offsets relative to the hips; lean: px the head moves
+    # sideways (row shear, step 4); bend: waist bend in degrees, + forward (step 26).
+    ready=dict(hip=(0, 0), torso=(0, 0), head=(0, 0), lean=0, bend=0),
+    dip=dict(hip=(0, 2), torso=(0, 0), head=(0, 0), lean=1, bend=4),
+    rise1=dict(hip=(-1, 1), torso=(0, 0), head=(0, 0), lean=-1, bend=-4),
+    rise2=dict(hip=(-1, 0), torso=(0, -1), head=(0, -1), lean=-1, bend=-9),
+    peak=dict(hip=(-2, 0), torso=(0, -1), head=(0, -1), lean=-2, bend=-12),
+    smearA=dict(hip=(0, 1), torso=(0, 0), head=(0, 0), lean=0, bend=0),
+    smearB=dict(hip=(1, 2), torso=(0, 0), head=(0, 0), lean=2, bend=12),
+    impact=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=2, bend=20),
+    plume1=dict(hip=(2, 4), torso=(0, 0), head=(0, 0), lean=2, bend=22),
+    settle=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=2, bend=18),   # stays down while the blade is buried
+    recover1=dict(hip=(1, 1), torso=(0, 0), head=(0, 0), lean=1, bend=8),
+    recover2=dict(hip=(0, 1), torso=(0, 0), head=(0, 0), lean=0, bend=2),
 )
 
 def _add(p, d):
     return None if p is None else (p[0] + d[0], p[1] + d[1])
 
 def _rebase(fr, spec):
-    """Apply the hip offsets. Hand positions were authored against the old torso offset,
-    so every hand-related point moves by (new torso - old torso)."""
+    """Apply the hip offsets: the skirt sits on the hips, torso and head ride on top of them."""
     hip = spec['hip']
-    new_torso = (hip[0] + spec['torso'][0], hip[1] + spec['torso'][1])
-    new_head = (hip[0] + spec['head'][0], hip[1] + spec['head'][1])
-    d = (new_torso[0] - fr['torso'][0], new_torso[1] - fr['torso'][1])
     fr = dict(fr)
-    fr['H'] = _add(fr['H'], d); fr['Hl'] = _add(fr['Hl'], d)
-    fr['fists'] = [_add(c, d) for c in fr['fists']]
-    for k in ('far', 'near'):
-        a = dict(fr[k]); a['to'] = _add(a['to'], d)
-        if a.get('elbow') is not None: a['elbow'] = _add(a['elbow'], d)
-        fr[k] = a
-    fr['skirt'] = hip; fr['torso'] = new_torso; fr['head'] = new_head; fr['hip'] = hip
-    fr['lean'] = spec.get('lean', 0)
+    fr['skirt'] = hip; fr['hip'] = hip
+    fr['torso'] = (hip[0] + spec['torso'][0], hip[1] + spec['torso'][1])
+    fr['head'] = (hip[0] + spec['head'][0], hip[1] + spec['head'][1])
+    fr['lean'] = spec.get('lean', 0); fr['bend'] = spec.get('bend', 0)
     fr['legs'] = {n: dict(hip=_add(rig.LEG_NEUTRAL[n]['hip'], hip)) for n in ('left', 'right')}
     return fr
 
@@ -206,8 +177,8 @@ SHOULDERS = dict(
     ready=dict(),
     dip=dict(near=(0, 0.5), far=(0, 0.5)),
     rise1=dict(far=(0, -0.5)),
-    rise2=dict(far=(0, -1.0)),
-    peak=dict(far=(0.5, -1.5), far_sleeve=1.0),
+    rise2=dict(near=(0, -1.0), far=(0, -1.5)),
+    peak=dict(near=(0, -2.0), far=(0.5, -2.0), far_sleeve=1.0),
     smearA=dict(far=(0, -0.5)),
     smearB=dict(near=(0.5, 1.0), far=(0.5, 0.5), near_sleeve=-0.5),
     impact=dict(near=(1.0, 1.5), far=(0.5, 1.0), near_sleeve=-1.0, rs=0.4),
@@ -224,8 +195,6 @@ SHOULDERS = dict(
 # the rear foot and its heel stays down.
 REAR_HEEL_UP = {'smearA', 'smearB', 'impact', 'plume1'}
 
-# Step 12: the dip frame is paid for by dropping 'plume2' (the plume hold is now two frames).
-FRAMES[:] = [fr for fr in FRAMES if fr['name'] != 'plume2']
 
 def index(name):
     return next(i for i, fr in enumerate(FRAMES) if fr['name'] == name)
@@ -234,24 +203,25 @@ def by_name(name):
     return FRAMES[index(name)]
 
 FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
-# ---------------------------------------------------------------- grip (step 17)
+# ---------------------------------------------------------------- grip (steps 17, 22, 27)
 # Rear (near) hand position per frame in final sprite coordinates, solved so both arms stay in
-# reach with fixed-length arms (elbows bend, step 18), the lead upper arm never above horizontal,
-# and the rear arm below the chin. The front
-# hand is always GRIP_SPAN further along the grip. While the blade is buried (impact, plume1,
-# settle) the grip stays fixed in the world as the body moves.
-REAR_HAND = dict(ready=(36.3, 30.5), dip=(36.5, 33.0), rise1=(36.0, 31.0), rise2=(36.5, 32.5),
-                 peak=(38.5, 34.0), smearA=(37.5, 31.0), smearB=(38.5, 39.5),
-                 impact=(38.5, 40.0), plume1=(38.5, 40.0), settle=(38.5, 40.0),
-                 recover1=(38.0, 39.0), recover2=(36.5, 32.0))
+# reach with fixed-length arms. The lead hand is always HAND_GAP further along the grip. While the
+# blade is buried (impact, plume1, settle) the grip stays fixed in the world as the body moves.
+REAR_HAND = dict(ready=(36.5, 30.5), dip=(36.6, 33.0), rise1=(38.0, 17.1), rise2=(31.7, 9.3),
+                 peak=(27.8, 5.8), smearA=(36.5, 10.0), smearB=(49.5, 30.9),
+                 impact=(50.4, 38.5), plume1=(50.4, 38.5), settle=(50.4, 38.5),
+                 recover1=(42.9, 38.4), recover2=(36.6, 32.2))
 
-for fr in FRAMES:
-    Hl, Hu = two_hand(fr['theta'], REAR_HAND[fr['name']])      # Hu = sword reference point
+def apply_grip(fr, Hl):
+    Hl, Hu = two_hand(fr['theta'], Hl)                     # Hu = sword reference point
     th = np.radians(fr['theta']); lead = Hl + HAND_GAP * np.array([np.cos(th), -np.sin(th)])
     fr['Hl'] = tuple(Hl); fr['H'] = tuple(Hu); fr['lead'] = tuple(lead)
     fr['fists'] = [tuple(lead), tuple(Hl)]
     fr['far'] = dict(fr['far'], to=tuple(lead), elbow=None)
     fr['near'] = dict(fr['near'], to=tuple(Hl), elbow=None)
+
+for fr in FRAMES:
+    apply_grip(fr, REAR_HAND[fr['name']])
 
 for fr in FRAMES:
     ft = FEET[fr['name']]
@@ -267,24 +237,28 @@ for fr in FRAMES:
         fr['legs']['left']['heel_up'] = True
 
 def shoulders(fr):
-    t = np.array(fr['torso'], float)
-    t[0] += rig.torso_shear(fr.get('lean', 0), 29.5)      # shoulders follow the torso lean
+    """Final shoulder points: they ride the torso through the waist bend and the lean."""
     sd = fr.get('shoulders', {})
-    return S_NEAR + t + np.array(sd.get('near', (0, 0))), S_FAR + t + np.array(sd.get('far', (0, 0)))
+    lean, bend, t = fr.get('lean', 0), fr.get('bend', 0), fr['torso']
+    sn = rig.upper_point(S_NEAR, lean, bend, t) + np.array(sd.get('near', (0, 0)))
+    sf = rig.upper_point(S_FAR, lean, bend, t) + np.array(sd.get('far', (0, 0)))
+    return sn, sf
 
 def arm_reach(fr):
     """Shoulder-to-hand distance for the near and far arm."""
     sn, sf = shoulders(fr)
     return float(np.linalg.norm(np.array(fr['near']['to']) - sn)), float(np.linalg.norm(np.array(fr['far']['to']) - sf))
 
+def elbow(fr, k, S, H):
+    return rig.arm_ik(S, H, *ARM_LEN[k], prefer=fr.get('elbows', 'down'))
+
 def arm_joints(fr):
-    """Shoulder, elbow and hand for both arms (elbow from two-bone IK, elbow down)."""
+    """Shoulder, elbow and hand for both arms (two-bone IK)."""
     sn, sf = shoulders(fr)
     out = {}
     for k, S in (('near', sn), ('far', sf)):
         H = np.array(fr[k]['to'], float)
-        E = rig.arm_ik(S, H, *ARM_LEN[k])
-        out[k] = (S, E, H)
+        out[k] = (S, elbow(fr, k, S, H), H)
     return out
 
 arm_lengths = arm_reach        # backward-compatible name
@@ -293,31 +267,33 @@ def render_character(i):
     fr = FRAMES[i]
     cv = Canvas()
     sw = Sword(fr['theta'], fr['H'])
-    sn, sf = shoulders(fr)
+    J = arm_joints(fr)
+    sd = fr.get('shoulders', {})
     parts = {}
     for op in fr['order']:
         if op == 'body':
-            parts['legs'] = body(cv.C, head=fr['head'], torso=fr['torso'], skirt=fr['skirt'], sway=fr['sway'],
-                                 legs=fr.get('legs'), lean=fr.get('lean', 0),
-                                 cloth=fr.get('cloth'), hair_lift=fr.get('hair_lift', 0),
-                                 gaze=fr.get('gaze', 0))
-        elif op == 'far':
-            a = fr['far']
-            sd = fr.get('shoulders', {})
-            E = rig.arm_ik(sf, a['to'], *ARM_LEN['far'])
-            parts['far'] = arm(cv, sf, a['to'], elbow=tuple(E), sleeve=a.get('sleeve', 3.5) + sd.get('far_sleeve', 0),
-                               rs=a.get('rs', 2.6) + sd.get('rs', 0))
-        elif op == 'near':
-            a = fr['near']
-            sd = fr.get('shoulders', {})
-            E = rig.arm_ik(sn, a['to'], *ARM_LEN['near'])
-            parts['near'] = arm(cv, sn, a['to'], elbow=tuple(E), sleeve=a.get('sleeve', 7.0) + sd.get('near_sleeve', 0),
-                                rs=a.get('rs', 2.7) + sd.get('rs', 0))
+            info = body(cv.C, head=fr['head'], torso=fr['torso'], skirt=fr['skirt'], sway=fr['sway'],
+                        legs=fr.get('legs'), lean=fr.get('lean', 0), bend=fr.get('bend', 0),
+                        cloth=fr.get('cloth'), hair_lift=fr.get('hair_lift', 0), draw_head=False)
+            parts['head_offset'] = info.pop('head')
+            parts['legs'] = info
+        elif op == 'head':
+            m0 = cv.C.copy()
+            rig.draw_head_pass(cv.C, parts['head_offset'], fr.get('gaze', 0))
+            parts['head'] = cv.C != m0
+        elif op in ('far', 'near'):
+            a = fr[op]; S, E, H = J[op]
+            if op == 'far':
+                sl, rs = a.get('sleeve', 3.5) + sd.get('far_sleeve', 0), a.get('rs', 2.6) + sd.get('rs', 0)
+            else:
+                sl, rs = a.get('sleeve', 7.0) + sd.get('near_sleeve', 0), a.get('rs', 2.7) + sd.get('rs', 0)
+            parts[op] = arm(cv, S, H, elbow=tuple(E), sleeve=sl, rs=rs)
         elif op == 'grip':
             parts['grip'] = sw.grip(cv)
-        elif op == 'fists':
-            for c in fr['fists']:
-                fist(cv, c)
+        elif op == 'lead_fist':
+            parts['lead_fist'] = fist(cv, fr['fists'][0])
+        elif op == 'rear_fist':
+            parts['rear_fist'] = fist(cv, fr['fists'][1])
         elif op == 'guard':
             parts['guard'] = sw.guard(cv)
         elif op == 'blade':
@@ -326,8 +302,7 @@ def render_character(i):
     return cv.C, sw, parts
 
 def face_box(fr):
-    hx, hy = fr['head']
-    hx += int(round(fr.get('lean', 0)))
+    hx, hy = rig.head_offset(fr['head'], fr.get('lean', 0), fr.get('bend', 0))
     return (21 + hx, 12 + hy, 33 + hx, 25 + hy)     # x0,y0,x1,y1 inclusive, sprite space
 
 if __name__ == '__main__':

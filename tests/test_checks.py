@@ -9,10 +9,6 @@ def test_arm_lengths():
     ok, msg = checks.check_arm_lengths(); assert ok, msg
 
 
-def test_lead_upper_arm():
-    ok, msg = checks.check_lead_upper_arm(); assert ok, msg
-
-
 def test_leg_lengths():
     ok, msg = checks.check_leg_lengths(); assert ok, msg
 
@@ -29,8 +25,8 @@ def test_lead_arm_behind_grip():
     ok, msg = checks.check_lead_arm_behind_grip(); assert ok, msg
 
 
-def test_face_clear():
-    ok, msg = checks.check_face_clear(); assert ok, msg
+def test_occlusion():
+    ok, msg = checks.check_occlusion(); assert ok, msg
 
 
 def test_tiling():

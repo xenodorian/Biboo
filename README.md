@@ -57,25 +57,30 @@ measurements, never scaled, so proportions stay identical.
 |---|---|---|---|
 | 1 | ready | 320 | Original design pose, two hands, blade forward, both feet planted |
 | 2 | dip | 80 | Down before up: knees bend, blade dips below the ready line |
-| 3 | rise1 | 90 | Both hands lift the blade; weight rocks back onto the rear leg, body leans back |
-| 4 | rise2 | 80 | Both hands carry the blade up (rear hand on the pommel end); front foot lifts; eyes look up |
-| 5 | peak | 250 | Two-handed high guard beside the head, blade near upright, glint; front foot 3 px up |
-| 6 | smearA | 50 | Smear over the top; rear heel lifts onto the toe, front foot travels |
-| 7 | smearB | 40 | Body drops and leans into the strike; near shoulder drives down; hair and hem lift |
-| 8 | impact | 110 | Blade buried, front foot stomps 4 px forward, knees bent, sleeves squash, flash, dirt, shake |
+| 3 | rise1 | 90 | Both hands lift the blade past vertical; weight rocks back onto the rear leg, upper body starts to bend back |
+| 4 | rise2 | 80 | Hands go over the head, blade tipping back; front foot lifts; eyes look up |
+| 5 | peak | 250 | Arms raised over the head with bent elbows, sword pointed backwards, torso bent back, glint; front foot 3 px up |
+| 6 | smearA | 50 | Smear over the top, arms straightening; rear heel lifts onto the toe, front foot travels |
+| 7 | smearB | 40 | Arms at full forward extension; upper body bends into the strike; hair and hem lift |
+| 8 | impact | 110 | Blade buried, arms extended, deepest waist bend, front foot stomps 4 px forward, flash, dirt, shake |
 | 9-10 | plume1, settle | 90, 120 | Dust plume and debris; body stays braced low on the buried blade, skirt bounces, hair settles |
 | 11-12 | recover1, recover2 | 110, 130 | Blade pulled free, front foot steps back, ease into frame 1 |
 
 Techniques: the fast part of the swing is carried by smear frames instead of in-between poses;
-hands never go above head height (the sword provides the height). The rear hand holds the base
-of the handle, just above the pommel, in every frame (`anim.REAR_HAND`, `anim.GRIP_SPAN`). Legs are two fixed-length
+the hands go over the head at the peak and the arms straighten into a full forward extension on
+the way down. The rear hand holds the base of the handle, just above the pommel, in every frame
+(`anim.REAR_HAND`, `anim.GRIP_SPAN`), with the lead hand one fist's gap above it (`anim.HAND_GAP`).
+Arms are two fixed-length segments (`anim.ARM_LEN`) that bend at the elbow. The head is drawn in
+its own pass, so the lead arm goes behind the head and the rear arm in front of it; the blade and
+guard never cover the face. Legs are two fixed-length
 segments solved by inverse kinematics, so the hips can drop and the knees bend without changing
 leg length; the front foot steps and stomps while planted feet are checked to stay on the ground.
-The torso leans row by row while the head moves as one rigid piece (the face is never sheared).
+The torso leans row by row and bends at the waist (`bend` in `HIPS`, rotated with a RotSprite-style
+resample) while the head moves as one rigid piece (the face is never sheared or rotated).
 The skirt hem lifts, trails, flares and bounces; the long hair sways and lifts with lag. Debris and
 dust use simple deterministic physics; camera shake moves distant layers less.
 
-Per-frame motion tables live in `swingkit/anim.py`: `HIPS` (hip offset and lean), `FEET` (front
+Per-frame motion tables live in `swingkit/anim.py`: `HIPS` (hip offset, lean and waist bend), `FEET` (front
 foot), `REAR_HEEL_UP`, `CLOTH` (skirt hem), `HAIR` (sway and lift), `GAZE` (eye direction) and
 `SHOULDERS` (shoulder drive and sleeve squash). Frames are always looked up by name
 (`anim.by_name`), never by index. Each boot foot is drawn together with its shin as one shape
@@ -92,7 +97,7 @@ swingkit/
   composite.py  frame assembly with parallax camera shake
   gifwrite.py   exact-palette GIF writer and verifier
   build.py      writes every deliverable
-  checks.py     frame count, arm and leg lengths, planted feet, face clearance, tiling, GIF fidelity
+  checks.py     frame count, arm and leg lengths, planted feet, occlusion, tiling, GIF fidelity
 data/
   pal.npy       20-colour character palette
   body_old.npy  character body (no arms or sword), 128x82 palette indices
@@ -103,8 +108,9 @@ tests/          pytest wrapper around checks.py
 ## Changing things
 
 - Poses and timing: edit `FRAMES` in `swingkit/anim.py`. Each frame sets the sword angle, hand
-  positions, arm routing, body offsets, hair sway, draw order and duration. The checks flag arm
-  lengths outside the design range and any arm or sword pixel over the face.
+  positions, arm routing, body offsets, hair sway, draw order and duration. The checks flag arms
+  that stretch or shrink, a lead arm drawn in front of the head, and any blade or guard pixel over
+  the face.
 - Effects: particle counts, speeds, gravity and colours are at the top of the particle section in
   `swingkit/fx.py`. All randomness is seeded, so builds are reproducible.
 - Scene: peak positions, colours and seeds live in `swingkit/bg.py`. Placement of the character in

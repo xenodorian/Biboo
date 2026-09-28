@@ -296,44 +296,45 @@ the occlusion rule (rule 10). Step 18's "lead upper arm never above horizontal" 
 by this request, because the arms now rise over the head.
 
 ### Step 23. Wider sprite canvas
-- [ ] Enlarge the character canvas so a sword pointed backwards over the head is never clipped.
+- [x] Enlarge the character canvas so a sword pointed backwards over the head is never clipped.
       The sprite anchor, the feet row and the scene placement stay the same.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: Canvas is now 320x224 (PX 104, PY 124); the peak sword reaches x 36 on it, which the old canvas clipped. Anchor, feet row and scene placement unchanged.
+- Signed off: Claude, 2026-09-28
 
 ### Step 24. Occlusion layers
-- [ ] Split the head into its own draw pass so the lead arm and fist can go behind it and the rear
+- [x] Split the head into its own draw pass so the lead arm and fist can go behind it and the rear
       arm and fist in front of it. Replace the face-clearance check with the occlusion check.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: Head drawn in its own pass (`rig.draw_head_pass`); draw orders `anim.LOW` and `anim.HIGH`; new occlusion check replaces face clearance and the lead-upper-arm check.
+- Signed off: Claude, 2026-09-28
 
 ### Step 25. Longer arms
-- [ ] Lengthen both arms by about 30% (user approved), same for every frame.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- [x] Lengthen both arms by about 30% (user approved), same for every frame.
+- Status: DONE
+- Result: `anim.ARM_LEN` is (13.0, 14.0) for both arms, 27 px total (was 20.8).
+- Signed off: Claude, 2026-09-28
 
 ### Step 26. Torso lean and bend
-- [ ] Add a per-frame waist bend (upper body pivots at the waist, forward and back) alongside the
+- [x] Add a per-frame waist bend (upper body pivots at the waist, forward and back) alongside the
       existing lean, with the shoulders, head and arms following it.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: `bend` (degrees) in `anim.HIPS`; torso rotated with `rig.rotate_layer`, head and shoulders follow via `rig.head_offset` and `rig.upper_point`.
+- Signed off: Claude, 2026-09-28
 
 ### Step 27. Overhead wind-up and extended downswing
-- [ ] Peak: arms raised over the head with bent elbows, sword pointed backwards, torso bent back.
-- [ ] Downswing: arms straighten to a full forward extension, torso bends forward into the strike.
-- [ ] Re-solve every frame, verify, refresh the docs GIF and sprite sheet.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- [x] Peak: arms raised over the head with bent elbows, sword pointed backwards, torso bent back.
+- [x] Downswing: arms straighten to a full forward extension, torso bends forward into the strike.
+- [x] Re-solve every frame, verify, refresh the docs GIF and sprite sheet.
+- Status: DONE
+- Result: Peak: hands over the head with bent elbows, sword pointed back (159 deg), torso bent back 12 deg. Downswing: rear arm at full forward extension in smearB and impact, torso bent forward up to 22 deg. All 10 checks and 9 tests pass.
+- Signed off: Claude, 2026-09-28
 
 ## Open questions
 - None.
 
 ## Log
+- 2026-09-28: Steps 23 to 27 done: wide canvas, head draw pass with the occlusion rule, arms +30%, waist bend, overhead wind-up and extended downswing. Hands are solved by the scratchpad-style search in the step notes; keep the buried-blade frames on one shared grip. (Claude)
 - 2026-09-28: User approved a ~30% arm lengthening and the new face occlusion rule; steps 23 to 27 added and claimed. (Claude)
 - 2026-09-28: Step 22 done: low-swing grip from reference poses. (Claude)
 - 2026-09-28: Step 21 (ankle bend near the heel) done. (Claude)
