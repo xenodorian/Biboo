@@ -96,7 +96,7 @@ def glint(layer, fr, size=4):
 
 # ------------------------------------------------------------ impact geometry
 def impact_point():
-    fr = anim.FRAMES[6]
+    fr = anim.by_name('impact')
     sw = sword_of(fr)
     u = (rig.FEET_ROW - sw.B0[1]) / sw.d[1]
     p = sw.B0 + u * sw.d

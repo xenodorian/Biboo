@@ -160,12 +160,12 @@ frames or fewer.
 - Signed off: Claude, 2026-09-28
 
 ### Step 12. Down-before-up dip (was optional B)
-- [ ] Add a one-frame dip before the rise: knees bend, sword dips.
-- [ ] Take the frame from the plume hold (frames 8 to 10 become two frames) so the total stays at 12.
+- [x] Add a one-frame dip before the rise: knees bend, sword dips.
+- [x] Take the frame from the plume hold (frames 8 to 10 become two frames) so the total stays at 12.
 - Acceptance: 12 frames or fewer, the loop still closes, effects still read, checks pass.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: New frame 2 'dip' (80 ms): hips drop 2 px, knees bend, blade dips 6 degrees below the ready line, hair and hem lift 1 px. Paid for by removing 'plume2' (plume hold is now plume1 90 ms + settle 120 ms); ready hold shortened to 320 ms, total 1470 ms, still 12 frames. Compositor, effects and shake now look frames up by name (`anim.index`, `anim.by_name`), so inserting or removing frames no longer breaks them. All checks and tests pass.
+- Signed off: Claude, 2026-09-28
 
 ### Step 13. Review and publish follow-ups
 - [ ] Review every frame zoomed and at 1x, update `docs/swing_x3.gif`, the README table and the
@@ -178,6 +178,7 @@ frames or fewer.
 - None.
 
 ## Log
+- 2026-09-28: Step 12 (dip) done. Frames are referenced by name everywhere now; never use hard-coded frame indices. (Claude)
 - 2026-09-28: Step 11 (heel-up boot) done. Heel is down at the peak on purpose (weight is on the rear foot there). (Claude)
 - 2026-09-28: Step 10 (shoulder drive, sleeve squash) done. Values in `anim.SHOULDERS`. (Claude)
 - 2026-09-28: Step 9 (head direction) done via eye-block gaze; do not tuck the head at impact, it collides with the near arm. (Claude)

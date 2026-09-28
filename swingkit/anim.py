@@ -24,7 +24,12 @@ def F(**k): FRAMES.append(k)
 
 # 1 READY - the original design pose, both hands, blade forward
 Hl, Hu = two_hand(4.9, (35.8, 30.5))
-F(name='ready', ms=360, theta=4.9, H=Hu, Hl=Hl, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0,
+F(name='ready', ms=320, theta=4.9, H=Hu, Hl=Hl, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0,
+  far=dict(to=Hu, sleeve=2.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
+  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'])
+# 1b DIP - down before up: knees bend, blade dips below the ready line (step 12)
+Hl, Hu = two_hand(-6, (36.5, 31.0))
+F(name='dip', ms=80, theta=-6, H=Hu, Hl=Hl, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0,
   far=dict(to=Hu, sleeve=2.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
   order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'])
 # 2 RISE 1 - both hands lift the blade up and forward, body leans back
@@ -46,21 +51,21 @@ F(name='peak', ms=250, theta=108, H=(43.5, 11.0), Hl=None, head=(-2, -1), torso=
 Hl, Hu = two_hand(38, (40.5, 27.5))
 F(name='smearA', ms=50, theta=38, H=Hu, Hl=Hl, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=-2,
   far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
-  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'], smear_from=3)
+  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'], smear_from='peak')
 # 6 SMEAR B - body drops into the strike
 Hl, Hu = two_hand(-18, (40.0, 34.5))
 F(name='smearB', ms=40, theta=-18, H=Hu, Hl=Hl, head=(2, 1), torso=(1, 1), skirt=(0, 1), sway=-3,
   far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
-  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'], smear_from=4)
+  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'], smear_from='smearA')
 # 7 IMPACT - blade buried, deepest crouch
 Hl, Hu = two_hand(-34, (38.0, 40.0))
 IMPACT = dict(theta=-34, H=Hu, Hl=Hl, far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
               order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'])
-F(name='impact', ms=110, head=(2, 2), torso=(1, 2), skirt=(0, 1), sway=-1, smear_from=5, residual=True, **IMPACT)
+F(name='impact', ms=110, head=(2, 2), torso=(1, 2), skirt=(0, 1), sway=-1, smear_from='smearB', residual=True, **IMPACT)
 # 8-10 hold while debris flies; hair overshoots then settles; body eases up
-F(name='plume1', ms=80, head=(2, 2), torso=(1, 2), skirt=(0, 1), sway=2, **IMPACT)
+F(name='plume1', ms=90, head=(2, 2), torso=(1, 2), skirt=(0, 1), sway=2, **IMPACT)
 F(name='plume2', ms=80, head=(2, 2), torso=(1, 2), skirt=(0, 1), sway=1, **IMPACT)
-F(name='settle', ms=100, head=(1, 1), torso=(1, 1), skirt=(0, 1), sway=0, **IMPACT)
+F(name='settle', ms=120, head=(1, 1), torso=(1, 1), skirt=(0, 1), sway=0, **IMPACT)
 # 11 RECOVER 1 - pull the blade free
 Hl, Hu = two_hand(-14, (37.5, 34.5))
 F(name='recover1', ms=110, theta=-14, H=Hu, Hl=Hl, head=(1, 1), torso=(0, 1), skirt=(0, 0), sway=-1,
@@ -78,6 +83,7 @@ F(name='recover2', ms=130, theta=0, H=Hu, Hl=Hl, head=(0, 0), torso=(0, 0), skir
 # torso/head are given relative to the hips (small lean/stretch offsets only).
 HIPS = dict(
     ready=dict(hip=(0, 0), torso=(0, 0), head=(0, 0), lean=0),
+    dip=dict(hip=(0, 2), torso=(0, 0), head=(0, 0), lean=1),
     rise1=dict(hip=(-1, 1), torso=(0, 0), head=(0, 0), lean=-1),
     rise2=dict(hip=(-1, 1), torso=(0, -1), head=(0, -1), lean=-2),
     peak=dict(hip=(-1, 1), torso=(0, -1), head=(0, -1), lean=-2),
@@ -121,6 +127,7 @@ def _rebase(fr, spec):
 R0 = rig.LEG_NEUTRAL['right']['ankle']
 FEET = dict(
     ready=dict(right=(R0[0], R0[1]), planted=True),
+    dip=dict(right=(R0[0], R0[1]), planted=True),
     rise1=dict(right=(R0[0], R0[1]), planted=True),
     rise2=dict(right=(R0[0] - 0.5, R0[1] - 1.5), planted=False),
     peak=dict(right=(R0[0] - 1.0, R0[1] - 3.0), planted=False),
@@ -139,6 +146,7 @@ FEET = dict(
 # (px sideways at the hem, lagging behind the body), flare (px outward on both sides).
 CLOTH = dict(
     ready=dict(lift=0, trail=0, flare=0),
+    dip=dict(lift=1, trail=0, flare=0),
     rise1=dict(lift=1, trail=1, flare=0),
     rise2=dict(lift=1, trail=1, flare=1),
     peak=dict(lift=3, trail=0, flare=1),
@@ -157,6 +165,7 @@ CLOTH = dict(
 # lift (px up at the tips: rises while the body drops, hangs while it rises).
 HAIR = dict(
     ready=dict(sway=0, lift=0),
+    dip=dict(sway=0, lift=1),
     rise1=dict(sway=1, lift=-1),
     rise2=dict(sway=2, lift=-1),
     peak=dict(sway=1, lift=1),
@@ -174,7 +183,7 @@ HAIR = dict(
 # gaze: -1 chin up / eyes up (watching the blade rise), +1 chin tucked / eyes down (driving
 # the strike), 0 neutral. (A physical 1 px head tuck was tried and removed: it pushes the chin
 # onto the near arm at impact and fails face clearance.)
-GAZE = dict(ready=0, rise1=0, rise2=-1, peak=-1, smearA=0, smearB=1, impact=1,
+GAZE = dict(ready=0, dip=0, rise1=0, rise2=-1, peak=-1, smearA=0, smearB=1, impact=1,
             plume1=1, plume2=1, settle=0, recover1=0, recover2=0)
 
 # ---------------------------------------------------------------- shoulders (step 10)
@@ -184,6 +193,7 @@ GAZE = dict(ready=0, rise1=0, rise2=-1, peak=-1, smearA=0, smearB=1, impact=1,
 # in sleeve radius.
 SHOULDERS = dict(
     ready=dict(),
+    dip=dict(near=(0, 0.5), far=(0, 0.5)),
     rise1=dict(far=(0, -0.5)),
     rise2=dict(far=(0, -1.0)),
     peak=dict(far=(0.5, -1.5), far_sleeve=1.0),
@@ -202,6 +212,15 @@ SHOULDERS = dict(
 # pivots on the toe. At the wind-up peak the front foot is in the air, so all the weight is on
 # the rear foot and its heel stays down.
 REAR_HEEL_UP = {'smearA', 'smearB', 'impact', 'plume1'}
+
+# Step 12: the dip frame is paid for by dropping 'plume2' (the plume hold is now two frames).
+FRAMES[:] = [fr for fr in FRAMES if fr['name'] != 'plume2']
+
+def index(name):
+    return next(i for i, fr in enumerate(FRAMES) if fr['name'] == name)
+
+def by_name(name):
+    return FRAMES[index(name)]
 
 FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
 for fr in FRAMES:

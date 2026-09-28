@@ -11,7 +11,8 @@ def layers():
     if _LAYERS is None:
         _LAYERS = bg.build_all()
     return _LAYERS
-SHAKE = {6: (0, 3), 7: (2, -2), 8: (-1, 1), 9: (0, -1)}
+SHAKE_BY_NAME = dict(impact=(0, 3), plume1=(2, -2), settle=(-1, 1), recover1=(0, -1))
+SHAKE = {i: SHAKE_BY_NAME[fr['name']] for i, fr in enumerate(anim.FRAMES) if fr['name'] in SHAKE_BY_NAME}
 SHAKE_PARALLAX = dict(sky=0.25, mountains_far=0.35, mountains_near=0.5, trees_back=0.65,
                       trees_front=0.8, ground=1.0, fx=1.0, char=1.0, fringe=1.0)
 
@@ -35,36 +36,38 @@ def char_layer(C):
     return L
 
 def impact_times():
+    """Time since impact (in 80 ms units) at the start of each frame from the impact on."""
     t = {}; acc = 0
-    for i in range(6, 12):
+    for i in range(anim.index('impact'), len(anim.FRAMES)):
         t[i] = 0.4 + acc / 80.0
         acc += anim.FRAMES[i]['ms']
     return t
 
 def render_frame(i, parts_out=None):
     fr = anim.FRAMES[i]
+    name = fr['name']
     back, front = fx.Layer(), fx.Layer()
     I = fx.impact_point()
     T = impact_times()
     if fr.get('glint'): fx.glint(front, fr)
     if 'smear_from' in fr:
-        frA = anim.FRAMES[fr['smear_from']]
+        frA = anim.by_name(fr['smear_from'])
         if fr.get('residual'):
             fx.smear(back, frA, fr, u_head=56, s_from=0.5, residual=True)
         else:
-            fx.smear(back, frA, fr, u_head=50 if i == 4 else 46)
-    if i == 6:
+            fx.smear(back, frA, fr, u_head=50 if name == 'smearA' else 46)
+    if name == 'impact':
         fx.crown(front, I); fx.mound(front, I)
         fx.particles(front, I, T[i], back=back); fx.flash(front, I)
-    elif i in (7, 8, 9):
+    elif name in ('plume1', 'settle'):
         fx.mound(front, I)
         fx.particles(front, I, T[i], back=back)
-        if i == 7: fx.flash(front, I, remnant=True)
-    elif i in (10, 11):
+        if name == 'plume1': fx.flash(front, I, remnant=True)
+    elif name in ('recover1', 'recover2'):
         fx.particles(front, I, T[i], back=back)
-        fx.clod(front, fr, 0 if i == 10 else 1.4)
-    if i in (6, 7, 8):
-        fx.stomp(front, fr, i - 6)
+        fx.clod(front, fr, 0 if name == 'recover1' else 1.4)
+    if name in ('impact', 'plume1', 'settle'):
+        fx.stomp(front, fr, ('impact', 'plume1', 'settle').index(name))
     back.clip_below(fx.GROUND_LY); front.clip_below(fx.GROUND_LY + 1)
     C, sw, parts = anim.render_character(i)
     ch = char_layer(C)
