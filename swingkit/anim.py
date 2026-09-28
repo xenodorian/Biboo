@@ -177,6 +177,26 @@ HAIR = dict(
 GAZE = dict(ready=0, rise1=0, rise2=-1, peak=-1, smearA=0, smearB=1, impact=1,
             plume1=1, plume2=1, settle=0, recover1=0, recover2=0)
 
+# ---------------------------------------------------------------- shoulders (step 10)
+# Shoulder drive on top of the torso: the far shoulder lifts into the peak, the near shoulder
+# drives down into the strike. Sleeve puffs stretch at the peak (longer) and squash at impact
+# (shorter and fuller). near/far = (dx, dy) px; *_sleeve = change in sleeve length; rs = change
+# in sleeve radius.
+SHOULDERS = dict(
+    ready=dict(),
+    rise1=dict(far=(0, -0.5)),
+    rise2=dict(far=(0, -1.0)),
+    peak=dict(far=(0.5, -1.5), far_sleeve=1.0),
+    smearA=dict(far=(0, -0.5)),
+    smearB=dict(near=(0.5, 1.0), far=(0.5, 0.5), near_sleeve=-0.5),
+    impact=dict(near=(1.0, 1.5), far=(0.5, 1.0), near_sleeve=-1.0, rs=0.4),
+    plume1=dict(near=(1.0, 1.5), far=(0.5, 1.0), near_sleeve=-1.0, rs=0.4),
+    plume2=dict(near=(0.5, 1.0), far=(0.5, 0.5), near_sleeve=-0.5, rs=0.2),
+    settle=dict(near=(0.5, 0.5)),
+    recover1=dict(),
+    recover2=dict(),
+)
+
 FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
 for fr in FRAMES:
     ft = FEET[fr['name']]
@@ -185,11 +205,13 @@ for fr in FRAMES:
     fr['cloth'] = CLOTH[fr['name']]
     fr['sway'] = HAIR[fr['name']]['sway']; fr['hair_lift'] = HAIR[fr['name']]['lift']
     fr['gaze'] = GAZE[fr['name']]
+    fr['shoulders'] = SHOULDERS[fr['name']]
 
 def shoulders(fr):
     t = np.array(fr['torso'], float)
     t[0] += rig.torso_shear(fr.get('lean', 0), 29.5)      # shoulders follow the torso lean
-    return S_NEAR + t, S_FAR + t
+    sd = fr.get('shoulders', {})
+    return S_NEAR + t + np.array(sd.get('near', (0, 0))), S_FAR + t + np.array(sd.get('far', (0, 0)))
 
 def arm_lengths(fr):
     sn, sf = shoulders(fr)
@@ -212,10 +234,14 @@ def render_character(i):
                                  gaze=fr.get('gaze', 0))
         elif op == 'far':
             a = fr['far']
-            parts['far'] = arm(cv, sf, a['to'], elbow=a.get('elbow'), sleeve=a.get('sleeve', 3.5), rs=a.get('rs', 2.6))
+            sd = fr.get('shoulders', {})
+            parts['far'] = arm(cv, sf, a['to'], elbow=a.get('elbow'), sleeve=a.get('sleeve', 3.5) + sd.get('far_sleeve', 0),
+                               rs=a.get('rs', 2.6) + sd.get('rs', 0))
         elif op == 'near':
             a = fr['near']
-            parts['near'] = arm(cv, sn, a['to'], elbow=a.get('elbow'), sleeve=a.get('sleeve', 7.0), rs=a.get('rs', 2.7))
+            sd = fr.get('shoulders', {})
+            parts['near'] = arm(cv, sn, a['to'], elbow=a.get('elbow'), sleeve=a.get('sleeve', 7.0) + sd.get('near_sleeve', 0),
+                                rs=a.get('rs', 2.7) + sd.get('rs', 0))
         elif op == 'grip':
             parts['grip'] = sw.grip(cv)
         elif op == 'fists':

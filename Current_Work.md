@@ -142,13 +142,13 @@ frames or fewer.
 - Signed off: Claude, 2026-09-28
 
 ### Step 10. Shoulder drive and sleeve squash (was optional D)
-- [ ] Shoulders move independently of the torso: far shoulder rises at the peak, near shoulder
+- [x] Shoulders move independently of the torso: far shoulder rises at the peak, near shoulder
       drives down at the strike.
-- [ ] Sleeve puffs stretch 1 px at the peak and squash 1 px at impact.
+- [x] Sleeve puffs stretch 1 px at the peak and squash 1 px at impact.
 - Acceptance: arm length check still passes, no seams at the shoulders.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: `anim.SHOULDERS`: the far shoulder lifts up to 1.5 px into the peak, the near shoulder drives down 1.5 px into the strike; sleeves stretch 1 px at the peak and squash at impact (1 px shorter, 0.4 px fuller), easing back. Arm lengths stay in range (near 15.8 to 20.9, far 5.4 to 19.4). No seams at the shoulders. All checks and tests pass.
+- Signed off: Claude, 2026-09-28
 
 ### Step 11. Heel-up boot (was optional A)
 - [ ] Hand-draw one heel-up variant of the rear boot (same palette and outline style).
@@ -178,6 +178,7 @@ frames or fewer.
 - None.
 
 ## Log
+- 2026-09-28: Step 10 (shoulder drive, sleeve squash) done. Values in `anim.SHOULDERS`. (Claude)
 - 2026-09-28: Step 9 (head direction) done via eye-block gaze; do not tuck the head at impact, it collides with the near arm. (Claude)
 - 2026-09-28: Step 8 (sock cuff, toe direction) done. Boot feet are hand-drawn grids in `rig.LEFT_FOOT`; the right foot is its mirror. (Claude)
 - 2026-09-28: User approved optional steps A to D and the sock cuff tidy; added as steps 8 to 13. (Claude)
