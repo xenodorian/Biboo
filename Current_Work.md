@@ -330,6 +330,15 @@ by this request, because the arms now rise over the head.
 - Result: Peak: hands over the head with bent elbows, sword pointed back (159 deg), torso bent back 12 deg. Downswing: rear arm at full forward extension in smearB and impact, torso bent forward up to 22 deg. All 10 checks and 9 tests pass.
 - Signed off: Claude, 2026-09-28
 
+### Step 28. Hands at pommel and crossguard, straight arms, deeper spine
+- [ ] Rear hand near the pommel, lead hand near the crossguard, hands about shoulder width apart.
+- [ ] Both arms straight at full extension (downswing through the end of the strike).
+- [ ] Deeper waist bend: further back on the windup, further forward when the blade lands.
+- [ ] Enlarge the canvas if anything clips. Verify, refresh docs.
+- Status: IN PROGRESS (Claude, 2026-09-28)
+- Result:
+- Signed off:
+
 ## Open questions
 - None.
 
