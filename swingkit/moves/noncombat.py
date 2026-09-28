@@ -80,17 +80,17 @@ def dash():
     return Move('dash', 'Dash forward', 'X', 'non-combat', [
         pose(name='set', ms=60, hip=(0, 4), bend=10, hand=(39.0, 40.0), theta=18),
         pose(name='burst', ms=50, root=(30, 0), **lean, rear=(-4, -3), front=(2, -2), hair=(-4, 3), cloth=(2, -3, 0),
-             fx=[('ghosts', dict(offsets=((-12, 0), (-24, 0)), color='white')), ('speedlines', dict(n=18)),
+             fx=[('ghosts', dict(offsets=((-18, 0), (-36, 0)), color='white')), ('speedlines', dict(n=18)),
                  ('dust', dict(foot='rear', t=0.2))]),
         pose(name='glide', ms=50, root=(70, 0), **lean, rear=(-2, -3), front=(3, -2), hair=(-4, 3), cloth=(2, -3, 0),
-             fx=[('ghosts', dict(offsets=((-16, 0), (-32, 0), (-48, 0)), color='white')), ('speedlines', dict(n=26))]),
+             fx=[('ghosts', dict(offsets=((-20, 0), (-40, 0), (-60, 0)), color='white')), ('speedlines', dict(n=26))]),
         pose(name='skid', ms=90, root=(92, 0), hip=(0, 4), bend=6, lean=0, hand=(39.0, 41.0), theta=20, front=(4, 0),
              hair=(3, 1), cloth=(0, 2, 1), fx=[('dust', dict(foot='front', t=0.4, big=1.2))]),
         pose(name='recover', ms=100, root=(92, 0), hair=(1, 0), fx=[('dust', dict(foot='front', t=1.8, big=1.2))]),
     ], notes='covers 92 px')
 
 
-BLOCK = pose(theta=82, hand=(41.0, 37.0), gap=11, order='LOW', hip=(0, 3), bend=8, lean=1, gaze=1,
+BLOCK = pose(theta=76, hand=(47.0, 37.0), gap=11, order='LOW', hip=(0, 3), bend=8, lean=1, gaze=1,
              far=dict(sleeve=3.5, rs=2.6), cloth=(0, 0, 1))
 
 

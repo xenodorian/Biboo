@@ -11,7 +11,7 @@ LOWF = dict(order='LOW', far=dict(sleeve=3.5, rs=2.6))
 
 # A: horizontal slash. Seen from the side the blade sweeps from behind her, across the front of
 # the body at hip height and out in front; the smear is a flat crescent (movefx.hsmear).
-SLASH_WIND = pose(theta=172, hand=(27.0, 33.0), gap=14, order='HIGH', hip=(-1, 1), bend=-5, lean=-2,
+SLASH_WIND = pose(theta=188, hand=(28.0, 41.0), gap=14, order='HIGH', hip=(-1, 2), bend=-2, lean=-2,
                   hair=(2, 0), cloth=(0, 1, 0), far=dict(sleeve=3.5, rs=2.6))
 SLASH_HIT = pose(theta=4, hand=(47.0, 34.0), gap=14, **LOWF, hip=(1, 2), bend=10, lean=2, front=(2, 0),
                  hair=(-3, 1), cloth=(1, -2, 1), gaze=1, shoulders=dict(near=(0.5, 1.0)))
@@ -25,7 +25,7 @@ def slash(id='slash', title='Horizontal slash', inputs='A', energy=None):
         pose(name='ready', ms=60),
         dict(SLASH_WIND, name='wind', ms=110, fx=list(e)),
         dict(SLASH_HIT, name='slash', ms=60, active=True, shake=(1, 0),
-             fx=[('hsmear', dict(center=(30, 36), rx=74, ry=15, a0=200, a1=12, color=col))] + e),
+             fx=[('hsmear', dict(center=(30, 40), rx=74, ry=15, a0=190, a1=12, color=col))] + e),
         dict(SLASH_FOLLOW, name='follow', ms=80, active=True,
              fx=[('hsmear', dict(center=(30, 36), rx=74, ry=15, a0=110, a1=0, width=0.25, color=col))] + e),
         tween(SLASH_FOLLOW, P, 0.5, 'recover', 100, order='PLOW', far=dict(sleeve=2.5, rs=2.6)),
@@ -67,7 +67,7 @@ UP_FOLLOW = pose(theta=102, hand=(41.0, 15.0), gap=12, order='HIGH', elbows='fwd
 
 def down_a():
     return Move('upswing', 'Ducking upswing', 'Down+A', 'basic', [
-        tween(P, DUCK_LOW, 0.5, 'dip', 60, order='HIGH', far=dict(sleeve=3.5, rs=2.6)),
+        tween(P, DUCK_LOW, 0.5, 'dip', 60, order='HIGH', far=dict(sleeve=3.5, rs=2.6), theta=-178, hand=(33.0, 41.0)),
         dict(DUCK_LOW, name='duck', ms=110),
         dict(UP_HIT, name='rise', ms=60, active=True, fx=[('arc', dict(frm='duck', s0=0.35))]),
         dict(UP_FOLLOW, name='follow', ms=90, active=True, fx=[('arc', dict(frm='duck', s0=0.7))]),
@@ -113,7 +113,7 @@ def push_kick(id='push_kick', title='Push kick', inputs='L', heavy=False, energy
 
 
 # R: kneel with the sword planted, glow green while + signs float up (recover HP).
-KNEEL = pose(theta=-90, hand=(41.0, 36.0), gap=8, **LOWF, hip=(0, 9), bend=12, lean=1, gaze=1,
+KNEEL = pose(theta=-86, hand=(48.0, 34.0), gap=8, **LOWF, hip=(0, 9), bend=12, lean=1, gaze=1,
              hair=(0, 2), cloth=(-1, 0, 2), shoulders=dict(near=(0.5, 1.0), far=(0.5, 1.0)))
 
 

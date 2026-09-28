@@ -40,7 +40,7 @@ def energy_kick():
 
 
 def energy_burst():
-    gather = pose(theta=90, hand=(41.0, 30.0), gap=11, **LOWF, hip=(0, 5), bend=10, gaze=1, hair=(0, 1))
+    gather = pose(theta=78, hand=(47.0, 33.0), gap=11, **LOWF, hip=(0, 5), bend=10, gaze=1, hair=(0, 1))
     release = pose(theta=92, hand=(40.0, 13.0), gap=12, order='HIGH', elbows='fwd', hip=(0, 0), bend=-6,
                    lean=-1, gaze=-1, far=dict(sleeve=3.5, rs=2.6), front=(-1, 0), hair=(0, -3), cloth=(3, 0, 3),
                    shoulders=dict(near=(0, -1.0), far=(0, -1.5)))
@@ -58,7 +58,7 @@ def energy_burst():
 
 
 def taunt():
-    plant = pose(theta=-88, hand=(31.0, 40.0), gap=9, **LOWF, hip=(0, 0), bend=-2, lean=-1, hair=(1, 0))
+    plant = pose(theta=-80, hand=(44.0, 39.0), gap=9, **LOWF, hip=(0, 0), bend=-2, lean=-1, hair=(1, 0))
     return Move('taunt', 'Taunt', 'X+Y', 'combo', [
         tween(P, plant, 0.5, 'turn', 80, **LOWF),
         dict(plant, name='plant', ms=120, lead=(49.0, 34.0), shake=(0, 1)),
@@ -77,7 +77,7 @@ def dash_thrust(id='dash_thrust', title='Dash thrust', inputs='X+A', energy=None
     specs = [dict(d[0], name='set', fx=list(d[0].get('fx', [])) + e)]
     for k, s in enumerate(d[1:3]):
         g = dict(s, name=f'blur{k + 1}', **{kk: v for kk, v in t[0].items() if kk in ('theta', 'hand', 'gap')})
-        g['fx'] = [('ghosts', dict(offsets=((-14, 0), (-28, 0), (-42, 0)), color=energy or 'white')),
+        g['fx'] = [('ghosts', dict(offsets=((-20, 0), (-40, 0), (-60, 0)), color=energy or 'white')),
                    ('speedlines', dict(n=28, color=energy or 'white'))] + e
         specs.append(g)
     specs += shift(t[1:], dx=d[2]['root'][0] - 4)
@@ -104,10 +104,10 @@ def jump_crash():
         dict(high, name='dive', ms=50, root=(20, 70), theta=60, hand=(40.0, 16.0), hair=(0, 4), cloth=(4, 0, 2),
              fx=[('vlines', dict(n=16))]),
         dict(IMPACT, name='crash', ms=110, root=(24, 0), active=True, shake=(0, 4),
-             fx=[('arc', dict(frm='apex', s0=0.45)), ('impact', {})]),
+             fx=[('arc', dict(frm='dive', s0=0.55)), ('impact', {})]),
         dict(IMPACT, name='flash', ms=60, root=(24, 0), bw=True, shake=(-2, 2)),
         dict(IMPACT, name='dust', ms=110, root=(24, 0), shake=(2, -1), hair=(1, 1), cloth=(0, 0, 2),
-             fx=[('dust', dict(foot='both', t=0.6, big=1.6))]),
+             fx=[('dust', dict(foot='both', t=0.6, big=1.25))]),
         tween(IMPACT, P, 0.5, 'pull', 110, root=(24, 0), front=(2, 0), heel_up=False),
         pose(name='plow', ms=120, root=(24, 0)),
     ], camera='follow_y', notes='jumps, then crashes down with a heavy chop; active frame 6')
@@ -121,9 +121,9 @@ def sky_dash():
         dict(nc.DUCK, name='coil', ms=90, hair=(0, 3)),
         dict(up, name='launch', ms=50, root=(0, 40), fx=[('dust', dict(foot='both', t=0.0, big=1.5)),
                                                         ('vlines', dict(n=20)),
-                                                        ('ghosts', dict(offsets=((0, -16), (0, -32)), color='blue'))]),
-        dict(up, name='streak1', ms=50, root=(0, 150), fx=[('vlines', dict(n=28)), ('ghosts', dict(offsets=((0, -30), (0, -60), (0, -90)), color='blue'))]),
-        dict(up, name='streak2', ms=60, root=(0, 300), fx=[('vlines', dict(n=28)), ('ghosts', dict(offsets=((0, -40), (0, -80), (0, -120)), color='blue'))]),
+                                                        ('ghosts', dict(offsets=((0, -22),), color='blue'))]),
+        dict(up, name='streak1', ms=50, root=(0, 150), fx=[('vlines', dict(n=28)), ('ghosts', dict(offsets=((0, -40),), color='blue'))]),
+        dict(up, name='streak2', ms=60, root=(0, 300), fx=[('vlines', dict(n=28))]),
         dict(up, name='gone', ms=160, root=(0, 492), fx=[('dust', dict(foot='both', t=1.8, big=1.5))]),
     ], notes='rises 492 px (6 body lengths) in 4 frames; the preview camera stays on the ground')
 

@@ -399,6 +399,7 @@ Framework: `swingkit/moves/base.py` (pose specs, tween, reach fitting), `swingki
 - Ready is now Plow (blade 27 degrees up, hands at the hip). The dip (blade -6, hands at chest) and recover2 (blade 0) still match the old ready pose, so they jump. Re-pose them to lead into and out of Plow? (asked 2026-09-28)
 
 ## Log
+- 2026-09-28: Frame-by-frame review of all 28 library moves (user request); fixed: block, energy-burst gather and slash wind-up blades crossing the head, upswing in-between blade stabbing the ground, planted sword hidden between the legs (recover, taunt), thin + signs, bubble ring and blob disc on the energy burst, dense dash and sky-dash afterimages, detached blur wall on buried blades (arc now sweeps only the visible blade), meteor impacts drawn as donuts. (Claude)
 - 2026-09-28: Step 31 done: 13 combo moves. Library now has 29 moves (28 new plus the heavy attack); previews in `docs/moves/`. (Claude)
 - 2026-09-28: Steps 29 and 30 done: move framework, input map, 9 non-combat moves and 6 basic attacks. Build: `python -m swingkit` (add `--no-moves` to skip the library). (Claude)
 - 2026-09-28: User request: strike motion blur regenerated (`fx.blur_strike`: stepped crescent trailing the blade with speed streaks; the old `fx.smear` is removed). New frame 6 'impactbw' (`fx.impact_frame_bw`): anime-style black-and-white impact frame with radial speed lines, flagged `impact_frame_bw` in the manifest. 11 frames. (Claude)

@@ -73,7 +73,7 @@ def aura(ctx, color='blue', width=2):
     ctx.back.a[inner, :3] = C[t[1]]; ctx.back.a[inner, 3] = 255
 
 
-def plus(ctx, n=7, phase=0.0, color='green'):
+def plus(ctx, n=9, phase=0.0, color='green'):
     """Plus signs floating up around the character (healing)."""
     t = TONES[color]
     rng = np.random.default_rng(7)
@@ -81,9 +81,11 @@ def plus(ctx, n=7, phase=0.0, color='green'):
         x0 = rng.uniform(-6, 70); y0 = rng.uniform(20, 78); sp = rng.uniform(9, 15)
         ph = (phase + k / n) % 1.0
         p = ctx.L((x0, y0 - ph * sp * 3))
-        r = 2 if (k % 3) else 3
+        r = 3 if (k % 3) else 4
         col = t[3] if ph < 0.6 else t[2]
-        for dx in range(-r, r + 1):
+        for dx in range(-r, r + 1):              # two-pixel-thick arms with a darker core line
+            for w in (0, 1):
+                ctx.front.px(p[0] + dx, p[1] + w, C[t[1]]); ctx.front.px(p[0] + w, p[1] + dx, C[t[1]])
             ctx.front.px(p[0] + dx, p[1], C[col]); ctx.front.px(p[0], p[1] + dx, C[col])
 
 
@@ -94,7 +96,11 @@ def arc(ctx, frm, s0=0.5):
     a, b = dict(frA), dict(ctx.fr)
     a['H'] = tuple(np.array(frA['H']) + np.array([frA['root'][0], -frA['root'][1]]) - np.array([ctx.root[0], -ctx.root[1]]))
     lay = _Shift(ctx.back, ctx.root)
-    fx.blur_strike(lay, a, b, s0=s0)
+    sw = ctx.sw
+    L = None
+    if ctx.fr['root'][1] <= 0 and sw.d[1] > 0.05:   # blade in the ground: sweep only what shows
+        L = float(min(Sword.L, max((rig.FEET_ROW - sw.B0[1]) / sw.d[1], 20.0)))
+    fx.blur_strike(lay, a, b, s0=s0, u_min=min(24, (L or Sword.L) * 0.4), L=L)
 
 
 class _Shift:
@@ -165,12 +171,12 @@ def vlines(ctx, n=22, color='white'):
 def ghosts(ctx, offsets=((-14, 0), (-28, 0)), color='blue'):
     """Afterimages: the current silhouette repeated at offsets (world px), fading with distance."""
     t = TONES[color]
-    cols = [t[2], t[1], t[0]]
+    cols = [t[3], t[2], t[1]]
     Y, X = np.mgrid[0:fx.H, 0:fx.W]
     for k, (dx, dy) in list(enumerate(offsets))[::-1]:
         m = np.roll(np.roll(ctx.mask, int(round(dx)), axis=1), int(round(-dy)), axis=0)
         edge = m & ~ndi.binary_erosion(m)
-        dither = m & (((X + Y) % 2 == 0) if k == 0 else ((X % 2 == 0) & (Y % 2 == 0)))   # see-through
+        dither = m & ((X % 2 == 0) & (Y % 2 == 0)) if k == 0 else m & ((X % 3 == 0) & (Y % 3 == 0))  # see-through
         for mm, col in ((dither, cols[min(k, 2)]), (edge, cols[min(k, 2)])):
             ctx.back.a[mm, :3] = C[col]; ctx.back.a[mm, 3] = 255
 
@@ -215,16 +221,18 @@ def burst(ctx, r=40, color='blue', rays=16, center=(32, 44)):
     """Energy burst in all directions: a thick ring, radial rays and a bright core."""
     t = TONES[color]
     c = ctx.L(center)
+    ring = ctx.front if r > 48 else ctx.back        # a small ring would cover her body: keep it behind
     for rr, col, w in ((r, t[1], 4), (r - 3, t[2], 2), (r - 5, t[3], 1)):
         for a in np.radians(np.arange(0, 360, 1.5)):
             for k in range(w):
-                ctx.front.px(c[0] + (rr - k) * np.cos(a), c[1] + (rr - k) * np.sin(a) * 0.9, C[col])
+                ring.px(c[0] + (rr - k) * np.cos(a), c[1] + (rr - k) * np.sin(a) * 0.9, C[col])
     rng = np.random.default_rng(5)
     for a in np.radians(np.linspace(0, 360, rays, endpoint=False) + rng.uniform(-6, 6, rays)):
         dv = np.array([np.cos(a), np.sin(a) * 0.9])
         p = c + dv * r * 0.35; q = c + dv * r * 1.35
         ctx.back.line(tuple(p), tuple(q), C[t[2]], thick=2)
-    ctx.back.disc(c[0], c[1], r * 0.3, C[t[1]])
+    if r < 60:
+        ctx.back.disc(c[0], c[1], r * 0.3, C[t[2]])
 
 
 def charge(ctx, t=0.0, color='blue', n=14):
@@ -325,10 +333,10 @@ def meteors(ctx, t=0.0, n=9, seed=17):
         else:
             age = (y - gy) / spd
             if age < 1.4:
+                fx.crown(ctx.front, np.array([x_land, gy]))       # dirt first, the fireball over it
                 ctx.front.disc(x_land, gy - 4, 12 * (1 - age * 0.45), C['m_mid'])
                 ctx.front.disc(x_land, gy - 4, 8 * (1 - age * 0.5), C['m_lite'])
                 ctx.front.disc(x_land, gy - 4, 4 * (1 - age * 0.6), C['m_hi'])
-                fx.crown(ctx.front, np.array([x_land, gy]))
             elif age < 3.0:
                 fx.cloud(ctx.front, [(x_land + dx, gy - 5 - (age - 1.4) * 4, 6 - (age - 1.4) * 2.5, 1.4, 0.0) for dx in (-6, 0, 6)])
 

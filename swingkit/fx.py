@@ -274,11 +274,11 @@ def clod(layer, fr, t):
         chunk(layer, p, dict(kind='dirt', size=2, phase=k), t)
 
 # ------------------------------------------------------------ strike blur (user request, 2026-09-28)
-def blur_strike(layer, frA, frB, s0=0.5, u_min=24):
+def blur_strike(layer, frA, frB, s0=0.5, u_min=24, L=None):
     """Motion blur for the strike, trailing the blade from pose A (high guard) to pose B (impact):
     a crescent swept by the blade in stepped tones (faint at the tail, white against the blade),
     narrowing toward the tail, with speed streaks along the arc. Drawn behind the character."""
-    L = Sword.L
+    L = Sword.L if L is None else L              # a buried blade only sweeps its visible length
     HA = np.array(frA['H'], float); HB = np.array(frB['H'], float)
     thA, thB = frA['theta'], frB['theta']
     def pose(s):
