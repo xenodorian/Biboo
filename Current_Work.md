@@ -199,21 +199,22 @@ frames or fewer.
 - Signed off: Claude, 2026-09-28
 
 ### Step 16. Lead foot toes point forward
-- [ ] User feedback (2026-09-28): the lead (front, right) foot reads as pointing inward. Its toe
+- [x] User feedback (2026-09-28): the lead (front, right) foot reads as pointing inward. Its toe
       barely clears the forward-slanted shin and the heel flares behind, so the boot looks folded
       back under the leg.
-- [ ] Give the lead foot a longer forward toe and a heel flush with the back of the shin so it
+- [x] Give the lead foot a longer forward toe and a heel flush with the back of the shin so it
       clearly points forward, toward the strike.
 - Acceptance: lead toe clearly points forward in every frame; planted and leg checks pass; all checks
   and tests pass.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: Per-leg foot shape in `LEG_NEUTRAL` (`toe_reach`, `heel_flare`): the lead foot now reaches 13 px forward from the ankle (was 9) with its heel flush to the back of the shin, so the boot clearly points forward instead of folding back under the forward-slanted shin. Rear foot unchanged. docs preview refreshed; all checks and tests pass.
+- Signed off: Claude, 2026-09-28
 
 ## Open questions
 - None.
 
 ## Log
+- 2026-09-28: Step 16 (lead foot toes forward) done. Foot shape per leg lives in `rig.LEG_NEUTRAL`. (Claude)
 - 2026-09-28: Step 15 (ankles) done. Feet are drawn with the shin in `rig._foot_mask`; the hand-drawn foot grids are gone. (Claude)
 - 2026-09-28: Step 14 done: both feet and both knees now point toward the strike. Do not reintroduce outward toes on the back leg. (Claude)
 - 2026-09-28: Step 13 done. All approved follow-ups (steps 8 to 13) are complete; nothing is waiting on approval. (Claude)

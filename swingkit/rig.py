@@ -120,9 +120,9 @@ def _hair(C, mask, r0, r1, inner, side, top_off, bot_off, sway, lift=0.0):
 # lengths are derived from these once and never change.
 LEG_NEUTRAL = dict(
     left=dict(hip=(23.4, 47.0), knee=(12.5, 60.0), ankle=(4.2, 72.0), side=+1,
-              r_thigh=4.3, r_shaft=4.0),
+              r_thigh=4.3, r_shaft=4.0, toe_reach=9.0, heel_flare=0.9),
     right=dict(hip=(42.0, 51.0), knee=(53.1, 62.0), ankle=(60.9, 71.0), side=+1,
-               r_thigh=4.1, r_shaft=3.7),
+               r_thigh=4.1, r_shaft=3.7, toe_reach=13.0, heel_flare=0.0),
 )
 LEG_LEN = {k: (float(np.hypot(*np.subtract(v['knee'], v['hip']))),
                float(np.hypot(*np.subtract(v['ankle'], v['knee'])))) for k, v in LEG_NEUTRAL.items()}
@@ -132,10 +132,9 @@ SOCK_LEN = 3.2
 # continuous curve. Both feet point forward (toward the strike, +x). Heel-up tilts the sole,
 # toe planted, with the ankle raised by HEEL_UP_ANKLE_LIFT.
 HEEL_UP_ANKLE_LIFT = 2.0      # the ankle rises with the heel (sprite px)
-FOOT_TOE_REACH = 9.0          # ankle to toe tip, horizontally
 HEEL_UP_TILT = 3.0            # heel raised this much above the toe when heel_up
 
-def _foot_mask(ankle, nb, rb, heel_up, ankle_to_sole):
+def _foot_mask(ankle, nb, rb, heel_up, ankle_to_sole, toe_reach=9.0, heel_flare=0.9):
     """Pixels of the boot foot for a shin ending at `ankle` with half-width rb and normal nb.
     Returns (mask, sole_y_at(x)) in canvas coordinates."""
     from PIL import Image, ImageDraw
@@ -145,10 +144,10 @@ def _foot_mask(ankle, nb, rb, heel_up, ankle_to_sole):
     sole_toe = A[1] + ankle_to_sole + (HEEL_UP_ANKLE_LIFT if heel_up else 0.0)
     sole_heel = sole_toe - (HEEL_UP_TILT if heel_up else 0.0)
     x_heel = back[0] - 0.4
-    x_toe = A[0] + FOOT_TOE_REACH
+    x_toe = A[0] + toe_reach
     poly = [back + (0, -0.8),
-            (x_heel - 0.9, (back[1] + sole_heel) / 2),
-            (x_heel - 0.4, sole_heel),
+            (x_heel - heel_flare, (back[1] + sole_heel) / 2),
+            (x_heel - 0.4 * (heel_flare > 0), sole_heel),
             (x_toe - 1.0, sole_toe),
             (x_toe + 0.4, sole_toe - 2.0),
             (x_toe - 1.8, sole_toe - 4.2),
@@ -209,7 +208,7 @@ def draw_leg(cv, name, hip=None, ankle=None, heel_up=False):
     # foot: one shape with the shin, so the ankle is a continuous curve
     # the flat sole's bottom edge sits on the feet row in the neutral pose, for each leg
     ankle_to_sole = (FEET_ROW - 0.5) - v['ankle'][1]
-    fm, sole_y, x_toe = _foot_mask(ankle, nb, rb, heel_up, ankle_to_sole)
+    fm, sole_y, x_toe = _foot_mask(ankle, nb, rb, heel_up, ankle_to_sole, v['toe_reach'], v['heel_flare'])
     body_part = fm & ~m
     ys, xs = np.nonzero(body_part)
     for yy, xx in zip(ys, xs):
