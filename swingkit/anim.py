@@ -13,9 +13,14 @@ from .rig import V, Canvas, Sword, arm, fist, body, finish
 S_NEAR = np.array([20.0, 29.5])     # viewer-left shoulder (arm crosses in front)
 S_FAR = np.array([35.5, 29.0])      # viewer-right shoulder
 
+# Rear (near) hand holds the base of the handle just above the pommel in every frame; the front
+# (far) hand is near the guard. GRIP_SPAN is the distance between them along the grip
+# (the sword's grip runs 21 px from the guard-side hand to the pommel end).
+GRIP_SPAN = 17.5
+
 def two_hand(theta, Hl):
     th = np.radians(theta); d = np.array([np.cos(th), -np.sin(th)])
-    Hl = np.array(Hl, float); Hu = Hl + 5 * d
+    Hl = np.array(Hl, float); Hu = Hl + GRIP_SPAN * d
     return Hl, Hu
 
 # Each frame: sword angle, hand(s), body offsets, hair sway, arm routing, draw order
@@ -37,15 +42,16 @@ Hl, Hu = two_hand(40, (39.5, 27.5))
 F(name='rise1', ms=90, theta=40, H=Hu, Hl=Hl, head=(-1, 0), torso=(-1, 0), skirt=(0, 0), sway=1,
   far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
   order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'])
-# 3 RISE 2 - near hand lets go to a guard fist at the waist, far hand carries the sword up
-F(name='rise2', ms=80, theta=78, H=(42.5, 16.5), Hl=None, head=(-2, -1), torso=(-1, -1), skirt=(0, 0), sway=1,
-  far=dict(to=(42.5, 16.5), elbow=(40.5, 23.5), sleeve=3.5, rs=2.6),
-  near=dict(to=(28.0, 33.0), elbow=(16.5, 35.5)), fists=[(42.5, 16.5), (28.0, 33.0)],
+# 3 RISE 2 - both hands carry the sword up; rear hand stays on the pommel end
+Hl, Hu = two_hand(62, (36.5, 29.5))
+F(name='rise2', ms=80, theta=62, H=Hu, Hl=Hl, head=(-2, -1), torso=(-1, -1), skirt=(0, 0), sway=1,
+  far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
   order=['body', 'grip', 'far', 'near', 'fists', 'guard', 'blade'])
-# 4 PEAK - one-handed high guard at ear height, blade leaning back OVER the head
-F(name='peak', ms=250, theta=108, H=(43.5, 11.0), Hl=None, head=(-2, -1), torso=(-1, -1), skirt=(0, 0), sway=0,
-  far=dict(to=(43.5, 11.0), elbow=(42.0, 21.0), sleeve=3.5, rs=2.6),
-  near=dict(to=(28.0, 33.0), elbow=(16.5, 35.5)), fists=[(43.5, 11.0), (28.0, 33.0)],
+# 4 PEAK - two-handed high guard beside the head, blade near upright (the pommel is in the
+# rear hand, so the blade cannot lean back over the head)
+Hl, Hu = two_hand(80, (38.5, 28.5))
+F(name='peak', ms=250, theta=80, H=Hu, Hl=Hl, head=(-2, -1), torso=(-1, -1), skirt=(0, 0), sway=0,
+  far=dict(to=Hu, elbow=(47.0, 20.0), sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
   order=['body', 'grip', 'far', 'near', 'fists', 'guard', 'blade'], glint=True)
 # 5 SMEAR A - both hands rejoin on the grip, blade sweeping over the top
 Hl, Hu = two_hand(38, (40.5, 27.5))
@@ -92,7 +98,7 @@ HIPS = dict(
     impact=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=3),
     plume1=dict(hip=(2, 4), torso=(0, 0), head=(0, 0), lean=3),
     plume2=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=2),
-    settle=dict(hip=(2, 2), torso=(0, 0), head=(0, 0), lean=2),
+    settle=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=2),   # stays down while the blade is buried
     recover1=dict(hip=(1, 1), torso=(0, 0), head=(0, 0), lean=1),
     recover2=dict(hip=(0, 1), torso=(0, 0), head=(0, 0), lean=0),
 )
@@ -202,7 +208,7 @@ SHOULDERS = dict(
     impact=dict(near=(1.0, 1.5), far=(0.5, 1.0), near_sleeve=-1.0, rs=0.4),
     plume1=dict(near=(1.0, 1.5), far=(0.5, 1.0), near_sleeve=-1.0, rs=0.4),
     plume2=dict(near=(0.5, 1.0), far=(0.5, 0.5), near_sleeve=-0.5, rs=0.2),
-    settle=dict(near=(0.5, 0.5)),
+    settle=dict(near=(0.5, 1.0), far=(0.5, 1.0), near_sleeve=-0.5, rs=0.2),   # still braced on the buried blade
     recover1=dict(),
     recover2=dict(),
 )
@@ -223,6 +229,22 @@ def by_name(name):
     return FRAMES[index(name)]
 
 FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
+# ---------------------------------------------------------------- grip (step 17)
+# Rear (near) hand position per frame in final sprite coordinates, solved so both arms stay in
+# their design ranges (near 16-20.5 px, far 6-20 px) with the rear arm below the chin. The front
+# hand is always GRIP_SPAN further along the grip. While the blade is buried (impact, plume1,
+# settle) the grip stays fixed in the world as the body moves.
+REAR_HAND = dict(ready=(36.3, 30.5), dip=(36.5, 33.0), rise1=(37.5, 30.0), rise2=(36.5, 30.5),
+                 peak=(38.5, 29.5), smearA=(38.5, 29.5), smearB=(39.0, 34.5),
+                 impact=(39.5, 37.0), plume1=(39.5, 37.0), settle=(39.5, 37.0),
+                 recover1=(38.0, 34.0), recover2=(36.5, 32.0))
+
+for fr in FRAMES:
+    Hl, Hu = two_hand(fr['theta'], REAR_HAND[fr['name']])
+    fr['Hl'] = tuple(Hl); fr['H'] = tuple(Hu); fr['fists'] = [tuple(Hu), tuple(Hl)]
+    fr['far'] = dict(fr['far'], to=tuple(Hu), elbow=None)
+    fr['near'] = dict(fr['near'], to=tuple(Hl), elbow=None)
+
 for fr in FRAMES:
     ft = FEET[fr['name']]
     fr['legs']['right']['ankle'] = ft['right']

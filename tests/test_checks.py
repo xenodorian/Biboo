@@ -17,6 +17,10 @@ def test_feet_planted():
     ok, msg = checks.check_feet_planted(); assert ok, msg
 
 
+def test_rear_hand_on_pommel():
+    ok, msg = checks.check_rear_hand_on_pommel(); assert ok, msg
+
+
 def test_face_clear():
     ok, msg = checks.check_face_clear(); assert ok, msg
 

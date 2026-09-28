@@ -58,16 +58,17 @@ measurements, never scaled, so proportions stay identical.
 | 1 | ready | 320 | Original design pose, two hands, blade forward, both feet planted |
 | 2 | dip | 80 | Down before up: knees bend, blade dips below the ready line |
 | 3 | rise1 | 90 | Both hands lift the blade; weight rocks back onto the rear leg, body leans back |
-| 4 | rise2 | 80 | Near hand lets go to a guard fist; front foot lifts; eyes look up at the blade |
-| 5 | peak | 250 | One-handed high guard, blade over the head, glint; front foot 3 px up, far shoulder lifted |
-| 6 | smearA | 50 | Hands rejoin, smear over the top; rear heel lifts onto the toe, front foot travels |
+| 4 | rise2 | 80 | Both hands carry the blade up (rear hand on the pommel end); front foot lifts; eyes look up |
+| 5 | peak | 250 | Two-handed high guard beside the head, blade near upright, glint; front foot 3 px up |
+| 6 | smearA | 50 | Smear over the top; rear heel lifts onto the toe, front foot travels |
 | 7 | smearB | 40 | Body drops and leans into the strike; near shoulder drives down; hair and hem lift |
 | 8 | impact | 110 | Blade buried, front foot stomps 4 px forward, knees bent, sleeves squash, flash, dirt, shake |
-| 9-10 | plume1, settle | 90, 120 | Dust plume and debris; body overshoots 1 px lower, skirt bounces, hair swings and settles |
+| 9-10 | plume1, settle | 90, 120 | Dust plume and debris; body stays braced low on the buried blade, skirt bounces, hair settles |
 | 11-12 | recover1, recover2 | 110, 130 | Blade pulled free, front foot steps back, ease into frame 1 |
 
 Techniques: the fast part of the swing is carried by smear frames instead of in-between poses;
-hands never go above head height (the sword provides the height). Legs are two fixed-length
+hands never go above head height (the sword provides the height). The rear hand holds the base
+of the handle, just above the pommel, in every frame (`anim.REAR_HAND`, `anim.GRIP_SPAN`). Legs are two fixed-length
 segments solved by inverse kinematics, so the hips can drop and the knees bend without changing
 leg length; the front foot steps and stomps while planted feet are checked to stay on the ground.
 The torso leans row by row while the head moves as one rigid piece (the face is never sheared).

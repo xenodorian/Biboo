@@ -211,23 +211,24 @@ frames or fewer.
 - Signed off: Claude, 2026-09-28
 
 ### Step 17. Rear hand grips the pommel end the whole time
-- [ ] User request (2026-09-28): the rear (near) arm no longer lets go during the raise or
+- [x] User request (2026-09-28): the rear (near) arm no longer lets go during the raise or
       re-grips near the guard. It holds the base of the handle, just above the pommel, in every
       frame; the front (far) hand stays near the guard.
-- [ ] Re-pose the two-handed frames with the new hand spacing, and make the rise and peak
+- [x] Re-pose the two-handed frames with the new hand spacing, and make the rise and peak
       two-handed. With the pommel in the rear hand the blade cannot lean back over the head at the
       peak (the pommel would be out of reach), so the peak becomes a two-handed near-upright guard
       beside the head.
 - Acceptance: rear hand on the pommel end in all 12 frames; arm lengths in range; face clearance
   passes; all checks and tests pass.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: The rear (near) hand now holds the base of the handle, 17.5 px down the grip from the front hand and just above the pommel, in all 12 frames (`anim.GRIP_SPAN`, `anim.REAR_HAND`); rise and peak are two-handed. Hand positions were solved per frame so both arms stay in range and nothing covers the face. Consequences: the peak is now a two-handed near-upright guard beside the head (the blade can no longer lean back over the head), and during settle she stays braced low on the buried blade (hips and front shoulder held down) because rising would over-stretch the front arm. New rear-grip check and test. All 9 checks and 8 tests pass.
+- Signed off: Claude, 2026-09-28
 
 ## Open questions
 - None.
 
 ## Log
+- 2026-09-28: Step 17 (rear hand on the pommel end) done. Hand positions live in `anim.REAR_HAND` in final coordinates; keep the buried-blade frames on one shared grip. (Claude)
 - 2026-09-28: Step 16 (lead foot toes forward) done. Foot shape per leg lives in `rig.LEG_NEUTRAL`. (Claude)
 - 2026-09-28: Step 15 (ankles) done. Feet are drawn with the shin in `rig._foot_mask`; the hand-drawn foot grids are gone. (Claude)
 - 2026-09-28: Step 14 done: both feet and both knees now point toward the strike. Do not reintroduce outward toes on the back leg. (Claude)

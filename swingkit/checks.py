@@ -53,6 +53,20 @@ def check_feet_planted():
     return not bad, 'planted feet on the ground' if not bad else '; '.join(bad)
 
 
+def check_rear_hand_on_pommel():
+    """The rear (near) hand holds the base of the handle in every frame: it sits exactly
+    GRIP_SPAN below the front hand along the grip, just above the pommel."""
+    bad = []
+    for i, fr in enumerate(anim.FRAMES):
+        if fr.get('Hl') is None:
+            bad.append(f'frame {i+1} rear hand off the grip'); continue
+        th = np.radians(fr['theta']); d = np.array([np.cos(th), -np.sin(th)])
+        want = np.array(fr['H'], float) - anim.GRIP_SPAN * d
+        if np.linalg.norm(np.array(fr['Hl'], float) - want) > 0.01 or np.linalg.norm(np.array(fr['near']['to']) - want) > 0.01:
+            bad.append(f'frame {i+1} rear hand not on the pommel end')
+    return not bad, 'rear hand on the pommel end in every frame' if not bad else '; '.join(bad)
+
+
 def check_face_clear():
     hits = []
     for i, fr in enumerate(anim.FRAMES):
@@ -88,6 +102,7 @@ def check_gif(path, frames, scale):
 def run_all(frames=None, gif_paths=()):
     results = [('frame count', check_frame_count()), ('arm lengths', check_arm_lengths()),
                ('leg lengths', check_leg_lengths()), ('planted feet', check_feet_planted()),
+               ('rear grip', check_rear_hand_on_pommel()),
                ('face clearance', check_face_clear()), ('layer tiling', check_tiling())]
     for p, s in gif_paths:
         results.append((f'gif x{s}', check_gif(p, frames, s)))
