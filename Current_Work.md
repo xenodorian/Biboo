@@ -256,6 +256,17 @@ frames or fewer.
 - Result: The rise and peak frames drew the handle before the lead arm, so the forearm painted over the grip. Every frame now draws the lead arm first, then the grip, then the fists; the handle reads unbroken from the upper fist to the rear hand. New draw-order check and test; all 11 checks and 10 tests pass.
 - Signed off: Claude, 2026-09-28
 
+### Step 21. Ankle bend near the heel
+- [ ] User feedback (2026-09-28): the ankle bend point is too high; it should bend closer to the
+      base of the heel.
+- [ ] Lower the ankle joint toward the heel (the boot shaft runs lower, the foot becomes a shallower
+      wedge). Soles stay on the ground; leg lengths re-derived once and fixed.
+- Acceptance: the ankle bend reads just above the heel in every frame; planted feet, leg lengths and
+  all other checks pass.
+- Status: TODO
+- Result:
+- Signed off:
+
 ## Open questions
 - None.
 
