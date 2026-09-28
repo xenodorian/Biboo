@@ -110,7 +110,7 @@ frames or fewer.
       forward at impact, then falls and settles.
 - Acceptance: no seams or doubled outlines at any offset (test the extremes as in the rig stress
   test).
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-27)
 - Result:
 - Signed off:
 
