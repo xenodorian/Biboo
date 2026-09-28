@@ -206,7 +206,7 @@ frames or fewer.
       clearly points forward, toward the strike.
 - Acceptance: lead toe clearly points forward in every frame; planted and leg checks pass; all checks
   and tests pass.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-28)
 - Result:
 - Signed off:
 
