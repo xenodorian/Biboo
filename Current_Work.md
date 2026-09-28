@@ -146,7 +146,7 @@ frames or fewer.
       drives down at the strike.
 - [ ] Sleeve puffs stretch 1 px at the peak and squash 1 px at impact.
 - Acceptance: arm length check still passes, no seams at the shoulders.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-28)
 - Result:
 - Signed off:
 
