@@ -101,7 +101,7 @@ frames or fewer.
 - [ ] Hem lifts and flares during the rise, trails behind during the swing, bounces past rest at
       impact, then settles.
 - Acceptance: smooth motion across frames, no holes, and the silhouette outline stays clean.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-27)
 - Result:
 - Signed off:
 
