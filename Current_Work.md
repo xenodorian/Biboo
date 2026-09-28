@@ -137,7 +137,7 @@ frames or fewer.
 ### Step 9. Head direction (was optional C)
 - [ ] Chin up at the peak, chin tucked at impact, without redrawing or shearing the face.
 - Acceptance: reads at 1x, face clearance passes, no seams at the neck.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-28)
 - Result:
 - Signed off:
 
