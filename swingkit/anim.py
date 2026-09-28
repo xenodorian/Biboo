@@ -48,13 +48,13 @@ F(name='rise1', ms=90, theta=40, H=Hu, Hl=Hl, head=(-1, 0), torso=(-1, 0), skirt
 Hl, Hu = two_hand(62, (36.5, 29.5))
 F(name='rise2', ms=80, theta=62, H=Hu, Hl=Hl, head=(-2, -1), torso=(-1, -1), skirt=(0, 0), sway=1,
   far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
-  order=['body', 'grip', 'far', 'near', 'fists', 'guard', 'blade'])
+  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'])
 # 4 PEAK - two-handed high guard beside the head, blade near upright (the pommel is in the
 # rear hand, so the blade cannot lean back over the head)
 Hl, Hu = two_hand(76, (38.5, 28.5))
 F(name='peak', ms=250, theta=76, H=Hu, Hl=Hl, head=(-2, -1), torso=(-1, -1), skirt=(0, 0), sway=0,
   far=dict(to=Hu, elbow=(47.0, 20.0), sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
-  order=['body', 'grip', 'far', 'near', 'fists', 'guard', 'blade'], glint=True)
+  order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'], glint=True)
 # 5 SMEAR A - both hands rejoin on the grip, blade sweeping over the top
 Hl, Hu = two_hand(38, (40.5, 27.5))
 F(name='smearA', ms=50, theta=38, H=Hu, Hl=Hl, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=-2,

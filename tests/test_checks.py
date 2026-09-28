@@ -25,6 +25,10 @@ def test_rear_hand_on_pommel():
     ok, msg = checks.check_rear_hand_on_pommel(); assert ok, msg
 
 
+def test_lead_arm_behind_grip():
+    ok, msg = checks.check_lead_arm_behind_grip(); assert ok, msg
+
+
 def test_face_clear():
     ok, msg = checks.check_face_clear(); assert ok, msg
 

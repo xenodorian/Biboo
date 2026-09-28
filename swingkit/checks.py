@@ -82,6 +82,17 @@ def check_rear_hand_on_pommel():
     return not bad, 'rear hand on the pommel end in every frame' if not bad else '; '.join(bad)
 
 
+def check_lead_arm_behind_grip():
+    """The lead (far) arm passes behind the handle: it is drawn before the grip, and the fists
+    are drawn after it, in every frame."""
+    bad = []
+    for i, fr in enumerate(anim.FRAMES):
+        o = fr['order']
+        if not (o.index('far') < o.index('grip') < o.index('fists')):
+            bad.append(f'frame {i+1} draw order {o}')
+    return not bad, 'lead arm behind the handle' if not bad else '; '.join(bad)
+
+
 def check_face_clear():
     hits = []
     for i, fr in enumerate(anim.FRAMES):
@@ -118,7 +129,7 @@ def run_all(frames=None, gif_paths=()):
     results = [('frame count', check_frame_count()), ('arm lengths', check_arm_lengths()),
                ('lead upper arm', check_lead_upper_arm()),
                ('leg lengths', check_leg_lengths()), ('planted feet', check_feet_planted()),
-               ('rear grip', check_rear_hand_on_pommel()),
+               ('rear grip', check_rear_hand_on_pommel()), ('lead arm behind grip', check_lead_arm_behind_grip()),
                ('face clearance', check_face_clear()), ('layer tiling', check_tiling())]
     for p, s in gif_paths:
         results.append((f'gif x{s}', check_gif(p, frames, s)))

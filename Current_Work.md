@@ -248,18 +248,19 @@ frames or fewer.
 - Signed off: Claude, 2026-09-28
 
 ### Step 20. Lead arm behind the handle
-- [ ] User feedback (2026-09-28): the lead arm clips in front of the handle. Draw the lead (far)
+- [x] User feedback (2026-09-28): the lead arm clips in front of the handle. Draw the lead (far)
       arm behind the grip in every frame; only the fists sit on top of it.
-- [ ] Add a check that no lead-arm pixel covers the handle.
+- [x] Add a check that no lead-arm pixel covers the handle.
 - Acceptance: no lead-arm pixels over the grip in any frame; all checks and tests pass.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: The rise and peak frames drew the handle before the lead arm, so the forearm painted over the grip. Every frame now draws the lead arm first, then the grip, then the fists; the handle reads unbroken from the upper fist to the rear hand. New draw-order check and test; all 11 checks and 10 tests pass.
+- Signed off: Claude, 2026-09-28
 
 ## Open questions
 - None.
 
 ## Log
+- 2026-09-28: Step 20 (lead arm behind the handle) done. Draw order must keep far < grip < fists (checked). (Claude)
 - 2026-09-28: Step 19 (knee pivot) done. Knee height is `rig.KNEE_RAISE`. (Claude)
 - 2026-09-28: Step 18 (elbows) done. Arm segment lengths in `anim.ARM_LEN`; hands must stay reachable with the lead elbow at or below shoulder height. (Claude)
 - 2026-09-28: Step 17 (rear hand on the pommel end) done. Hand positions live in `anim.REAR_HAND` in final coordinates; keep the buried-blade frames on one shared grip. (Claude)
