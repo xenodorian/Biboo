@@ -233,7 +233,7 @@ frames or fewer.
       buried at impact).
 - Acceptance: upper-arm and forearm lengths constant in every frame; rear elbow bends downward;
   lead upper arm never above horizontal; all checks and tests pass.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-28)
 - Result:
 - Signed off:
 
