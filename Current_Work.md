@@ -263,7 +263,7 @@ frames or fewer.
       wedge). Soles stay on the ground; leg lengths re-derived once and fixed.
 - Acceptance: the ankle bend reads just above the heel in every frame; planted feet, leg lengths and
   all other checks pass.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-28)
 - Result:
 - Signed off:
 
