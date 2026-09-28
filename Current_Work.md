@@ -267,6 +267,23 @@ frames or fewer.
 - Result: Ankle joints lowered 3.5 px toward the heel (`LEG_NEUTRAL` ankles now 5 and 6 px above the sole instead of 8.5 and 9.5); the boot shaft runs lower and the foot is a shallower wedge, so the ankle bends just above the heel. Soles stay on the ground; shin lengths re-derived once and fixed. All 11 checks and 10 tests pass.
 - Signed off: Claude, 2026-09-28
 
+### Step 22. Low-swing grip from reference poses
+- [ ] User feedback (2026-09-28): on the low swing the lead hand dips well below the rear hand and
+      the rear hand pulls up to rotate the sword. User supplied three low-cut reference poses.
+- [ ] Reference measurements (normalised to shoulder-to-ground height): hands at hip or upper-thigh
+      height (0.2 to 0.6 down), hands close together (touching to about 1.5 fist widths), grip at
+      27 to 35 degrees below horizontal, rear elbow bent back by the hip, lead arm extended, torso
+      leaning over the front knee.
+- [ ] Keep the rear hand at the base of the handle by the pommel (step 17) and the sword's position
+      relative to it; move the lead hand down the grip to one fist's gap (8 px) from the rear hand.
+- [ ] Re-solve the downswing frames (smearB to recover1) so the rear hand sits at hip level close to
+      the body and the lead arm extends; the blade must still bury itself in the ground.
+- Acceptance: lead hand drop on the low frames about half of before or less; rear hand at hip level
+  on the low frames; all checks and tests pass.
+- Status: TODO
+- Result:
+- Signed off:
+
 ## Open questions
 - None.
 
