@@ -116,12 +116,13 @@ def _hair(C, mask, r0, r1, inner, side, top_off, bot_off, sway, lift=0.0):
         prev_dest = dest
 
 # ---------------------------------------------------------------- legs
-# Neutral joint positions fitted to the original sprite (sprite space). Thigh and shin
+# Neutral joint positions fitted to the original sprite (sprite space); the ankles sit low,
+# just above the heel (step 21). Thigh and shin
 # lengths are derived from these once and never change.
 LEG_NEUTRAL = dict(
-    left=dict(hip=(23.4, 47.0), knee=(12.5, 60.0), ankle=(4.2, 72.0), side=+1,
+    left=dict(hip=(23.4, 47.0), knee=(12.5, 60.0), ankle=(4.2, 75.5), side=+1,
               r_thigh=4.3, r_shaft=4.0, toe_reach=9.0, heel_flare=0.9),
-    right=dict(hip=(42.0, 51.0), knee=(53.1, 62.0), ankle=(60.9, 71.0), side=+1,
+    right=dict(hip=(42.0, 51.0), knee=(53.1, 62.0), ankle=(60.9, 74.5), side=+1,
                r_thigh=4.1, r_shaft=3.7, toe_reach=13.0, heel_flare=0.0),
 )
 # Step 19: the knee pivot sits higher than the boot top (a natural knee), so the shin shows skin
@@ -158,9 +159,9 @@ def _foot_mask(ankle, nb, rb, heel_up, ankle_to_sole, toe_reach=9.0, heel_flare=
             (x_heel - heel_flare, (back[1] + sole_heel) / 2),
             (x_heel - 0.4 * (heel_flare > 0), sole_heel),
             (x_toe - 1.0, sole_toe),
-            (x_toe + 0.4, sole_toe - 2.0),
-            (x_toe - 1.8, sole_toe - 4.2),
-            (front[0] + 2.0, A[1] + 3.0),
+            (x_toe + 0.4, sole_toe - 1.8),
+            (x_toe - 1.8, sole_toe - 3.6),
+            (front[0] + 2.0, A[1] + 1.2),
             front + (0, -0.8)]
     img = Image.new('L', (CW, CH), 0)
     ImageDraw.Draw(img).polygon([(x + PX, y + PY) for x, y in poly], fill=1)
@@ -228,7 +229,7 @@ def draw_leg(cv, name, hip=None, ankle=None, heel_up=False):
         x, y = xx - PX + 0.5, yy - PY + 0.5
         sy = sole_y(x)
         if y > sy - 2.0: c = 1                                   # sole
-        elif x > x_toe - 5.0 and y < sy - 3.2: c = 3             # lit toe cap
+        elif x > x_toe - 5.0 and y < sy - 2.6: c = 3             # lit toe cap
         else: c = 2
         cv.C[yy, xx] = c
     m = m | body_part

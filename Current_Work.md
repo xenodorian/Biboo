@@ -257,20 +257,21 @@ frames or fewer.
 - Signed off: Claude, 2026-09-28
 
 ### Step 21. Ankle bend near the heel
-- [ ] User feedback (2026-09-28): the ankle bend point is too high; it should bend closer to the
+- [x] User feedback (2026-09-28): the ankle bend point is too high; it should bend closer to the
       base of the heel.
-- [ ] Lower the ankle joint toward the heel (the boot shaft runs lower, the foot becomes a shallower
+- [x] Lower the ankle joint toward the heel (the boot shaft runs lower, the foot becomes a shallower
       wedge). Soles stay on the ground; leg lengths re-derived once and fixed.
 - Acceptance: the ankle bend reads just above the heel in every frame; planted feet, leg lengths and
   all other checks pass.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: Ankle joints lowered 3.5 px toward the heel (`LEG_NEUTRAL` ankles now 5 and 6 px above the sole instead of 8.5 and 9.5); the boot shaft runs lower and the foot is a shallower wedge, so the ankle bends just above the heel. Soles stay on the ground; shin lengths re-derived once and fixed. All 11 checks and 10 tests pass.
+- Signed off: Claude, 2026-09-28
 
 ## Open questions
 - None.
 
 ## Log
+- 2026-09-28: Step 21 (ankle bend near the heel) done. (Claude)
 - 2026-09-28: Step 20 (lead arm behind the handle) done. Draw order must keep far < grip < fists (checked). (Claude)
 - 2026-09-28: Step 19 (knee pivot) done. Knee height is `rig.KNEE_RAISE`. (Claude)
 - 2026-09-28: Step 18 (elbows) done. Arm segment lengths in `anim.ARM_LEN`; hands must stay reachable with the lead elbow at or below shoulder height. (Claude)
