@@ -93,7 +93,7 @@ frames or fewer.
 - [ ] Keep the head and the arm attachment points consistent with the lean.
 - Acceptance: the lean reads, there are no seams at the waist or neck, and face clearance still
   passes.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-27)
 - Result:
 - Signed off:
 
