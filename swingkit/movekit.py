@@ -82,6 +82,7 @@ def render(move, i, offset=(0, 0)):
     back, front = fx.Layer(), fx.Layer()
     ctx = movefx.Ctx(back, front, fr, Sword_at(fr), root, ch[..., 3] > 0, i, move)
     ctx.gy = gy
+    ctx.char = ch                                  # character pixels in layer space (afterimages)
     ctx.ground = fx.Layer()                       # drawn over the ground, never clipped (cracks)
     for name, kw in fr.get('fx', []):
         movefx.EFFECTS[name](ctx, **kw)

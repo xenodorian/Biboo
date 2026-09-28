@@ -40,7 +40,7 @@ def energy_kick():
 
 
 def energy_burst():
-    gather = pose(theta=78, hand=(47.0, 33.0), gap=11, **LOWF, hip=(0, 5), bend=10, gaze=1, hair=(0, 1))
+    gather = pose(theta=74, hand=(50.0, 34.0), gap=11, **LOWF, hip=(0, 5), bend=10, gaze=1, hair=(0, 1))
     release = pose(theta=92, hand=(40.0, 13.0), gap=12, order='HIGH', elbows='fwd', hip=(0, 0), bend=-6,
                    lean=-1, gaze=-1, far=dict(sleeve=3.5, rs=2.6), front=(-1, 0), hair=(0, -3), cloth=(3, 0, 3),
                    shoulders=dict(near=(0, -1.0), far=(0, -1.5)))

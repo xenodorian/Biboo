@@ -169,16 +169,18 @@ def vlines(ctx, n=22, color='white'):
 
 
 def ghosts(ctx, offsets=((-14, 0), (-28, 0)), color='blue'):
-    """Afterimages: the current silhouette repeated at offsets (world px), fading with distance."""
+    """Afterimages: tinted copies of the character at offsets (world px). The nearest is a full
+    tinted copy; older ones keep every other row (scanlines), so they fade without dot noise."""
     t = TONES[color]
-    cols = [t[3], t[2], t[1]]
-    Y, X = np.mgrid[0:fx.H, 0:fx.W]
+    ramp = np.array([C[t[0]], C[t[1]], C[t[2]], C[t[3]]], float)
+    rgb = ctx.char[..., :3].astype(float); a = ctx.char[..., 3] > 0
+    lum = rgb @ np.array([0.3, 0.55, 0.15]) / 255.0
+    tint = ramp[np.clip((lum * 4.2).astype(int), 0, 3)].astype(np.uint8)
+    rows = (np.arange(fx.H) % 2 == 0)[:, None]
     for k, (dx, dy) in list(enumerate(offsets))[::-1]:
-        m = np.roll(np.roll(ctx.mask, int(round(dx)), axis=1), int(round(-dy)), axis=0)
-        edge = m & ~ndi.binary_erosion(m)
-        dither = m & ((X % 2 == 0) & (Y % 2 == 0)) if k == 0 else m & ((X % 3 == 0) & (Y % 3 == 0))  # see-through
-        for mm, col in ((dither, cols[min(k, 2)]), (edge, cols[min(k, 2)])):
-            ctx.back.a[mm, :3] = C[col]; ctx.back.a[mm, 3] = 255
+        sh = lambda arr: np.roll(np.roll(arr, int(round(dx)), axis=1), int(round(-dy)), axis=0)
+        m = sh(a) & (True if k == 0 else rows)
+        ctx.back.a[m, :3] = sh(tint)[m]; ctx.back.a[m, 3] = 255
 
 
 def dust(ctx, foot='both', t=0.0, big=1.0):
