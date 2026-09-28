@@ -220,7 +220,7 @@ frames or fewer.
       beside the head.
 - Acceptance: rear hand on the pommel end in all 12 frames; arm lengths in range; face clearance
   passes; all checks and tests pass.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-28)
 - Result:
 - Signed off:
 
