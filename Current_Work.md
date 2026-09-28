@@ -243,7 +243,7 @@ frames or fewer.
       and the sock cuff before the boot starts; the boot top stays where it was.
 - Acceptance: bends read at the knee, not at the boot top; leg lengths constant; planted feet and
   all other checks pass.
-- Status: TODO
+- Status: IN PROGRESS (Claude, 2026-09-28)
 - Result:
 - Signed off:
 
