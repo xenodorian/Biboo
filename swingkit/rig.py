@@ -77,36 +77,43 @@ def _paste(C, src, mask, dx, dy):
     ys, xs = np.nonzero(mask)
     C[ys + dy + PY, xs + dx + PX] = src[ys, xs]
 
-def _hair(C, mask, r0, r1, inner, side, top_off, bot_off, sway):
+def _hair(C, mask, r0, r1, inner, side, top_off, bot_off, sway, lift=0.0):
     """Bend a long-hair mass. Row r moves by a blend of the offset of what it hangs
-    from (top_off) and what it rests against (bot_off), plus sway at the tips.
-    Pixels are resampled per row; columns beyond the inner boundary are clamped so
-    no gap opens against the body. side=-1 hair hangs on the left (inner boundary is
-    its right edge), +1 on the right."""
-    h, w = BODY.shape
+    from (top_off) and what it rests against (bot_off), plus sway (sideways) and lift
+    (upward, positive) that grow toward the tips. Rows are mapped in order; if rows
+    spread apart, the gap is filled by repeating the row above, so no holes open.
+    Columns beyond the inner boundary are clamped so no gap opens against the body.
+    side=-1 hair hangs on the left (inner boundary is its right edge), +1 on the right."""
+    prev_dest = None
     for r in range(r0, r1 + 1):
         b = (r - r0) / max(r1 - r0, 1)
         dx = int(round(top_off[0] * (1 - b) + bot_off[0] * b + sway * b ** 1.4))
-        dy = int(round(top_off[1] * (1 - b) + bot_off[1] * b))
+        dy = int(round(top_off[1] * (1 - b) + bot_off[1] * b - lift * b ** 1.5))
+        dest = r + dy
         row_mask = mask[r]
-        if not row_mask.any(): continue
+        if not row_mask.any():
+            prev_dest = dest; continue
         xs = np.nonzero(row_mask)[0]
         lo, hi = xs.min(), xs.max()
         fill = [x for x in xs if BODY[r, x] != OUT]
-        if not fill: continue
+        if not fill:
+            prev_dest = dest; continue
         in_hi, in_lo = max(fill), min(fill)       # innermost non-outline hair pixels
-        for xd in range(min(lo, lo + dx) - 1, max(hi, hi + dx) + 2):
-            xsrc = xd - dx
-            if side < 0:
-                if xsrc > hi: xsrc = in_hi
-                if xsrc < lo: continue
-            else:
-                if xsrc < lo: xsrc = in_lo
-                if xsrc > hi: continue
-            if not row_mask[xsrc]: continue
-            yy, xx = r + dy + PY, xd + PX
-            if 0 <= yy < CH and 0 <= xx < CW:
-                C[yy, xx] = BODY[r, xsrc]
+        rows_out = [dest] if prev_dest is None or dest <= prev_dest + 1 else list(range(prev_dest + 1, dest + 1))
+        for yd in rows_out:
+            for xd in range(min(lo, lo + dx) - 1, max(hi, hi + dx) + 2):
+                xsrc = xd - dx
+                if side < 0:
+                    if xsrc > hi: xsrc = in_hi
+                    if xsrc < lo: continue
+                else:
+                    if xsrc < lo: xsrc = in_lo
+                    if xsrc > hi: continue
+                if not row_mask[xsrc]: continue
+                yy, xx = yd + PY, xd + PX
+                if 0 <= yy < CH and 0 <= xx < CW:
+                    C[yy, xx] = BODY[r, xsrc]
+        prev_dest = dest
 
 # ---------------------------------------------------------------- legs
 # Neutral joint positions fitted to the original sprite (sprite space). Thigh and shin
@@ -228,14 +235,14 @@ def torso_shear(lean, row):
     half the lean at the top of the torso."""
     return 0.5 * lean * (WAIST - row) / (WAIST - TORSO_TOP)
 
-def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0, cloth=None):
+def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0, cloth=None, hair_lift=0.0):
     """Draw the body into canvas C (index array, -1 = transparent). `legs` maps
     'left'/'right' to dict(hip=..., ankle=...) overrides; default is the neutral stance."""
     M = MASKS
     head = (head[0] + int(round(lean)), head[1])   # head leans as one rigid piece
     _paste(C, UNDER, UNDER >= 0, *skirt)            # underpaint rides with the skirt/waist
-    _hair(C, M['hl'], 26, 50, inner=15, side=-1, top_off=head, bot_off=skirt, sway=sway)
-    _hair(C, M['hr'], 14, 44, inner=40, side=+1, top_off=head, bot_off=skirt, sway=sway)
+    _hair(C, M['hl'], 26, 50, inner=15, side=-1, top_off=head, bot_off=skirt, sway=sway, lift=hair_lift)
+    _hair(C, M['hr'], 14, 44, inner=40, side=+1, top_off=head, bot_off=skirt, sway=sway, lift=hair_lift)
     cloth = cloth or {}
     _deform_paste(C, UNDERSKIRT, UNDERSKIRT >= 0, skirt, **cloth)
     cv = Canvas(); cv.C = C

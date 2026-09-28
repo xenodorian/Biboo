@@ -152,12 +152,31 @@ CLOTH = dict(
     recover2=dict(lift=0, trail=0, flare=0),
 )
 
+# ---------------------------------------------------------------- hair (step 6)
+# Long-hair follow-through: sway (px sideways at the tips, lagging behind the body) and
+# lift (px up at the tips: rises while the body drops, hangs while it rises).
+HAIR = dict(
+    ready=dict(sway=0, lift=0),
+    rise1=dict(sway=1, lift=-1),
+    rise2=dict(sway=2, lift=-1),
+    peak=dict(sway=1, lift=1),
+    smearA=dict(sway=-2, lift=1),
+    smearB=dict(sway=-4, lift=3),
+    impact=dict(sway=-2, lift=2),
+    plume1=dict(sway=3, lift=-1),
+    plume2=dict(sway=2, lift=0),
+    settle=dict(sway=0, lift=0),
+    recover1=dict(sway=-1, lift=-1),
+    recover2=dict(sway=1, lift=0),
+)
+
 FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
 for fr in FRAMES:
     ft = FEET[fr['name']]
     fr['legs']['right']['ankle'] = ft['right']
     fr['front_planted'] = ft['planted']
     fr['cloth'] = CLOTH[fr['name']]
+    fr['sway'] = HAIR[fr['name']]['sway']; fr['hair_lift'] = HAIR[fr['name']]['lift']
 
 def shoulders(fr):
     t = np.array(fr['torso'], float)
@@ -181,7 +200,7 @@ def render_character(i):
         if op == 'body':
             parts['legs'] = body(cv.C, head=fr['head'], torso=fr['torso'], skirt=fr['skirt'], sway=fr['sway'],
                                  legs=fr.get('legs'), lean=fr.get('lean', 0),
-                                 cloth=fr.get('cloth'))
+                                 cloth=fr.get('cloth'), hair_lift=fr.get('hair_lift', 0))
         elif op == 'far':
             a = fr['far']
             parts['far'] = arm(cv, sf, a['to'], elbow=a.get('elbow'), sleeve=a.get('sleeve', 3.5), rs=a.get('rs', 2.6))

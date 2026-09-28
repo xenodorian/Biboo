@@ -106,13 +106,13 @@ frames or fewer.
 - Signed off: Claude, 2026-09-27
 
 ### Step 6. Stronger hair motion
-- [ ] Add vertical lag to the existing sideways sway: the hair lifts as the body drops, overshoots
+- [x] Add vertical lag to the existing sideways sway: the hair lifts as the body drops, overshoots
       forward at impact, then falls and settles.
 - Acceptance: no seams or doubled outlines at any offset (test the extremes as in the rig stress
   test).
-- Status: IN PROGRESS (Claude, 2026-09-27)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: `anim.HAIR` sets sway and lift per frame. `rig._hair` now adds vertical lag (tips lift 3 px as the body drops, hang 1 px on the rise, drop 1 px on the overshoot) with row-gap filling, and sway reaches 4 px at the fastest point. Stress-tested at sway -4/+4 with lift +3/-2: no seams or doubled outlines. All checks and tests pass.
+- Signed off: Claude, 2026-09-27
 
 ### Step 7. Review and publish
 - [ ] Render every frame and review each one zoomed in and at 1x. Fix any issues found.
@@ -133,6 +133,7 @@ frames or fewer.
 - Approve optional steps A to D? (asked 2026-09-27)
 
 ## Log
+- 2026-09-27: Step 6 (hair) done. Hair values in `anim.HAIR`; keep sway within 4 px and lift within 3 px (tested range). (Claude)
 - 2026-09-27: Step 5 (skirt) done. Cloth values in `anim.CLOTH`. (Claude)
 - 2026-09-27: Step 4 (lean) done. Never shear the head row by row; it jogs the face. (Claude)
 - 2026-09-27: Step 3 (step into the strike) done. Front foot keyframes in `anim.FEET`; mark a frame `planted=True` only if the ankle row equals the neutral row. (Claude)
