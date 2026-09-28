@@ -36,9 +36,12 @@ def _masks():
     whites = np.isin(BODY, [19, 18, 16, 15, 13, 12, 11])
     hr &= ~((Y >= 41) & whites)                 # apron edge belongs to the skirt
     hl = op & (Y >= 26) & (Y <= 50) & (X <= 15)
+    # the skirt's left flare (white apron edge and purple panel) sits inside the left-hair box
+    hl &= ~((Y >= 45) | ((Y == 44) & (X >= 12)) | ((Y == 43) & (X >= 13)) | ((Y == 42) & (X >= 14)))
     torso = op & (Y >= 26) & (Y <= 33) & (X >= 16) & (X <= 39)
     skin = np.isin(BODY, [SK, SKS])
-    skirt = op & (Y >= 34) & (Y <= 56) & ~hl & ~hr & ~((Y >= 45) & skin)
+    # rows 57-59 between the legs are the bottom of the back skirt
+    skirt = op & (Y >= 34) & (Y <= 59) & ~hl & ~hr & ~((Y >= 45) & skin) & ~((Y >= 57) & ((X < 22) | (X > 40)))
     legs = op & ~head & ~hr & ~hl & ~torso & ~skirt
     return dict(head=head, hr=hr, hl=hl, torso=torso, skirt=skirt, legs=legs)
 
@@ -58,21 +61,51 @@ def _underpaint():
 
 UNDER = _underpaint()
 
-def _underskirt():
-    """Shadowed inside of the skirt, filling the hem notches the fixed thighs used to
-    occupy. Drawn behind the legs, so it only shows where a bent thigh has moved away."""
-    u = np.full(BODY.shape, -1)
-    sk = MASKS['skirt']
-    cols = [x for x in range(BODY.shape[1]) if sk[:, x].any()]
-    bottom = {x: int(np.nonzero(sk[:, x])[0].max()) for x in cols}
-    for x in cols:
-        win = [bottom[c] for c in range(x - 6, x + 7) if c in bottom]
-        target = min(max(win), 56)
-        for y in range(bottom[x] + 1, target + 1):
-            u[y, x] = 5 if y > bottom[x] + 1 else 4
-    return u
+# Skirt layers (user request, 2026-09-28). The thighs go up under the FRONT skirt, which ends at
+# the front hem just above where each thigh appears. The purple piece seen between the legs below
+# that hem is the inside of the BACK skirt, which hangs behind the legs. The back skirt is rebuilt
+# across the full width (the thighs hid most of it), so legs can move without opening holes.
+BACK_X = (8, 54)                 # columns the back skirt spans
+BACK_SRC = (26, 37)              # columns where the original back skirt is fully visible
 
-UNDERSKIRT = _underskirt()
+def _front_hem():
+    """Last front-skirt row per column: just above the thigh where a thigh shows, interpolated
+    between the thighs, and the whole panel elsewhere."""
+    skin = np.isin(BODY, [SK, SKS])
+    hem = np.full(BODY.shape[1], BODY.shape[0], float)
+    for x in range(BODY.shape[1]):
+        t = [y for y in range(45, 61) if skin[y, x]]
+        if t: hem[x] = t[0] - 1
+    a, b = BACK_SRC[0] - 1, BACK_SRC[1] + 3          # inner edges of the left and right thighs
+    for x in range(a + 1, b):
+        hem[x] = hem[a] + (hem[b] - hem[a]) * (x - a) / (b - a)
+    return np.round(hem).astype(int)
+
+FRONT_HEM = _front_hem()
+
+def _skirt_layers():
+    sk = MASKS['skirt']
+    Y = np.mgrid[0:BODY.shape[0], 0:BODY.shape[1]][0]
+    front = np.where(sk & (Y <= FRONT_HEM[None, :]), BODY, -1)
+    for x in range(front.shape[1]):              # keep one hem outline row; drop stray thigh outline
+        filled = np.nonzero((front[:, x] >= 0) & (front[:, x] != OUT))[0]
+        if len(filled): front[filled.max() + 2:, x] = -1
+    # back skirt: bottom-aligned copies of the visible back columns, repeated across the width
+    bot = {x: next(y for y in range(54, 61) if BODY[y, x] == OUT) for x in range(BACK_SRC[0], BACK_SRC[1] + 1)}
+    n = BACK_SRC[1] - BACK_SRC[0] + 1
+    back = np.full(BODY.shape, -1)
+    for x in range(BACK_X[0], BACK_X[1] + 1):
+        if BACK_SRC[0] <= x <= BACK_SRC[1]:
+            c, b = x, bot[x]
+        else:
+            c = BACK_SRC[0] + (x - BACK_SRC[0]) % n
+            b = int(round(57.5 - 0.22 * max(0.0, abs(x - 31.5) - 6)))   # hem rises toward the sides
+        for k in range(0, b - 43):
+            ys = bot[c] - k
+            back[b - k, x] = BODY[ys, c] if ys > FRONT_HEM[c] else 5   # dark inside above the lining
+    return front, back
+
+SKIRT_FRONT, SKIRT_BACK = _skirt_layers()
 
 # ---------------------------------------------------------------- hair and dress tones
 # User request (2026-09-28): the long hair and the dress shared the purple indices 5, 7, 8, 9, 10
@@ -102,7 +135,8 @@ BODY = _retone(BODY, HAIR_TONE, _hair_region())
 BODY = _retone(BODY, DRESS_TONE, MASKS['torso'] | MASKS['skirt'])
 UNDER = _retone(UNDER, HAIR_TONE, UNDER == 9)          # hair behind the head and beside the torso
 UNDER = _retone(UNDER, DRESS_TONE, UNDER == 7)         # waist / dress
-UNDERSKIRT = _retone(UNDERSKIRT, DRESS_TONE, UNDERSKIRT >= 0)
+SKIRT_FRONT = _retone(SKIRT_FRONT, DRESS_TONE, SKIRT_FRONT >= 0)
+SKIRT_BACK = _retone(SKIRT_BACK, DRESS_TONE, SKIRT_BACK >= 0)
 TRIM, TRIM2 = DRESS_TONE[TRIM], DRESS_TONE[TRIM2]
 
 def _paste(C, src, mask, dx, dy):
@@ -408,13 +442,13 @@ def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None, lean=0.0
         draw_hair_pass(C, head, skirt, sway, lean, bend, hair_lift)
     head = head_offset(head, lean, bend)            # head leans and bends as one rigid piece
     cloth = cloth or {}
-    _deform_paste(C, UNDERSKIRT, UNDERSKIRT >= 0, skirt, **cloth)
+    _deform_paste(C, SKIRT_BACK, SKIRT_BACK >= 0, skirt, **cloth)     # back skirt, behind the legs
     cv = Canvas(); cv.C = C
     legs = legs or {}
     info = {}
     for name in ('left', 'right'):
         info[name] = draw_leg(cv, name, **legs.get(name, {}))
-    sk = _deform_paste(C, BODY, M['skirt'], skirt, **cloth)
+    sk = _deform_paste(C, SKIRT_FRONT, SKIRT_FRONT >= 0, skirt, **cloth)   # front skirt, over the legs
     # hem shadow: the row of leg directly below the skirt gets a shade tone
     legm = info['left']['mask'] | info['right']['mask']
     below = np.zeros_like(sk); below[1:] = sk[:-1]
