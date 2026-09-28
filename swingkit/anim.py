@@ -50,8 +50,9 @@ F(name='dip', ms=80, theta=-6, sway=0, far=dict(sleeve=2.5, rs=2.6))
 F(name='rise1', ms=90, theta=75, sway=1, elbows='fwd', order=HIGH)
 # 4 RISE 2 - hands go over the head, blade tipping back
 F(name='rise2', ms=80, theta=120, sway=1, elbows='fwd', order=HIGH)
-# 5 PEAK - arms raised over the head with bent elbows, sword pointed backwards, torso bent back
-F(name='peak', ms=250, theta=159, sway=0, elbows='fwd', order=HIGH, glint=True)
+# 5 PEAK - high guard: fists just above and in front of the forehead, elbows bent, blade pointing
+# up and back at 45 degrees, torso bent back
+F(name='peak', ms=250, theta=135, sway=0, elbows='fwd', order=HIGH, glint=True)
 # 6 SMEAR A - arms swing forward over the head and start to straighten
 F(name='smearA', ms=50, theta=55, sway=-2, elbows='fwd', order=HIGH, smear_from='peak')
 # 7 SMEAR B - arms at full forward extension, upper body bends into the strike
@@ -77,7 +78,7 @@ HIPS = dict(
     dip=dict(hip=(0, 2), torso=(0, 0), head=(0, 0), lean=1, bend=4),
     rise1=dict(hip=(-1, 1), torso=(0, 0), head=(0, 0), lean=-1, bend=-4),
     rise2=dict(hip=(-1, 0), torso=(0, -1), head=(0, -1), lean=-1, bend=-9),
-    peak=dict(hip=(-2, 0), torso=(0, -1), head=(0, -1), lean=-2, bend=-12),
+    peak=dict(hip=(-2, 0), torso=(0, -1), head=(0, -1), lean=-2, bend=-8),
     smearA=dict(hip=(0, 1), torso=(0, 0), head=(0, 0), lean=0, bend=0),
     smearB=dict(hip=(1, 2), torso=(0, 0), head=(0, 0), lean=2, bend=12),
     impact=dict(hip=(2, 3), torso=(0, 0), head=(0, 0), lean=2, bend=20),
@@ -208,13 +209,18 @@ FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
 # reach with fixed-length arms. The lead hand is always HAND_GAP further along the grip. While the
 # blade is buried (impact, plume1, settle) the grip stays fixed in the world as the body moves.
 REAR_HAND = dict(ready=(36.5, 30.5), dip=(36.6, 33.0), rise1=(38.0, 17.1), rise2=(31.7, 9.3),
-                 peak=(27.8, 5.8), smearA=(36.5, 10.0), smearB=(49.5, 30.9),
+                 peak=(34.5, 7.5), smearA=(36.5, 10.0), smearB=(49.5, 30.9),
                  impact=(50.4, 38.5), plume1=(50.4, 38.5), settle=(50.4, 38.5),
                  recover1=(42.9, 38.4), recover2=(36.6, 32.2))
 
+# Hand gap along the grip where a frame differs from HAND_GAP. Peak (high guard): lead hand 12 px
+# up the grip so both fists sit clear above the head.
+GRIP_GAP = dict(peak=12.0)
+
 def apply_grip(fr, Hl):
     Hl, Hu = two_hand(fr['theta'], Hl)                     # Hu = sword reference point
-    th = np.radians(fr['theta']); lead = Hl + HAND_GAP * np.array([np.cos(th), -np.sin(th)])
+    gap = GRIP_GAP.get(fr['name'], HAND_GAP)
+    th = np.radians(fr['theta']); lead = Hl + gap * np.array([np.cos(th), -np.sin(th)])
     fr['Hl'] = tuple(Hl); fr['H'] = tuple(Hu); fr['lead'] = tuple(lead)
     fr['fists'] = [tuple(lead), tuple(Hl)]
     fr['far'] = dict(fr['far'], to=tuple(lead), elbow=None)
