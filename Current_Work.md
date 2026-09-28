@@ -198,6 +198,18 @@ frames or fewer.
 - Result: The foot is no longer a separate stamp: `rig._foot_mask` draws it with the shin as one outlined shape (heel flares from the shin's back edge, instep from its front edge, toe forward, sole band on the ground; heel-up tilts the sole with the toe planted). Continuous ankle in every frame. Found and fixed a 1 px float on the planted front boot (each leg now uses its own ankle-to-sole distance), and the planted-feet check now measures drawn pixels instead of ankle rows so this cannot slip through again. The old foot stamps (`LEFT_FOOT` etc.) are removed. docs preview refreshed; all checks and tests pass.
 - Signed off: Claude, 2026-09-28
 
+### Step 16. Lead foot toes point forward
+- [ ] User feedback (2026-09-28): the lead (front, right) foot reads as pointing inward. Its toe
+      barely clears the forward-slanted shin and the heel flares behind, so the boot looks folded
+      back under the leg.
+- [ ] Give the lead foot a longer forward toe and a heel flush with the back of the shin so it
+      clearly points forward, toward the strike.
+- Acceptance: lead toe clearly points forward in every frame; planted and leg checks pass; all checks
+  and tests pass.
+- Status: TODO
+- Result:
+- Signed off:
+
 ## Open questions
 - None.
 
