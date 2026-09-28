@@ -174,6 +174,18 @@ frames or fewer.
 - Result: Reviewed all 12 frames zoomed and at 1x; no blocking issues. `docs/swing_x3.gif` and `docs/char_sheet.png` updated, README frame table rewritten for the new frame list (dip added, plume2 removed), manifest now also records gaze, rear heel and shoulders per frame. All 8 checks and 7 tests pass.
 - Signed off: Claude, 2026-09-28
 
+### Step 14. Rear foot and rear knee point forward
+- [ ] User feedback (2026-09-28): the outward-toe fix from step 8 is not wanted for the back leg.
+      Point the back (left) foot and the back knee forward, toward the strike (to the right).
+- [ ] Rear foot: toe cap on the forward side, heel under the shaft on the back side; heel-up variant
+      to match (heel lifts at the back, toe planted in front).
+- [ ] Rear knee bends forward instead of outward. Front leg unchanged (it already points forward).
+- Acceptance: both feet and both knees point toward the strike; leg lengths and planted feet checks
+  pass; all checks and tests pass.
+- Status: TODO
+- Result:
+- Signed off:
+
 ## Open questions
 - None.
 
