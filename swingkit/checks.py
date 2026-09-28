@@ -21,6 +21,19 @@ def check_arm_lengths():
     return not bad, 'arm lengths in range' if not bad else '; '.join(bad)
 
 
+def check_leg_lengths():
+    """Thigh and shin lengths must equal the fitted neutral lengths in every frame."""
+    bad = []
+    for i in range(len(anim.FRAMES)):
+        _, _, parts = anim.render_character(i)
+        for name, j in parts['legs'].items():
+            L1, L2 = rig.LEG_LEN[name]
+            t = float(np.hypot(*(j['knee'] - j['hip']))); s = float(np.hypot(*(j['ankle'] - j['knee'])))
+            if abs(t - L1) > 0.05 or abs(s - L2) > 0.05:
+                bad.append(f'frame {i+1} {name} thigh {t:.2f}/{L1:.2f} shin {s:.2f}/{L2:.2f}')
+    return not bad, 'leg lengths constant' if not bad else '; '.join(bad)
+
+
 def check_face_clear():
     hits = []
     for i, fr in enumerate(anim.FRAMES):
@@ -55,6 +68,7 @@ def check_gif(path, frames, scale):
 
 def run_all(frames=None, gif_paths=()):
     results = [('frame count', check_frame_count()), ('arm lengths', check_arm_lengths()),
+               ('leg lengths', check_leg_lengths()),
                ('face clearance', check_face_clear()), ('layer tiling', check_tiling())]
     for p, s in gif_paths:
         results.append((f'gif x{s}', check_gif(p, frames, s)))

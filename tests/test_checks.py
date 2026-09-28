@@ -9,6 +9,10 @@ def test_arm_lengths():
     ok, msg = checks.check_arm_lengths(); assert ok, msg
 
 
+def test_leg_lengths():
+    ok, msg = checks.check_leg_lengths(); assert ok, msg
+
+
 def test_face_clear():
     ok, msg = checks.check_face_clear(); assert ok, msg
 

@@ -91,7 +91,8 @@ def render_character(i):
     parts = {}
     for op in fr['order']:
         if op == 'body':
-            body(cv.C, head=fr['head'], torso=fr['torso'], skirt=fr['skirt'], sway=fr['sway'])
+            parts['legs'] = body(cv.C, head=fr['head'], torso=fr['torso'], skirt=fr['skirt'], sway=fr['sway'],
+                                 legs=fr.get('legs'))
         elif op == 'far':
             a = fr['far']
             parts['far'] = arm(cv, sf, a['to'], elbow=a.get('elbow'), sleeve=a.get('sleeve', 3.5), rs=a.get('rs', 2.6))

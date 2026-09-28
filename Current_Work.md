@@ -55,17 +55,17 @@ frames or fewer.
 - Signed off: Claude, 2026-09-27
 
 ### Step 1. Leg rig
-- [ ] Separate the legs and boots from the body bitmap. Keep the boots as fixed stamps that can
+- [x] Separate the legs and boots from the body bitmap. Keep the boots as fixed stamps that can
       move but are never rotated or scaled.
-- [ ] Draw the visible leg (lower thigh, knee, sock) every frame as two segments of fixed length
+- [x] Draw the visible leg (lower thigh, knee, sock) every frame as two segments of fixed length
       between a hip point and the boot, the same way the arms are drawn.
-- [ ] The neutral pose must match the current look closely.
-- [ ] Add a check that the thigh and shin lengths are identical in every frame.
+- [x] The neutral pose must match the current look closely.
+- [x] Add a check that the thigh and shin lengths are identical in every frame.
 - Acceptance: all checks pass, the neutral frame matches the current legs, and leg lengths are
   constant.
-- Status: IN PROGRESS (Claude, 2026-09-27)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: Legs are now drawn every frame as a skin thigh, a frilled sock cuff and a laced boot shaft, solved with two-bone IK (knees bend outward). Feet are the original boot soles, moved but never rotated. Neutral stance matches the original closely. New leg-length check and test added; all 7 checks and 6 tests pass.
+- Signed off: Claude, 2026-09-27
 
 ### Step 2. Hip height and real knee bend
 - [ ] Add a hip offset to each frame in `FRAMES`: hips rise at the peak and drop at impact.
@@ -133,4 +133,5 @@ frames or fewer.
 - Approve optional steps A to D? (asked 2026-09-27)
 
 ## Log
+- 2026-09-27: Step 1 (leg rig) done. `rig.draw_leg`, `rig.leg_ik`, `LEG_NEUTRAL`, `LEG_LEN`; frames accept `legs={'left': dict(hip=..., ankle=...)}`. (Claude)
 - 2026-09-27: Board created, Step 0 done. (Claude)

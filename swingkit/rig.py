@@ -92,16 +92,109 @@ def _hair(C, mask, r0, r1, inner, side, top_off, bot_off, sway):
             if 0 <= yy < CH and 0 <= xx < CW:
                 C[yy, xx] = BODY[r, xsrc]
 
-def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0):
-    """Draw the body into canvas C (index array, -1 = transparent)."""
+# ---------------------------------------------------------------- legs
+# Neutral joint positions fitted to the original sprite (sprite space). Thigh and shin
+# lengths are derived from these once and never change.
+LEG_NEUTRAL = dict(
+    left=dict(hip=(23.4, 47.0), knee=(12.5, 60.0), ankle=(4.2, 72.0), side=-1,
+              r_thigh=4.3, r_shaft=4.0, foot=lambda Y, X: (Y >= 73) & (X <= 12)),
+    right=dict(hip=(42.0, 51.0), knee=(53.1, 62.0), ankle=(60.9, 71.0), side=+1,
+               r_thigh=4.1, r_shaft=3.7, foot=lambda Y, X: (Y >= 73) & (X >= 52)),
+)
+LEG_LEN = {k: (float(np.hypot(*np.subtract(v['knee'], v['hip']))),
+               float(np.hypot(*np.subtract(v['ankle'], v['knee'])))) for k, v in LEG_NEUTRAL.items()}
+SOCK_LEN = 3.2
+
+def _foot_stamps():
+    h, w = BODY.shape
+    Y, X = np.mgrid[0:h, 0:w]
+    out = {}
+    for k, v in LEG_NEUTRAL.items():
+        m = MASKS['legs'] & v['foot'](Y, X)
+        out[k] = m
+    return out
+
+FOOT = _foot_stamps()
+
+def leg_ik(hip, ankle, L1, L2, side):
+    """Two-bone IK: knee position for fixed thigh/shin lengths. `side` picks which way
+    the knee bends (outward). If the ankle is out of reach the leg is fully straight."""
+    hip = np.asarray(hip, float); ankle = np.asarray(ankle, float)
+    d = ankle - hip; dist = float(np.hypot(*d))
+    dist_c = min(max(dist, abs(L1 - L2) + 1e-6), L1 + L2 - 1e-6)
+    a = (L1 * L1 - L2 * L2 + dist_c * dist_c) / (2 * dist_c)
+    hgt = np.sqrt(max(L1 * L1 - a * a, 0.0))
+    u = d / max(dist, 1e-9); perp = np.array([-u[1], u[0]])
+    # perp points to the right of the hip->ankle direction; flip so knee goes outward
+    knee = hip + u * a - perp * hgt * side * np.sign(u[1] if abs(u[1]) > 1e-9 else 1)
+    return knee
+
+def draw_leg(cv, name, hip=None, ankle=None):
+    v = LEG_NEUTRAL[name]; L1, L2 = LEG_LEN[name]
+    hip = np.array(v['hip'] if hip is None else hip, float)
+    ankle = np.array(v['ankle'] if ankle is None else ankle, float)
+    if hip is None and ankle is None:
+        knee = np.array(v['knee'], float)
+    else:
+        knee = leg_ik(hip, ankle, L1, L2, v['side'])
+    # neutral-exact knee when nothing moved
+    if np.allclose(hip, v['hip']) and np.allclose(ankle, v['ankle']):
+        knee = np.array(v['knee'], float)
+    rt, rb = v['r_thigh'], v['r_shaft']
+    sh_dir = (ankle - knee) / max(np.linalg.norm(ankle - knee), 1e-9)
+    sock_end = knee + sh_dir * SOCK_LEN
+    def normal(a, b):
+        dv = (b - a) / max(np.linalg.norm(b - a), 1e-9); nr = V(-dv[1], dv[0])
+        return nr if nr[0] > 0 else -nr          # points to the viewer's right
+    nt = normal(hip, knee); nb = normal(knee, ankle)
+    def f(p):
+        d, t, off = seg(p, knee, ankle)
+        if d <= rb + (0.6 if t * L2 < SOCK_LEN else 0):
+            along = t * L2
+            s = off @ nb
+            if along < SOCK_LEN:                      # small frilled cuff at the knee
+                if along > SOCK_LEN - 1.0:
+                    return 16 if int(round(p[0] + p[1])) % 2 else 18
+                return 16 if s > 1.8 else 19
+            if abs(s) < 1.1 and int(np.floor(along)) % 3 == 0: return 4   # laces
+            return 1 if s > 1.2 else (3 if s < -2.6 else 2)
+        d, t, off = seg(p, hip, knee)
+        if d <= rt:
+            if t < 0.3: return SKS                    # shadow under the skirt
+            return SK
+        return None
+    pts = np.array([hip, knee, ankle])
+    m = cv.part((pts[:, 0].min() - 6, pts[:, 1].min() - 6, pts[:, 0].max() + 6, pts[:, 1].max() + 6), f, outline=False)
+    # foot stamp, translated with the ankle (never rotated or scaled)
+    dx, dy = int(round(ankle[0] - v['ankle'][0])), int(round(ankle[1] - v['ankle'][1]))
+    ys, xs = np.nonzero(FOOT[name])
+    body_part = np.zeros(cv.C.shape, bool)
+    for y, x in zip(ys, xs):
+        yy, xx = y + dy + PY, x + dx + PX
+        if 0 <= yy < CH and 0 <= xx < CW:
+            cv.C[yy, xx] = BODY[y, x]
+            if BODY[y, x] != OUT: body_part[yy, xx] = True
+    m = m | body_part
+    ring = ndimage.binary_dilation(m) & ~m
+    cv.C[ring & ((cv.C < 0) | ~m)] = OUT
+    return dict(hip=hip, knee=knee, ankle=ankle, mask=m)
+
+def body(C, head=(0, 0), torso=(0, 0), skirt=(0, 0), sway=0, legs=None):
+    """Draw the body into canvas C (index array, -1 = transparent). `legs` maps
+    'left'/'right' to dict(hip=..., ankle=...) overrides; default is the neutral stance."""
     M = MASKS
     _paste(C, UNDER, UNDER >= 0, *skirt)            # underpaint rides with the skirt/waist
     _hair(C, M['hl'], 26, 50, inner=15, side=-1, top_off=head, bot_off=skirt, sway=sway)
     _hair(C, M['hr'], 14, 44, inner=40, side=+1, top_off=head, bot_off=skirt, sway=sway)
-    _paste(C, BODY, M['legs'], 0, 0)
+    cv = Canvas(); cv.C = C
+    legs = legs or {}
+    info = {}
+    for name in ('left', 'right'):
+        info[name] = draw_leg(cv, name, **legs.get(name, {}))
     _paste(C, BODY, M['skirt'], *skirt)
     _paste(C, BODY, M['torso'], *torso)
     _paste(C, BODY, M['head'], *head)
+    return info
 
 # ---------------------------------------------------------------- parametric parts
 V = lambda x, y: np.array([x, y], float)
