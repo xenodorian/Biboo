@@ -339,6 +339,56 @@ by this request, because the arms now rise over the head.
 - Result:
 - Signed off:
 
+## Workflow: move library (user request, 2026-09-28)
+
+Goal: the full move set for a Nintendo-style game on a Dreamcast pad (A, B, X, Y, L, R, d-pad).
+The existing 11-frame chop is the heavy attack, Up+A. Animations only for now, but every move
+also exports game data (timing, root motion, hitboxes, input) in `game/moves.json`.
+
+Pose rules for every move (from the heavy-attack work):
+- Proportions fixed: arms 13+14 px, legs fixed IK lengths, sword never scaled.
+- Rear hand on the pommel end; lead hand up the grip (below the guard for strikes) unless a
+  move frees it. Lead arm behind the head and torso; hair behind everything.
+- Keep the white and dark-violet dress against pinkish hair; never recolor shared palette entries.
+- Key poses are checked against references before in-betweens are added.
+- Inputs: '+' pressed together, '-' pressed in sequence.
+
+Framework: `swingkit/moves/base.py` (pose specs, tween, reach fitting), `swingkit/movefx.py`
+(effects), `swingkit/movekit.py` (compositor with root motion and camera, exports).
+
+### Step 29. Framework, input map and non-combat moves
+- [ ] Idle: plow guard (breathing loop)
+- [ ] Right: walk right; Left: walk left (backpedal in guard)
+- [ ] Down: duck; Y: jump 2 body heights; X: dash forward
+- [ ] B: block when held, parry when tapped
+- [ ] Up: raise into the high guard and charge for Up+A
+- [ ] Build output per move, `game/moves.json`, `game/input_map.json`, checks over all moves
+- Status: IN PROGRESS (Claude, 2026-09-28)
+
+### Step 30. Basic attacks
+- [ ] A: medium horizontal slash
+- [ ] Right+A: quick long-range thrust with a forward lunge
+- [ ] Down+A: duck into a medium-range upswing
+- [ ] Left+A: upswing while jumping back
+- [ ] L: push kick
+- [ ] R: kneel, glow green, floating + signs (recover HP)
+- Status: TODO
+
+### Step 31. Combo attacks
+- [ ] A+B: horizontal slash charged with glittering blue energy
+- [ ] B+L: heavy push kick; A+B+L: heavy push kick with blue energy
+- [ ] L+R: energy burst in all directions
+- [ ] X+Y: taunt
+- [ ] X+A: dash forward in a blur, then thrust
+- [ ] Y-A: jump, then crash down with a heavy attack
+- [ ] Down-Y: dash up 6 body lengths
+- [ ] Left-Right-A: spin attack
+- [ ] B-X-A: dash forward into a heavy thrust with blue energy
+- [ ] Down-Right-A-B: large energy projectile from the sword
+- [ ] Down-Down-Down-Down-A: earthquake
+- [ ] Up-Up-Up-Up-A: meteor shower
+- Status: TODO
+
 ## Open questions
 - Ready is now Plow (blade 27 degrees up, hands at the hip). The dip (blade -6, hands at chest) and recover2 (blade 0) still match the old ready pose, so they jump. Re-pose them to lead into and out of Plow? (asked 2026-09-28)
 
