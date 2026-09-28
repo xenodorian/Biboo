@@ -1,6 +1,6 @@
 # Biboo
 
-Greatsword swing animation and asset pipeline. Procedural pixel-art pipeline for a 12-frame greatsword swing in a sunset side-scroller scene.
+Procedural pixel-art pipeline for a 12-frame greatsword swing in a sunset side-scroller scene.
 One command rebuilds everything: the tileable background layers, the character sprite frames,
 the effect overlays, a scene manifest for a game engine, and the preview GIFs.
 
