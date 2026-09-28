@@ -247,6 +247,15 @@ frames or fewer.
 - Result: Knee pivots moved up each thigh (`rig.KNEE_RAISE`: rear 4.5 px, front 4 px) to a natural knee height. The shin now shows bare skin from the knee down to the sock cuff, and the boot top stays where it was, so bends read at the knee instead of just above the boot. Thigh and shin lengths are re-derived once and stay fixed; all 10 checks and 9 tests pass.
 - Signed off: Claude, 2026-09-28
 
+### Step 20. Lead arm behind the handle
+- [ ] User feedback (2026-09-28): the lead arm clips in front of the handle. Draw the lead (far)
+      arm behind the grip in every frame; only the fists sit on top of it.
+- [ ] Add a check that no lead-arm pixel covers the handle.
+- Acceptance: no lead-arm pixels over the grip in any frame; all checks and tests pass.
+- Status: TODO
+- Result:
+- Signed off:
+
 ## Open questions
 - None.
 
