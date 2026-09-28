@@ -19,6 +19,9 @@ S_FAR = np.array([35.5, 29.0])      # viewer-right shoulder
 # (far) hand is near the guard. GRIP_SPAN is the distance between them along the grip
 # (the sword's grip runs 21 px from the guard-side hand to the pommel end).
 GRIP_SPAN = 17.5
+# Lead (far) hand sits one fist's gap up the handle from the rear hand (step 22, from the low-cut
+# reference poses: hands close together, not spread along the grip).
+HAND_GAP = 8.0
 
 def two_hand(theta, Hl):
     th = np.radians(theta); d = np.array([np.cos(th), -np.sin(th)])
@@ -62,12 +65,12 @@ F(name='smearA', ms=50, theta=38, H=Hu, Hl=Hl, head=(0, 0), torso=(0, 0), skirt=
   order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'], smear_from='peak')
 # 6 SMEAR B - body drops into the strike
 Hl, Hu = two_hand(-18, (40.0, 34.5))
-F(name='smearB', ms=40, theta=-18, H=Hu, Hl=Hl, head=(2, 1), torso=(1, 1), skirt=(0, 1), sway=-3,
+F(name='smearB', ms=40, theta=-14, H=Hu, Hl=Hl, head=(2, 1), torso=(1, 1), skirt=(0, 1), sway=-3,
   far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
   order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'], smear_from='smearA')
 # 7 IMPACT - blade buried, deepest crouch
 Hl, Hu = two_hand(-34, (38.0, 40.0))
-IMPACT = dict(theta=-34, H=Hu, Hl=Hl, far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
+IMPACT = dict(theta=-30, H=Hu, Hl=Hl, far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
               order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'])
 F(name='impact', ms=110, head=(2, 2), torso=(1, 2), skirt=(0, 1), sway=-1, smear_from='smearB', residual=True, **IMPACT)
 # 8-10 hold while debris flies; hair overshoots then settles; body eases up
@@ -76,7 +79,7 @@ F(name='plume2', ms=80, head=(2, 2), torso=(1, 2), skirt=(0, 1), sway=1, **IMPAC
 F(name='settle', ms=120, head=(1, 1), torso=(1, 1), skirt=(0, 1), sway=0, **IMPACT)
 # 11 RECOVER 1 - pull the blade free
 Hl, Hu = two_hand(-14, (37.5, 34.5))
-F(name='recover1', ms=110, theta=-14, H=Hu, Hl=Hl, head=(1, 1), torso=(0, 1), skirt=(0, 0), sway=-1,
+F(name='recover1', ms=110, theta=-10, H=Hu, Hl=Hl, head=(1, 1), torso=(0, 1), skirt=(0, 0), sway=-1,
   far=dict(to=Hu, sleeve=3.5, rs=2.6), near=dict(to=Hl), fists=[Hu, Hl],
   order=['body', 'far', 'grip', 'near', 'fists', 'guard', 'blade'])
 # 12 RECOVER 2 - ease back into the ready pose (loops to frame 1)
@@ -238,14 +241,16 @@ FRAMES[:] = [_rebase(fr, HIPS[fr['name']]) for fr in FRAMES]
 # hand is always GRIP_SPAN further along the grip. While the blade is buried (impact, plume1,
 # settle) the grip stays fixed in the world as the body moves.
 REAR_HAND = dict(ready=(36.3, 30.5), dip=(36.5, 33.0), rise1=(36.0, 31.0), rise2=(36.5, 32.5),
-                 peak=(38.5, 34.0), smearA=(37.5, 31.0), smearB=(39.0, 34.5),
-                 impact=(39.0, 37.0), plume1=(39.0, 37.0), settle=(39.0, 37.0),
-                 recover1=(38.0, 34.0), recover2=(36.5, 32.0))
+                 peak=(38.5, 34.0), smearA=(37.5, 31.0), smearB=(38.5, 39.5),
+                 impact=(38.5, 40.0), plume1=(38.5, 40.0), settle=(38.5, 40.0),
+                 recover1=(38.0, 39.0), recover2=(36.5, 32.0))
 
 for fr in FRAMES:
-    Hl, Hu = two_hand(fr['theta'], REAR_HAND[fr['name']])
-    fr['Hl'] = tuple(Hl); fr['H'] = tuple(Hu); fr['fists'] = [tuple(Hu), tuple(Hl)]
-    fr['far'] = dict(fr['far'], to=tuple(Hu), elbow=None)
+    Hl, Hu = two_hand(fr['theta'], REAR_HAND[fr['name']])      # Hu = sword reference point
+    th = np.radians(fr['theta']); lead = Hl + HAND_GAP * np.array([np.cos(th), -np.sin(th)])
+    fr['Hl'] = tuple(Hl); fr['H'] = tuple(Hu); fr['lead'] = tuple(lead)
+    fr['fists'] = [tuple(lead), tuple(Hl)]
+    fr['far'] = dict(fr['far'], to=tuple(lead), elbow=None)
     fr['near'] = dict(fr['near'], to=tuple(Hl), elbow=None)
 
 for fr in FRAMES:

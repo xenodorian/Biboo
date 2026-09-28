@@ -268,26 +268,27 @@ frames or fewer.
 - Signed off: Claude, 2026-09-28
 
 ### Step 22. Low-swing grip from reference poses
-- [ ] User feedback (2026-09-28): on the low swing the lead hand dips well below the rear hand and
+- [x] User feedback (2026-09-28): on the low swing the lead hand dips well below the rear hand and
       the rear hand pulls up to rotate the sword. User supplied three low-cut reference poses.
-- [ ] Reference measurements (normalised to shoulder-to-ground height): hands at hip or upper-thigh
+- [x] Reference measurements (normalised to shoulder-to-ground height): hands at hip or upper-thigh
       height (0.2 to 0.6 down), hands close together (touching to about 1.5 fist widths), grip at
       27 to 35 degrees below horizontal, rear elbow bent back by the hip, lead arm extended, torso
       leaning over the front knee.
-- [ ] Keep the rear hand at the base of the handle by the pommel (step 17) and the sword's position
+- [x] Keep the rear hand at the base of the handle by the pommel (step 17) and the sword's position
       relative to it; move the lead hand down the grip to one fist's gap (8 px) from the rear hand.
-- [ ] Re-solve the downswing frames (smearB to recover1) so the rear hand sits at hip level close to
+- [x] Re-solve the downswing frames (smearB to recover1) so the rear hand sits at hip level close to
       the body and the lead arm extends; the blade must still bury itself in the ground.
 - Acceptance: lead hand drop on the low frames about half of before or less; rear hand at hip level
   on the low frames; all checks and tests pass.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: Lead hand moved down to one fist's gap (HAND_GAP=8) above the rear hand; downswing re-solved so both hands finish stacked at hip level. Rear hand y 34-37 -> 39-40, lead hand now only 1.4-4 px below the rear hand (was 4-10), angles smearB -14, impact group -30, recover1 -10; blade still buries ahead of the front foot. All 11 checks and 10 tests pass.
+- Signed off: Claude, 2026-09-28
 
 ## Open questions
 - None.
 
 ## Log
+- 2026-09-28: Step 22 done: low-swing grip from reference poses. (Claude)
 - 2026-09-28: Step 21 (ankle bend near the heel) done. (Claude)
 - 2026-09-28: Step 20 (lead arm behind the handle) done. Draw order must keep far < grip < fists (checked). (Claude)
 - 2026-09-28: Step 19 (knee pivot) done. Knee height is `rig.KNEE_RAISE`. (Claude)
