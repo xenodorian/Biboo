@@ -1,6 +1,6 @@
 # Biboo
 
-Procedural pixel-art pipeline for a 10-frame greatsword chop in a sunset side-scroller scene.
+Procedural pixel-art pipeline for a 11-frame greatsword chop in a sunset side-scroller scene.
 One command rebuilds everything: the tileable background layers, the character sprite frames,
 the effect overlays, a scene manifest for a game engine, and the preview GIFs.
 
@@ -38,9 +38,9 @@ pytest
 | Path | Contents |
 |---|---|
 | `swing_x3.gif`, `swing_x1.gif` | The looping animation, exact palette, no dithering |
-| `frames/` | The 10 composited frames, 384x216 |
+| `frames/` | The 11 composited frames, 384x216 |
 | `layers/` | `sky`, `mountains_far`, `mountains_near`, `trees_back`, `trees_front`, `ground`, `fringe`. Each is 384 wide and tiles seamlessly in x, with 8 margin rows above and below the view for camera shake |
-| `character/` | 10 transparent sprite frames sharing one crop box and anchor, plus `char_sheet.png` |
+| `character/` | 11 transparent sprite frames sharing one crop box and anchor, plus `char_sheet.png` |
 | `fx_back/`, `fx_front/` | Per-frame effect overlays (smears behind the character; glint, flash, dust, debris in front) |
 | `scene_manifest.json` | Layer order and parallax factors, ground line, sprite anchor, per-frame timing, sword angle and camera shake |
 | `contact_sheet.png` | All frames at a glance |
@@ -58,12 +58,13 @@ measurements, never scaled, so proportions stay identical.
 | 1 | plow | 320 | Plow guard (Pflug): hands low at the hip, blade angled up at the opponent's face, knees bent |
 | 2-3 | raise1, raise2 | 90, 80 | Both hands lift the sword past vertical; weight rocks back, front foot lifts, eyes look up |
 | 4 | high | 250 | High guard: fists above and in front of the forehead, blade up and back at 45 degrees, glint |
-| 5 | impact | 120 | Low point: shoulder, straight arm and blade in one line, blade buried, motion-blur arc trailing the blade from the high guard, front foot stomps 4 px forward, flash, dirt crown, camera shake |
-| 6 | burst | 90 | Same pose; the first dust cloud erupts from the cut, shake rebounds |
-| 7-8 | plume, settle | 100, 120 | Dust plume and debris come down; body stays braced low on the buried blade, shake decays |
-| 9-10 | return1, return2 | 110, 130 | Blade pulled free, front foot steps back, ease into plow (frame 1) |
+| 5 | impact | 120 | Low point: shoulder, straight arm and blade in one line, blade buried; motion blur trails the blade from the high guard (a stepped crescent with speed streaks); front foot stomps 4 px forward, flash, dirt crown, camera shake |
+| 6 | impactbw | 60 | Anime-style impact frame: black and white, dense speed lines converging on the cut, black silhouette with white linework, white starburst |
+| 7 | burst | 90 | Same pose; the first dust cloud erupts from the cut, shake rebounds |
+| 8-9 | plume, settle | 100, 120 | Dust plume and debris come down; body stays braced low on the buried blade, shake decays |
+| 10-11 | return1, return2 | 110, 130 | Blade pulled free, front foot steps back, ease into plow (frame 1) |
 
-Techniques: the fast part of the swing is carried by a motion-blur arc on the impact frame instead of in-between poses;
+Techniques: the fast part of the swing is carried by motion blur on the impact frame and a black-and-white impact frame instead of in-between poses;
 the hands go over the head in the high guard and the arms straighten into a full forward extension on
 the way down. The rear hand holds the base of the handle, just above the pommel, in every frame
 (`anim.REAR_HAND`, `anim.GRIP_SPAN`), with the lead hand up the grip by `anim.GRIP_GAP` (below the guard in plow and the strike).

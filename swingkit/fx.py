@@ -57,31 +57,6 @@ class Layer:
 def sword_of(fr):
     return Sword(fr['theta'], fr['H'])
 
-# ------------------------------------------------------------ smears
-def smear(layer, frA, frB, u_head=44, s_from=0.0, s_to=1.0, n=48, residual=False):
-    """Crescent swept by the blade from pose A to pose B. Thick at the leading edge
-    (pose B), tapering to a sliver at the tail; bright rim along the tip path. s_to < 1 ends the
-    sweep before pose B, so the arc trails behind the blade."""
-    L = Sword.L
-    HA = np.array(frA['H'], float); HB = np.array(frB['H'], float)
-    thA, thB = frA['theta'], frB['theta']
-    outer, inner, rim_in, mid_in = [], [], [], []
-    for i in range(n + 1):
-        s = s_from + (s_to - s_from) * i / n
-        th = thA + (thB - thA) * s
-        Hs = HA + (HB - HA) * s
-        sw = Sword(th, Hs)
-        k = (i / n)
-        u_in = (L - 5) + (u_head - (L - 5)) * k ** 0.85
-        outer.append(to_layer(sw.B0 + (L + 0.5) * sw.d))
-        inner.append(to_layer(sw.B0 + u_in * sw.d))
-        mid_in.append(to_layer(sw.B0 + (u_in + (L - u_in) * 0.35) * sw.d))
-        rim_in.append(to_layer(sw.B0 + (L - 2.5 - 1.5 * k) * sw.d))
-    tail_col = C['lav2'] if residual else C['lav']
-    layer.poly(outer + inner[::-1], tail_col)
-    layer.poly(outer + mid_in[::-1], C['light'])
-    layer.poly(outer + rim_in[::-1], C['white'])
-
 # ------------------------------------------------------------ glint
 def glint(layer, fr, size=4):
     sw = sword_of(fr)
@@ -297,3 +272,69 @@ def clod(layer, fr, t):
     for k, (dx, vy) in enumerate(((0, 0.0), (2, 0.4), (-2, 0.2))):
         p = tip + np.array([dx, 1 + vy * t + 0.5 * G * t * t])
         chunk(layer, p, dict(kind='dirt', size=2, phase=k), t)
+
+# ------------------------------------------------------------ strike blur (user request, 2026-09-28)
+def blur_strike(layer, frA, frB, s0=0.5, u_min=24):
+    """Motion blur for the strike, trailing the blade from pose A (high guard) to pose B (impact):
+    a crescent swept by the blade in stepped tones (faint at the tail, white against the blade),
+    narrowing toward the tail, with speed streaks along the arc. Drawn behind the character."""
+    L = Sword.L
+    HA = np.array(frA['H'], float); HB = np.array(frB['H'], float)
+    thA, thB = frA['theta'], frB['theta']
+    def pose(s):
+        return Sword(thA + (thB - thA) * s, HA + (HB - HA) * s)
+    def u_in(s):                                  # inner edge: near the tip at the tail, wide at the blade
+        k = (s - s0) / (1 - s0)
+        return L - (L - u_min) * k ** 0.8
+    bands = [(0.50, 0.66, 'lav2'), (0.66, 0.80, 'lav'), (0.80, 0.92, 'light'), (0.92, 1.0, 'white')]
+    for sa, sb, col in bands:
+        outer, inner = [], []
+        for i in range(13):
+            s = sa + (sb - sa) * i / 12
+            sw = pose(s)
+            outer.append(to_layer(sw.B0 + (L + 1) * sw.d)); inner.append(to_layer(sw.B0 + u_in(s) * sw.d))
+        layer.poly(outer + inner[::-1], C[col])
+    # speed streaks: bright arcs along the crescent, longest at the tip
+    for u, start, thick in ((L, 0.52, 2), (L - 9, 0.64, 1), (L - 20, 0.74, 1), (L - 32, 0.84, 1)):
+        pts = [pose(start + (0.995 - start) * i / 40) for i in range(41)]
+        for p, q in zip(pts[:-1], pts[1:]):
+            layer.line(to_layer(p.B0 + u * p.d), to_layer(q.B0 + u * q.d), C['white'], thick=thick)
+
+# ------------------------------------------------------------ black-and-white impact frame
+BW_BLACK, BW_WHITE = (14, 12, 22), (250, 250, 250)
+
+def impact_frame_bw(char_rgba, char_line, I, ground_row, seed=11):
+    """Anime-style impact frame in view coordinates: white field, dense black speed lines
+    converging on the impact point I, black ground, the character as a black silhouette with white
+    linework on a white halo, and a white starburst at the cut. Returns an RGBA view image."""
+    from scipy import ndimage as ndi
+    out = np.zeros((VH, W, 4), np.uint8); out[..., :3] = BW_WHITE; out[..., 3] = 255
+    img = Image.new('L', (W, VH), 0); dr = ImageDraw.Draw(img)
+    rng = np.random.default_rng(seed)
+    R = float(np.hypot(W, VH))
+    for _ in range(170):                       # speed lines: thin wedges from off screen to the centre
+        a = rng.uniform(0, 2 * np.pi); da = np.radians(rng.uniform(0.25, 1.6))
+        r_in = rng.uniform(34, 120)
+        p_in = (I[0] + r_in * np.cos(a), I[1] + r_in * np.sin(a))
+        p1 = (I[0] + R * np.cos(a - da), I[1] + R * np.sin(a - da))
+        p2 = (I[0] + R * np.cos(a + da), I[1] + R * np.sin(a + da))
+        dr.polygon([p_in, p1, p2], fill=1)
+    lines = np.asarray(img) > 0
+    out[lines, :3] = BW_BLACK
+    out[int(ground_row) + 1:, :, :3] = BW_BLACK   # ground in black
+    # white starburst at the cut
+    star = Image.new('L', (W, VH), 0); ds = ImageDraw.Draw(star)
+    for ang, ln, w in [(90, 70, 5), (60, 48, 4), (120, 48, 4), (30, 34, 3), (150, 34, 3), (8, 26, 3), (172, 26, 3)]:
+        a = np.radians(ang); dv = np.array([np.cos(a), -np.sin(a)]); nv = np.array([-dv[1], dv[0]])
+        base = np.array(I, float)
+        ds.polygon([tuple(base + nv * w), tuple(base - nv * w), tuple(base + dv * ln)], fill=1)
+    ds.ellipse([I[0] - 9, I[1] - 6, I[0] + 9, I[1] + 4], fill=1)
+    out[np.asarray(star) > 0, :3] = BW_WHITE
+    # character: white halo, black silhouette, white linework inside
+    sil = char_rgba[..., 3] > 0
+    halo = ndi.binary_dilation(sil, iterations=2) & ~sil
+    out[halo, :3] = BW_WHITE
+    out[sil, :3] = BW_BLACK
+    inner = char_line & ndi.binary_erosion(sil)
+    out[inner, :3] = BW_WHITE
+    return out

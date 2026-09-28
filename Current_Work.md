@@ -343,6 +343,7 @@ by this request, because the arms now rise over the head.
 - Ready is now Plow (blade 27 degrees up, hands at the hip). The dip (blade -6, hands at chest) and recover2 (blade 0) still match the old ready pose, so they jump. Re-pose them to lead into and out of Plow? (asked 2026-09-28)
 
 ## Log
+- 2026-09-28: User request: strike motion blur regenerated (`fx.blur_strike`: stepped crescent trailing the blade with speed streaks; the old `fx.smear` is removed). New frame 6 'impactbw' (`fx.impact_frame_bw`): anime-style black-and-white impact frame with radial speed lines, flagged `impact_frame_bw` in the manifest. 11 frames. (Claude)
 - 2026-09-28: User request: blur arc moved back so it trails the blade (`composite.SMEAR_END` = 0.85); new frame 6 'burst' (same pose as impact) carries the first dust cloud, which moved off the impact frame; particle timing now starts at burst; 10 frames. (Claude)
 - 2026-09-28: User request: the motion-blur arc moved onto the impact frame (smear from the high guard) and the chop frame deleted; 9 frames. (Claude)
 - 2026-09-28: User request: all other poses deleted; the animation is now 10 frames: plow, raise1, raise2, high, chop (one smear frame from the high guard), impact (steady, unblurred low point with flash, dirt and shake), plume, settle, return1, return2 (loops to plow). Frame names changed everywhere (anim tables, composite effects and shake); README table and docs previews updated. Step 28 is superseded by this frame list. (Claude)
