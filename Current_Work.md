@@ -187,21 +187,22 @@ frames or fewer.
 - Signed off: Claude, 2026-09-28
 
 ### Step 15. Fix the ankles
-- [ ] User feedback (2026-09-28): the ankles look broken. The foot is a separate stamp under the
+- [x] User feedback (2026-09-28): the ankles look broken. The foot is a separate stamp under the
       shin, leaving a notch and an outline jog where they meet.
-- [ ] Draw the foot together with the shin as one outlined boot: heel flares back from the shin's
+- [x] Draw the foot together with the shin as one outlined boot: heel flares back from the shin's
       rear edge, instep flows forward from its front edge, toe forward, sole on the ground; heel-up
       tilts the sole with the toe planted.
 - Acceptance: continuous ankle curve with no notch in every frame; planted and leg-length checks
   pass; all checks and tests pass.
-- Status: IN PROGRESS (Claude, 2026-09-28)
-- Result:
-- Signed off:
+- Status: DONE
+- Result: The foot is no longer a separate stamp: `rig._foot_mask` draws it with the shin as one outlined shape (heel flares from the shin's back edge, instep from its front edge, toe forward, sole band on the ground; heel-up tilts the sole with the toe planted). Continuous ankle in every frame. Found and fixed a 1 px float on the planted front boot (each leg now uses its own ankle-to-sole distance), and the planted-feet check now measures drawn pixels instead of ankle rows so this cannot slip through again. The old foot stamps (`LEFT_FOOT` etc.) are removed. docs preview refreshed; all checks and tests pass.
+- Signed off: Claude, 2026-09-28
 
 ## Open questions
 - None.
 
 ## Log
+- 2026-09-28: Step 15 (ankles) done. Feet are drawn with the shin in `rig._foot_mask`; the hand-drawn foot grids are gone. (Claude)
 - 2026-09-28: Step 14 done: both feet and both knees now point toward the strike. Do not reintroduce outward toes on the back leg. (Claude)
 - 2026-09-28: Step 13 done. All approved follow-ups (steps 8 to 13) are complete; nothing is waiting on approval. (Claude)
 - 2026-09-28: Step 12 (dip) done. Frames are referenced by name everywhere now; never use hard-coded frame indices. (Claude)

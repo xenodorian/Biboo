@@ -128,63 +128,38 @@ LEG_LEN = {k: (float(np.hypot(*np.subtract(v['knee'], v['hip']))),
                float(np.hypot(*np.subtract(v['ankle'], v['knee'])))) for k, v in LEG_NEUTRAL.items()}
 SOCK_LEN = 3.2
 
-# Hand-drawn boot feet (sprite space). The toe cap points OUTWARD (knees bend outward, so
-# the toes must too), the heel sits under the shaft, and an arch gap separates them. The
-# bottom outline is the ground row. Characters: '.' empty, 'O' outline, digits = palette index.
-LEFT_FOOT = (-3, 73, [          # (x of first column, y of first row, rows)
-    "...O2222222222O",
-    "..O23222222222O",
-    ".O233222222222O",
-    "O2332222222212O",
-    "O2222222221112O",
-    "O1111111111111O",
-    "O1111111111111O",
-    ".O11111O..O111O",
-    "..OOOOOO..OOOOO",
-])
-
-def _mirror(foot, axis):
-    x0, y0, rows = foot
-    w = len(rows[0])
-    return (axis - (x0 + w - 1), y0, [r[::-1] for r in rows])
-
-RIGHT_FOOT = _mirror(LEFT_FOOT, 66)     # left x=1..10 shaft maps onto right x=65..56
-
-def _heel_up(foot, toe_cols=4, lift=3):
-    """Heel-up variant built from the hand-drawn flat foot: each pixel column is raised by a
-    whole number of pixels, 0 at the toe rising to `lift` at the heel, so pixels stay crisp
-    and the toe keeps touching the ground row."""
-    x0, y0, rows = foot
-    h, w = len(rows), len(rows[0])
-    grid = [['.'] * w for _ in range(h + lift)]
-    for i in range(w):
-        up = 0 if i < toe_cols else int(round(lift * (i - toe_cols + 1) / (w - toe_cols)))
-        for j in range(h):
-            if rows[j][i] != '.':
-                grid[j + lift - up][i] = rows[j][i]
-    return (x0, y0 - lift, [''.join(r) for r in grid])
-
-# Rear (left) foot points FORWARD, toward the strike (user, 2026-09-28): mirror of the drawn
-# boot about its shaft, so the toe cap is on the right and the heel is at the back.
-REAR_FOOT = _mirror(LEFT_FOOT, 11)
-LEFT_FOOT_HEEL_UP = _mirror(_heel_up(LEFT_FOOT), 11)
+# Boot feet are drawn together with the shin as one shape (see _foot_mask), so the ankle is a
+# continuous curve. Both feet point forward (toward the strike, +x). Heel-up tilts the sole,
+# toe planted, with the ankle raised by HEEL_UP_ANKLE_LIFT.
 HEEL_UP_ANKLE_LIFT = 2.0      # the ankle rises with the heel (sprite px)
+FOOT_TOE_REACH = 9.0          # ankle to toe tip, horizontally
+HEEL_UP_TILT = 3.0            # heel raised this much above the toe when heel_up
 
-def _stamp_pixels(foot):
-    x0, y0, rows = foot
-    assert len({len(r) for r in rows}) == 1
-    px = []
-    for j, row in enumerate(rows):
-        for i, ch in enumerate(row):
-            if ch == '.': continue
-            px.append((x0 + i, y0 + j, OUT if ch == 'O' else int(ch)))
-    return px
-
-def _foot_stamps():
-    return dict(left=_stamp_pixels(REAR_FOOT), right=_stamp_pixels(RIGHT_FOOT),
-                left_heel_up=_stamp_pixels(LEFT_FOOT_HEEL_UP))
-
-FOOT = _foot_stamps()
+def _foot_mask(ankle, nb, rb, heel_up, ankle_to_sole):
+    """Pixels of the boot foot for a shin ending at `ankle` with half-width rb and normal nb.
+    Returns (mask, sole_y_at(x)) in canvas coordinates."""
+    from PIL import Image, ImageDraw
+    A = np.asarray(ankle, float)
+    e1, e2 = A + nb * rb, A - nb * rb
+    back, front = (e1, e2) if e1[0] < e2[0] else (e2, e1)
+    sole_toe = A[1] + ankle_to_sole + (HEEL_UP_ANKLE_LIFT if heel_up else 0.0)
+    sole_heel = sole_toe - (HEEL_UP_TILT if heel_up else 0.0)
+    x_heel = back[0] - 0.4
+    x_toe = A[0] + FOOT_TOE_REACH
+    poly = [back + (0, -0.8),
+            (x_heel - 0.9, (back[1] + sole_heel) / 2),
+            (x_heel - 0.4, sole_heel),
+            (x_toe - 1.0, sole_toe),
+            (x_toe + 0.4, sole_toe - 2.0),
+            (x_toe - 1.8, sole_toe - 4.2),
+            (front[0] + 2.0, A[1] + 3.0),
+            front + (0, -0.8)]
+    img = Image.new('L', (CW, CH), 0)
+    ImageDraw.Draw(img).polygon([(x + PX, y + PY) for x, y in poly], fill=1)
+    def sole_y(x):
+        t = min(max((x - x_heel) / max(x_toe - x_heel, 1e-6), 0.0), 1.0)
+        return sole_heel + (sole_toe - sole_heel) * t
+    return np.asarray(img).astype(bool), sole_y, x_toe
 
 def leg_ik(hip, ankle, L1, L2, side):
     """Two-bone IK: knee position for fixed thigh/shin lengths. `side` picks which way
@@ -231,17 +206,19 @@ def draw_leg(cv, name, hip=None, ankle=None, heel_up=False):
         return None
     pts = np.array([hip, knee, ankle])
     m = cv.part((pts[:, 0].min() - 6, pts[:, 1].min() - 6, pts[:, 0].max() + 6, pts[:, 1].max() + 6), f, outline=False)
-    # foot stamp, translated with the ankle (never rotated or scaled)
-    ref = np.array(v['ankle'], float)
-    if heel_up: ref = ref + np.array([0.0, -HEEL_UP_ANKLE_LIFT])
-    dx, dy = int(round(ankle[0] - ref[0])), int(round(ankle[1] - ref[1]))
-    stamp = FOOT[name + '_heel_up'] if heel_up else FOOT[name]
-    body_part = np.zeros(cv.C.shape, bool)
-    for x, y, c in stamp:
-        yy, xx = y + dy + PY, x + dx + PX
-        if 0 <= yy < CH and 0 <= xx < CW:
-            cv.C[yy, xx] = c
-            if c != OUT: body_part[yy, xx] = True
+    # foot: one shape with the shin, so the ankle is a continuous curve
+    # the flat sole's bottom edge sits on the feet row in the neutral pose, for each leg
+    ankle_to_sole = (FEET_ROW - 0.5) - v['ankle'][1]
+    fm, sole_y, x_toe = _foot_mask(ankle, nb, rb, heel_up, ankle_to_sole)
+    body_part = fm & ~m
+    ys, xs = np.nonzero(body_part)
+    for yy, xx in zip(ys, xs):
+        x, y = xx - PX + 0.5, yy - PY + 0.5
+        sy = sole_y(x)
+        if y > sy - 2.0: c = 1                                   # sole
+        elif x > x_toe - 5.0 and y < sy - 3.2: c = 3             # lit toe cap
+        else: c = 2
+        cv.C[yy, xx] = c
     m = m | body_part
     ring = ndimage.binary_dilation(m) & ~m
     cv.C[ring & ((cv.C < 0) | ~m)] = OUT

@@ -77,7 +77,8 @@ dust use simple deterministic physics; camera shake moves distant layers less.
 Per-frame motion tables live in `swingkit/anim.py`: `HIPS` (hip offset and lean), `FEET` (front
 foot), `REAR_HEEL_UP`, `CLOTH` (skirt hem), `HAIR` (sway and lift), `GAZE` (eye direction) and
 `SHOULDERS` (shoulder drive and sleeve squash). Frames are always looked up by name
-(`anim.by_name`), never by index. Boot feet are hand-drawn grids in `swingkit/rig.py`.
+(`anim.by_name`), never by index. Each boot foot is drawn together with its shin as one shape
+(`rig._foot_mask`), so the ankle is continuous; both feet point toward the strike.
 
 ## Project layout
 
