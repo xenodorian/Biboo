@@ -58,15 +58,16 @@ def sword_of(fr):
     return Sword(fr['theta'], fr['H'])
 
 # ------------------------------------------------------------ smears
-def smear(layer, frA, frB, u_head=44, s_from=0.0, n=48, residual=False):
+def smear(layer, frA, frB, u_head=44, s_from=0.0, s_to=1.0, n=48, residual=False):
     """Crescent swept by the blade from pose A to pose B. Thick at the leading edge
-    (pose B), tapering to a sliver at the tail; bright rim along the tip path."""
+    (pose B), tapering to a sliver at the tail; bright rim along the tip path. s_to < 1 ends the
+    sweep before pose B, so the arc trails behind the blade."""
     L = Sword.L
     HA = np.array(frA['H'], float); HB = np.array(frB['H'], float)
     thA, thB = frA['theta'], frB['theta']
     outer, inner, rim_in, mid_in = [], [], [], []
     for i in range(n + 1):
-        s = s_from + (1 - s_from) * i / n
+        s = s_from + (s_to - s_from) * i / n
         th = thA + (thB - thA) * s
         Hs = HA + (HB - HA) * s
         sw = Sword(th, Hs)
