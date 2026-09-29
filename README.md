@@ -140,6 +140,10 @@ use the Dreamcast inputs from the table above:
 | A / B / X / Y | Z / X / C / V | bottom / right / left / top face button |
 | L / R | Q / W | shoulders or triggers |
 
+Gamepads, wired or Bluetooth (including on an Android phone in Chrome), come through the browser's
+Gamepad API with the standard layout. A pad shows up after one of its buttons is pressed; its name
+is shown under the pad chips. Pads without the standard layout also get their d-pad read from axes 6-7.
+
 `web/input.js` reads `game/input_map.json` exactly: holds loop while held, B is parry when tapped
 (up to `tap_max_ms`) and block when held, chords need their face and shoulder buttons within
 `chord_window_ms` (directions only need to be held, so hold Right and press A for the thrust; A+B
@@ -174,17 +178,18 @@ animations:
 |---|---|---|---|
 | goblin | idle | 0-5 | resting between attacks |
 | goblin | walk | 0-5 | approach (the sheet has no walk cycle, so it slides in its ready stance) |
-| goblin | spin | 18-23 | spinning slash |
-| goblin | lunge | 24-27 | forward lunge |
-| goblin | combo | 28-63 | roll and slash, leap, green spin, energy blast, landing |
+| goblin | slash | 18-27 | spin slash into a lunge, when close |
+| goblin | dive | 27-35 | dive roll attack, from mid range (110-170 px) |
+| goblin | combo | 35-50 | combo attack (leap, air slashes, green spin), when close |
 | orc | idle | 0-3 | resting between attacks |
 | orc | walk | 8-15 | approach |
 | orc | attack | 25-31 | overhead swing |
 | orc | hurt | 49-50 | exported, not used yet |
 | orc | death | 57-60 | played when killed |
 
-Frames 6-17 and 64-68 of the goblin and the repeats in the orc GIF are copies of the loops above.
-The goblin has no death animation, so it flickers and fades out.
+Every attack returns to idle. The goblin's art moves inside its frames during the dive roll and the
+combo; each frame stores its ground offset, so the goblin stays where an attack leaves it. Goblin
+frames 51-68 are not used. The goblin has no death animation, so it flickers and fades out.
 
 Her hit shapes are exported per frame in `data.js`: the blade capsule (guard to tip) or the kicking
 foot on active frames, plus the energy that hits: the burst ring, the earthquake crack along the

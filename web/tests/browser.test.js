@@ -16,6 +16,13 @@ const shots = process.argv[2];
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  // a fake controller behind the Gamepad API, driven by the gamepad checks below
+  await page.addInitScript(() => {
+    const pad = { id: 'Test pad', index: 0, connected: true, mapping: 'standard', timestamp: 0,
+                  axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+    window.__pad = pad;
+    navigator.getGamepads = () => [pad];
+  });
   await page.goto('file://' + path.resolve(__dirname, '../index.html'));
   await page.waitForFunction(() => !document.getElementById('loading'), null, { timeout: 20000 });
   await page.click('#view');
@@ -145,6 +152,54 @@ const shots = process.argv[2];
   await fight('slash misses a far orc', [['orc', 400, 3000]], async () => tap('A'), 0);
   await fight('taunt kills nothing', [['orc', 95, 3000]], chord(['X', 'Y']), 0);
   await fight('parry kills nothing', [['orc', 95, 3000]], async () => tap('B', 60), 0);
+  // gamepad: face buttons, d-pad and stick drive the same reader as the keyboard
+  const padSet = (fn) => page.evaluate(fn);
+  const padButton = async (i, ms = 60) => {
+    await page.evaluate(i => { window.__pad.buttons[i] = { pressed: true, value: 1 }; }, i); await wait(ms);
+    await page.evaluate(i => { window.__pad.buttons[i] = { pressed: false, value: 0 }; }, i);
+  };
+  const padCase = async (name, want, act) => {
+    await settle();
+    const n = await startedCount();
+    const c = await act();
+    const got = await startedSince(n);
+    check(name, (c && c.id === want) || got.includes(want), `current ${JSON.stringify(c)}, started ${JSON.stringify(got)}`);
+  };
+  check('controller name shown', (await page.textContent('#padstatus')).includes('Test pad'), await page.textContent('#padstatus'));
+  await padCase('pad button 0 (A) -> slash', 'slash', async () => { await padButton(0); await wait(60); return cur(); });
+  await padCase('pad button 3 (Y) -> jump', 'jump', async () => { await padButton(3); await wait(60); return cur(); });
+  await padCase('pad d-pad right held -> walk_right', 'walk_right', async () => {
+    await page.evaluate(() => { window.__pad.buttons[15] = { pressed: true, value: 1 }; }); await wait(400);
+    const c = await cur(); await page.evaluate(() => { window.__pad.buttons[15] = { pressed: false, value: 0 }; }); return c; });
+  await padCase('pad left stick left -> walk_left', 'walk_left', async () => {
+    await page.evaluate(() => { window.__pad.axes[0] = -1; }); await wait(400);
+    const c = await cur(); await page.evaluate(() => { window.__pad.axes[0] = 0; }); return c; });
+  await padCase('non-standard pad: hat axis 7 down -> duck', 'duck', async () => {
+    await page.evaluate(() => { window.__pad.mapping = ''; window.__pad.axes = [0, 0, 0, 0, 0, 0, 0, 1]; }); await wait(400);
+    const c = await cur(); await page.evaluate(() => { window.__pad.mapping = 'standard'; window.__pad.axes = [0, 0, 0, 0]; }); return c; });
+
+  // goblin: each attack plays its exact frames and returns to idle; the dive roll carries it forward
+  const gob = async (anim) => {
+    await settle();
+    await page.evaluate(() => window.bibooGame.setEnemies([['goblin', 300, 60000]]));
+    const x0 = (await E())[0].x;
+    await page.evaluate(a => window.bibooGame.attack(0, a), anim);
+    let e;
+    for (let i = 0; i < 80; i++) { await wait(50); e = (await E())[0]; if (e.anim === 'idle') break; }
+    return { e, moved: e.x - x0 };
+  };
+  for (const a of ['slash', 'dive', 'combo']) {
+    const { e, moved } = await gob(a);
+    check(`goblin ${a} ends in idle`, e.anim === 'idle' && e.state === 'idle', JSON.stringify(e));
+    if (a === 'dive') check('goblin dive roll carries it 92 px toward her (frame 27 to 35)', Math.abs(moved + 92) <= 2, `moved ${moved}`);
+  }
+  const frames = await page.evaluate(() => Object.fromEntries(Object.entries(window.BIBOO.enemies.goblin.anims)
+    .map(([n, a]) => [n, a.frames.map(i => window.BIBOO.enemies.goblin.frames[i].src)])));
+  const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+  check('goblin frames: slash 18-27, dive 27-35, combo 35-50',
+        JSON.stringify([frames.slash, frames.dive, frames.combo]) === JSON.stringify([range(18, 27), range(27, 35), range(35, 50)]),
+        JSON.stringify(frames));
+  await page.evaluate(() => window.bibooGame.setEnemies([]));
   results.push(...early);
   await settle();
   check('no page errors', errors.length === 0, errors.join(' | '));

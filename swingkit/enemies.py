@@ -28,11 +28,14 @@ ENEMIES = {
             idle=dict(frames=range(0, 6), loop=True),
             # the sheet has no walk cycle: the goblin slides forward in its ready stance
             walk=dict(frames=range(0, 6), loop=True),
-            spin=dict(frames=range(18, 24)),     # spinning slash, white smear
-            lunge=dict(frames=range(24, 28)),    # forward lunge, long smear
-            combo=dict(frames=range(28, 64)),    # roll and slash, leap, green spin, energy blast, land
+            # frame ranges as specified by the user (inclusive; neighbours share a frame on purpose)
+            slash=dict(frames=range(18, 28)),    # spin slash, then the long lunge smear
+            dive=dict(frames=range(27, 36)),     # dive roll forward into a slash
+            combo=dict(frames=range(35, 51)),    # crouch, leap, air slashes, green spin
         ),
-        ai=dict(speed=48, reach=70, attacks=['spin', 'lunge', 'lunge', 'combo'], rest=[500, 1100], death=None),
+        # every attack returns to idle; dive is the gap closer, used from mid range
+        ai=dict(speed=48, reach=70, attacks=['slash', 'combo'], dive=dict(anim='dive', min=110, max=170),
+                rest=[500, 1100], death=None),
     ),
     'orc': dict(
         title='Orc', src='orc.gif', px=12, bg=(113, 113, 113), scale=3,
@@ -126,7 +129,10 @@ def export(out_dir, log=print):
             if hb is not None:                   # flipped: native x -> -(x - ax)
                 bx0, by0, bx1, by1 = hb
                 hb = [round((ax - bx1 - 1) * s), (cfg['feet'] - by1) * s, round((ax - bx0) * s), (cfg['feet'] + 1 - by0) * s]
-            fl.append(dict(src=i, ms=frames[i][1], hurt=hb))
+            # ground point this frame, px from the anchor (the art moves inside its frame during
+            # rolls and leaps; the game carries that motion over when the animation ends)
+            gx = round((ax - 0.5 - ground_x(a, cfg)) * s)
+            fl.append(dict(src=i, ms=frames[i][1], hurt=hb, ground=gx))
         sheet.save(out / f'{name}.png', optimize=True)
         pos = {i: k for k, i in enumerate(used)}
         anims = {an: dict(frames=[pos[i] for i in a['frames']], loop=bool(a.get('loop', False)))

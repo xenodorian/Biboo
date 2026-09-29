@@ -59,17 +59,33 @@
   addEventListener('keyup', e => { const b = KEYS[e.code]; if (b) { e.preventDefault(); keyDown.delete(b); } });
   addEventListener('blur', () => keyDown.clear());
 
+  // Controllers (USB or Bluetooth, including on Android) come through the browser's Gamepad API.
+  // Browsers report most pads with the "standard" layout (A bottom, B right, X left, Y top, d-pad
+  // 12-15). Pads without it are read with the same button numbers, and their d-pad is also read
+  // from axes 6-7, where many of them put it. A pad only shows up after one of its buttons is
+  // pressed while the page is open.
+  let padName = '';
   function pollPad() {
     padDown.clear();
-    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    let pads = [];
+    try { pads = navigator.getGamepads ? navigator.getGamepads() : []; } catch (e) { pads = []; }
+    let name = '';
     for (const p of pads) {
-      if (!p) continue;
+      if (!p || !p.connected) continue;
+      name = name || `${p.id}${p.mapping === 'standard' ? '' : ' (non-standard layout)'}`;
       p.buttons.forEach((bt, i) => { if (PAD[i] && (bt.pressed || bt.value > 0.5)) padDown.add(PAD[i]); });
-      const [ax, ay] = p.axes;
+      const axis = i => (p.axes.length > i ? p.axes[i] : 0);
+      const [ax, ay] = [axis(0), axis(1)];
       if (ax < -0.5) padDown.add('Left'); if (ax > 0.5) padDown.add('Right');
       if (ay < -0.5) padDown.add('Up'); if (ay > 0.5) padDown.add('Down');
+      if (p.mapping !== 'standard') {
+        if (axis(6) < -0.5) padDown.add('Left'); if (axis(6) > 0.5) padDown.add('Right');
+        if (axis(7) < -0.5) padDown.add('Up'); if (axis(7) > 0.5) padDown.add('Down');
+      }
     }
+    padName = name;
   }
+  addEventListener('gamepadconnected', () => pollPad());
 
   function readButtons(t) {
     pollPad();
@@ -184,7 +200,10 @@
   }
 
   // ------------------------------------------------------------------ enemies
-  // e: {type, x (world x of its anchor), face (-1 left, 1 right), anim, k, t, state, rest, dead}
+  // e: {type, x: world x of its ground point, base: world x its frames are drawn from, face (-1 left,
+  //     1 right), anim, k, t, state, rest, dead, dive: may dive roll on this approach}
+  // Rolls and leaps move the art inside its frames; each frame's ground offset keeps e.x on the
+  // body, so the enemy stays where an animation leaves it when the next one starts.
   const enemies = [];
   const respawns = [];                  // {type, at}
   let kills = 0;
@@ -196,19 +215,21 @@
     return x + rootOf(cur)[0];
   }
   function spawn(type, wx) {
-    const e = { type, x: wx, face: -1, anim: 'walk', k: 0, t: 0, state: 'walk', rest: 0, dead: 0 };
+    const e = { type, x: wx, base: wx, face: -1, anim: 'walk', k: 0, t: 0, state: 'walk', rest: 0, dead: 0, dive: Math.random() < 0.5 };
     enemies.push(e);
     return e;
   }
-  function play(e, anim) { e.anim = anim; e.k = 0; e.t = 0; }
   function frameOf(e) { const T = EN[e.type]; return T.frames[T.anims[e.anim].frames[e.k]]; }
+  function groundOff(e) { const gx = frameOf(e).ground || 0; return e.face < 0 ? gx : -gx; }
+  function play(e, anim) { e.anim = anim; e.k = 0; e.t = 0; e.base = e.x - groundOff(e); }
+  function turn(e, face) { if (face !== e.face) { e.face = face; e.base = e.x - groundOff(e); } }
   function alive(e) { return e.state !== 'dying'; }
 
   // hurtbox in world coordinates (y up from the ground)
   function hurtOf(e) {
     const h = frameOf(e).hurt;
     if (!h || !alive(e)) return null;
-    return e.face < 0 ? [e.x + h[0], h[1], e.x + h[2], h[3]] : [e.x - h[2], h[1], e.x - h[0], h[3]];
+    return e.face < 0 ? [e.base + h[0], h[1], e.base + h[2], h[3]] : [e.base - h[2], h[1], e.base - h[0], h[3]];
   }
 
   function kill(e) {
@@ -229,6 +250,7 @@
       else if (A.loop) e.k = 0;
       else { ended = true; e.t = 0; break; }
     }
+    e.x = e.base + groundOff(e);
     if (e.state === 'dying') { e.dead += dt; return; }
     const d = playerX() + BODY - e.x, dist = Math.abs(d);
     // wait behind another enemy that is already closer to her
@@ -237,9 +259,10 @@
     if (e.state === 'attack') {
       if (!ended) return;
       e.state = 'idle'; e.rest = ai.rest[0] + Math.random() * (ai.rest[1] - ai.rest[0]); play(e, 'idle');
+      e.dive = Math.random() < 0.5;
       return;
     }
-    e.face = d < 0 ? -1 : 1;
+    turn(e, d < 0 ? -1 : 1);
     if (e.state === 'idle') {
       e.rest -= dt;
       if (e.rest > 0) return;
@@ -248,11 +271,15 @@
     if (dist <= ai.reach) {
       e.state = 'attack';
       play(e, ai.attacks[Math.floor(Math.random() * ai.attacks.length)]);
+    } else if (ai.dive && e.dive && !blocked && dist >= ai.dive.min && dist <= ai.dive.max) {
+      e.state = 'attack'; e.dive = false;
+      play(e, ai.dive.anim);
     } else if (blocked) {
       if (e.anim !== 'idle') play(e, 'idle');
     } else {
       if (e.anim !== 'walk') play(e, 'walk');
-      e.x += e.face * Math.min(ai.speed * dt / 1000, dist - ai.reach);
+      const mv = e.face * Math.min(ai.speed * dt / 1000, dist - ai.reach);
+      e.x += mv; e.base += mv;
     }
   }
 
@@ -356,7 +383,7 @@
       }
       const cell = T.anims[e.anim].frames[e.k];
       const [cw, ch] = T.cell, [ax, ay] = T.anchor;
-      const vx = Math.round(V.anchorX + (e.x - camX) + sx);
+      const vx = Math.round(V.anchorX + (e.base - camX) + sx);
       g.save();
       g.globalAlpha = alpha;
       g.translate(vx, Math.round(gy - ay));
@@ -454,7 +481,13 @@
   const nowEl = document.getElementById('now');
   let lastShown = '';
   const killsEl = document.getElementById('kills');
+  const padStatusEl = document.getElementById('padstatus');
+  let padShown = null;
   function hud() {
+    if (padStatusEl && padShown !== padName) {
+      padShown = padName;
+      padStatusEl.textContent = padName ? `Controller: ${padName}` : 'Controller: none seen yet. Connect it, then press any button on it.';
+    }
     if (killsEl) killsEl.textContent = `Kills ${kills}`;
     for (const b of BUTTONS) chips[b].classList.toggle('on', isDown.has(b));
     const id = cur ? cur.id : '';
@@ -499,6 +532,7 @@
     started, current: () => cur && { id: cur.id, k: cur.k, kind: cur.kind }, x: () => x,
     enemies: () => enemies.map(e => ({ type: e.type, x: e.x, face: e.face, state: e.state, anim: e.anim })),
     kills: () => kills,
+    attack: (i, anim) => { const e = enemies[i]; e.state = 'attack'; play(e, anim); },
     // test setup: clear the field and place enemies at distances from her anchor
     setEnemies: list => {
       enemies.length = 0; respawns.length = 0;
