@@ -19,6 +19,16 @@ const shots = process.argv[2];
   await page.goto('file://' + path.resolve(__dirname, '../index.html'));
   await page.waitForFunction(() => !document.getElementById('loading'), null, { timeout: 20000 });
   await page.click('#view');
+  const E = () => page.evaluate(() => window.bibooGame.enemies());
+  const e0 = await E();
+  await page.waitForTimeout(1200);
+  const e1 = await E();
+  const ox = es => (es.find(e => e.type === 'orc') || {}).x;
+  // enemies: both types spawn to her right and walk toward her
+  console.log(`${e0.length === 2 && e0.every(e => e.x > 0) ? 'PASS' : 'FAIL'}  goblin and orc spawn to the right  ${JSON.stringify(e0)}`);
+  const walkOk = ox(e1) < ox(e0) && e1.find(e => e.type === 'orc').face === -1;
+  console.log(`${walkOk ? 'PASS' : 'FAIL'}  the orc walks toward her  ${ox(e0)} -> ${ox(e1)}`);
+  const early = [e0.length === 2, walkOk];
 
   const wait = ms => page.waitForTimeout(ms);
   const down = b => page.keyboard.down(K[b]);
@@ -112,6 +122,30 @@ const shots = process.argv[2];
   check('held charge + A starts heavy on the high pose (frame 4)', k === 3, `first frame index ${k}`);
   k = await firstHeavyFrame(seq(['Up', 'A']));
   check('tap Up, A starts heavy past the idle frame', k !== null && k >= 1, `first frame index ${k}`);
+  // combat: an attack that touches an enemy kills it at once; a miss or a non-attack does not
+  const kills = () => page.evaluate(() => window.bibooGame.kills());
+  const fight = async (name, list, act, want) => {
+    await settle();
+    await page.evaluate(l => window.bibooGame.setEnemies(l), list);
+    const n = await kills();
+    await act();
+    await wait(1200);
+    const got = (await kills()) - n;
+    const es = await E();
+    await shot('fight_' + name.replace(/[^a-z0-9]+/gi, '_'));
+    check(`${name}: ${want} kill(s)`, got === want, `kills ${got}, enemies ${JSON.stringify(es)}`);
+    await page.evaluate(() => window.bibooGame.setEnemies([]));
+  };
+  await fight('A slash kills an orc in reach', [['orc', 100, 3000]], async () => tap('A'), 1);
+  await fight('A slash kills a goblin in reach', [['goblin', 100, 3000]], async () => tap('A'), 1);
+  await fight('L push kick kills an orc', [['orc', 85, 3000]], async () => tap('L'), 1);
+  await fight('Up-A heavy kills a goblin', [['goblin', 100, 3000]], seq(['Up', 'A']), 1);
+  await fight('energy wave kills a far orc', [['orc', 260, 3000]], seq(['Down', 'Right', 'A', 'B']), 1);
+  await fight('energy burst kills both sides', [['orc', 80, 3000], ['goblin', -40, 3000]], chord(['L', 'R']), 2);
+  await fight('slash misses a far orc', [['orc', 400, 3000]], async () => tap('A'), 0);
+  await fight('taunt kills nothing', [['orc', 95, 3000]], chord(['X', 'Y']), 0);
+  await fight('parry kills nothing', [['orc', 95, 3000]], async () => tap('B', 60), 0);
+  results.push(...early);
   await settle();
   check('no page errors', errors.length === 0, errors.join(' | '));
   await browser.close();

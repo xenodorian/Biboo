@@ -159,9 +159,40 @@ Rebuild them after changing a move:
 python -m swingkit --web
 ```
 
+### Enemies (combat test)
+
+A goblin and an orc walk in from the right. They attack when they get close, but their attacks do
+no damage yet. Any attack of hers that touches one kills it at once (HP comes later). Press H in
+the game to show hurtboxes (yellow) and the hit shapes of the current attack (red).
+
+`swingkit/enemies.py` builds them from the packed GIFs in `data/enemies/`: it samples each GIF down
+to native pixels, keys out the background (the goblin's shadow and the orc's sword smear become
+translucent), flips the art to face left, scales it (goblin x2, orc x3) and splits it into
+animations:
+
+| Enemy | Animation | GIF frames | Use |
+|---|---|---|---|
+| goblin | idle | 0-5 | resting between attacks |
+| goblin | walk | 0-5 | approach (the sheet has no walk cycle, so it slides in its ready stance) |
+| goblin | spin | 18-23 | spinning slash |
+| goblin | lunge | 24-27 | forward lunge |
+| goblin | combo | 28-63 | roll and slash, leap, green spin, energy blast, landing |
+| orc | idle | 0-3 | resting between attacks |
+| orc | walk | 8-15 | approach |
+| orc | attack | 25-31 | overhead swing |
+| orc | hurt | 49-50 | exported, not used yet |
+| orc | death | 57-60 | played when killed |
+
+Frames 6-17 and 64-68 of the goblin and the repeats in the orc GIF are copies of the loops above.
+The goblin has no death animation, so it flickers and fades out.
+
+Her hit shapes are exported per frame in `data.js`: the blade capsule (guard to tip) or the kicking
+foot on active frames, plus the energy that hits: the burst ring, the earthquake crack along the
+ground, the flying energy wave and landing meteors. The parry never hits.
+
 Tests: `node web/tests/input.test.js` drives every binding through the input reader (also run by
 `pytest`), and `NODE_PATH=$(npm root -g) node web/tests/browser.test.js` presses real keys in
-headless Chromium and checks that each binding starts its move (needs Playwright).
+headless Chromium and checks that each binding starts its move and that attacks kill enemies in reach (needs Playwright).
 
 ## Project layout
 
@@ -175,6 +206,7 @@ swingkit/
   gifwrite.py   exact-palette GIF writer and verifier
   build.py      writes every deliverable
   webexport.py  assets for the browser game (web/)
+  enemies.py    enemy sprites for the browser game, cut from data/enemies/*.gif
   checks.py     frame count, arm and leg lengths, planted feet, occlusion, tiling, GIF fidelity
 data/
   pal.npy       20-colour character palette

@@ -5,6 +5,9 @@
  * position: start of the move + that frame's root motion (y up). Black-and-white impact frames
  * replace the whole view for their duration. Camera: follows the character in x, rises once a
  * jump clears 30 px (the same camera the exporter drew the impact frames with).
+ *
+ * Enemies (goblin, orc) walk toward her and attack when close; their attacks do no damage yet.
+ * Any of her hit shapes (blade, foot, energy) touching an enemy's hurtbox kills it at once.
  */
 (function () {
   'use strict';
@@ -29,6 +32,8 @@
     srcs.push(m.sheet);
     for (const f of m.frames) if (f.bw) srcs.push(f.bw);
   }
+  const EN = D.enemies || {};
+  for (const e of Object.values(EN)) srcs.push(e.sheet);
 
   // ------------------------------------------------------------------ input
   const BUTTONS = ['Up', 'Down', 'Left', 'Right', 'A', 'B', 'X', 'Y', 'L', 'R'];
@@ -45,6 +50,7 @@
   });
 
   addEventListener('keydown', e => {
+    if (e.code === 'KeyH' && !e.repeat) { showBoxes = !showBoxes; return; }
     const b = KEYS[e.code];
     if (!b) return;
     e.preventDefault();
@@ -80,6 +86,8 @@
   let fall = null;                      // {y, v}: coming back down after a move that ends in the air
   let rumble = null;                    // {t0, ms, amp}: shake that outlasts a move (the earthquake)
   let clock = 0;
+  let showBoxes = false;                // H: draw hurtboxes and hit shapes
+  const hitQ = [];                      // attack frames shown this tick: {f, px, py}
   const started = [];                   // every move started, for the log and the browser test
   const JUMP = D.moves.jump;
   const FALL_K = JUMP.frames.findIndex((f, i) => i > 0 && f.root[1] < JUMP.frames[i - 1].root[1]);
@@ -105,6 +113,7 @@
     const k0 = entryFrame(id);
     if (cur) x += rootOf(cur)[0];       // keep the ground covered so far; height resets
     cur = { id, k: k0, t: 0, kind };
+    if (kind === 'action') queueHit();
     if (kind === 'action' || kind === 'land') {
       started.push({ id, via: via || kind });
       logMove(id, via);
@@ -157,7 +166,7 @@
     while (cur.t >= m.frames[cur.k].ms) {
       cur.t -= m.frames[cur.k].ms;
       cur.k++;
-      if (cur.k < m.frames.length) continue;
+      if (cur.k < m.frames.length) { if (cur.kind === 'action') queueHit(); continue; }
       if (cur.kind === 'land') { cur.k = m.frames.length - 1; finishAction(t); return; }
       if (cur.kind === 'action') { cur.k = m.frames.length - 1; finishAction(t); return; }
       if (m.loop) {                                              // next cycle carries on from here
@@ -166,6 +175,129 @@
         x += r[n - 1] + (n > 1 ? r[n - 1] - r[n - 2] : 0) - r[m.loopFrom];
         cur.k = m.loopFrom;
       } else cur.k = m.frames.length - 1;
+    }
+  }
+
+  function queueHit() {
+    const f = D.moves[cur.id].frames[cur.k];
+    if (f.hits) hitQ.push({ f, px: x + f.root[0], py: f.root[1] });
+  }
+
+  // ------------------------------------------------------------------ enemies
+  // e: {type, x (world x of its anchor), face (-1 left, 1 right), anim, k, t, state, rest, dead}
+  const enemies = [];
+  const respawns = [];                  // {type, at}
+  let kills = 0;
+  const BODY = 32;                      // her body centre, px ahead of her anchor
+  const DIE_MS = 900;                   // death: animation or flicker, then fade
+
+  function playerX() {
+    if (!cur || fall || cur.kind === 'fall' || cur.kind === 'land') return x;
+    return x + rootOf(cur)[0];
+  }
+  function spawn(type, wx) {
+    const e = { type, x: wx, face: -1, anim: 'walk', k: 0, t: 0, state: 'walk', rest: 0, dead: 0 };
+    enemies.push(e);
+    return e;
+  }
+  function play(e, anim) { e.anim = anim; e.k = 0; e.t = 0; }
+  function frameOf(e) { const T = EN[e.type]; return T.frames[T.anims[e.anim].frames[e.k]]; }
+  function alive(e) { return e.state !== 'dying'; }
+
+  // hurtbox in world coordinates (y up from the ground)
+  function hurtOf(e) {
+    const h = frameOf(e).hurt;
+    if (!h || !alive(e)) return null;
+    return e.face < 0 ? [e.x + h[0], h[1], e.x + h[2], h[3]] : [e.x - h[2], h[1], e.x - h[0], h[3]];
+  }
+
+  function kill(e) {
+    e.state = 'dying'; e.dead = 0;
+    const death = EN[e.type].ai.death;
+    if (death) play(e, death);
+    kills++;
+    respawns.push({ type: e.type, at: clock + DIE_MS + 1200 });
+  }
+
+  function stepEnemy(e, dt) {
+    const T = EN[e.type], ai = T.ai;
+    let A = T.anims[e.anim], ended = false;
+    e.t += dt;
+    while (e.t >= T.frames[A.frames[e.k]].ms) {
+      e.t -= T.frames[A.frames[e.k]].ms;
+      if (e.k + 1 < A.frames.length) e.k++;
+      else if (A.loop) e.k = 0;
+      else { ended = true; e.t = 0; break; }
+    }
+    if (e.state === 'dying') { e.dead += dt; return; }
+    const d = playerX() + BODY - e.x, dist = Math.abs(d);
+    // wait behind another enemy that is already closer to her
+    const blocked = enemies.some(o => o !== e && alive(o) && Math.sign(o.x - e.x) === Math.sign(d)
+                                      && Math.abs(o.x - e.x) < 40);
+    if (e.state === 'attack') {
+      if (!ended) return;
+      e.state = 'idle'; e.rest = ai.rest[0] + Math.random() * (ai.rest[1] - ai.rest[0]); play(e, 'idle');
+      return;
+    }
+    e.face = d < 0 ? -1 : 1;
+    if (e.state === 'idle') {
+      e.rest -= dt;
+      if (e.rest > 0) return;
+      e.state = 'walk';
+    }
+    if (dist <= ai.reach) {
+      e.state = 'attack';
+      play(e, ai.attacks[Math.floor(Math.random() * ai.attacks.length)]);
+    } else if (blocked) {
+      if (e.anim !== 'idle') play(e, 'idle');
+    } else {
+      if (e.anim !== 'walk') play(e, 'walk');
+      e.x += e.face * Math.min(ai.speed * dt / 1000, dist - ai.reach);
+    }
+  }
+
+  // ------------------------------------------------------------------ hits
+  function distBox(px, py, b) {          // point to box [x0, y0, x1, y1]
+    const dx = Math.max(b[0] - px, 0, px - b[2]), dy = Math.max(b[1] - py, 0, py - b[3]);
+    return Math.hypot(dx, dy);
+  }
+  function worldShape(s, h) {
+    const P = p => [h.px + p[0], h.py + p[1]];
+    if (s.shape === 'capsule') return { shape: 'capsule', a: P(s.a), b: P(s.b), r: s.radius };
+    if (s.shape === 'circle') return { shape: 'circle', c: P(s.c), r: s.r };
+    const a = P(s.a), b = P(s.b);
+    return { shape: 'box', box: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])] };
+  }
+  function touches(w, box) {
+    if (w.shape === 'circle') return distBox(w.c[0], w.c[1], box) <= w.r;
+    if (w.shape === 'box') return w.box[0] <= box[2] && box[0] <= w.box[2] && w.box[1] <= box[3] && box[1] <= w.box[3];
+    for (let i = 0; i <= 16; i++) {      // capsule: samples along the segment
+      const u = i / 16;
+      if (distBox(w.a[0] + (w.b[0] - w.a[0]) * u, w.a[1] + (w.b[1] - w.a[1]) * u, box) <= w.r) return true;
+    }
+    return false;
+  }
+  function resolveHits() {
+    for (const h of hitQ) {
+      for (const s of h.f.hits) {
+        const w = worldShape(s, h);
+        for (const e of enemies) {
+          const box = hurtOf(e);
+          if (box && touches(w, box)) kill(e);
+        }
+      }
+    }
+    lastHits = hitQ.splice(0);
+  }
+  let lastHits = [];
+
+  function stepEnemies(dt) {
+    for (const e of enemies) stepEnemy(e, dt);
+    for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].state === 'dying' && enemies[i].dead > DIE_MS) enemies.splice(i, 1);
+    for (let i = respawns.length - 1; i >= 0; i--) {
+      if (clock < respawns[i].at) continue;
+      spawn(respawns[i].type, camX + V.w - V.anchorX + 40);   // just past the right edge of the view
+      respawns.splice(i, 1);
     }
   }
 
@@ -203,11 +335,60 @@
       return;
     }
     for (const l of D.layers) drawLayer(img[l.src].im, -camX * l.parallax + sx * l.shake, camY * l.parallax + sy * l.shake);
+    drawEnemies(sx, sy);
     const cw = m.cell[0], ch = m.cell[1];
     const ax = V.anchorX + (px - camX) + sx;
     const ay = V.feetRow - (ry - camY) + sy;
     g.drawImage(img[m.sheet].im, cur.k * cw, 0, cw, ch, Math.round(ax - m.anchor[0]), Math.round(ay - m.anchor[1]), cw, ch);
     drawLayer(img[D.fringe.src].im, -camX + sx, camY + sy);
+    if (showBoxes) drawBoxes(sx, sy);
+  }
+
+  function drawEnemies(sx, sy) {
+    const gy = V.feetRow + camY + sy;
+    for (const e of enemies) {
+      const T = EN[e.type];
+      let alpha = 1;
+      if (e.state === 'dying') {
+        const fade = T.ai.death ? 500 : 400;
+        if (!T.ai.death && e.dead < DIE_MS - fade && Math.floor(e.dead / 60) % 2) continue;   // no death art: flicker
+        alpha = Math.max(0, Math.min(1, (DIE_MS - e.dead) / fade));
+      }
+      const cell = T.anims[e.anim].frames[e.k];
+      const [cw, ch] = T.cell, [ax, ay] = T.anchor;
+      const vx = Math.round(V.anchorX + (e.x - camX) + sx);
+      g.save();
+      g.globalAlpha = alpha;
+      g.translate(vx, Math.round(gy - ay));
+      if (e.face > 0) g.scale(-1, 1);                   // the art faces left; mirror to face right
+      g.drawImage(img[T.sheet].im, cell * cw, 0, cw, ch, -ax, 0, cw, ch);
+      g.restore();
+    }
+  }
+
+  function drawBoxes(sx, sy) {
+    const X = wx => V.anchorX + (wx - camX) + sx, Y = wy => V.feetRow + camY + sy - wy;
+    g.save();
+    g.lineWidth = 1;
+    g.strokeStyle = '#ffe14d';
+    for (const e of enemies) {
+      const b = hurtOf(e);
+      if (b) g.strokeRect(X(b[0]) + 0.5, Y(b[3]) + 0.5, b[2] - b[0], b[3] - b[1]);
+    }
+    g.strokeStyle = '#ff4d4d';
+    for (const h of lastHits) for (const s of h.f.hits) {
+      const w = worldShape(s, h);
+      g.beginPath();
+      if (w.shape === 'box') g.rect(X(w.box[0]), Y(w.box[3]), w.box[2] - w.box[0], w.box[3] - w.box[1]);
+      else if (w.shape === 'circle') g.arc(X(w.c[0]), Y(w.c[1]), w.r, 0, Math.PI * 2);
+      else {
+        g.lineWidth = w.r * 2; g.lineCap = 'round'; g.globalAlpha = 0.45; g.strokeStyle = '#ff4d4d';
+        g.moveTo(X(w.a[0]), Y(w.a[1])); g.lineTo(X(w.b[0]), Y(w.b[1]));
+        g.stroke(); g.lineWidth = 1; g.globalAlpha = 1; continue;
+      }
+      g.stroke();
+    }
+    g.restore();
   }
 
   function follow(dt) {
@@ -272,7 +453,9 @@
   }
   const nowEl = document.getElementById('now');
   let lastShown = '';
+  const killsEl = document.getElementById('kills');
   function hud() {
+    if (killsEl) killsEl.textContent = `Kills ${kills}`;
     for (const b of BUTTONS) chips[b].classList.toggle('on', isDown.has(b));
     const id = cur ? cur.id : '';
     const label = fall || (cur && (cur.kind === 'fall' || cur.kind === 'land')) ? 'falling' : id;
@@ -293,6 +476,9 @@
     readButtons(t);
     for (const e of reader.update(t)) request(e.move, e.via);
     step(dt, t);
+    if (cur && cur.kind === 'action' && !hitQ.length) queueHit();   // the frame still on screen
+    stepEnemies(dt);
+    resolveHits();
     follow(dt);
     draw();
     hud();
@@ -301,11 +487,25 @@
 
   Promise.all(srcs.map(load)).then(() => {
     document.getElementById('loading').remove();
+    if (EN.orc) spawn('orc', 260);
+    if (EN.goblin) spawn('goblin', 360);
     canvas.focus();
     requestAnimationFrame(frame);
   }).catch(err => { document.getElementById('loading').textContent = String(err); });
 
   canvas.addEventListener('pointerdown', () => canvas.focus());
   // read-only hooks for the browser test
-  window.bibooGame = { started, current: () => cur && { id: cur.id, k: cur.k, kind: cur.kind }, x: () => x };
+  window.bibooGame = {
+    started, current: () => cur && { id: cur.id, k: cur.k, kind: cur.kind }, x: () => x,
+    enemies: () => enemies.map(e => ({ type: e.type, x: e.x, face: e.face, state: e.state, anim: e.anim })),
+    kills: () => kills,
+    // test setup: clear the field and place enemies at distances from her anchor
+    setEnemies: list => {
+      enemies.length = 0; respawns.length = 0;
+      for (const [type, dx, rest] of list) {                  // rest: stand still this long first (ms)
+        const e = spawn(type, playerX() + dx);
+        if (rest) { e.state = 'idle'; e.rest = rest; play(e, 'idle'); }
+      }
+    },
+  };
 })();

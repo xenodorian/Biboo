@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from . import anim, bg, fx, rig, movefx, movekit, composite as cp
+from . import anim, bg, fx, rig, movefx, movekit, enemies, composite as cp
 from .paths import ROOT
 
 W, H, M, VH = bg.W, bg.H, bg.M, bg.VH
@@ -24,6 +24,71 @@ AFTERSHAKE = {'earthquake': dict(ms=1500, amp=6)}
 # it interrupts (frames with the same name; loop frames listed here map onto a named frame)
 ENTER = {'heavy': dict(default='raise1',
                        fromMove={'charge': {'charge1': 'high', 'charge2': 'high', 'charge3': 'high'}})}
+
+
+# moves that never hurt anything even on their active frames
+NO_HIT = {'parry'}
+# moves whose raised sword is only the pose: the energy they call down is what hits
+EFFECT_ONLY = {'energy_burst', 'meteor_shower'}
+
+
+def _pt(p):
+    """Sprite point -> hit coordinates: x from the anchor, y up from the feet row."""
+    return [round(float(p[0]), 1), round(float(rig.FEET_ROW - p[1]), 1)]
+
+
+def _ground_point(fr):
+    sw = movekit.Sword_at(fr)
+    u = (rig.FEET_ROW - sw.B0[1]) / sw.d[1] if abs(sw.d[1]) > 1e-3 else rig.Sword.L
+    return sw.B0 + u * sw.d
+
+
+def _meteor_hits(t, n=9, seed=17):
+    """Circles where the meteors of movefx.meteors are landing at time t (same random draws)."""
+    rng = np.random.default_rng(seed)
+    gy = fx.GROUND_LY
+    out = []
+    for k in range(n):
+        t0 = rng.uniform(0, 3.0); x_land = rng.uniform(150, 380); spd = rng.uniform(55, 80)
+        tt = t - t0
+        if tt < 0: continue
+        y = -20 + tt * spd
+        if y < gy - 40: continue
+        if y < gy:                                      # the fireball coming down
+            x = x_land - (gy + 20 - tt * spd) * 0.55
+            out.append(dict(shape='circle', c=[round(x - fx.X0, 1), round(gy - y, 1)], r=6))
+        elif (y - gy) / spd < 1.4:                      # the blast where it lands
+            out.append(dict(shape='circle', c=[round(x_land - fx.X0, 1), 4.0], r=12))
+    return out
+
+
+def hit_shapes(move_id, fr):
+    """Everything that can hit on this frame: the blade or foot capsule on active frames, plus the
+    energy effects that do damage (burst ring, ground quake, flying wave, meteors). Shapes are in px
+    relative to the character's anchor, x right, y up from the feet row."""
+    if move_id in NO_HIT:
+        return None
+    out = []
+    hb = None if move_id in EFFECT_ONLY else movekit.hitbox(fr)
+    if hb:
+        if fr.get('flip'):                              # drawn mirrored about sprite x = 32
+            hb['a'][0] = round(64 - hb['a'][0], 1); hb['b'][0] = round(64 - hb['b'][0], 1)
+        out.append(hb)
+    for name, kw in fr.get('fx', []):
+        if name == 'burst' and fr.get('active'):
+            c = kw.get('center', (32, 44))
+            out.append(dict(shape='circle', c=_pt(c), r=float(kw.get('r', 40))))
+        elif name == 'quake' and fr.get('active'):
+            I = _ground_point(fr)
+            L = kw.get('reach', 150) * min(1.0, 0.35 + kw.get('t', 0.0) * 0.4)
+            out.append(dict(shape='box', a=[round(float(I[0] - L), 1), 0.0], b=[round(float(I[0] + L), 1), 30.0]))
+        elif name == 'projectile':
+            x, y, R = kw.get('x', 90), kw.get('y', 40), 40 * kw.get('size', 1.0)
+            out.append(dict(shape='box', a=[round(x - R * 0.3, 1), round(rig.FEET_ROW - y - R * 0.8, 1)],
+                            b=[round(x + R * 0.55, 1), round(rig.FEET_ROW - y + R * 0.8, 1)]))
+        elif name == 'meteors':
+            out += _meteor_hits(kw.get('t', 0.0))
+    return out or None
 
 
 def _game_cam(root):
@@ -96,6 +161,11 @@ def export(out_dir=WEB, log=print):
 
     entries = {}
 
+    def hits(mid, f):
+        if mid == 'heavy':                              # the main chop: the blade on the impact frame
+            return [movekit.hitbox(dict(f, active=True))] if f['name'] == 'impact' else None
+        return hit_shapes(mid, f)
+
     def add(mid, title, inp, loop, loop_from, input_type, frames, results):
         actors = [r[0] for r in results]
         sheet, cell, anchor = _pack(actors)
@@ -107,7 +177,7 @@ def export(out_dir=WEB, log=print):
                 bw_path = f'assets/bw/{mid}_{k + 1:02d}.png'
                 Image.fromarray(bw).save(out / bw_path, optimize=True)
             fl.append(dict(name=f['name'], ms=int(f['ms']), root=[round(float(f['root'][0]), 1), round(float(f['root'][1]), 1)],
-                           shake=[int(v) for v in f.get('shake', (0, 0))], bw=bw_path))
+                           shake=[int(v) for v in f.get('shake', (0, 0))], bw=bw_path, hits=hits(mid, f)))
         entries[mid] = dict(title=title, input=inp, loop=bool(loop), loopFrom=int(loop_from),
                             inputType=input_type, sheet=f'assets/moves/{mid}.png', cell=cell, anchor=anchor, frames=fl,
                             aftershake=AFTERSHAKE.get(mid), enter=ENTER.get(mid))
@@ -124,7 +194,7 @@ def export(out_dir=WEB, log=print):
         layers=[dict(name=n, src=f'assets/layers/{n}.png', parallax=float(bg.PARALLAX.get(n, 1.0)),
                      shake=float(cp.SHAKE_PARALLAX.get(n, 1.0))) for n in bg.ORDER_BACK],
         fringe=dict(src='assets/layers/fringe.png'),
-        moves=entries, input=input_map)
+        moves=entries, input=input_map, enemies=enemies.export(out, log))
     (out / 'assets' / 'data.js').write_text(
         '// Generated by `python -m swingkit --web`. Do not edit by hand.\nwindow.BIBOO = '
         + json.dumps(data, separators=(',', ':')) + ';\n')
