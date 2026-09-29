@@ -34,6 +34,30 @@ EFFECT_ONLY = {'energy_burst', 'meteor_shower'}
 # stretch of ground she crossed since the last frame, so an enemy in her path is not skipped
 SWEEP = {'dash_thrust', 'energy_dash_thrust'}
 SWEEP_REACH, SWEEP_HEIGHT = 100, 90          # px ahead of her anchor, px up
+# upswings: the blade swings from behind her, under and up through the front between the wind-up
+# frame and the first hit frame, where it already points up over an enemy's head. That frame also
+# hits along the arc (blade positions every 15 degrees, turning counter-clockwise, y up).
+ARC = {'upswing', 'backstep_upswing'}
+
+
+def _arc(prev, fr):
+    hp = movekit.hitbox(dict(prev, active=True)); hc = movekit.hitbox(dict(fr, active=True))
+    if not hp or not hc or hp['shape'] != 'capsule' or hc['shape'] != 'capsule':
+        return []
+    off = np.array(prev['root'], float) - np.array(fr['root'], float)
+    pa, pb = np.array(hp['a']) + off, np.array(hp['b']) + off
+    ca, cb = np.array(hc['a']), np.array(hc['b'])
+    a0 = np.arctan2(*(pb - pa)[::-1]); a1 = np.arctan2(*(cb - ca)[::-1])
+    while a1 <= a0: a1 += 2 * np.pi
+    L = float(np.linalg.norm(cb - ca))
+    n = max(2, int(np.degrees(a1 - a0) / 15))
+    out = []
+    for t in np.linspace(0, 1, n + 1)[:-1]:
+        g = pa + (ca - pa) * t; ang = a0 + (a1 - a0) * t
+        tip = g + L * np.array([np.cos(ang), np.sin(ang)])
+        out.append(dict(shape='capsule', a=[round(float(g[0]), 1), round(float(g[1]), 1)],
+                        b=[round(float(tip[0]), 1), round(float(tip[1]), 1)], radius=hc['radius']))
+    return out
 
 
 def _pt(p):
@@ -78,6 +102,8 @@ def hit_shapes(move_id, fr, prev=None):
         if fr.get('flip'):                              # drawn mirrored about sprite x = 32
             hb['a'][0] = round(64 - hb['a'][0], 1); hb['b'][0] = round(64 - hb['b'][0], 1)
         out.append(hb)
+    if move_id in ARC and prev is not None and fr.get('active') and not prev.get('active'):
+        out += _arc(prev, fr)
     if move_id in SWEEP and prev is not None and (fr['name'].startswith('blur') or fr['name'] == 'lunge'):
         back = float(prev['root'][0] - fr['root'][0])
         out.append(dict(shape='box', a=[round(back + 20, 1), 0.0], b=[float(SWEEP_REACH), float(SWEEP_HEIGHT)]))

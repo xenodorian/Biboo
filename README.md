@@ -165,9 +165,19 @@ python -m swingkit --web
 
 ### Enemies (combat test)
 
-A goblin and an orc walk in from the right. They attack when they get close, but their attacks do
-no damage yet. Any attack of hers that touches one kills it at once (HP comes later). Press H in
-the game to show hurtboxes (yellow) and the hit shapes of the current attack (red).
+A goblin and an orc walk in from the right and attack when they get close. Any attack of hers that
+touches one kills it at once (HP comes later). When one of theirs reaches her:
+
+- Hit: she turns red and is knocked back (goblin 40 px, orc 64 px). She is stunned in the raised
+  sword pose, with no control, until the push stops, and cannot be hit again for 0.4 s after.
+- Blocking (holding B): she flashes white and slides back 8 px. No stun; she keeps blocking.
+- Parry (tap B): if her parry frames 1-3 are showing while the attack is on its hitting frame or
+  at most two frames before it, the enemy turns white, is pushed back (goblin 50 px, orc 40 px)
+  and is stunned until the push stops. She takes nothing.
+
+Enemy attack areas are the weapon and smear in front of the body on hand-picked frames (goblin 20,
+21, 24, 25, 31, 32, 39-41, and 47-49 for the green spin all round; orc 27-28). Press H in the game to
+show hurtboxes (yellow enemies, blue her), her attack shapes (red) and enemy attack areas (orange).
 
 `swingkit/enemies.py` builds them from the packed GIFs in `data/enemies/`: it samples each GIF down
 to native pixels, keys out the background (the goblin's shadow and the orc's sword smear become
@@ -193,7 +203,7 @@ frames 51-68 are not used. The goblin has no death animation, so it flickers and
 
 Her hit shapes are exported per frame in `data.js`: the blade capsule (guard to tip) or the kicking
 foot on active frames, plus the energy that hits: the burst ring, the earthquake crack along the
-ground, the flying energy wave and landing meteors. The parry never hits.
+ground, the flying energy wave and landing meteors. The parry never hits. The two upswings also hit along the arc the blade swings through (from behind her, under and up through the front) on their first hit frame.
 
 Tests: `node web/tests/input.test.js` drives every binding through the input reader (also run by
 `pytest`), and `NODE_PATH=$(npm root -g) node web/tests/browser.test.js` presses real keys in

@@ -33,9 +33,14 @@ ENEMIES = {
             dive=dict(frames=range(27, 36)),     # dive roll forward into a slash
             combo=dict(frames=range(35, 51)),    # crouch, leap, air slashes, green spin
         ),
-        # every attack returns to idle; dive is the gap closer, used from mid range
+        # frames whose blade or smear can hit (read off the art): the spin and lunge smears, the
+        # slash out of the dive roll, the blue air slashes and the green spin
+        active=[20, 21, 24, 25, 31, 32, 39, 40, 41, 47, 48, 49],
+        around=[47, 48, 49],                     # the green spin circles the body: it hits all round
+        # every attack returns to idle; dive is the gap closer, used from mid range.
+        # knock: how far (px) and how long (ms) a clean hit pushes her back (the stun lasts as long)
         ai=dict(speed=48, reach=70, attacks=['slash', 'combo'], dive=dict(anim='dive', min=110, max=170),
-                rest=[500, 1100], death=None),
+                rest=[500, 1100], death=None, stun=None, knock=[40, 300], parried=[50, 450]),
     ),
     'orc': dict(
         title='Orc', src='orc.gif', px=12, bg=(113, 113, 113), scale=3,
@@ -48,7 +53,10 @@ ENEMIES = {
             hurt=dict(frames=range(49, 51)),
             death=dict(frames=range(57, 61)),    # last frame held
         ),
-        ai=dict(speed=30, reach=52, attacks=['attack'], rest=[700, 1300], death='death'),
+        active=[27, 28],                         # the overhead swing and its smear
+        front='anchor',                          # the sword swings close: count all of it ahead of the centre
+        ai=dict(speed=30, reach=52, attacks=['attack'], rest=[700, 1300], death='death', stun='hurt',
+                knock=[64, 400], parried=[40, 450]),
     ),
 }
 
@@ -104,6 +112,23 @@ def hurtbox(rgba, cfg):
     return [x0, y0, x1, y1]
 
 
+def hitbox(rgba, cfg, hurt):
+    """[x0, y0, x1, y1] native: the weapon and smear in front of the body on an active frame."""
+    vis = (rgba[..., 3] > 0) & (rgba[..., 3] != 80)          # anything drawn but the ground shadow
+    front = cfg['anchor'] if (cfg.get('front') == 'anchor' or not hurt) else hurt[2] - 2
+    ys, xs = np.nonzero(vis[:, front:])
+    if not len(xs):
+        return None
+    return [int(xs.min()) + front, int(ys.min()), int(xs.max()) + front, int(ys.max())]
+
+
+def _flip_box(b, ax, cfg):
+    """Native box -> px from the anchor after the flip (x right, y up from the feet row)."""
+    s = cfg['scale']
+    x0, y0, x1, y1 = b
+    return [round((ax - x1 - 1) * s), (cfg['feet'] - y1) * s, round((ax - x0) * s), (cfg['feet'] + 1 - y0) * s]
+
+
 def export(out_dir, log=print):
     out = Path(out_dir) / 'assets' / 'enemies'
     out.mkdir(parents=True, exist_ok=True)
@@ -125,14 +150,19 @@ def export(out_dir, log=print):
             a = cutf[i]
             crop = Image.fromarray(a[y0:y1 + 1, x0:x1 + 1]).transpose(Image.FLIP_LEFT_RIGHT)
             sheet.paste(crop.resize((cw, ch), Image.NEAREST), (k * cw, 0))
-            hb = hurtbox(a, cfg)
-            if hb is not None:                   # flipped: native x -> -(x - ax)
-                bx0, by0, bx1, by1 = hb
-                hb = [round((ax - bx1 - 1) * s), (cfg['feet'] - by1) * s, round((ax - bx0) * s), (cfg['feet'] + 1 - by0) * s]
+            hn = hurtbox(a, cfg)
+            hb = _flip_box(hn, ax, cfg) if hn is not None else None
+            hit = None
+            if i in cfg.get('active', ()):
+                hn2 = hitbox(a, cfg, None if i in cfg.get('around', ()) else hn)
+                if i in cfg.get('around', ()):   # whole drawing, both sides of the body
+                    ys_, xs_ = np.nonzero((a[..., 3] > 0) & (a[..., 3] != 80))
+                    hn2 = [int(xs_.min()), int(ys_.min()), int(xs_.max()), int(ys_.max())]
+                hit = _flip_box(hn2, ax, cfg) if hn2 is not None else None
             # ground point this frame, px from the anchor (the art moves inside its frame during
             # rolls and leaps; the game carries that motion over when the animation ends)
             gx = round((ax - 0.5 - ground_x(a, cfg)) * s)
-            fl.append(dict(src=i, ms=frames[i][1], hurt=hb, ground=gx))
+            fl.append(dict(src=i, ms=frames[i][1], hurt=hb, hit=hit, ground=gx))
         sheet.save(out / f'{name}.png', optimize=True)
         pos = {i: k for k, i in enumerate(used)}
         anims = {an: dict(frames=[pos[i] for i in a['frames']], loop=bool(a.get('loop', False)))

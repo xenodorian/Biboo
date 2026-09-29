@@ -36,6 +36,8 @@ const shots = process.argv[2];
   const walkOk = ox(e1) < ox(e0) && e1.find(e => e.type === 'orc').face === -1;
   console.log(`${walkOk ? 'PASS' : 'FAIL'}  the orc walks toward her  ${ox(e0)} -> ${ox(e1)}`);
   const early = [e0.length === 2, walkOk];
+  // enemies fight back now: clear the field for the move checks (combat checks place their own)
+  await page.evaluate(() => { window.bibooGame.setRespawn(false); window.bibooGame.setEnemies([]); });
 
   const wait = ms => page.waitForTimeout(ms);
   const down = b => page.keyboard.down(K[b]);
@@ -148,6 +150,9 @@ const shots = process.argv[2];
   await fight('Up-A heavy kills a goblin', [['goblin', 100, 3000]], seq(['Up', 'A']), 1);
   await fight('energy wave kills a far orc', [['orc', 260, 3000]], seq(['Down', 'Right', 'A', 'B']), 1);
   await fight('energy burst kills both sides', [['orc', 80, 3000], ['goblin', -40, 3000]], chord(['L', 'R']), 2);
+  await fight('Down+A upswing kills an orc in front', [['orc', 90, 3000]], chord(['A'], ['Down']), 1);
+  await fight('Down+A upswing kills a goblin in front', [['goblin', 95, 3000]], chord(['A'], ['Down']), 1);
+  await fight('Left+A backstep upswing kills an orc in front', [['orc', 90, 3000]], chord(['A'], ['Left']), 1);
   await fight('slash misses a far orc', [['orc', 400, 3000]], async () => tap('A'), 0);
   await fight('taunt kills nothing', [['orc', 95, 3000]], chord(['X', 'Y']), 0);
   await fight('parry kills nothing', [['orc', 95, 3000]], async () => tap('B', 60), 0);
@@ -181,7 +186,7 @@ const shots = process.argv[2];
     const got = await startedSince(n);
     const crashes = got.filter(g => g === 'jump_crash').length;
     const jumps = got.filter(g => g === 'jump').length;
-    check(name, c && c.id === 'jump_crash' && c.air && crashes === 1 && jumps <= 1 && c.y >= minY && (y === null || Math.abs(c.y - y) < 40),
+    check(name, c && c.id === 'jump_crash' && c.air && crashes === 1 && jumps <= 1 && c.y >= minY && (y === null || (c.y <= y + 1 && y - c.y < 100)),   // she keeps falling while A goes down (~1 px/ms)
           `current ${JSON.stringify(c)}, height at press ${y}, started ${JSON.stringify(got)}`);
   };
   await airCase('jump, then A near the top -> crash from that height', async () => {
@@ -196,6 +201,69 @@ const shots = process.argv[2];
     check('A on the ground is still the slash', (await startedSince(n))[0] === 'slash', JSON.stringify(await startedSince(n)));
   }
   await fight('air crash kills an orc below', [['orc', 110, 5000]], async () => { await tap('Y'); await wait(300); await tap('A'); }, 1);
+
+  // enemy attacks on her: hit (red, knocked back, stunned), block (white, small slide), parry
+  const combat = () => page.evaluate(() => window.bibooGame.combat());
+  const watch = async (ms, fn) => { const seen = []; const end = Date.now() + ms; while (Date.now() < end) { seen.push(await fn()); await wait(20); } return seen; };
+  {
+    await settle();
+    const c0 = await combat();
+    const x0 = await page.evaluate(() => window.bibooGame.x());
+    await page.evaluate(() => { window.bibooGame.setEnemies([['orc', 75, 60000]]); window.bibooGame.attack(0, 'attack'); });
+    const seen = await watch(900, async () => ({ c: await combat(), cur: await cur() }));
+    const stunned = seen.filter(v => v.c.stun);
+    const x1 = await page.evaluate(() => window.bibooGame.x());
+    check('orc attack hits her: red, stunned in the raised sword pose',
+          stunned.length > 0 && stunned.some(v => v.c.tint === '#ff2b2b') && stunned.every(v => v.cur.id === 'heavy' && v.cur.kind === 'stun'),
+          JSON.stringify(seen.slice(0, 12)));
+    check('the hit knocks her back about 64 px', x0 - x1 > 55 && x0 - x1 < 72, `moved ${x1 - x0}`);
+    await settle();
+    check('she recovers to idle after the stun', !(await combat()).stun && (await combat()).hits === c0.hits + 1, JSON.stringify(await combat()));
+  }
+  {
+    await settle();
+    await page.evaluate(() => window.bibooGame.setEnemies([]));
+    await down('B'); await wait(300);
+    const c0 = await combat();
+    const x0 = await page.evaluate(() => window.bibooGame.x());
+    await page.evaluate(() => { window.bibooGame.setEnemies([['orc', 75, 60000]]); window.bibooGame.attack(0, 'attack'); });
+    const seen = await watch(700, combat);
+    const x1 = await page.evaluate(() => window.bibooGame.x());
+    const c1 = await combat(); const c = await cur();
+    await up('B');
+    check('blocking: white flash, no stun, still blocking', c1.blocks === c0.blocks + 1 && seen.some(v => v.tint === '#ffffff') && seen.every(v => !v.stun) && c.id === 'block',
+          JSON.stringify({ c1, c }));
+    check('blocking: slides back only a little', x0 - x1 > 4 && x0 - x1 <= 10, `moved ${x1 - x0}`);
+  }
+  {
+    await settle();
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 75, 60000]]));
+    const c0 = await combat();
+    const o0 = (await E())[0];
+    await page.evaluate(() => window.bibooGame.attack(0, 'attack'));
+    await wait(90);                     // the swing lands on the orc's third frame (200 ms in)
+    await tap('B', 40);
+    const seen = await watch(500, async () => (await E())[0]);
+    const c1 = await combat();
+    const o1 = (await E())[0];
+    check('parry just before the swing lands: the orc turns white and is stunned',
+          c1.parries === c0.parries + 1 && seen.some(e => e.state === 'stunned' && e.tint === '#ffffff'), JSON.stringify(seen.slice(0, 6)));
+    check('the parried orc is pushed back about 40 px', o1.x - o0.x > 30 && o1.x - o0.x < 50, `moved ${o1.x - o0.x}`);
+    check('a parry leaves her unhurt', c1.hits === c0.hits && !c1.stun, JSON.stringify(c1));
+    await wait(600);
+    check('the orc recovers after the push', (await E())[0].state !== 'stunned', JSON.stringify(await E()));
+  }
+  {
+    await settle();
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 75, 60000]]));
+    const c0 = await combat();
+    await tap('B', 40); await wait(400);   // parry long before the swing: too early
+    await page.evaluate(() => window.bibooGame.attack(0, 'attack'));
+    await wait(700);
+    const c1 = await combat();
+    check('a parry too early does not stop the hit', c1.parries === c0.parries && c1.hits === c0.hits + 1, JSON.stringify(c1));
+  }
+  await page.evaluate(() => window.bibooGame.setEnemies([]));
 
   // gamepad: face buttons, d-pad and stick drive the same reader as the keyboard
   const padSet = (fn) => page.evaluate(fn);

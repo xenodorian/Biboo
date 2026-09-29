@@ -8,6 +8,10 @@
  *
  * Enemies (goblin, orc) walk toward her and attack when close; their attacks do no damage yet.
  * Any of her hit shapes (blade, foot, energy) touching an enemy's hurtbox kills it at once.
+ * An enemy attack that reaches her: a clean hit turns her red and knocks her back, stunned (raised
+ * sword pose) until the push ends; while blocking she flashes white and slides back a little; a
+ * parry made while the attack is at most two frames from landing turns the enemy white and knocks
+ * it back, stunned.
  */
 (function () {
   'use strict';
@@ -103,6 +107,10 @@
   let rumble = null;                    // {t0, ms, amp}: shake that outlasts a move (the earthquake)
   let clock = 0;
   let showBoxes = false;                // H: draw hurtboxes and hit shapes
+  let stun = null;                      // {v: px/ms (signed), a: px/ms^2, y, vy}: knocked back, no control
+  let slide = null;                     // {v, a}: the small push back of a blocked hit
+  let tint = null;                      // {color, until}: her flash (red hit, white block)
+  let invuln = 0;                       // clock time until she can be hit again
   const hitQ = [];                      // attack frames shown this tick: {f, px, py}
   const started = [];                   // every move started, for the log and the browser test
   const JUMP = D.moves.jump;
@@ -159,7 +167,7 @@
   }
 
   function request(move, via) {
-    if (!D.moves[move]) return;
+    if (!D.moves[move] || stun) return;
     const air = AIR.find(b => usesButton(D.moves[move].input, b.input));
     if (air) {
       if (airborne()) { airCrash(via); return; }
@@ -194,6 +202,12 @@
   }
 
   function step(dt, t) {
+    if (stun) { stepStun(dt); return; }
+    if (slide) {
+      x += slide.v * dt;
+      const v = slide.v - Math.sign(slide.v) * slide.a * dt;
+      slide = Math.sign(v) === Math.sign(slide.v) ? Object.assign(slide, { v }) : null;
+    }
     if (fall) {                                                  // simple gravity, px/ms^2
       fall.v += 0.0018 * dt;
       fall.y -= fall.v * dt;
@@ -235,7 +249,7 @@
   // body, so the enemy stays where an animation leaves it when the next one starts.
   const enemies = [];
   const respawns = [];                  // {type, at}
-  let kills = 0;
+  let kills = 0, respawnOn = true;
   const BODY = 32;                      // her body centre, px ahead of her anchor
   const DIE_MS = 900;                   // death: animation or flicker, then fade
 
@@ -250,7 +264,7 @@
   }
   function frameOf(e) { const T = EN[e.type]; return T.frames[T.anims[e.anim].frames[e.k]]; }
   function groundOff(e) { const gx = frameOf(e).ground || 0; return e.face < 0 ? gx : -gx; }
-  function play(e, anim) { e.anim = anim; e.k = 0; e.t = 0; e.base = e.x - groundOff(e); }
+  function play(e, anim) { e.anim = anim; e.k = 0; e.t = 0; e.hitDone = false; e.base = e.x - groundOff(e); }
   function turn(e, face) { if (face !== e.face) { e.face = face; e.base = e.x - groundOff(e); } }
   function alive(e) { return e.state !== 'dying'; }
 
@@ -281,6 +295,13 @@
     }
     e.x = e.base + groundOff(e);
     if (e.state === 'dying') { e.dead += dt; return; }
+    if (e.state === 'stunned') {        // parried: slides back, no control until it stops
+      e.x += e.push.v * dt; e.base += e.push.v * dt;
+      const v = e.push.v - Math.sign(e.push.v) * e.push.a * dt;
+      if (Math.sign(v) === Math.sign(e.push.v)) { e.push.v = v; return; }
+      e.state = 'idle'; e.rest = ai.rest[0]; play(e, 'idle');
+      return;
+    }
     const d = playerX() + BODY - e.x, dist = Math.abs(d);
     // wait behind another enemy that is already closer to her
     const blocked = enemies.some(o => o !== e && alive(o) && Math.sign(o.x - e.x) === Math.sign(d)
@@ -347,6 +368,79 @@
   }
   let lastHits = [];
 
+  // ------------------------------------------------------------------ enemy attacks on her
+  const HURT = [10, 0, 60, 88];         // her body, px from her anchor (x right, y up)
+  const RED = '#ff2b2b', WHITE = '#ffffff';
+  function herY() { return stun ? stun.y : fall ? fall.y : (cur && cur.kind !== 'fall' ? rootOf(cur)[1] : 0); }
+  function herBox() { const px = playerX(), py = herY(); return [px + HURT[0], py + HURT[1], px + HURT[2], py + HURT[3]]; }
+  function boxOf(e, h) {
+    if (!h) return null;
+    return e.face < 0 ? [e.base + h[0], h[1], e.base + h[2], h[3]] : [e.base - h[2], h[1], e.base - h[0], h[3]];
+  }
+  const overlap = (a, b) => a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3];
+  // a push that starts at speed v0 and slows evenly to a stop: covers d px in ms
+  const push = (d, ms) => ({ v: 2 * d / ms, a: 2 * d / (ms * ms) });
+  const HIGH_K = D.moves.heavy.frames.findIndex(f => f.name === 'high');
+  const parrying = () => cur && cur.id === 'parry' && cur.kind === 'action' && cur.k <= 2;
+  const blocking = () => cur && cur.id === 'block';
+
+  function parried(e) {
+    const T = EN[e.type], [d, ms] = T.ai.parried, p = push(d, ms);
+    e.hitDone = true;
+    e.state = 'stunned';
+    play(e, T.ai.stun || 'idle');
+    e.push = { v: p.v * (e.x >= playerX() + BODY ? 1 : -1), a: p.a };
+    e.tint = { color: WHITE, alpha: 0.75, until: clock + ms };
+    parries++;
+  }
+  function knocked(e) {                 // a clean hit: red, pushed away from the enemy, stunned
+    const [d, ms] = EN[e.type].ai.knock, p = push(d, ms);
+    const dir = playerX() + BODY >= e.x ? 1 : -1;
+    const y = herY();
+    if (cur && !fall && cur.kind !== 'fall') x += rootOf(cur)[0];
+    fall = null; queued = null; slide = null;
+    stun = { v: p.v * dir, a: p.a, y, vy: 0 };
+    cur = { id: 'heavy', k: HIGH_K, t: 0, kind: 'stun', from: x };
+    tint = { color: RED, alpha: 0.6, until: clock + ms };
+    invuln = clock + ms + 400;
+    hits++;
+  }
+  function blocked(e) {                 // white, a small slide back, no stun
+    const dir = playerX() + BODY >= e.x ? 1 : -1, p = push(8, 120);
+    slide = { v: p.v * dir, a: p.a };
+    tint = { color: WHITE, alpha: 0.75, until: clock + 150 };
+    blocks++;
+  }
+  function stepStun(dt) {
+    x += stun.v * dt;
+    const v = stun.v - Math.sign(stun.v) * stun.a * dt;
+    stun.v = Math.sign(v) === Math.sign(stun.v) ? v : 0;
+    if (stun.y > 0) { stun.vy += 0.0018 * dt; stun.y = Math.max(0, stun.y - stun.vy * dt); }
+    if (stun.v === 0 && stun.y === 0) { stun = null; cur = null; holdState(clock); }
+  }
+  let hits = 0, blocks = 0, parries = 0;
+
+  function enemyAttacks() {
+    const me = herBox();
+    for (const e of enemies) {
+      if (e.state !== 'attack' || e.hitDone) continue;
+      const T = EN[e.type], A = T.anims[e.anim];
+      if (parrying()) {                 // the attack lands this frame or within the next two
+        let soon = false;
+        for (let j = e.k; j <= Math.min(e.k + 2, A.frames.length - 1) && !soon; j++) {
+          const h = boxOf(e, T.frames[A.frames[j]].hit);
+          soon = !!h && overlap(h, me);
+        }
+        if (soon) { parried(e); continue; }
+      }
+      const h = boxOf(e, frameOf(e).hit);
+      if (!h || !overlap(h, me)) continue;
+      e.hitDone = true;
+      if (blocking()) blocked(e);
+      else if (clock >= invuln && !stun) knocked(e);
+    }
+  }
+
   // the plain dash stops at the first enemy in front of her instead of passing through it
   const BODY_FRONT = 60;                // px from her anchor to the front of her body in the dash
   function blockDash() {
@@ -363,6 +457,7 @@
   function stepEnemies(dt) {
     for (const e of enemies) stepEnemy(e, dt);
     for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].state === 'dying' && enemies[i].dead > DIE_MS) enemies.splice(i, 1);
+    if (!respawnOn) respawns.length = 0;
     for (let i = respawns.length - 1; i >= 0; i--) {
       if (clock < respawns[i].at) continue;
       spawn(respawns[i].type, camX + V.w - V.anchorX + 40);   // just past the right edge of the view
@@ -386,7 +481,7 @@
     if (!cur) return;
     const m = D.moves[cur.id];
     const f = m.frames[cur.k];
-    const [rx, ry] = fall ? [0, fall.y] : (cur.kind === 'fall' ? [0, 0] : rootOf(cur));
+    const [rx, ry] = stun ? [0, stun.y] : fall ? [0, fall.y] : (cur.kind === 'fall' ? [0, 0] : rootOf(cur));
     let [sx, sy] = cur.kind === 'fall' || cur.kind === 'land' ? [0, 0] : f.shake;
     if (rumble) {                                                // fading aftershock
       const e = clock - rumble.t0;
@@ -408,9 +503,23 @@
     const cw = m.cell[0], ch = m.cell[1];
     const ax = V.anchorX + (px - camX) + sx;
     const ay = V.feetRow - (ry - camY) + sy;
-    g.drawImage(img[m.sheet].im, cur.k * cw, 0, cw, ch, Math.round(ax - m.anchor[0]), Math.round(ay - m.anchor[1]), cw, ch);
+    const tc = tint && clock < tint.until ? tint : null;
+    blit(img[m.sheet].im, cur.k * cw, cw, ch, Math.round(ax - m.anchor[0]), Math.round(ay - m.anchor[1]), tc);
     drawLayer(img[D.fringe.src].im, -camX + sx, camY + sy);
     if (showBoxes) drawBoxes(sx, sy);
+  }
+
+  // one sheet cell, optionally washed with a colour (a red hit, a white block or parry)
+  const wash = document.createElement('canvas'), wg = wash.getContext('2d');
+  function blit(im, sx, w, h, dx, dy, tc) {
+    if (!tc) { g.drawImage(im, sx, 0, w, h, dx, dy, w, h); return; }
+    if (wash.width < w || wash.height < h) { wash.width = Math.max(wash.width, w); wash.height = Math.max(wash.height, h); }
+    wg.globalCompositeOperation = 'source-over'; wg.globalAlpha = 1;
+    wg.clearRect(0, 0, wash.width, wash.height);
+    wg.drawImage(im, sx, 0, w, h, 0, 0, w, h);
+    wg.globalCompositeOperation = 'source-atop'; wg.globalAlpha = tc.alpha || 0.7;
+    wg.fillStyle = tc.color; wg.fillRect(0, 0, w, h);
+    g.drawImage(wash, 0, 0, w, h, dx, dy, w, h);
   }
 
   function drawEnemies(sx, sy) {
@@ -430,7 +539,7 @@
       g.globalAlpha = alpha;
       g.translate(vx, Math.round(gy - ay));
       if (e.face > 0) g.scale(-1, 1);                   // the art faces left; mirror to face right
-      g.drawImage(img[T.sheet].im, cell * cw, 0, cw, ch, -ax, 0, cw, ch);
+      blit(img[T.sheet].im, cell * cw, cw, ch, -ax, 0, e.tint && clock < e.tint.until ? e.tint : null);
       g.restore();
     }
   }
@@ -442,6 +551,13 @@
     g.strokeStyle = '#ffe14d';
     for (const e of enemies) {
       const b = hurtOf(e);
+      if (b) g.strokeRect(X(b[0]) + 0.5, Y(b[3]) + 0.5, b[2] - b[0], b[3] - b[1]);
+    }
+    g.strokeStyle = '#4dd2ff';
+    { const b = herBox(); g.strokeRect(X(b[0]) + 0.5, Y(b[3]) + 0.5, b[2] - b[0], b[3] - b[1]); }
+    g.strokeStyle = '#ff8a3d';
+    for (const e of enemies) {
+      const b = e.state === 'attack' ? boxOf(e, frameOf(e).hit) : null;
       if (b) g.strokeRect(X(b[0]) + 0.5, Y(b[3]) + 0.5, b[2] - b[0], b[3] - b[1]);
     }
     g.strokeStyle = '#ff4d4d';
@@ -462,7 +578,7 @@
 
   function follow(dt) {
     if (!cur) return;
-    const ry = fall ? fall.y : (cur.kind === 'fall' ? 0 : rootOf(cur)[1]);
+    const ry = stun ? stun.y : fall ? fall.y : (cur.kind === 'fall' ? 0 : rootOf(cur)[1]);
     const rx = fall || cur.kind === 'fall' ? 0 : rootOf(cur)[0];
     const ease = 1 - Math.exp(-dt / 70);
     camX += (x + rx - camX) * ease;
@@ -533,10 +649,11 @@
     if (killsEl) killsEl.textContent = `Kills ${kills}`;
     for (const b of BUTTONS) chips[b].classList.toggle('on', isDown.has(b));
     const id = cur ? cur.id : '';
-    const label = fall || (cur && (cur.kind === 'fall' || cur.kind === 'land')) ? 'falling' : id;
+    const label = stun ? 'stunned' : fall || (cur && (cur.kind === 'fall' || cur.kind === 'land')) ? 'falling' : id;
     if (label !== lastShown) {
       lastShown = label;
-      nowEl.innerHTML = label === 'falling' ? 'Landing' : `${D.moves[id].title}<small>${D.moves[id].input}</small>`;
+      nowEl.innerHTML = label === 'stunned' ? 'Stunned' : label === 'falling' ? 'Landing'
+        : `${D.moves[id].title}<small>${D.moves[id].input}</small>`;
       for (const trs of Object.values(rows)) for (const tr of trs) tr.classList.remove('playing');
       for (const tr of rows[id] || []) tr.classList.add('playing');
     }
@@ -556,6 +673,7 @@
     if (cur && cur.kind === 'action' && !hitQ.length) queueHit();   // the frame still on screen
     stepEnemies(dt);
     resolveHits();
+    enemyAttacks();
     follow(dt);
     draw();
     hud();
@@ -575,8 +693,11 @@
   window.bibooGame = {
     started, current: () => cur && { id: cur.id, k: cur.k, kind: cur.kind, y: fall ? fall.y : rootOf(cur)[1], air: !!cur.air }, x: () => x,
     playerX: () => playerX(),
-    enemies: () => enemies.map(e => ({ type: e.type, x: e.x, face: e.face, state: e.state, anim: e.anim })),
+    enemies: () => enemies.map(e => ({ type: e.type, x: e.x, face: e.face, state: e.state, anim: e.anim,
+                                       tint: e.tint && clock < e.tint.until ? e.tint.color : null })),
     kills: () => kills,
+    combat: () => ({ stun: !!stun, hits, blocks, parries, tint: tint && clock < tint.until ? tint.color : null }),
+    setRespawn: on => { respawnOn = on; },
     attack: (i, anim) => { const e = enemies[i]; e.state = 'attack'; play(e, anim); },
     // test setup: clear the field and place enemies at distances from her anchor
     setEnemies: list => {
