@@ -395,6 +395,15 @@ Framework: `swingkit/moves/base.py` (pose specs, tween, reach fitting), `swingki
 - Result: All 13 combos built from the basic moves plus new effects (`movefx`: energy glitter and glow, aura, burst ring, afterimages, speed lines, ring smear with mirrored turn frames, energy crescent projectile, earthquake cracks, rocks and dust on an unclipped ground layer, meteors). Jump crash and earthquake reuse the heavy attack's impact pose and black-and-white frame.
 - Signed off: Claude, 2026-09-28
 
+### Step 32. Heavy and crash impact effects, blue charge indicator (user request, 2026-09-29)
+- [ ] Max turns blue once the Up charge is complete (2 s).
+- [ ] Crash: the full dust cloud animation (mound, particles, fade) plays after every crash, like the heavy chop's.
+- [ ] Full heavy chop and full crash: dust cloud, black-and-white impact frame and ground shake all show clearly.
+- [ ] Short charge or low crash: dust cloud only, no impact frame, no shake.
+- Status: IN PROGRESS (Claude, 2026-09-29)
+- Result:
+- Signed off:
+
 ## Open questions
 - Ready is now Plow (blade 27 degrees up, hands at the hip). The dip (blade -6, hands at chest) and recover2 (blade 0) still match the old ready pose, so they jump. Re-pose them to lead into and out of Plow? (asked 2026-09-28)
 
