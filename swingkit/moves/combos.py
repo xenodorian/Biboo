@@ -139,7 +139,7 @@ def sky_dash():
 def spin_attack():
     wind = dict(bs.SLASH_WIND)
     hit = dict(bs.SLASH_HIT)
-    return Move('spin_attack', 'Spin attack', 'Left-Right-A', 'combo', [
+    return Move('spin_attack', 'Spin attack', 'Left+A', 'combo', [
         dict(wind, name='wind', ms=90),
         dict(hit, name='turn1', ms=50, flip=True, active=True, fx=[('spin', dict(width=0.25))]),
         dict(hit, name='turn2', ms=50, active=True, shake=(1, 0), fx=[('spin', dict(width=0.45))]),

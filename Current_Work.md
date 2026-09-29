@@ -434,9 +434,12 @@ python playwright + Chromium is installed, so a python probe works too).
 
 
 ### Step 36. Left+A is the spin attack; remove the forward slash and left hop
-- [ ] Remove the `Left+A` binding and the `backstep_upswing` move (`swingkit/moves/basic.py` `left_a`, `webexport.ARC`, tests, README, docs gif).
-- [ ] `spin_attack` input becomes `Left+A` (was `Left-Right-A`); it hits enemies in front of her and behind her (mirrored hit shapes, or `both` flag in `queueHit`).
-- Status: TODO
+- [x] Remove the `Left+A` binding and the `backstep_upswing` move (`swingkit/moves/basic.py` `left_a`, `webexport.ARC`, tests, README, docs gif).
+- [x] `spin_attack` input becomes `Left+A` (was `Left-Right-A`); it hits enemies in front of her and behind her (mirrored hit shapes, or `both` flag in `queueHit`).
+- Status: DONE
+- Result: `Left+A` is `spin_attack` (`game/input_map.json`); `backstep_upswing` and its binding, code, gif and tests are gone (28 moves). `BOTH_SIDES` in `web/game.js` queues a mirrored copy of every spin hit shape, so it cuts in front and behind. `Left-Right-A` is now unbound (step 37 makes it the cloud beam). All tests pass.
+- Signed off: Claude, 2026-09-29
+
 
 ### Step 37. Beam attacks
 - [ ] Beam art: `swingkit/beams.py` cuts the four beams from `data/beams_src/` (kinds cloud, fire, laser, plasma), transparent, one seamless tile each, into `web/assets/beams/`. Started: it runs and writes tiles; the `cloud` tile does not repeat cleanly (repeat error 30.9 vs about 1 for the others), so fix its period. Look at the tiles before using them. Export the tile list in `data.js` (`beams`).
@@ -455,6 +458,7 @@ python playwright + Chromium is installed, so a python probe works too).
 - Ready is now Plow (blade 27 degrees up, hands at the hip). The dip (blade -6, hands at chest) and recover2 (blade 0) still match the old ready pose, so they jump. Re-pose them to lead into and out of Plow? (asked 2026-09-28)
 
 ## Log
+- 2026-09-29: Step 36 done (spin on Left+A, back-hop upswing removed). Next: step 37 beams, then 38 HP. (Claude)
 - 2026-09-29: Step 35 done (facing flip). Next: step 36 (spin on Left+A, remove the back-hop upswing), then 37 beams, 38 HP. (Claude)
 - 2026-09-29: Handoff plan for steps 35 to 38 (facing, spin remap, beams, HP) written above; step 37 beam art started in `swingkit/beams.py`. (Claude)
 - 2026-09-29: Step 32 (user request): blue charge indicator, crash dust cloud, full-impact shake and longer impact frame; short charge and low crash keep the cloud only. The crash threshold is still two body lengths (164 px), the user said two head heights (52 px); one constant, `CRASH_HIGH` in `web/game.js`. (Claude)

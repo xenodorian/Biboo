@@ -92,7 +92,7 @@ const shots = process.argv[2];
     ['hold Up + A -> heavy', 'heavy', async () => { await down('Up'); await wait(800); await tap('A'); await up('Up'); }],
     ['Right+A -> thrust', 'thrust', chord(['A'], ['Right'])],
     ['Down+A -> upswing', 'upswing', chord(['A'], ['Down'])],
-    ['Left+A -> backstep_upswing', 'backstep_upswing', chord(['A'], ['Left'])],
+    ['Left+A -> spin_attack', 'spin_attack', chord(['A'], ['Left'])],
     ['A+B -> energy_slash', 'energy_slash', chord(['A', 'B'])],
     ['hold B + tap A -> energy_slash', 'energy_slash', async () => { await down('B'); await wait(600); await tap('A'); await wait(60); await up('B'); }],
     ['B+L -> heavy_kick', 'heavy_kick', chord(['B', 'L'])],
@@ -103,7 +103,6 @@ const shots = process.argv[2];
     ['X+A -> dash_thrust', 'dash_thrust', chord(['X', 'A'])],
     ['Down-Y -> sky_dash', 'sky_dash', seq(['Down', 'Y'])],
     ['hold Down + Y -> sky_dash', 'sky_dash', async () => { await down('Down'); await wait(800); await tap('Y'); await up('Down'); }],
-    ['Left-Right-A -> spin_attack', 'spin_attack', seq(['Left', 'Right', 'A'])],
     ['tap B, then X+A -> energy_dash_thrust', 'energy_dash_thrust', async () => { await tap('B', 50); await wait(80); await chord(['X', 'A'])(); }],
     ['hold B, then X+A -> energy_dash_thrust', 'energy_dash_thrust', async () => { await down('B'); await wait(600); await chord(['X', 'A'])(); await up('B'); }],
     ['Down-Right-A-B -> energy_wave', 'energy_wave', seq(['Down', 'Right', 'A', 'B'])],
@@ -158,6 +157,7 @@ const shots = process.argv[2];
   const faceLeft = async () => { await tap('Left', 120); await wait(400); };
   await fight('facing left: slash kills an orc on her left', [['orc', -100, 3000]], async () => { await faceLeft(); await tap('A'); }, 1);
   await fight('facing left: slash does not hit an orc behind her', [['orc', 60, 3000]], async () => { await faceLeft(); await tap('A'); }, 0);
+  await fight('Left+A spin attack kills enemies in front and behind', [['orc', 85, 3000], ['goblin', -85, 3000]], chord(['A'], ['Left']), 2);
   await fight('slash misses a far orc', [['orc', 400, 3000]], async () => tap('A'), 0);
   await fight('taunt kills nothing', [['orc', 95, 3000]], chord(['X', 'Y']), 0);
   await fight('parry kills nothing', [['orc', 95, 3000]], async () => tap('B', 60), 0);
@@ -350,7 +350,7 @@ const shots = process.argv[2];
   }
 
   // controller: a held d-pad direction still counts when a face button is pressed
-  for (const [d, bt, want] of [[15, 0, 'thrust'], [13, 0, 'upswing'], [14, 0, 'backstep_upswing'], [13, 3, 'sky_dash']]) {
+  for (const [d, bt, want] of [[15, 0, 'thrust'], [13, 0, 'upswing'], [14, 0, 'spin_attack'], [13, 3, 'sky_dash']]) {
     await settle();
     const n = await startedCount();
     await page.evaluate(d => { window.__pad.buttons[d] = { pressed: true, value: 1 }; }, d); await wait(300);

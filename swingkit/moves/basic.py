@@ -1,4 +1,4 @@
-"""Basic attacks: A, Right+A, Down+A, Left+A, L, R."""
+"""Basic attacks: A, Right+A, Down+A, L, R."""
 import numpy as np
 
 from .. import rig
@@ -80,20 +80,6 @@ def down_a():
     ], notes='medium range; active frames 3-4; frames 1-2 are low (duck under high attacks)')
 
 
-# Left+A: upswing while hopping back to gain distance.
-def left_a():
-    tuck = dict(front=(-3, -6), rear=(3, -6))
-    return Move('backstep_upswing', 'Upswing with a back hop', 'Left+A', 'basic', [
-        pose(name='set', ms=70, theta=-16, hand=(42.0, 42.0), gap=14, **LOWF, hip=(0, 3), bend=8, lean=1),
-        dict(UP_HIT, name='rise', ms=60, root=(-14, 10), **tuck, active=True, hair=(3, -2), cloth=(-1, 2, 1),
-             fx=[('arc', dict(frm='set', s0=0.3)), ('dust', dict(foot='both', t=0.0))]),
-        dict(UP_FOLLOW, name='float', ms=90, root=(-28, 13), **tuck, hair=(3, 0), cloth=(2, 2, 1)),
-        pose(name='land', ms=90, root=(-36, 0), hip=(0, 5), bend=6, theta=40, hand=(39.0, 36.0), hair=(-1, 2),
-             cloth=(-1, 0, 2), fx=[('dust', dict(foot='both', t=0.3))]),
-        pose(name='plow', ms=120, root=(-36, 0), fx=[('dust', dict(foot='both', t=1.6))]),
-    ], notes='hops 36 px back; active frame 2')
-
-
 # L: push kick (teep). One cock frame: the kicking knee comes up and the foot draws back while the
 # sword goes up into the high guard, out of the kick's way. Then the kicking leg drives out straight
 # and she slides forward until the boot passes the point where the blade tip was in the guard, so
@@ -166,4 +152,4 @@ def recover():
     ] + loop, loop=True, loop_from=2, input_type='hold', notes='loops frames 3-5 while R is held')
 
 
-ALL = [slash, thrust, down_a, left_a, push_kick, recover]
+ALL = [slash, thrust, down_a, push_kick, recover]

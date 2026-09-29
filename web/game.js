@@ -311,10 +311,14 @@
     }
   }
 
+  const BOTH_SIDES = new Set(['spin_attack']);
   function queueHit() {
     const f = D.moves[cur.id].frames[cur.k];
     const r = rootOf(cur);
-    if (f.hits) hitQ.push({ f, px: x + r[0], py: r[1], face: cur.face });
+    if (f.hits) {
+      hitQ.push({ f, px: x + r[0], py: r[1], face: cur.face });
+      if (BOTH_SIDES.has(cur.id)) hitQ.push({ f, px: x + r[0], py: r[1], face: -cur.face });   // the spin also cuts behind her
+    }
   }
 
   // ------------------------------------------------------------------ enemies

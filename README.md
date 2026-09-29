@@ -108,7 +108,6 @@ sequence) with chord, sequence and tap windows. Previews of every move are in `d
 | Up-A | heavy | The main chop animation above; tap Up then A, or hold Up and press A |
 | Right+A | thrust | Lunging thrust, 18 px forward |
 | Down+A | upswing | Duck, then rising cut |
-| Left+A | backstep_upswing | Rising cut while hopping 36 px back |
 | L | push_kick | One cock-back frame with the sword raised out of the way, then a straight-leg push that slides her 49 px so the boot passes where the blade tip was; recoil |
 | R (hold) | recover | Kneel on the planted sword, green glow, rising + signs |
 | A+B | energy_slash | Slash with glittering blue energy; press A and B together, or hold B and tap A |
@@ -118,7 +117,7 @@ sequence) with chord, sequence and tap windows. Previews of every move are in `d
 | X+A | dash_thrust | Blurred dash into the thrust |
 | A (in the air) | jump_crash | Crash down into the heavy impact from wherever she is in the air (a jump, or falling after the sky dash); no second jump |
 | Down-Y | sky_dash | Rises 6 body lengths (492 px); tap Down then Y, or hold Down and press Y |
-| Left-Right-A | spin_attack | Two turns with a ring smear |
+| Left+A | spin_attack | Two turns with a ring smear; hits enemies in front of her and behind her |
 | B-X+A | energy_dash_thrust | Dash thrust with blue energy; tap or hold B, then press X and A together |
 | Down-Right-A-B | energy_wave | Upswing that launches a large energy crescent |
 | Down x4, A | earthquake | Slam, cracks and rocks along the ground, heavy shake |

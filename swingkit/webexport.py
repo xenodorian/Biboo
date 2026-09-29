@@ -37,7 +37,7 @@ SWEEP_REACH, SWEEP_HEIGHT = 100, 90          # px ahead of her anchor, px up
 # upswings: the blade swings from behind her, under and up through the front between the wind-up
 # frame and the first hit frame, where it already points up over an enemy's head. That frame also
 # hits along the arc (blade positions every 15 degrees, turning counter-clockwise, y up).
-ARC = {'upswing', 'backstep_upswing'}
+ARC = {'upswing'}
 
 
 def _arc(prev, fr):
