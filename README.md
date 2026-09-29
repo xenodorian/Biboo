@@ -98,7 +98,7 @@ sequence) with chord, sequence and tap windows. Previews of every move are in `d
 | Input | Move | Notes |
 |---|---|---|
 | none | idle | Plow guard, breathing loop |
-| Right / Left (hold) | walk_right / walk_left | Shuffle steps in guard, 10 px per cycle |
+| Right / Left (hold) | walk_right / walk_left | Shuffle steps in guard, 10 px per cycle. In the game, pressing Left turns Max to face left (her art, attacks and motion mirror) and Right turns her back; both walk with the forward walk |
 | Down (hold) | duck | Crouch, holds |
 | Up (hold) | charge | Rises into the high guard, blue aura loop; press A for the heavy chop |
 | B hold / tap | block / parry | Upright sword; tap gives a spark parry window |

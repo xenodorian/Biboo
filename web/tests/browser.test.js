@@ -56,16 +56,19 @@ const shots = process.argv[2];
   const check = (name, ok, detail) => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : '  ' + detail}`); };
 
   // holds: the move loops while the button is down
-  for (const [b, want] of [['Right', 'walk_right'], ['Left', 'walk_left'], ['Down', 'duck'], ['Up', 'charge'], ['B', 'block'], ['R', 'recover']]) {
+  for (const [b, want] of [['Right', 'walk_right'], ['Left', 'walk_right'], ['Down', 'duck'], ['Up', 'charge'], ['B', 'block'], ['R', 'recover']]) {
     await settle();
     const n = await startedCount();
     await down(b); await wait(700);
     const c = await cur();
     await shot('hold_' + want);
+    const fc = await page.evaluate(() => window.bibooGame.facing());
     await up(b);
     await wait(50);
     const after = await startedSince(n);
     check(`hold ${b} -> ${want}`, c && c.id === want, `current ${JSON.stringify(c)}`);
+    if (b === 'Left') check('Left turns her to face left', fc === -1, `facing ${fc}`);
+    if (b === 'Right') check('Right faces her right', fc === 1, `facing ${fc}`);
     if (b === 'Up') check('releasing a charge starts nothing', after.length === 0, `started ${after}`);
   }
 
@@ -152,7 +155,9 @@ const shots = process.argv[2];
   await fight('energy burst kills both sides', [['orc', 80, 3000], ['goblin', -40, 3000]], chord(['L', 'R']), 2);
   await fight('Down+A upswing kills an orc in front', [['orc', 90, 3000]], chord(['A'], ['Down']), 1);
   await fight('Down+A upswing kills a goblin in front', [['goblin', 95, 3000]], chord(['A'], ['Down']), 1);
-  await fight('Left+A backstep upswing kills an orc in front', [['orc', 90, 3000]], chord(['A'], ['Left']), 1);
+  const faceLeft = async () => { await tap('Left', 120); await wait(400); };
+  await fight('facing left: slash kills an orc on her left', [['orc', -100, 3000]], async () => { await faceLeft(); await tap('A'); }, 1);
+  await fight('facing left: slash does not hit an orc behind her', [['orc', 60, 3000]], async () => { await faceLeft(); await tap('A'); }, 0);
   await fight('slash misses a far orc', [['orc', 400, 3000]], async () => tap('A'), 0);
   await fight('taunt kills nothing', [['orc', 95, 3000]], chord(['X', 'Y']), 0);
   await fight('parry kills nothing', [['orc', 95, 3000]], async () => tap('B', 60), 0);
@@ -340,7 +345,7 @@ const shots = process.argv[2];
     await up('Left');
     const o2 = (await E())[0];
     const OH2 = await page.evaluate(() => window.BIBOO.enemies.orc.frames[0].hurt[2]);
-    check('walking left stops at an orc behind her', p1 + 10 >= o2.x + OH2 - 1 && p1 + 10 <= o2.x + OH2 + 30 && p1 < p0, `her back ${p1 + 10}, orc right edge ${o2.x + OH2}`);
+    check('walking left stops at an orc on her left', p1 - 60 >= o2.x + OH2 - 1 && p1 - 60 <= o2.x + OH2 + 30 && p1 < p0, `her front ${p1 - 60}, orc right edge ${o2.x + OH2}`);
     await page.evaluate(() => window.bibooGame.setEnemies([]));
   }
 
@@ -393,7 +398,7 @@ const shots = process.argv[2];
   await padCase('pad d-pad right held -> walk_right', 'walk_right', async () => {
     await page.evaluate(() => { window.__pad.buttons[15] = { pressed: true, value: 1 }; }); await wait(400);
     const c = await cur(); await page.evaluate(() => { window.__pad.buttons[15] = { pressed: false, value: 0 }; }); return c; });
-  await padCase('pad left stick left -> walk_left', 'walk_left', async () => {
+  await padCase('pad left stick left -> walk_right (facing left)', 'walk_right', async () => {
     await page.evaluate(() => { window.__pad.axes[0] = -1; }); await wait(400);
     const c = await cur(); await page.evaluate(() => { window.__pad.axes[0] = 0; }); return c; });
   await padCase('non-standard pad: hat axis 7 down -> duck', 'duck', async () => {

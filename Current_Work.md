@@ -423,12 +423,15 @@ best option without asking the user. Build with `python -m swingkit --web`, chec
 python playwright + Chromium is installed, so a python probe works too).
 
 ### Step 35. Left flips Max (facing)
-- [ ] `facing` (+1 right, -1 left) in `web/game.js`: pressing Left faces left, pressing Right faces right. Every `cur` carries `face`.
-- [ ] `rootOf()` returns world x already multiplied by `cur.face`; the walking loop offsets, `queueHit`, `playerX`, `airCrash`, `finishAction`, `knocked`, `follow`, `draw` all follow.
-- [ ] Left held walks left facing left with the forward walk (`walk_right` art mirrored); the retreat `walk_left` art is no longer used. Hold-state restart when facing changes.
-- [ ] Mirror the sprite about her anchor, her hit shapes (`worldShape`), the black-and-white impact frame, her hurtbox (`HURT`, `BODY`) and enemy attack contact.
-- [ ] Some respawns come in from the left edge so facing left matters (`respawns` entries get a side).
-- Status: TODO
+- [x] `facing` (+1 right, -1 left) in `web/game.js`: pressing Left faces left, pressing Right faces right. Every `cur` carries `face`.
+- [x] `rootOf()` returns world x already multiplied by `cur.face`; the walking loop offsets, `queueHit`, `playerX`, `airCrash`, `finishAction`, `knocked`, `follow`, `draw` all follow.
+- [x] Left held walks left facing left with the forward walk (`walk_right` art mirrored); the retreat `walk_left` art is no longer used. Hold-state restart when facing changes.
+- [x] Mirror the sprite about her anchor, her hit shapes (`worldShape`), the black-and-white impact frame, her hurtbox (`HURT`, `BODY`) and enemy attack contact.
+- [x] Some respawns come in from the left edge so facing left matters (`respawns` entries get a side).
+- Status: DONE
+- Result: `facing` in `web/game.js`; each move keeps the `face` it started with, `rootOf` returns world x. Sprite, hit shapes, hurtbox, impact frame mirrored; the camera leads 192 px the way she faces; half the respawns enter from the left. Browser tests updated (walk_left is now walk_right facing left; facing reset in `setEnemies`); 102/102 browser and 43/43 input tests pass.
+- Signed off: Claude, 2026-09-29
+
 
 ### Step 36. Left+A is the spin attack; remove the forward slash and left hop
 - [ ] Remove the `Left+A` binding and the `backstep_upswing` move (`swingkit/moves/basic.py` `left_a`, `webexport.ARC`, tests, README, docs gif).
@@ -452,6 +455,7 @@ python playwright + Chromium is installed, so a python probe works too).
 - Ready is now Plow (blade 27 degrees up, hands at the hip). The dip (blade -6, hands at chest) and recover2 (blade 0) still match the old ready pose, so they jump. Re-pose them to lead into and out of Plow? (asked 2026-09-28)
 
 ## Log
+- 2026-09-29: Step 35 done (facing flip). Next: step 36 (spin on Left+A, remove the back-hop upswing), then 37 beams, 38 HP. (Claude)
 - 2026-09-29: Handoff plan for steps 35 to 38 (facing, spin remap, beams, HP) written above; step 37 beam art started in `swingkit/beams.py`. (Claude)
 - 2026-09-29: Step 32 (user request): blue charge indicator, crash dust cloud, full-impact shake and longer impact frame; short charge and low crash keep the cloud only. The crash threshold is still two body lengths (164 px), the user said two head heights (52 px); one constant, `CRASH_HIGH` in `web/game.js`. (Claude)
 - 2026-09-28: Before/after check of the review fixes (user request). The spaced-out dotted afterimages were not an improvement, so afterimages are now tinted copies of the character (nearest full, older ones as scanlines); the energy-burst gather sword moved further forward to clear the head. (Claude)

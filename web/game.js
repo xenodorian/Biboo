@@ -1,6 +1,7 @@
 /* Parry Perry: the move library of Max Perry played live from the Dreamcast pad.
  *
- * World: the parallax scene from swingkit (layers tile in x). The character always faces right.
+ * World: the parallax scene from swingkit (layers tile in x). Max faces right; pressing Left turns
+ * her to face left (art, hit shapes and motion mirrored) and pressing Right turns her back.
  * Each move frame is one actor image (effects + character) placed at the character's world
  * position: start of the move + that frame's root motion (y up). Black-and-white impact frames
  * replace the whole view for their duration. Camera: follows the character in x, rises once a
@@ -140,14 +141,21 @@
     pollPad();
     for (const b of BUTTONS) {
       const now = keyDown.has(b) || padDown.has(b);
-      if (now && !isDown.has(b)) { isDown.add(b); reader.down(b, t); }
-      else if (!now && isDown.has(b)) { isDown.delete(b); reader.up(b, t); }
+      if (now && !isDown.has(b)) {
+        isDown.add(b); reader.down(b, t);
+        if (b === 'Left') facing = -1; else if (b === 'Right') facing = 1;
+      } else if (!now && isDown.has(b)) {
+        isDown.delete(b); reader.up(b, t);
+        if (b === 'Left' && isDown.has('Right')) facing = 1;        // let go of the newer one: the other still held
+        else if (b === 'Right' && isDown.has('Left')) facing = -1;
+      }
     }
   }
 
   // ------------------------------------------------------------------ state
   // cur: {id, k: frame index, t: ms into the frame, base: [x, y] where the move started, kind}
   let cur = null, queued = null, x = 0, camX = 0, camY = 0;
+  let facing = 1, camLead = 0;          // facing: 1 right, -1 left (each move keeps the one it started with)
   let fall = null;                      // {y, v}: coming back down after a move that ends in the air
   let rumble = null;                    // {t0, ms, amp}: shake that outlasts a move (the earthquake)
   let clock = 0;
@@ -164,8 +172,8 @@
 
   // root motion of frame k; the crash started in the air is scaled to begin at her height
   function rootOf(c, k = c.k) {
-    const r = D.moves[c.id].frames[k].root;
-    return c.air ? [r[0] - c.air.x0, r[1] * c.air.s] : r;
+    const r = D.moves[c.id].frames[k].root, s = c.face || 1;
+    return c.air ? [s * (r[0] - c.air.x0), r[1] * c.air.s] : [s * r[0], r[1]];
   }
   function airborne() {
     if (fall || (cur && cur.kind === 'fall')) return true;
@@ -178,7 +186,7 @@
     fall = null; queued = null;
     const m = D.moves.jump_crash, k0 = m.frames.findIndex(f => f.name === 'apex');
     const a = m.frames[k0].root;
-    cur = { id: 'jump_crash', k: k0, t: 0, kind: 'action', from: x, air: { x0: a[0], s: h / a[1] }, lite: h <= CRASH_HIGH, height: h };
+    cur = { id: 'jump_crash', k: k0, t: 0, kind: 'action', from: x, face: facing, air: { x0: a[0], s: h / a[1] }, lite: h <= CRASH_HIGH, height: h };
     started.push({ id: 'jump_crash', via: via || 'air' });
     logMove('jump_crash', 'air');
     queueHit();
@@ -219,7 +227,7 @@
     const charged = cur && cur.id === 'charge' ? clock - chargeT0 : 0;
     if (id === 'charge' && !(cur && cur.id === 'charge')) chargeT0 = clock;
     if (cur) x += rootOf(cur)[0];       // keep the ground covered so far; height resets
-    cur = { id, k: k0, t: 0, kind, from: x };
+    cur = { id, k: k0, t: 0, kind, from: x, face: facing };
     if (id === 'heavy') { cur.lite = charged < FULL_CHARGE; cur.charged = charged; }
     if (kind === 'action') queueHit();
     if (kind === 'action' || kind === 'land') {
@@ -249,7 +257,7 @@
     if (end[1] > 0) {                                            // ended in the air: fall back down
       x += end[0];
       fall = { y: end[1], v: 0 };
-      cur = { id: 'jump', k: FALL_K, t: 0, kind: 'fall' };
+      cur = { id: 'jump', k: FALL_K, t: 0, kind: 'fall', face: cur.face };
       return;
     }
     x += end[0];
@@ -258,9 +266,11 @@
     else holdState(t);
   }
 
+  // Left and Right both walk with the forward walk; which way she goes and faces is `facing`
+  const holdId = id => id === 'walk_left' ? 'walk_right' : id;
   function holdState(t) {
-    const want = reader.holdMove(t);
-    if (!cur || cur.id !== want) start(want, 'hold');
+    const want = holdId(reader.holdMove(t));
+    if (!cur || cur.id !== want || cur.face !== facing) start(want, 'hold');
   }
 
   // a light heavy chop or crash passes straight over its black-and-white frame
@@ -276,13 +286,13 @@
     if (fall) {                                                  // simple gravity, px/ms^2
       fall.v += 0.0018 * dt;
       fall.y -= fall.v * dt;
-      if (fall.y <= 0) { fall = null; cur = { id: 'jump', k: LAND_K, t: 0, kind: 'land' }; }
+      if (fall.y <= 0) { fall = null; cur = { id: 'jump', k: LAND_K, t: 0, kind: 'land', face: cur ? cur.face : facing }; }
       return;
     }
     if (!cur) holdState(t);
     if (cur.kind === 'hold') {
-      const want = reader.holdMove(t);
-      if (want !== cur.id) { start(want, 'hold'); }
+      const want = holdId(reader.holdMove(t));
+      if (want !== cur.id || cur.face !== facing) { start(want, 'hold'); }
     }
     const m = D.moves[cur.id];
     cur.t += dt;
@@ -295,7 +305,7 @@
       if (m.loop) {                                              // next cycle carries on from here
         const r = m.frames.map(f => f.root[0]);
         const n = r.length;
-        x += r[n - 1] + (n > 1 ? r[n - 1] - r[n - 2] : 0) - r[m.loopFrom];
+        x += cur.face * (r[n - 1] + (n > 1 ? r[n - 1] - r[n - 2] : 0) - r[m.loopFrom]);
         cur.k = m.loopFrom;
       } else cur.k = m.frames.length - 1;
     }
@@ -304,7 +314,7 @@
   function queueHit() {
     const f = D.moves[cur.id].frames[cur.k];
     const r = rootOf(cur);
-    if (f.hits) hitQ.push({ f, px: x + r[0], py: r[1] });
+    if (f.hits) hitQ.push({ f, px: x + r[0], py: r[1], face: cur.face });
   }
 
   // ------------------------------------------------------------------ enemies
@@ -345,7 +355,7 @@
     const death = EN[e.type].ai.death;
     if (death) play(e, death);
     kills++;
-    respawns.push({ type: e.type, at: clock + 2 * (DIE_MS + 1200) });
+    respawns.push({ type: e.type, at: clock + 2 * (DIE_MS + 1200), side: Math.random() < 0.5 ? -1 : 1 });
   }
 
   function stepEnemy(e, dt) {
@@ -367,7 +377,7 @@
       e.state = 'idle'; e.rest = ai.rest[0]; play(e, 'idle');
       return;
     }
-    const d = playerX() + BODY - e.x, dist = Math.abs(d);
+    const d = bodyX() - e.x, dist = Math.abs(d);
     // wait behind another enemy that is already closer to her
     const blocked = enemies.some(o => o !== e && alive(o) && Math.sign(o.x - e.x) === Math.sign(d)
                                       && Math.abs(o.x - e.x) < 40);
@@ -404,7 +414,7 @@
     return Math.hypot(dx, dy);
   }
   function worldShape(s, h) {
-    const P = p => [h.px + p[0], h.py + p[1]];
+    const P = p => [h.px + h.face * p[0], h.py + p[1]];
     if (s.shape === 'capsule') return { shape: 'capsule', a: P(s.a), b: P(s.b), r: s.radius };
     if (s.shape === 'circle') return { shape: 'circle', c: P(s.c), r: s.r };
     const a = P(s.a), b = P(s.b);
@@ -445,7 +455,12 @@
   }
   const RED = '#ff2b2b', WHITE = '#ffffff';
   function herY() { return stun ? stun.y : fall ? fall.y : (cur && cur.kind !== 'fall' ? rootOf(cur)[1] : 0); }
-  function herBox() { const px = playerX(), py = herY(); return [px + HURT[0], py + HURT[1], px + HURT[2], py + herTop()]; }
+  const hf = () => cur ? cur.face : facing;
+  const bodyX = () => playerX() + hf() * BODY;         // her body centre
+  function herBox() {
+    const px = playerX(), py = herY(), f = hf();
+    return [px + Math.min(f * HURT[0], f * HURT[2]), py + HURT[1], px + Math.max(f * HURT[0], f * HURT[2]), py + herTop()];
+  }
   function boxOf(e, h) {
     if (!h) return null;
     return e.face < 0 ? [e.base + h[0], h[1], e.base + h[2], h[3]] : [e.base - h[2], h[1], e.base - h[0], h[3]];
@@ -462,24 +477,24 @@
     e.hitDone = true;
     e.state = 'stunned';
     play(e, T.ai.stun || 'idle');
-    e.push = { v: p.v * (e.x >= playerX() + BODY ? 1 : -1), a: p.a };
+    e.push = { v: p.v * (e.x >= bodyX() ? 1 : -1), a: p.a };
     e.tint = { color: WHITE, alpha: 0.75, until: clock + ms };
     parries++;
   }
   function knocked(e) {                 // a clean hit: red, pushed away from the enemy, stunned
     const [d, ms] = EN[e.type].ai.knock, p = push(d, ms);
-    const dir = playerX() + BODY >= e.x ? 1 : -1;
+    const dir = bodyX() >= e.x ? 1 : -1;
     const y = herY();
     if (cur && !fall && cur.kind !== 'fall') x += rootOf(cur)[0];
     fall = null; queued = null; slide = null;
     stun = { v: p.v * dir, a: p.a, y, vy: 0 };
-    cur = { id: 'heavy', k: HIGH_K, t: 0, kind: 'stun', from: x };
+    cur = { id: 'heavy', k: HIGH_K, t: 0, kind: 'stun', from: x, face: cur ? cur.face : facing };
     tint = { color: RED, alpha: 0.6, until: clock + ms };
     invuln = clock + ms + 400;
     hits++;
   }
   function blocked(e) {                 // white, a small slide back, no stun
-    const dir = playerX() + BODY >= e.x ? 1 : -1, p = push(8, 120);
+    const dir = bodyX() >= e.x ? 1 : -1, p = push(8, 120);
     slide = { v: p.v * dir, a: p.a };
     tint = { color: WHITE, alpha: 0.75, until: clock + 150 };
     blocks++;
@@ -529,13 +544,14 @@
   const BLOCKED = new Set(['dash', 'walk_right', 'walk_left']);
   function blockMove(before) {
     if (!cur || !BLOCKED.has(cur.id) || before === null) return;
+    const f = cur.face, a = Math.min(f * HURT[0], f * HURT[2]), b = Math.max(f * HURT[0], f * HURT[2]);   // her body: [px + a, px + b]
     const px = playerX();
     let front = Infinity, back = -Infinity;
     for (const e of enemies) {
-      const b = hurtOf(e);
-      if (!b) continue;
-      if (b[0] >= before + HURT[2] - 1) front = Math.min(front, b[0] - HURT[2]);       // ahead of her
-      else if (b[2] <= before + HURT[0] + 1) back = Math.max(back, b[2] - HURT[0]);   // behind her
+      const bx = hurtOf(e);
+      if (!bx) continue;
+      if (bx[0] >= before + b - 1) front = Math.min(front, bx[0] - b);       // to her right
+      else if (bx[2] <= before + a + 1) back = Math.max(back, bx[2] - a);    // to her left
     }
     if (px > front) x -= px - front;
     else if (px < back) x += back - px;
@@ -547,7 +563,7 @@
     if (!respawnOn) respawns.length = 0;
     for (let i = respawns.length - 1; i >= 0; i--) {
       if (clock < respawns[i].at) continue;
-      spawn(respawns[i].type, camX + V.w - V.anchorX + 40);   // just past the right edge of the view
+      spawn(respawns[i].type, respawns[i].side < 0 ? camX - V.anchorX - 40 : camX + V.w - V.anchorX + 40);   // just past an edge of the view
       respawns.splice(i, 1);
     }
   }
@@ -582,7 +598,12 @@
     const targetY = Math.max(0, ry - 30);
     if (f.bw && cur.kind === 'action') {                         // impact frame: the whole view
       camX = px; camY = targetY;
-      g.drawImage(img[f.bw].im, 0, 0);
+      if (cur.face < 0) {                                        // mirrored about her anchor, black beyond it
+        g.fillStyle = '#000'; g.fillRect(0, 0, V.w, V.h);
+        g.save(); g.translate(V.anchorX * 2, 0); g.scale(-1, 1);
+        g.drawImage(img[f.bw].im, 0, 0); g.drawImage(img[f.bw].im, V.w, 0);
+        g.restore();
+      } else g.drawImage(img[f.bw].im, 0, 0);
       return;
     }
     for (const l of D.layers) drawLayer(img[l.src].im, -camX * l.parallax + sx * l.shake, camY * l.parallax + sy * l.shake);
@@ -591,7 +612,11 @@
     const ax = V.anchorX + (px - camX) + sx;
     const ay = V.feetRow - (ry - camY) + sy;
     const tc = tint && clock < tint.until ? tint : (isCharged() ? CHARGED_TINT : null);
-    blit(img[m.sheet].im, cur.k * cw, cw, ch, Math.round(ax - m.anchor[0]), Math.round(ay - m.anchor[1]), tc);
+    g.save();
+    g.translate(Math.round(ax), Math.round(ay - m.anchor[1]));
+    if (cur.face < 0) g.scale(-1, 1);                            // the art faces right; mirror to face left
+    blit(img[m.sheet].im, cur.k * cw, cw, ch, -m.anchor[0], 0, tc);
+    g.restore();
     drawLayer(img[D.fringe.src].im, -camX + sx, camY + sy);
     if (showBoxes) drawBoxes(sx, sy);
   }
@@ -668,7 +693,8 @@
     const ry = stun ? stun.y : fall ? fall.y : (cur.kind === 'fall' ? 0 : rootOf(cur)[1]);
     const rx = fall || cur.kind === 'fall' ? 0 : rootOf(cur)[0];
     const ease = 1 - Math.exp(-dt / 70);
-    camX += (x + rx - camX) * ease;
+    camLead += ((cur.face < 0 ? 192 : 0) - camLead) * (1 - Math.exp(-dt / 160));
+    camX += (x + rx - camLead - camX) * ease;
     camY += (Math.max(0, ry - 30) - camY) * ease;
   }
 
@@ -780,6 +806,7 @@
   canvas.addEventListener('pointerdown', () => canvas.focus());
   // read-only hooks for the browser test
   window.bibooGame = {
+    facing: () => cur ? cur.face : facing,
     started, current: () => cur && { id: cur.id, k: cur.k, kind: cur.kind, y: fall ? fall.y : rootOf(cur)[1], air: !!cur.air }, x: () => x,
     playerX: () => playerX(),
     enemies: () => enemies.map(e => ({ type: e.type, x: e.x, face: e.face, state: e.state, anim: e.anim,
@@ -792,7 +819,7 @@
     attack: (i, anim) => { const e = enemies[i]; e.state = 'attack'; play(e, anim); },
     // test setup: clear the field and place enemies at distances from her anchor
     setEnemies: list => {
-      enemies.length = 0; respawns.length = 0;
+      enemies.length = 0; respawns.length = 0; facing = 1;
       for (const [type, dx, rest] of list) {                  // rest: stand still this long first (ms)
         const e = spawn(type, playerX() + dx);
         if (rest) { e.state = 'idle'; e.rest = rest; play(e, 'idle'); }
