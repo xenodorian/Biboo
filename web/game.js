@@ -109,7 +109,29 @@
   const FALL_K = JUMP.frames.findIndex((f, i) => i > 0 && f.root[1] < JUMP.frames[i - 1].root[1]);
   const LAND_K = JUMP.frames.findIndex((f, i) => i > FALL_K && f.root[1] === 0);
 
-  function rootOf(c) { return D.moves[c.id].frames[c.k].root; }
+  // root motion of frame k; the crash started in the air is scaled to begin at her height
+  function rootOf(c, k = c.k) {
+    const r = D.moves[c.id].frames[k].root;
+    return c.air ? [r[0] - c.air.x0, r[1] * c.air.s] : r;
+  }
+  function airborne() {
+    if (fall || (cur && cur.kind === 'fall')) return true;
+    return !!cur && cur.kind === 'action' && cur.id !== 'jump_crash' && rootOf(cur)[1] > 0;
+  }
+  // A in the air: the crash starts at its raised-sword frame, at her current height and x
+  function airCrash(via) {
+    const h = fall ? fall.y : rootOf(cur)[1];
+    if (cur && !fall && cur.kind !== 'fall') x += rootOf(cur)[0];
+    fall = null; queued = null;
+    const m = D.moves.jump_crash, k0 = m.frames.findIndex(f => f.name === 'apex');
+    const a = m.frames[k0].root;
+    cur = { id: 'jump_crash', k: k0, t: 0, kind: 'action', from: x, air: { x0: a[0], s: h / a[1] } };
+    started.push({ id: 'jump_crash', via: via || 'air' });
+    logMove('jump_crash', 'air');
+    queueHit();
+  }
+  const AIR = D.input.bindings.filter(b => b.type === 'air');
+  const usesButton = (input, b) => input.split(/[-+]/).includes(b);
 
   // first frame of a move: some moves skip their opening, or pick up from the pose of the move
   // they interrupt (the heavy chop starts from the charge pose, not from the idle guard)
@@ -128,7 +150,7 @@
   function start(id, kind, via) {
     const k0 = entryFrame(id);
     if (cur) x += rootOf(cur)[0];       // keep the ground covered so far; height resets
-    cur = { id, k: k0, t: 0, kind };
+    cur = { id, k: k0, t: 0, kind, from: x };
     if (kind === 'action') queueHit();
     if (kind === 'action' || kind === 'land') {
       started.push({ id, via: via || kind });
@@ -138,6 +160,12 @@
 
   function request(move, via) {
     if (!D.moves[move]) return;
+    const air = AIR.find(b => usesButton(D.moves[move].input, b.input));
+    if (air) {
+      if (airborne()) { airCrash(via); return; }
+      // pressed during the jump's crouch: crash as soon as she leaves the ground
+      if (cur && cur.id === 'jump' && cur.kind === 'action') { cur.crash = true; return; }
+    }
     if (fall || (cur && cur.kind === 'land')) { queued = { move, via }; return; }
     const busy = cur && cur.kind === 'action';
     if (!busy || via !== 'press') start(move, 'action', via);   // chords, sequences, taps, releases cancel
@@ -147,7 +175,7 @@
   function finishAction(t) {
     const m = D.moves[cur.id];
     if (m.aftershake && cur.kind === 'action') rumble = { t0: clock, ms: m.aftershake.ms, amp: m.aftershake.amp };
-    const end = m.frames[m.frames.length - 1].root;
+    const end = rootOf(cur, m.frames.length - 1);
     if (end[1] > 0) {                                            // ended in the air: fall back down
       x += end[0];
       fall = { y: end[1], v: 0 };
@@ -196,7 +224,8 @@
 
   function queueHit() {
     const f = D.moves[cur.id].frames[cur.k];
-    if (f.hits) hitQ.push({ f, px: x + f.root[0], py: f.root[1] });
+    const r = rootOf(cur);
+    if (f.hits) hitQ.push({ f, px: x + r[0], py: r[1] });
   }
 
   // ------------------------------------------------------------------ enemies
@@ -318,6 +347,19 @@
   }
   let lastHits = [];
 
+  // the plain dash stops at the first enemy in front of her instead of passing through it
+  const BODY_FRONT = 60;                // px from her anchor to the front of her body in the dash
+  function blockDash() {
+    if (!cur || cur.id !== 'dash' || cur.kind !== 'action') return;
+    let lim = Infinity;
+    for (const e of enemies) {
+      const b = hurtOf(e);
+      if (b && b[0] >= cur.from + BODY_FRONT - 8) lim = Math.min(lim, b[0] - BODY_FRONT);
+    }
+    const px = x + rootOf(cur)[0];
+    if (px > lim) x -= px - lim;
+  }
+
   function stepEnemies(dt) {
     for (const e of enemies) stepEnemy(e, dt);
     for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].state === 'dying' && enemies[i].dead > DIE_MS) enemies.splice(i, 1);
@@ -344,7 +386,7 @@
     if (!cur) return;
     const m = D.moves[cur.id];
     const f = m.frames[cur.k];
-    const [rx, ry] = fall ? [0, fall.y] : (cur.kind === 'fall' ? [0, 0] : f.root);
+    const [rx, ry] = fall ? [0, fall.y] : (cur.kind === 'fall' ? [0, 0] : rootOf(cur));
     let [sx, sy] = cur.kind === 'fall' || cur.kind === 'land' ? [0, 0] : f.shake;
     if (rumble) {                                                // fading aftershock
       const e = clock - rumble.t0;
@@ -420,9 +462,8 @@
 
   function follow(dt) {
     if (!cur) return;
-    const f = D.moves[cur.id].frames[cur.k];
-    const ry = fall ? fall.y : (cur.kind === 'fall' ? 0 : f.root[1]);
-    const rx = fall || cur.kind === 'fall' ? 0 : f.root[0];
+    const ry = fall ? fall.y : (cur.kind === 'fall' ? 0 : rootOf(cur)[1]);
+    const rx = fall || cur.kind === 'fall' ? 0 : rootOf(cur)[0];
     const ease = 1 - Math.exp(-dt / 70);
     camX += (x + rx - camX) * ease;
     camY += (Math.max(0, ry - 30) - camY) * ease;
@@ -456,6 +497,7 @@
     if (b.type === 'hold') return 'hold';
     if (b.type === 'tap') return 'tap';
     if (b.type === 'press') return 'press';
+    if (b.type === 'air') return 'press while in the air (jumping or falling); crashes down from that height';
     if (b.type === 'chord') {
       const keys = b.input.split('+');
       if (b.loose) return 'together, or one after another in any order';
@@ -473,7 +515,7 @@
   for (const b of D.input.bindings) {
     const tr = document.createElement('tr');
     const m = D.moves[b.move];
-    tr.innerHTML = `<td class="pad">${b.input === 'none' ? '(nothing)' : b.input}</td><td class="keys">${keysOf(b.input)}</td>` +
+    tr.innerHTML = `<td class="pad">${b.input === 'none' ? '(nothing)' : b.input + (b.type === 'air' ? ' (air)' : '')}</td><td class="keys">${keysOf(b.input)}</td>` +
                    `<td>${m ? m.title : b.move}</td><td class="how">${how(b)}</td>`;
     table.appendChild(tr);
     (rows[b.move] = rows[b.move] || []).push(tr);
@@ -509,6 +551,8 @@
     readButtons(t);
     for (const e of reader.update(t)) request(e.move, e.via);
     step(dt, t);
+    if (cur && cur.crash && cur.id === 'jump' && rootOf(cur)[1] > 0) airCrash('air');
+    blockDash();
     if (cur && cur.kind === 'action' && !hitQ.length) queueHit();   // the frame still on screen
     stepEnemies(dt);
     resolveHits();
@@ -529,7 +573,8 @@
   canvas.addEventListener('pointerdown', () => canvas.focus());
   // read-only hooks for the browser test
   window.bibooGame = {
-    started, current: () => cur && { id: cur.id, k: cur.k, kind: cur.kind }, x: () => x,
+    started, current: () => cur && { id: cur.id, k: cur.k, kind: cur.kind, y: fall ? fall.y : rootOf(cur)[1], air: !!cur.air }, x: () => x,
+    playerX: () => playerX(),
     enemies: () => enemies.map(e => ({ type: e.type, x: e.x, face: e.face, state: e.state, anim: e.anim })),
     kills: () => kills,
     attack: (i, anim) => { const e = enemies[i]; e.state = 'attack'; play(e, anim); },

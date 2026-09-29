@@ -26,7 +26,7 @@
     {"input": "X+Y", "type": "chord", "move": "taunt"},
     {"input": "X+A", "type": "chord", "move": "dash_thrust"},
     {"input": "Up-A", "type": "sequence", "move": "heavy"},
-    {"input": "Y-A", "type": "sequence", "move": "jump_crash"},
+    {"input": "A", "type": "air", "move": "jump_crash"},
     {"input": "Down-Y", "type": "sequence", "move": "sky_dash"},
     {"input": "Left-Right-A", "type": "sequence", "move": "spin_attack"},
     {"input": "B-X+A", "type": "sequence", "move": "energy_dash_thrust"},

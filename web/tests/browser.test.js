@@ -96,7 +96,6 @@ const shots = process.argv[2];
     ['L+R -> energy_burst', 'energy_burst', chord(['L', 'R'])],
     ['X+Y -> taunt', 'taunt', chord(['X', 'Y'])],
     ['X+A -> dash_thrust', 'dash_thrust', chord(['X', 'A'])],
-    ['Y-A -> jump_crash', 'jump_crash', seq(['Y', 'A'])],
     ['Down-Y -> sky_dash', 'sky_dash', seq(['Down', 'Y'])],
     ['hold Down + Y -> sky_dash', 'sky_dash', async () => { await down('Down'); await wait(800); await tap('Y'); await up('Down'); }],
     ['Left-Right-A -> spin_attack', 'spin_attack', seq(['Left', 'Right', 'A'])],
@@ -152,6 +151,52 @@ const shots = process.argv[2];
   await fight('slash misses a far orc', [['orc', 400, 3000]], async () => tap('A'), 0);
   await fight('taunt kills nothing', [['orc', 95, 3000]], chord(['X', 'Y']), 0);
   await fight('parry kills nothing', [['orc', 95, 3000]], async () => tap('B', 60), 0);
+  // dash attacks hit an enemy right in her path; the plain dash stops at an enemy instead of passing it
+  for (const dx of [70, 110, 150]) await fight(`X+A dash thrust kills an orc ${dx} px ahead`, [['orc', dx, 3000]], chord(['X', 'A']), 1);
+  await fight('B-X+A energy dash thrust kills a goblin 90 px ahead', [['goblin', 90, 3000]],
+              async () => { await tap('B', 50); await wait(80); await chord(['X', 'A'])(); }, 1);
+  {
+    await settle();
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 150, 5000]]));
+    const x0 = await page.evaluate(() => window.bibooGame.x());
+    await tap('X'); await wait(700);
+    const x1 = await page.evaluate(() => window.bibooGame.x());
+    const o = (await E())[0];
+    check('plain dash stops in front of the orc', x1 - x0 < 92 && x1 < o.x && o.state !== 'dying', `moved ${x1 - x0}, orc ${JSON.stringify(o)}`);
+    await page.evaluate(() => window.bibooGame.setEnemies([]));
+    await settle();
+    const x2 = await page.evaluate(() => window.bibooGame.x());
+    await tap('X'); await wait(700);
+    const x3 = await page.evaluate(() => window.bibooGame.x());
+    check('plain dash with nothing ahead still covers 92 px', Math.abs(x3 - x2 - 92) < 1, `moved ${x3 - x2}`);
+  }
+
+  // the crash: A in the air starts it at her current height, with no second jump
+  const airCase = async (name, act, minY) => {
+    await settle();
+    const n = await startedCount();
+    const y = await act();
+    let c = null;
+    for (let i = 0; i < 40; i++) { c = await cur(); if (c && c.id === 'jump_crash') break; await wait(10); }
+    const got = await startedSince(n);
+    const crashes = got.filter(g => g === 'jump_crash').length;
+    const jumps = got.filter(g => g === 'jump').length;
+    check(name, c && c.id === 'jump_crash' && c.air && crashes === 1 && jumps <= 1 && c.y >= minY && (y === null || Math.abs(c.y - y) < 40),
+          `current ${JSON.stringify(c)}, height at press ${y}, started ${JSON.stringify(got)}`);
+  };
+  await airCase('jump, then A near the top -> crash from that height', async () => {
+    await tap('Y'); await wait(300); const c = await cur(); await tap('A'); return c.y; }, 60);
+  await airCase('jump, then A right away -> crash once off the ground', async () => { await tap('Y'); await wait(20); await tap('A'); return null; }, 1);
+  await airCase('sky dash, then A while falling -> crash from the fall', async () => {
+    await seq(['Down', 'Y'])(); await wait(700); const c = await cur(); await tap('A'); return c.y; }, 60);
+  {
+    await settle();
+    const n = await startedCount();
+    await tap('A'); await wait(100);
+    check('A on the ground is still the slash', (await startedSince(n))[0] === 'slash', JSON.stringify(await startedSince(n)));
+  }
+  await fight('air crash kills an orc below', [['orc', 110, 5000]], async () => { await tap('Y'); await wait(300); await tap('A'); }, 1);
+
   // gamepad: face buttons, d-pad and stick drive the same reader as the keyboard
   const padSet = (fn) => page.evaluate(fn);
   const padButton = async (i, ms = 60) => {

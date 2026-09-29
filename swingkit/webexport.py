@@ -30,6 +30,10 @@ ENTER = {'heavy': dict(default='raise1',
 NO_HIT = {'parry'}
 # moves whose raised sword is only the pose: the energy they call down is what hits
 EFFECT_ONLY = {'energy_burst', 'meteor_shower'}
+# dash attacks cover up to 60 px a frame: their dash and lunge frames also hit everything along the
+# stretch of ground she crossed since the last frame, so an enemy in her path is not skipped
+SWEEP = {'dash_thrust', 'energy_dash_thrust'}
+SWEEP_REACH, SWEEP_HEIGHT = 100, 90          # px ahead of her anchor, px up
 
 
 def _pt(p):
@@ -62,7 +66,7 @@ def _meteor_hits(t, n=9, seed=17):
     return out
 
 
-def hit_shapes(move_id, fr):
+def hit_shapes(move_id, fr, prev=None):
     """Everything that can hit on this frame: the blade or foot capsule on active frames, plus the
     energy effects that do damage (burst ring, ground quake, flying wave, meteors). Shapes are in px
     relative to the character's anchor, x right, y up from the feet row."""
@@ -74,6 +78,9 @@ def hit_shapes(move_id, fr):
         if fr.get('flip'):                              # drawn mirrored about sprite x = 32
             hb['a'][0] = round(64 - hb['a'][0], 1); hb['b'][0] = round(64 - hb['b'][0], 1)
         out.append(hb)
+    if move_id in SWEEP and prev is not None and (fr['name'].startswith('blur') or fr['name'] == 'lunge'):
+        back = float(prev['root'][0] - fr['root'][0])
+        out.append(dict(shape='box', a=[round(back + 20, 1), 0.0], b=[float(SWEEP_REACH), float(SWEEP_HEIGHT)]))
     for name, kw in fr.get('fx', []):
         if name == 'burst' and fr.get('active'):
             c = kw.get('center', (32, 44))
@@ -161,10 +168,10 @@ def export(out_dir=WEB, log=print):
 
     entries = {}
 
-    def hits(mid, f):
+    def hits(mid, f, prev):
         if mid == 'heavy':                              # the main chop: the blade on the impact frame
             return [movekit.hitbox(dict(f, active=True))] if f['name'] == 'impact' else None
-        return hit_shapes(mid, f)
+        return hit_shapes(mid, f, prev)
 
     def add(mid, title, inp, loop, loop_from, input_type, frames, results):
         actors = [r[0] for r in results]
@@ -177,7 +184,7 @@ def export(out_dir=WEB, log=print):
                 bw_path = f'assets/bw/{mid}_{k + 1:02d}.png'
                 Image.fromarray(bw).save(out / bw_path, optimize=True)
             fl.append(dict(name=f['name'], ms=int(f['ms']), root=[round(float(f['root'][0]), 1), round(float(f['root'][1]), 1)],
-                           shake=[int(v) for v in f.get('shake', (0, 0))], bw=bw_path, hits=hits(mid, f)))
+                           shake=[int(v) for v in f.get('shake', (0, 0))], bw=bw_path, hits=hits(mid, f, frames[k - 1] if k else None)))
         entries[mid] = dict(title=title, input=inp, loop=bool(loop), loopFrom=int(loop_from),
                             inputType=input_type, sheet=f'assets/moves/{mid}.png', cell=cell, anchor=anchor, frames=fl,
                             aftershake=AFTERSHAKE.get(mid), enter=ENTER.get(mid))

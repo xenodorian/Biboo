@@ -5,7 +5,7 @@
  *   hold      held button, loops while held       Right, Left, Down, Up, B, R
  *   tap       quick press and release             B (parry)
  *   chord     pressed together                    Right+A, A+B, A+B+L ... ('+')
- *   sequence  pressed one after another           Up-A, Y-A, Left-Right-A, B-X+A ... ('-')
+ *   sequence  pressed one after another           Up-A, Down-Y, Left-Right-A, B-X+A ... ('-')
  * Directions in a chord only need to be held (hold Right, press A = thrust), and so do buttons a
  * chord lists under "held" (A+B: hold B, tap A); other buttons must go down within
  * chord_window_ms of each other. A press waits chord_window_ms before

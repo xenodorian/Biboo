@@ -59,7 +59,7 @@ const cases = [
   ['energy_burst: L+R', run([[0, 'down', 'L'], [20, 'down', 'R'], [90, 'up', 'L'], [95, 'up', 'R']]).moves.join(), 'energy_burst'],
   ['taunt: X+Y', run([[0, 'down', 'X'], [20, 'down', 'Y'], [90, 'up', 'X'], [95, 'up', 'Y']]).moves.join(), 'taunt'],
   ['dash_thrust: X+A', run([[0, 'down', 'X'], [20, 'down', 'A'], [90, 'up', 'X'], [95, 'up', 'A']]).moves.join(), 'dash_thrust'],
-  ['jump_crash: Y-A', run(seq(['Y', 'A'])).moves.join(), 'jump,jump_crash'],
+  ['Y then A is jump then slash (the game turns A in the air into the crash)', run(seq(['Y', 'A'])).moves.join(), 'jump,slash'],
   ['sky_dash: Down-Y', run(seq(['Down', 'Y'])).moves.join(), 'sky_dash'],
   ['sky_dash: hold Down, press Y', run([[0, 'down', 'Down'], [900, 'down', 'Y'], [960, 'up', 'Y'], [1000, 'up', 'Down']]).moves.join(), 'sky_dash'],
   ['spin_attack: Left-Right-A', run(seq(['Left', 'Right', 'A'])).moves.join(), 'spin_attack'],
@@ -80,7 +80,8 @@ for (const [name, got, want] of cases) {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : `  (got "${got}", want "${want}")`}`);
 }
 // every move in the map is covered by a case
-const moves = new Set(map.bindings.map(b => b.move));
+// ('air' bindings are the game's: A in the air becomes the crash; web/tests/browser.test.js covers them)
+const moves = new Set(map.bindings.filter(b => b.type !== 'air').map(b => b.move));
 const covered = new Set(cases.map(c => c[0].split(':')[0]));
 const missing = [...moves].filter(m => !covered.has(m));
 if (missing.length) { fail++; console.log('FAIL  bindings without a case: ' + missing.join(', ')); }

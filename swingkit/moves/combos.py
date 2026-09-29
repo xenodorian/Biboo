@@ -98,7 +98,7 @@ def jump_crash():
     j = nc.jump().specs
     tuck = dict(front=(-3, -9), rear=(5, -9))
     high = dict(nc.HIGH, **tuck, front_planted=False, rear_planted=False)
-    return Move('jump_crash', 'Jumping crash', 'Y-A', 'combo', [
+    return Move('jump_crash', 'Jumping crash', 'A (in the air)', 'combo', [
         j[0], j[1], dict(j[2], name='rise'),
         dict(high, name='apex', ms=150, root=(10, 164), hair=(0, 2), cloth=(2, 0, 1), fx=[('glint', {})]),
         dict(high, name='dive', ms=50, root=(20, 70), theta=60, hand=(40.0, 16.0), hair=(0, 4), cloth=(4, 0, 2),
@@ -110,7 +110,8 @@ def jump_crash():
              fx=[('dust', dict(foot='both', t=0.6, big=1.25))]),
         tween(IMPACT, P, 0.5, 'pull', 110, root=(24, 0), front=(2, 0), heel_up=False),
         pose(name='plow', ms=120, root=(24, 0)),
-    ], camera='follow_y', notes='jumps, then crashes down with a heavy chop; active frame 6')
+    ], camera='follow_y', notes='jumps, then crashes down with a heavy chop; active frame 6. In the game A in the air starts it '
+                     'at the apex frame from her current height')
 
 
 def sky_dash():

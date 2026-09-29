@@ -115,7 +115,7 @@ sequence) with chord, sequence and tap windows. Previews of every move are in `d
 | L+R | energy_burst | Ring and rays in all directions |
 | X+Y | taunt | Plants the sword and beckons |
 | X+A | dash_thrust | Blurred dash into the thrust |
-| Y-A | jump_crash | Jump, then crash down into the heavy impact |
+| A (in the air) | jump_crash | Crash down into the heavy impact from wherever she is in the air (a jump, or falling after the sky dash); no second jump |
 | Down-Y | sky_dash | Rises 6 body lengths (492 px); tap Down then Y, or hold Down and press Y |
 | Left-Right-A | spin_attack | Two turns with a ring smear |
 | B-X+A | energy_dash_thrust | Dash thrust with blue energy; tap or hold B, then press X and A together |
