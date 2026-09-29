@@ -143,7 +143,7 @@ use the Dreamcast inputs from the table above:
 
 The heavy chop and the crash (A in the air) always play the dust cloud. A full impact also shows the
 black-and-white impact frame (held 110 ms) and shakes the ground (about 0.65 s, fading). The chop is
-full after a 2 second charge (Up held), and Max turns blue when the charge is complete. A quicker
+full after a 1 second charge (Up held), and Max turns blue when the charge is complete. A quicker
 chop skips the impact frame and the shake. The crash is full only when it starts more than two body
 lengths (164 px) up, so from the sky dash but not from a normal jump. Walking and the plain dash stop at enemies instead of passing through.
 

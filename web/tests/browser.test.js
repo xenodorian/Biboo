@@ -298,7 +298,7 @@ const shots = process.argv[2];
   }
   await page.evaluate(() => window.bibooGame.setEnemies([]));
 
-  // heavy: the impact frame and shake only after a full 2 s charge; crash: only from over two body lengths
+  // heavy: the impact frame and shake only after a full 1 s charge; crash: only from over two body lengths
   const heavyRun = async act => {
     await settle(); await act();
     let info = null; const ks = new Set();
@@ -311,10 +311,10 @@ const shots = process.argv[2];
     return { info, ks: [...ks] };
   };
   const BW_K = await page.evaluate(() => window.BIBOO.moves.heavy.frames.findIndex(f => f.bw));
-  let r = await heavyRun(async () => { await down('Up'); await wait(1000); await tap('A'); await up('Up'); });
-  check('heavy after a 1 s charge: no impact frame', r.info && r.info.lite && !r.ks.includes(BW_K), JSON.stringify(r));
-  r = await heavyRun(async () => { await down('Up'); await wait(2300); await tap('A'); await up('Up'); });
-  check('heavy after a 2.3 s charge: impact frame shown', r.info && !r.info.lite && r.ks.includes(BW_K), JSON.stringify(r));
+  let r = await heavyRun(async () => { await down('Up'); await wait(500); await tap('A'); await up('Up'); });
+  check('heavy after a 0.5 s charge: no impact frame', r.info && r.info.lite && !r.ks.includes(BW_K), JSON.stringify(r));
+  r = await heavyRun(async () => { await down('Up'); await wait(1300); await tap('A'); await up('Up'); });
+  check('heavy after a 1.3 s charge: impact frame shown', r.info && !r.info.lite && r.ks.includes(BW_K), JSON.stringify(r));
   r = await heavyRun(seq(['Up', 'A']));
   check('tap Up, A heavy (no charge): no impact frame', r.info && r.info.lite && !r.ks.includes(BW_K), JSON.stringify(r));
   r = await heavyRun(async () => { await tap('Y'); await wait(300); await tap('A'); });

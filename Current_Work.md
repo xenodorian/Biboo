@@ -396,18 +396,63 @@ Framework: `swingkit/moves/base.py` (pose specs, tween, reach fitting), `swingki
 - Signed off: Claude, 2026-09-28
 
 ### Step 32. Heavy and crash impact effects, blue charge indicator (user request, 2026-09-29)
-- [x] Max turns blue once the Up charge is complete (2 s).
+- [x] Max turns blue once the Up charge is complete (now 1 s, step 33).
 - [x] Crash: the full dust cloud animation (mound, particles, fade) plays after every crash, like the heavy chop's.
 - [x] Full heavy chop and full crash: dust cloud, black-and-white impact frame and ground shake all show clearly.
 - [x] Short charge or low crash: dust cloud only, no impact frame, no shake.
 - Status: DONE
-- Result: Max gets a blue wash in `game.js` once Up has been held 2 s. The crash now plays the heavy chop's cloud (new `movefx.cloud`; frames burst, plume, settle, then a thinning pull and plow) instead of one puff. Full impacts hold the black-and-white frame 110 ms and start a fading 0.65 s ground shake (`impactQuake`, on the heavy `impact` and crash `crash` frames); short charges and low crashes get the cloud only. The two-body-length crash threshold is unchanged. All checks and 13 tests pass.
+- Result: Max gets a blue wash in `game.js` once Up has been held for the full charge time (2 s then, 1 s since step 33). The crash now plays the heavy chop's cloud (new `movefx.cloud`; frames burst, plume, settle, then a thinning pull and plow) instead of one puff. Full impacts hold the black-and-white frame 110 ms and start a fading 0.65 s ground shake (`impactQuake`, on the heavy `impact` and crash `crash` frames); short charges and low crashes get the cloud only. The two-body-length crash threshold is unchanged. All checks and 13 tests pass.
 - Signed off: Claude, 2026-09-29
+
+### Step 33. One second charge (user request, 2026-09-29)
+- [x] Full charge (impact frame, shake, blue Max) after 1 s of Up instead of 2 s.
+- Status: DONE
+- Result: `FULL_CHARGE` in `web/game.js` is 1000 ms; README, browser test and step 32 notes updated.
+- Signed off: Claude, 2026-09-29
+
+### Step 34. Bigger ground shake, slower respawns (user request, 2026-09-29)
+- [x] Full heavy chop and full crash shake the ground harder (`QUAKE_AMP` 14 px, `QUAKE_MS` 1000 in `web/game.js`).
+- [x] Enemy respawn delay doubled (`2 * (DIE_MS + 1200)` in `kill()`).
+- Status: DONE
+- Signed off: Claude, 2026-09-29
+
+## Workflow: facing, beams and HP (user request, 2026-09-29)
+Handoff plan. Work in this order, one step per commit, push to `main` after each. Autonomous: pick the
+best option without asking the user. Build with `python -m swingkit --web`, check with `pytest`,
+`node web/tests/input.test.js`, and the browser test (`web/tests/browser.test.js`, needs playwright;
+python playwright + Chromium is installed, so a python probe works too).
+
+### Step 35. Left flips Max (facing)
+- [ ] `facing` (+1 right, -1 left) in `web/game.js`: pressing Left faces left, pressing Right faces right. Every `cur` carries `face`.
+- [ ] `rootOf()` returns world x already multiplied by `cur.face`; the walking loop offsets, `queueHit`, `playerX`, `airCrash`, `finishAction`, `knocked`, `follow`, `draw` all follow.
+- [ ] Left held walks left facing left with the forward walk (`walk_right` art mirrored); the retreat `walk_left` art is no longer used. Hold-state restart when facing changes.
+- [ ] Mirror the sprite about her anchor, her hit shapes (`worldShape`), the black-and-white impact frame, her hurtbox (`HURT`, `BODY`) and enemy attack contact.
+- [ ] Some respawns come in from the left edge so facing left matters (`respawns` entries get a side).
+- Status: TODO
+
+### Step 36. Left+A is the spin attack; remove the forward slash and left hop
+- [ ] Remove the `Left+A` binding and the `backstep_upswing` move (`swingkit/moves/basic.py` `left_a`, `webexport.ARC`, tests, README, docs gif).
+- [ ] `spin_attack` input becomes `Left+A` (was `Left-Right-A`); it hits enemies in front of her and behind her (mirrored hit shapes, or `both` flag in `queueHit`).
+- Status: TODO
+
+### Step 37. Beam attacks
+- [ ] Beam art: `swingkit/beams.py` cuts the four beams from `data/beams_src/` (kinds cloud, fire, laser, plasma), transparent, one seamless tile each, into `web/assets/beams/`. Started: it runs and writes tiles; the `cloud` tile does not repeat cleanly (repeat error 30.9 vs about 1 for the others), so fix its period. Look at the tiles before using them. Export the tile list in `data.js` (`beams`).
+- [ ] Four beam moves (use the thrust chamber/extend pose held while the beam fires; add a `beam` field to the exported frame with the beam kind and origin at the blade tip): `Left-Right-A` cloud, `A+B` fire, `A+L` laser, `A+R` plasma. Rebinding `A+B` replaces `energy_slash`; `A+B+L` energy kick keeps winning over `A+B` as the longer chord.
+- [ ] `game.js` draws the beam from the blade tip in her facing direction, tiled and scrolling, and damages every enemy it touches on a short tick.
+- Status: IN PROGRESS (Claude, 2026-09-29): beam art only
+
+### Step 38. HP, damage, bars and floating numbers
+- [ ] HP: Max 200, goblin 60, orc 200. Damage per attack in a table in `game.js`; the heavy chop and the crash do less when short (lite). Each move hits an enemy once except beams (ticks). Enemy attacks hurt Max (goblin 12, orc 30); block and parry take none.
+- [ ] Health bars: Max's at the top left of the view, each enemy's above its head.
+- [ ] Red floating text with the damage taken on every hit (enemies and Max); green floating text with the HP gained while Max kneels to recover (R held), a few HP per tick.
+- [ ] Max at 0 HP: knocked down, then back at full HP after 1.5 s. Enemies at 0 HP die as before.
+- Status: TODO
 
 ## Open questions
 - Ready is now Plow (blade 27 degrees up, hands at the hip). The dip (blade -6, hands at chest) and recover2 (blade 0) still match the old ready pose, so they jump. Re-pose them to lead into and out of Plow? (asked 2026-09-28)
 
 ## Log
+- 2026-09-29: Handoff plan for steps 35 to 38 (facing, spin remap, beams, HP) written above; step 37 beam art started in `swingkit/beams.py`. (Claude)
 - 2026-09-29: Step 32 (user request): blue charge indicator, crash dust cloud, full-impact shake and longer impact frame; short charge and low crash keep the cloud only. The crash threshold is still two body lengths (164 px), the user said two head heights (52 px); one constant, `CRASH_HIGH` in `web/game.js`. (Claude)
 - 2026-09-28: Before/after check of the review fixes (user request). The spaced-out dotted afterimages were not an improvement, so afterimages are now tinted copies of the character (nearest full, older ones as scanlines); the energy-burst gather sword moved further forward to clear the head. (Claude)
 - 2026-09-28: Frame-by-frame review of all 28 library moves (user request); fixed: block, energy-burst gather and slash wind-up blades crossing the head, upswing in-between blade stabbing the ground, planted sword hidden between the legs (recover, taunt), thin + signs, bubble ring and blob disc on the energy burst, dense dash and sky-dash afterimages, detached blur wall on buried blades (arc now sweeps only the visible blade), meteor impacts drawn as donuts. (Claude)

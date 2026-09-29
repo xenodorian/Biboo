@@ -203,10 +203,10 @@
   // The heavy chop gets its black-and-white impact frame and camera shake only after a full charge
   // (Up held FULL_CHARGE ms); the crash only when it starts more than two body lengths up.
   // Without them the move plays its other frames and effects (the dirt plume) with no shake.
-  const FULL_CHARGE = 2000, BODY_LEN = 82, CRASH_HIGH = 2 * BODY_LEN;
+  const FULL_CHARGE = 1000, BODY_LEN = 82, CRASH_HIGH = 2 * BODY_LEN;
   // A full impact also holds its black-and-white frame a little longer and shakes the ground: the
   // shake starts on the frame where the blade lands and fades out over QUAKE_MS.
-  const BW_HOLD = 110, QUAKE_AT = { heavy: 'impact', jump_crash: 'crash' }, QUAKE_MS = 650, QUAKE_AMP = 5;
+  const BW_HOLD = 110, QUAKE_AT = { heavy: 'impact', jump_crash: 'crash' }, QUAKE_MS = 1000, QUAKE_AMP = 14;
   const CHARGED_TINT = { color: '#2f7bff', alpha: 0.5 };   // Max turns blue once the charge is complete
   let chargeT0 = 0;
   const isCharged = () => !!cur && cur.id === 'charge' && clock - chargeT0 >= FULL_CHARGE;
@@ -345,7 +345,7 @@
     const death = EN[e.type].ai.death;
     if (death) play(e, death);
     kills++;
-    respawns.push({ type: e.type, at: clock + DIE_MS + 1200 });
+    respawns.push({ type: e.type, at: clock + 2 * (DIE_MS + 1200) });
   }
 
   function stepEnemy(e, dt) {
