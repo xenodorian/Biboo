@@ -442,10 +442,13 @@ python playwright + Chromium is installed, so a python probe works too).
 
 
 ### Step 37. Beam attacks
-- [ ] Beam art: `swingkit/beams.py` cuts the four beams from `data/beams_src/` (kinds cloud, fire, laser, plasma), transparent, one seamless tile each, into `web/assets/beams/`. Started: it runs and writes tiles; the `cloud` tile does not repeat cleanly (repeat error 30.9 vs about 1 for the others), so fix its period. Look at the tiles before using them. Export the tile list in `data.js` (`beams`).
-- [ ] Four beam moves (use the thrust chamber/extend pose held while the beam fires; add a `beam` field to the exported frame with the beam kind and origin at the blade tip): `Left-Right-A` cloud, `A+B` fire, `A+L` laser, `A+R` plasma. Rebinding `A+B` replaces `energy_slash`; `A+B+L` energy kick keeps winning over `A+B` as the longer chord.
-- [ ] `game.js` draws the beam from the blade tip in her facing direction, tiled and scrolling, and damages every enemy it touches on a short tick.
-- Status: IN PROGRESS (Claude, 2026-09-29): beam art only
+- [x] Beam art: `swingkit/beams.py` cuts the four beams from `data/beams_src/` (kinds cloud, fire, laser, plasma), transparent, one seamless tile each, into `web/assets/beams/`. Started: it runs and writes tiles; the `cloud` tile does not repeat cleanly (repeat error 30.9 vs about 1 for the others), so fix its period. Look at the tiles before using them. Export the tile list in `data.js` (`beams`).
+- [x] Four beam moves (use the thrust chamber/extend pose held while the beam fires; add a `beam` field to the exported frame with the beam kind and origin at the blade tip): `Left-Right-A` cloud, `A+B` fire, `A+L` laser, `A+R` plasma. Rebinding `A+B` replaces `energy_slash`; `A+B+L` energy kick keeps winning over `A+B` as the longer chord.
+- [x] `game.js` draws the beam from the blade tip in her facing direction, tiled and scrolling, and damages every enemy it touches on a short tick.
+- Status: DONE
+- Result: Beam art from `swingkit/beams.py` (`web/assets/beams/*.png`, listed in `data.js` as `beams`; the `cloud` tile has a slightly imperfect repeat, left as is). Moves `beam_cloud` (Left-Right-A), `beam_fire` (A+B, replaces `energy_slash`, which is gone), `beam_laser` (A+L), `beam_plasma` (A+R) in `swingkit/moves/combos.py`; exported frames carry `beam: {kind, x, y}` at the blade tip. `web/game.js` (`beamNow`, `beamHits`, `drawBeam`, `beamHit`) draws the beam and, every 100 ms, calls `beamHit(e)` on enemies it touches (currently `kill(e)`; step 38 turns it into damage). All tests pass.
+- Signed off: Claude, 2026-09-29
+
 
 ### Step 38. HP, damage, bars and floating numbers
 - [ ] HP: Max 200, goblin 60, orc 200. Damage per attack in a table in `game.js`; the heavy chop and the crash do less when short (lite). Each move hits an enemy once except beams (ticks). Enemy attacks hurt Max (goblin 12, orc 30); block and parry take none.
@@ -458,6 +461,7 @@ python playwright + Chromium is installed, so a python probe works too).
 - Ready is now Plow (blade 27 degrees up, hands at the hip). The dip (blade -6, hands at chest) and recover2 (blade 0) still match the old ready pose, so they jump. Re-pose them to lead into and out of Plow? (asked 2026-09-28)
 
 ## Log
+- 2026-09-29: Step 37 done (four beams). Next: step 38 HP, damage, bars, floating numbers; `beamHit(e)` in `web/game.js` is the place for beam damage. (Claude)
 - 2026-09-29: Step 36 done (spin on Left+A, back-hop upswing removed). Next: step 37 beams, then 38 HP. (Claude)
 - 2026-09-29: Step 35 done (facing flip). Next: step 36 (spin on Left+A, remove the back-hop upswing), then 37 beams, 38 HP. (Claude)
 - 2026-09-29: Handoff plan for steps 35 to 38 (facing, spin remap, beams, HP) written above; step 37 beam art started in `swingkit/beams.py`. (Claude)

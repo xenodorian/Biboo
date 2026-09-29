@@ -23,8 +23,30 @@ def shift(specs, dx=0.0, dy=0.0, prefix=''):
     return out
 
 
-def energy_slash():
-    return bs.slash('energy_slash', 'Energy slash', 'A+B', energy='blue')
+# Beam attacks: the thrust stance held while a beam leaves the blade tip. The beam itself is drawn by
+# the game (web/game.js) from the tip position exported on each beam frame, so the frames only
+# carry `beam=<kind>`; the textures are cut out by swingkit.beams.
+def beam(kind, title, inputs):
+    ch, hit = bs.THRUST_CHAMBER, bs.THRUST_HIT
+    hold = dict(hit, root=(18, 0), front=(4, 0), rear=(-3, 0))
+    specs = [
+        dict(ch, name='chamber', ms=90),
+        dict(hit, name='extend', ms=50, root=(8, 0), front=(4, -2), rear=(-4, 0), front_planted=False,
+             fx=[('thrust_lines', dict(n=5))]),
+    ] + [dict(hold, name=f'beam{k + 1}', ms=110, beam=kind, shake=(1, 0) if k % 2 == 0 else (-1, 0),
+              hair=(-1, 1), fx=[('dust', dict(foot='front', t=0.4 * k))]) for k in range(5)] + [
+        tween(hit, P, 0.5, 'recover', 100, root=(18, 0), front=(2, 0), rear=(-5, -2), heel_up=False,
+              order='PLOW', far=dict(sleeve=2.5, rs=2.6)),
+        pose(name='plow', ms=120, root=(18, 0)),
+    ]
+    return Move(f'beam_{kind}', title, inputs, 'combo', specs,
+                notes=f'lunges 18 px and fires the {kind} beam from the blade tip for about 0.55 s (frames 3-7)')
+
+
+def beam_cloud(): return beam('cloud', 'Cloud beam', 'Left-Right-A')
+def beam_fire(): return beam('fire', 'Fire beam', 'A+B')
+def beam_laser(): return beam('laser', 'Laser beam', 'A+L')
+def beam_plasma(): return beam('plasma', 'Plasma beam', 'A+R')
 
 
 def heavy_kick():
@@ -196,5 +218,5 @@ def meteor_shower():
                 notes='meteors land ahead of her across the screen during frames 3-8')
 
 
-ALL = [energy_slash, heavy_kick, energy_kick, energy_burst, taunt, dash_thrust, jump_crash, sky_dash,
+ALL = [beam_cloud, beam_fire, beam_laser, beam_plasma, heavy_kick, energy_kick, energy_burst, taunt, dash_thrust, jump_crash, sky_dash,
        spin_attack, energy_dash_thrust, energy_wave, earthquake, meteor_shower]

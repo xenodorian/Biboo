@@ -7,6 +7,8 @@
  * replace the whole view for their duration. Camera: follows the character in x, rises once a
  * jump clears 30 px (the same camera the exporter drew the impact frames with).
  *
+ * Beam moves draw a scrolling beam from the blade tip (D.beams) that kills what it touches.
+ *
  * Enemies (goblin, orc) walk toward her and attack when close; their attacks do no damage yet.
  * Any of her hit shapes (blade, foot, energy) touching an enemy's hurtbox kills it at once.
  * An enemy attack that reaches her: a clean hit turns her red and knocks her back, stunned (raised
@@ -37,6 +39,7 @@
     srcs.push(m.sheet);
     for (const f of m.frames) if (f.bw) srcs.push(f.bw);
   }
+  for (const b of Object.values(D.beams || {})) srcs.push(b.src);
   const EN = D.enemies || {};
   for (const e of Object.values(EN)) srcs.push(e.sheet);
 
@@ -319,6 +322,49 @@
       hitQ.push({ f, px: x + r[0], py: r[1], face: cur.face });
       if (BOTH_SIDES.has(cur.id)) hitQ.push({ f, px: x + r[0], py: r[1], face: -cur.face });   // the spin also cuts behind her
     }
+  }
+
+  // ------------------------------------------------------------------ beams
+  // A beam move's frames carry beam: {kind, x, y}: where the beam leaves the blade tip (px from her
+  // anchor, y up). The beam is a tiled texture from D.beams that scrolls away from her, grows out over
+  // its first moments and reaches BEAM_LEN px; every BEAM_TICK ms it hits the enemies it touches.
+  const BEAM_LEN = 330, BEAM_GROW = 3, BEAM_SPEED = 0.45, BEAM_TICK = 100, BEAM_CORE = 0.7;
+  function beamNow() {
+    if (!cur || cur.kind !== 'action') return null;
+    const m = D.moves[cur.id], f = m.frames[cur.k];
+    if (!f.beam) return null;
+    let k0 = cur.k;
+    while (k0 > 0 && m.frames[k0 - 1].beam) k0--;
+    let el = cur.t;
+    for (let k = k0; k < cur.k; k++) el += m.frames[k].ms;
+    const r = rootOf(cur), T = D.beams[f.beam.kind];
+    const len = Math.min(BEAM_LEN, 40 + el * BEAM_GROW);
+    const ox = x + r[0] + cur.face * f.beam.x, oy = r[1] + f.beam.y;      // world, y up
+    const last = cur.k + 1 >= m.frames.length || !m.frames[cur.k + 1].beam;
+    return { kind: f.beam.kind, face: cur.face, ox, oy, len, el, last, T,
+             box: [Math.min(ox, ox + cur.face * len), oy - T.h * BEAM_CORE / 2, Math.max(ox, ox + cur.face * len), oy + T.h * BEAM_CORE / 2] };
+  }
+  function beamHits() {
+    const b = beamNow();
+    if (!b) { if (cur) cur.beamT = 0; return; }
+    if (clock < (cur.beamT || 0)) return;
+    cur.beamT = clock + BEAM_TICK;
+    for (const e of enemies) { const box = hurtOf(e); if (box && overlap(box, b.box)) beamHit(e, b); }
+  }
+  function beamHit(e) { kill(e); }
+  function drawBeam(sx, sy) {
+    const b = beamNow();
+    if (!b) return;
+    const X = V.anchorX + (b.ox - camX) + sx, Y = V.feetRow + camY + sy - b.oy;
+    const im = img[b.T.src].im, w = b.T.w, h = b.T.h;
+    const off = Math.floor(clock * BEAM_SPEED) % w;
+    g.save();
+    g.translate(Math.round(X), Math.round(Y));
+    if (b.face < 0) g.scale(-1, 1);
+    g.beginPath(); g.rect(0, -h, Math.ceil(b.len), h * 2); g.clip();
+    if (b.last) g.globalAlpha = 0.6;
+    for (let xx = off - w; xx < b.len; xx += w) g.drawImage(im, xx, -Math.round(h / 2));
+    g.restore();
   }
 
   // ------------------------------------------------------------------ enemies
@@ -621,6 +667,7 @@
     if (cur.face < 0) g.scale(-1, 1);                            // the art faces right; mirror to face left
     blit(img[m.sheet].im, cur.k * cw, cw, ch, -m.anchor[0], 0, tc);
     g.restore();
+    drawBeam(sx, sy);
     drawLayer(img[D.fringe.src].im, -camX + sx, camY + sy);
     if (showBoxes) drawBoxes(sx, sy);
   }
@@ -788,6 +835,7 @@
     step(dt, t);
     if (cur && cur.crash && cur.id === 'jump' && rootOf(cur)[1] > 0) airCrash('air');
     blockMove(before);
+    beamHits();
     if (cur && cur.kind === 'action' && !hitQ.length) queueHit();   // the frame still on screen
     stepEnemies(dt);
     resolveHits();
@@ -811,6 +859,7 @@
   // read-only hooks for the browser test
   window.bibooGame = {
     facing: () => cur ? cur.face : facing,
+    beam: () => { const b = beamNow(); return b && { kind: b.kind, face: b.face, len: b.len, ox: b.ox, oy: b.oy }; },
     started, current: () => cur && { id: cur.id, k: cur.k, kind: cur.kind, y: fall ? fall.y : rootOf(cur)[1], air: !!cur.air }, x: () => x,
     playerX: () => playerX(),
     enemies: () => enemies.map(e => ({ type: e.type, x: e.x, face: e.face, state: e.state, anim: e.anim,

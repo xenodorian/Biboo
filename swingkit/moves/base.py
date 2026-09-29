@@ -19,6 +19,7 @@ Spec keys (all optional except name, ms, theta, hand):
   fx           list of (effect name, kwargs) drawn by swingkit.movefx
   active       True on frames where the blade (or foot) can hit
   hit          'blade' (default for active frames) or 'foot'
+  beam         beam kind ('cloud', 'fire', 'laser', 'plasma'): the game draws that beam from the blade tip
 """
 import numpy as np
 from .. import anim, rig
@@ -71,7 +72,7 @@ def frame(spec):
     fr['root'] = root
     # the ground cuts the blade only when the character stands on it
     fr['clip_row'] = int(rig.FEET_ROW + round(root[1])) if root[1] < rig.CH - rig.PY - rig.FEET_ROW else None
-    for k in ('fx', 'active', 'hit', 'bw', 'flip', 'ghosts', 'shake', 'cam'):
+    for k in ('fx', 'active', 'hit', 'bw', 'flip', 'ghosts', 'shake', 'cam', 'beam'):
         if k in s: fr[k] = s[k]
     fr['spec'] = s
     return fr

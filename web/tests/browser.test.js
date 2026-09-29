@@ -93,8 +93,11 @@ const shots = process.argv[2];
     ['Right+A -> thrust', 'thrust', chord(['A'], ['Right'])],
     ['Down+A -> upswing', 'upswing', chord(['A'], ['Down'])],
     ['Left+A -> spin_attack', 'spin_attack', chord(['A'], ['Left'])],
-    ['A+B -> energy_slash', 'energy_slash', chord(['A', 'B'])],
-    ['hold B + tap A -> energy_slash', 'energy_slash', async () => { await down('B'); await wait(600); await tap('A'); await wait(60); await up('B'); }],
+    ['A+L -> beam_laser', 'beam_laser', chord(['A', 'L'])],
+    ['A+R -> beam_plasma', 'beam_plasma', chord(['A', 'R'])],
+    ['Left-Right-A -> beam_cloud', 'beam_cloud', seq(['Left', 'Right', 'A'])],
+    ['A+B -> beam_fire', 'beam_fire', chord(['A', 'B'])],
+    ['hold B + tap A -> beam_fire', 'beam_fire', async () => { await down('B'); await wait(600); await tap('A'); await wait(60); await up('B'); }],
     ['B+L -> heavy_kick', 'heavy_kick', chord(['B', 'L'])],
     ['A+B+L -> energy_kick', 'energy_kick', chord(['A', 'B', 'L'])],
     ['A, B, L one after another -> energy_kick', 'energy_kick', seq(['A', 'B', 'L'])],
@@ -158,6 +161,21 @@ const shots = process.argv[2];
   await fight('facing left: slash kills an orc on her left', [['orc', -100, 3000]], async () => { await faceLeft(); await tap('A'); }, 1);
   await fight('facing left: slash does not hit an orc behind her', [['orc', 60, 3000]], async () => { await faceLeft(); await tap('A'); }, 0);
   await fight('Left+A spin attack kills enemies in front and behind', [['orc', 85, 3000], ['goblin', -85, 3000]], chord(['A'], ['Left']), 2);
+  // beams: drawn from the blade tip in her facing direction; they kill what they touch, far ahead
+  for (const [nm, act] of [['cloud', seq(['Left', 'Right', 'A'])], ['fire', chord(['A', 'B'])], ['laser', chord(['A', 'L'])], ['plasma', chord(['A', 'R'])]])
+    await fight(`${nm} beam kills an orc 240 px ahead`, [['orc', 240, 3000]], act, 1);
+  await fight('laser beam misses an orc 620 px ahead', [['orc', 620, 3000]], chord(['A', 'L']), 0);
+  await fight('facing left: plasma beam kills an orc 240 px on her left', [['orc', -240, 3000]], async () => { await faceLeft(); await chord(['A', 'R'])(); }, 1);
+  await fight('facing left: plasma beam does not hit an orc behind her', [['orc', 200, 3000]], async () => { await faceLeft(); await chord(['A', 'R'])(); }, 0);
+  {
+    await settle();
+    await chord(['A', 'L'])(); await wait(330);
+    const b = await page.evaluate(() => window.bibooGame.beam());
+    await shot('beam_laser');
+    check('the laser beam is drawn while she fires it', !!b && b.kind === 'laser' && b.face === 1 && b.len > 100, JSON.stringify(b));
+    await wait(1000);
+    check('the beam is gone once the move ends', (await page.evaluate(() => window.bibooGame.beam())) === null, 'still drawn');
+  }
   await fight('slash misses a far orc', [['orc', 400, 3000]], async () => tap('A'), 0);
   await fight('taunt kills nothing', [['orc', 95, 3000]], chord(['X', 'Y']), 0);
   await fight('parry kills nothing', [['orc', 95, 3000]], async () => tap('B', 60), 0);
