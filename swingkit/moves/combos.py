@@ -106,10 +106,17 @@ def jump_crash():
         dict(IMPACT, name='crash', ms=110, root=(24, 0), active=True, shake=(0, 4),
              fx=[('arc', dict(frm='dive', s0=0.55)), ('impact', {})]),
         dict(IMPACT, name='flash', ms=60, root=(24, 0), bw=True, shake=(-2, 2)),
-        dict(IMPACT, name='dust', ms=110, root=(24, 0), shake=(2, -1), hair=(1, 1), cloth=(0, 0, 2),
-             fx=[('dust', dict(foot='both', t=0.6, big=1.25))]),
-        tween(IMPACT, P, 0.5, 'pull', 110, root=(24, 0), front=(2, 0), heel_up=False),
-        pose(name='plow', ms=120, root=(24, 0)),
+        # the heavy chop's dust cloud, frame by frame: burst, plume, settle, then it thins out
+        # while she pulls the blade free and returns to guard (t: 80 ms units since the impact)
+        dict(IMPACT, name='burst', ms=90, root=(24, 0), shake=(2, -2), hair=(1, 1), cloth=(0, 0, 2),
+             fx=[('cloud', dict(t=0.4, flash=True))]),
+        dict(IMPACT, name='plume', ms=100, root=(24, 0), shake=(-1, 1), hair=(1, 1), cloth=(0, 0, 2),
+             fx=[('cloud', dict(t=1.525))]),
+        dict(IMPACT, name='settle', ms=120, root=(24, 0), shake=(0, -1), hair=(1, 1), cloth=(0, 0, 2),
+             fx=[('cloud', dict(t=2.775))]),
+        tween(IMPACT, P, 0.5, 'pull', 110, root=(24, 0), front=(2, 0), heel_up=False,
+              fx=[('cloud', dict(t=4.275, mound=False))]),
+        pose(name='plow', ms=120, root=(24, 0), fx=[('cloud', dict(t=5.65, mound=False))]),
     ], camera='follow_y', notes='jumps, then crashes down with a heavy chop; active frame 6. In the game A in the air starts it '
                      'at the apex frame from her current height')
 

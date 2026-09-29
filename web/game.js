@@ -204,7 +204,16 @@
   // (Up held FULL_CHARGE ms); the crash only when it starts more than two body lengths up.
   // Without them the move plays its other frames and effects (the dirt plume) with no shake.
   const FULL_CHARGE = 2000, BODY_LEN = 82, CRASH_HIGH = 2 * BODY_LEN;
+  // A full impact also holds its black-and-white frame a little longer and shakes the ground: the
+  // shake starts on the frame where the blade lands and fades out over QUAKE_MS.
+  const BW_HOLD = 110, QUAKE_AT = { heavy: 'impact', jump_crash: 'crash' }, QUAKE_MS = 650, QUAKE_AMP = 5;
+  const CHARGED_TINT = { color: '#2f7bff', alpha: 0.5 };   // Max turns blue once the charge is complete
   let chargeT0 = 0;
+  const isCharged = () => !!cur && cur.id === 'charge' && clock - chargeT0 >= FULL_CHARGE;
+  function impactQuake() {
+    if (!cur || cur.kind !== 'action' || cur.lite) return;
+    if (QUAKE_AT[cur.id] === D.moves[cur.id].frames[cur.k].name) rumble = { t0: clock, ms: QUAKE_MS, amp: QUAKE_AMP };
+  }
   function start(id, kind, via) {
     const k0 = entryFrame(id);
     const charged = cur && cur.id === 'charge' ? clock - chargeT0 : 0;
@@ -255,7 +264,7 @@
   }
 
   // a light heavy chop or crash passes straight over its black-and-white frame
-  function msOf(c, k) { const f = D.moves[c.id].frames[k]; return c.lite && f.bw ? 0 : f.ms; }
+  function msOf(c, k) { const f = D.moves[c.id].frames[k]; return f.bw ? (c.lite ? 0 : BW_HOLD) : f.ms; }
 
   function step(dt, t) {
     if (stun) { stepStun(dt); return; }
@@ -280,7 +289,7 @@
     while (cur.t >= msOf(cur, cur.k)) {
       cur.t -= msOf(cur, cur.k);
       cur.k++;
-      if (cur.k < m.frames.length) { if (cur.kind === 'action') queueHit(); continue; }
+      if (cur.k < m.frames.length) { if (cur.kind === 'action') { queueHit(); impactQuake(); } continue; }
       if (cur.kind === 'land') { cur.k = m.frames.length - 1; finishAction(t); return; }
       if (cur.kind === 'action') { cur.k = m.frames.length - 1; finishAction(t); return; }
       if (m.loop) {                                              // next cycle carries on from here
@@ -581,7 +590,7 @@
     const cw = m.cell[0], ch = m.cell[1];
     const ax = V.anchorX + (px - camX) + sx;
     const ay = V.feetRow - (ry - camY) + sy;
-    const tc = tint && clock < tint.until ? tint : null;
+    const tc = tint && clock < tint.until ? tint : (isCharged() ? CHARGED_TINT : null);
     blit(img[m.sheet].im, cur.k * cw, cw, ch, Math.round(ax - m.anchor[0]), Math.round(ay - m.anchor[1]), tc);
     drawLayer(img[D.fringe.src].im, -camX + sx, camY + sy);
     if (showBoxes) drawBoxes(sx, sy);

@@ -279,6 +279,19 @@ def impact(ctx, u=None, big=True, flash=True):
     if flash: fx.flash(ctx.front, I)
 
 
+def cloud(ctx, t=0.4, mound=True, flash=False):
+    """The heavy chop's full dust cloud where the blade meets the ground: the mound, the buoyant
+    puffs, the ground dust rolling outward and the debris. t is the time since the impact in
+    80 ms units (the heavy chop's burst frame is 0.4), so a move can play the cloud frame by
+    frame and let it fade."""
+    sw = ctx.sw
+    u = (rig.FEET_ROW - sw.B0[1]) / sw.d[1] if abs(sw.d[1]) > 1e-3 else Sword.L
+    I = ctx.L(sw.B0 + u * sw.d)
+    if mound: fx.mound(ctx.front, I)
+    fx.particles(ctx.front, I, t, back=ctx.back)
+    if flash: fx.flash(ctx.front, I, remnant=True)
+
+
 def quake(ctx, t=0.0, reach=150):
     """Earthquake: cracks racing along and down into the ground both ways, rocks thrown up, dust."""
     sw = ctx.sw
@@ -358,7 +371,7 @@ def kickwave(ctx, big=False, color='white'):
 EFFECTS = dict(energy=energy, aura=aura, plus=plus, arc=arc, hsmear=hsmear, spin=spin,
                thrust_lines=thrust_lines, speedlines=speedlines, vlines=vlines, ghosts=ghosts,
                dust=dust, spark=spark, glint=glint, burst=burst, charge=charge,
-               projectile=projectile, impact=impact, quake=quake, meteors=meteors, kickwave=kickwave)
+               projectile=projectile, impact=impact, cloud=cloud, quake=quake, meteors=meteors, kickwave=kickwave)
 
 
 def glitter(ctx, at='foot', n=12, color='blue', r=10):

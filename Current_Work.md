@@ -396,18 +396,19 @@ Framework: `swingkit/moves/base.py` (pose specs, tween, reach fitting), `swingki
 - Signed off: Claude, 2026-09-28
 
 ### Step 32. Heavy and crash impact effects, blue charge indicator (user request, 2026-09-29)
-- [ ] Max turns blue once the Up charge is complete (2 s).
-- [ ] Crash: the full dust cloud animation (mound, particles, fade) plays after every crash, like the heavy chop's.
-- [ ] Full heavy chop and full crash: dust cloud, black-and-white impact frame and ground shake all show clearly.
-- [ ] Short charge or low crash: dust cloud only, no impact frame, no shake.
-- Status: IN PROGRESS (Claude, 2026-09-29)
-- Result:
-- Signed off:
+- [x] Max turns blue once the Up charge is complete (2 s).
+- [x] Crash: the full dust cloud animation (mound, particles, fade) plays after every crash, like the heavy chop's.
+- [x] Full heavy chop and full crash: dust cloud, black-and-white impact frame and ground shake all show clearly.
+- [x] Short charge or low crash: dust cloud only, no impact frame, no shake.
+- Status: DONE
+- Result: Max gets a blue wash in `game.js` once Up has been held 2 s. The crash now plays the heavy chop's cloud (new `movefx.cloud`; frames burst, plume, settle, then a thinning pull and plow) instead of one puff. Full impacts hold the black-and-white frame 110 ms and start a fading 0.65 s ground shake (`impactQuake`, on the heavy `impact` and crash `crash` frames); short charges and low crashes get the cloud only. The two-body-length crash threshold is unchanged. All checks and 13 tests pass.
+- Signed off: Claude, 2026-09-29
 
 ## Open questions
 - Ready is now Plow (blade 27 degrees up, hands at the hip). The dip (blade -6, hands at chest) and recover2 (blade 0) still match the old ready pose, so they jump. Re-pose them to lead into and out of Plow? (asked 2026-09-28)
 
 ## Log
+- 2026-09-29: Step 32 (user request): blue charge indicator, crash dust cloud, full-impact shake and longer impact frame; short charge and low crash keep the cloud only. The crash threshold is still two body lengths (164 px), the user said two head heights (52 px); one constant, `CRASH_HIGH` in `web/game.js`. (Claude)
 - 2026-09-28: Before/after check of the review fixes (user request). The spaced-out dotted afterimages were not an improvement, so afterimages are now tinted copies of the character (nearest full, older ones as scanlines); the energy-burst gather sword moved further forward to clear the head. (Claude)
 - 2026-09-28: Frame-by-frame review of all 28 library moves (user request); fixed: block, energy-burst gather and slash wind-up blades crossing the head, upswing in-between blade stabbing the ground, planted sword hidden between the legs (recover, taunt), thin + signs, bubble ring and blob disc on the energy burst, dense dash and sky-dash afterimages, detached blur wall on buried blades (arc now sweeps only the visible blade), meteor impacts drawn as donuts. (Claude)
 - 2026-09-28: Step 31 done: 13 combo moves. Library now has 29 moves (28 new plus the heavy attack); previews in `docs/moves/`. (Claude)

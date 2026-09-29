@@ -25,3 +25,21 @@ def test_web_data_covers_every_binding():
         assert (ROOT / 'web' / m['sheet']).exists(), mid
         for f in m['frames']:
             assert f['bw'] is None or (ROOT / 'web' / f['bw']).exists(), mid
+
+
+def test_crash_plays_the_full_dust_cloud():
+    """The crash reuses the heavy chop's dust cloud, frame by frame, and only its flash is an impact frame."""
+    from PIL import Image, ImageChops
+    src = (ROOT / 'web' / 'assets' / 'data.js').read_text()
+    data = json.loads(src[src.index('=') + 1:].strip().rstrip(';'))
+    m = data['moves']['jump_crash']
+    names = [f['name'] for f in m['frames']]
+    k = names.index('crash')
+    assert names[k:k + 5] == ['crash', 'flash', 'burst', 'plume', 'settle']
+    assert [f['name'] for f in m['frames'] if f['bw']] == ['flash']
+    assert sum(f['ms'] for f in m['frames'][names.index('burst'):names.index('settle') + 1]) >= 300
+    sheet = Image.open(ROOT / 'web' / m['sheet']).convert('RGBA')
+    w, h = m['cell']
+    cells = [sheet.crop((names.index(n) * w, 0, (names.index(n) + 1) * w, h)) for n in ('burst', 'plume', 'settle')]
+    for a, b in zip(cells, cells[1:]):
+        assert ImageChops.difference(a, b).getbbox() is not None, 'consecutive cloud frames are identical'

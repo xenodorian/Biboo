@@ -141,10 +141,11 @@ use the Dreamcast inputs from the table above:
 | A / B / X / Y | Z / X / C / V | bottom / right / left / top face button |
 | L / R | Q / W | shoulders or triggers |
 
-The heavy chop shows its black-and-white impact frame and shakes the camera only after a full
-2 second charge (Up held); a quicker chop keeps the dirt plume but skips both. The crash (A in the
-air) gets them only when it starts more than two body lengths (164 px) up, so from the sky dash but
-not from a normal jump. Walking and the plain dash stop at enemies instead of passing through.
+The heavy chop and the crash (A in the air) always play the dust cloud. A full impact also shows the
+black-and-white impact frame (held 110 ms) and shakes the ground (about 0.65 s, fading). The chop is
+full after a 2 second charge (Up held), and Max turns blue when the charge is complete. A quicker
+chop skips the impact frame and the shake. The crash is full only when it starts more than two body
+lengths (164 px) up, so from the sky dash but not from a normal jump. Walking and the plain dash stop at enemies instead of passing through.
 
 Gamepads, wired or Bluetooth (including on an Android phone in Chrome), come through the browser's
 Gamepad API with the standard layout. A pad shows up after one of its buttons is pressed; its name
