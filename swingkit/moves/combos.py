@@ -162,14 +162,14 @@ def earthquake():
         dict(nc.RAISE1, name='raise1', ms=80),
         dict(nc.RAISE2, name='raise2', ms=80),
         dict(nc.HIGH, name='high', ms=140, front=(-2, 0), fx=[('aura', dict(color='fire', width=1)), ('glint', {})]),
-        dict(IMPACT, name='slam', ms=100, active=True, shake=(0, 5), fx=[('arc', dict(frm='high', s0=0.5)), ('quake', dict(t=0.0))]),
-        dict(IMPACT, name='flash', ms=60, bw=True, shake=(-3, 3)),
-        dict(IMPACT, name='quake1', ms=90, active=True, shake=(4, -3), fx=[('quake', dict(t=1.0))]),
-        dict(IMPACT, name='quake2', ms=90, active=True, shake=(-3, 2), fx=[('quake', dict(t=2.0))]),
-        dict(IMPACT, name='quake3', ms=100, shake=(2, -1), fx=[('quake', dict(t=3.0))]),
-        tween(IMPACT, P, 0.5, 'pull', 110, front=(2, 0), heel_up=False),
-        pose(name='plow', ms=120),
-    ], notes='hits along the ground both ways; active frames 4 and 6-7')
+        dict(IMPACT, name='slam', ms=100, active=True, shake=(0, 10), fx=[('arc', dict(frm='high', s0=0.5)), ('quake', dict(t=0.0))]),
+        dict(IMPACT, name='flash', ms=60, bw=True, shake=(-7, 6)),
+        dict(IMPACT, name='quake1', ms=90, active=True, shake=(9, -7), fx=[('quake', dict(t=1.0))]),
+        dict(IMPACT, name='quake2', ms=90, active=True, shake=(-8, 6), fx=[('quake', dict(t=2.0))]),
+        dict(IMPACT, name='quake3', ms=100, shake=(7, -5), fx=[('quake', dict(t=3.0))]),
+        dict(tween(IMPACT, P, 0.5, 'pull', 110, front=(2, 0), heel_up=False), shake=(-5, 4)),
+        dict(pose(name='plow', ms=120), shake=(3, -2)),
+    ], notes='hits along the ground both ways; active frames 4 and 6-7; the ground keeps shaking to the end')
 
 
 def meteor_shower():

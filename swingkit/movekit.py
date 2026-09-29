@@ -173,7 +173,7 @@ def build_move(move, out_dir, scales=(2,)):
 def heavy_entry(frames_ms):
     """The heavy attack (up + A) from the main build, described like the library moves."""
     from . import composite
-    return dict(id='heavy', title='Heavy overhead chop', input='Up+A', kind='basic', loop=False,
+    return dict(id='heavy', title='Heavy overhead chop', input='Up-A', kind='basic', loop=False,
                 notes='the main animation (swing_x3.gif); high damage; impact frame 5, black-and-white frame 6',
                 sheet='character/char_sheet.png', total_ms=sum(frames_ms),
                 frames=[dict(i=i + 1, name=f['name'], ms=f['ms'], root=[0.0, 0.0],

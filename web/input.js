@@ -4,12 +4,14 @@
  *   press     one button                          Y, X, A, L
  *   hold      held button, loops while held       Right, Left, Down, Up, B, R
  *   tap       quick press and release             B (parry)
- *   chord     pressed together                    Up+A, A+B, A+B+L ... ('+')
- *   sequence  pressed one after another           Y-A, Left-Right-A ... ('-')
- * Directions in a chord only need to be held (hold Right, press A = thrust); face and shoulder
- * buttons must go down within chord_window_ms of each other. A press waits chord_window_ms before
+ *   chord     pressed together                    Right+A, A+B, A+B+L ... ('+')
+ *   sequence  pressed one after another           Up-A, Y-A, Left-Right-A ... ('-')
+ * Directions in a chord only need to be held (hold Right, press A = thrust), and so do buttons a
+ * chord lists under "held" (A+B: hold B, tap A); other buttons must go down within
+ * chord_window_ms of each other. A press waits chord_window_ms before
  * it resolves, so a chord is not mistaken for its first button. Priority, from the map's note:
- * the longest sequence, then the largest chord, then a single button.
+ * the longest sequence, then the largest chord, then a single button. In a two-step sequence that
+ * starts with a direction (Up-A, Down-Y), holding the direction counts the same as tapping it.
  *
  * Pure logic, no DOM: the game calls down()/up()/update() with timestamps in ms. Works in the
  * browser (window.BibooInput) and in Node (module.exports) for the tests.
@@ -27,12 +29,18 @@
       else if (b.type === 'hold') {
         B.hold[b.input] = b.move;
         if (b.release_into) B.releaseInto[b.input] = b.release_into;
-      } else if (b.type === 'chord') B.chords.push({ keys: b.input.split('+'), move: b.move });
+      } else if (b.type === 'chord') B.chords.push({ keys: b.input.split('+'), move: b.move, held: b.held || [] });
       else if (b.type === 'sequence') B.sequences.push({ keys: b.input.split('-'), move: b.move });
     }
     B.chords.sort((a, b) => b.keys.length - a.keys.length);
     B.sequences.sort((a, b) => b.keys.length - a.keys.length);
     return B;
+  }
+
+  // Direction first, button second: a direction still held when the button goes down counts
+  // however long ago it was pressed.
+  function heldThrough(tail, i, n) {
+    return n === 2 && i === 1 && DIRS.includes(tail[0].b) && (tail[0].u === null || tail[0].u >= tail[1].t);
   }
 
   class Reader {
@@ -56,7 +64,7 @@
       if (this.held.has(b)) return;                     // key repeat
       this.held.set(b, t);
       this.consumed.delete(b);
-      this.history.push({ b, t });
+      this.history.push({ b, t, u: null });   // u: when it was released
       if (this.history.length > 16) this.history.shift();
       if (this.group && t - this.group.t <= this.chordMs) this.group.keys.push(b);
       else {
@@ -68,8 +76,11 @@
     up(b, t) {
       const t0 = this.held.get(b);
       if (t0 === undefined) return;
-      if (this.group && this.group.keys.includes(b)) this.resolve(t);   // released inside the window
+      // a release settles any press still waiting out the chord window, while everything it
+      // was pressed with (a held direction included) still counts as down
+      if (this.group) this.resolve(t);
       this.held.delete(b);
+      for (let i = this.history.length - 1; i >= 0; i--) if (this.history[i].b === b) { if (this.history[i].u === null) this.history[i].u = t; break; }
       const was = this.consumed.has(b);
       this.consumed.delete(b);
       if (was) return;
@@ -100,7 +111,7 @@
         let ok = true;
         for (let i = 0; i < n && ok; i++) {
           if (tail[i].b !== s.keys[i]) ok = false;
-          else if (i && tail[i].t - tail[i - 1].t > this.seqMs) ok = false;
+          else if (i && tail[i].t - tail[i - 1].t > this.seqMs && !heldThrough(tail, i, n)) ok = false;
         }
         if (ok) {
           for (const k of s.keys) if (this.held.has(k)) this.consumed.add(k);
@@ -110,7 +121,8 @@
       }
       // 2. chords: directions may just be held, other buttons must be in this press group
       for (const c of this.B.chords) {
-        const ok = c.keys.every(k => DIRS.includes(k) ? this.held.has(k) || g.keys.includes(k) : g.keys.includes(k));
+        const may = k => DIRS.includes(k) || c.held.includes(k);   // may already be held down
+        const ok = c.keys.every(k => may(k) ? this.held.has(k) || g.keys.includes(k) : g.keys.includes(k));
         const fresh = c.keys.some(k => g.keys.includes(k) && !DIRS.includes(k));
         if (ok && fresh) {
           for (const k of c.keys) if (this.held.has(k) && !DIRS.includes(k)) this.consumed.add(k);

@@ -122,7 +122,7 @@ def charge():
         dict(RAISE1, name='raise1', ms=90), dict(RAISE2, name='raise2', ms=80),
         dict(HIGH, name='high', ms=120, front=(-2, 0), fx=[('glint', {})]),
     ] + loop, loop=True, loop_from=3, input_type='hold',
-        notes='lifts into the high guard, then loops the charge; release into up + A (heavy attack)')
+        notes='lifts into the high guard, then loops the charge; press A while holding Up for the heavy attack (Up-A)')
 
 
 ALL = [idle, walk_right, walk_left, duck, jump, dash, block, parry, charge]

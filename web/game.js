@@ -78,6 +78,8 @@
   // cur: {id, k: frame index, t: ms into the frame, base: [x, y] where the move started, kind}
   let cur = null, queued = null, x = 0, camX = 0, camY = 0;
   let fall = null;                      // {y, v}: coming back down after a move that ends in the air
+  let rumble = null;                    // {t0, ms, amp}: shake that outlasts a move (the earthquake)
+  let clock = 0;
   const started = [];                   // every move started, for the log and the browser test
   const JUMP = D.moves.jump;
   const FALL_K = JUMP.frames.findIndex((f, i) => i > 0 && f.root[1] < JUMP.frames[i - 1].root[1]);
@@ -104,6 +106,7 @@
 
   function finishAction(t) {
     const m = D.moves[cur.id];
+    if (m.aftershake && cur.kind === 'action') rumble = { t0: clock, ms: m.aftershake.ms, amp: m.aftershake.amp };
     const end = m.frames[m.frames.length - 1].root;
     if (end[1] > 0) {                                            // ended in the air: fall back down
       x += end[0];
@@ -168,7 +171,15 @@
     const m = D.moves[cur.id];
     const f = m.frames[cur.k];
     const [rx, ry] = fall ? [0, fall.y] : (cur.kind === 'fall' ? [0, 0] : f.root);
-    const [sx, sy] = cur.kind === 'fall' || cur.kind === 'land' ? [0, 0] : f.shake;
+    let [sx, sy] = cur.kind === 'fall' || cur.kind === 'land' ? [0, 0] : f.shake;
+    if (rumble) {                                                // fading aftershock
+      const e = clock - rumble.t0;
+      if (e >= rumble.ms) rumble = null;
+      else {
+        const a = rumble.amp * Math.pow(1 - e / rumble.ms, 1.5);
+        sx += Math.round(a * Math.sin(e * 0.11)); sy += Math.round(a * Math.cos(e * 0.083));
+      }
+    }
     const px = x + rx;
     const targetY = Math.max(0, ry - 30);
     if (f.bw && cur.kind === 'action') {                         // impact frame: the whole view
@@ -239,6 +250,7 @@
   function frame(t) {
     const dt = Math.min(100, last ? t - last : 16);
     last = t;
+    clock = t;
     readButtons(t);
     for (const e of reader.update(t)) request(e.move, e.via);
     step(dt, t);

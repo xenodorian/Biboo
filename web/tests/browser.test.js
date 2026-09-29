@@ -47,7 +47,7 @@ const shots = process.argv[2];
     await wait(50);
     const after = await startedSince(n);
     check(`hold ${b} -> ${want}`, c && c.id === want, `current ${JSON.stringify(c)}`);
-    if (b === 'Up') check('release a full charge -> heavy', after.includes('heavy'), `started ${after}`);
+    if (b === 'Up') check('releasing a charge starts nothing', after.length === 0, `started ${after}`);
   }
 
   // one-shot moves: [name, expected move, action]
@@ -66,11 +66,13 @@ const shots = process.argv[2];
     ['X -> dash', 'dash', async () => tap('X')],
     ['A -> slash', 'slash', async () => tap('A')],
     ['L -> push_kick', 'push_kick', async () => tap('L')],
-    ['Up+A -> heavy', 'heavy', chord(['A'], ['Up'])],
+    ['tap Up, then A -> heavy', 'heavy', seq(['Up', 'A'])],
+    ['hold Up + A -> heavy', 'heavy', async () => { await down('Up'); await wait(800); await tap('A'); await up('Up'); }],
     ['Right+A -> thrust', 'thrust', chord(['A'], ['Right'])],
     ['Down+A -> upswing', 'upswing', chord(['A'], ['Down'])],
     ['Left+A -> backstep_upswing', 'backstep_upswing', chord(['A'], ['Left'])],
     ['A+B -> energy_slash', 'energy_slash', chord(['A', 'B'])],
+    ['hold B + tap A -> energy_slash', 'energy_slash', async () => { await down('B'); await wait(600); await tap('A'); await wait(60); await up('B'); }],
     ['B+L -> heavy_kick', 'heavy_kick', chord(['B', 'L'])],
     ['A+B+L -> energy_kick', 'energy_kick', chord(['A', 'B', 'L'])],
     ['L+R -> energy_burst', 'energy_burst', chord(['L', 'R'])],
@@ -78,6 +80,7 @@ const shots = process.argv[2];
     ['X+A -> dash_thrust', 'dash_thrust', chord(['X', 'A'])],
     ['Y-A -> jump_crash', 'jump_crash', seq(['Y', 'A'])],
     ['Down-Y -> sky_dash', 'sky_dash', seq(['Down', 'Y'])],
+    ['hold Down + Y -> sky_dash', 'sky_dash', async () => { await down('Down'); await wait(800); await tap('Y'); await up('Down'); }],
     ['Left-Right-A -> spin_attack', 'spin_attack', seq(['Left', 'Right', 'A'])],
     ['B-X-A -> energy_dash_thrust', 'energy_dash_thrust', seq(['B', 'X', 'A'])],
     ['Down-Right-A-B -> energy_wave', 'energy_wave', seq(['Down', 'Right', 'A', 'B'])],

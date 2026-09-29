@@ -18,6 +18,8 @@ from .paths import ROOT
 
 W, H, M, VH = bg.W, bg.H, bg.M, bg.VH
 WEB = ROOT / 'web'
+# the ground keeps rumbling after these moves end: fading camera shake (ms, peak px)
+AFTERSHAKE = {'earthquake': dict(ms=1500, amp=6)}
 
 
 def _game_cam(root):
@@ -103,10 +105,11 @@ def export(out_dir=WEB, log=print):
             fl.append(dict(ms=int(f['ms']), root=[round(float(f['root'][0]), 1), round(float(f['root'][1]), 1)],
                            shake=[int(v) for v in f.get('shake', (0, 0))], bw=bw_path))
         entries[mid] = dict(title=title, input=inp, loop=bool(loop), loopFrom=int(loop_from),
-                            inputType=input_type, sheet=f'assets/moves/{mid}.png', cell=cell, anchor=anchor, frames=fl)
+                            inputType=input_type, sheet=f'assets/moves/{mid}.png', cell=cell, anchor=anchor, frames=fl,
+                            aftershake=AFTERSHAKE.get(mid))
 
     hf = [dict(f, root=(0.0, 0.0), shake=cp.SHAKE.get(i, (0, 0))) for i, f in enumerate(anim.FRAMES)]
-    add('heavy', 'Heavy overhead chop', 'Up+A', False, 0, 'chord', hf, [heavy_frame(i) for i in range(len(anim.FRAMES))])
+    add('heavy', 'Heavy overhead chop', 'Up-A', False, 0, 'sequence', hf, [heavy_frame(i) for i in range(len(anim.FRAMES))])
     for m in moves.all_moves():
         add(m.id, m.title, m.inputs, m.loop, m.loop_from, m.input_type, m.frames,
             [move_frame(m, i) for i in range(len(m.frames))])

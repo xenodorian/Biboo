@@ -99,24 +99,24 @@ sequence) with chord, sequence and tap windows. Previews of every move are in `d
 | none | idle | Plow guard, breathing loop |
 | Right / Left (hold) | walk_right / walk_left | Shuffle steps in guard, 12 px per cycle |
 | Down (hold) | duck | Crouch, holds |
-| Up (hold) | charge | Rises into the high guard, blue aura loop; release into Up+A |
+| Up (hold) | charge | Rises into the high guard, blue aura loop; press A for the heavy chop |
 | B hold / tap | block / parry | Upright sword; tap gives a spark parry window |
 | Y | jump | Two body heights (164 px) |
 | X | dash | 92 px, afterimages and speed lines |
 | A | slash | Horizontal slash, flat crescent smear |
-| Up+A | heavy | The main chop animation above |
+| Up-A | heavy | The main chop animation above; tap Up then A, or hold Up and press A |
 | Right+A | thrust | Lunging thrust, 18 px forward |
 | Down+A | upswing | Duck, then rising cut |
 | Left+A | backstep_upswing | Rising cut while hopping 36 px back |
 | L | push_kick | Chamber, hip-height push, recoil |
 | R (hold) | recover | Kneel on the planted sword, green glow, rising + signs |
-| A+B | energy_slash | Slash with glittering blue energy |
+| A+B | energy_slash | Slash with glittering blue energy; press A and B together, or hold B and tap A |
 | B+L / A+B+L | heavy_kick / energy_kick | Bigger push kick; with blue energy |
 | L+R | energy_burst | Ring and rays in all directions |
 | X+Y | taunt | Plants the sword and beckons |
 | X+A | dash_thrust | Blurred dash into the thrust |
 | Y-A | jump_crash | Jump, then crash down into the heavy impact |
-| Down-Y | sky_dash | Rises 6 body lengths (492 px) |
+| Down-Y | sky_dash | Rises 6 body lengths (492 px); tap Down then Y, or hold Down and press Y |
 | Left-Right-A | spin_attack | Two turns with a ring smear |
 | B-X-A | energy_dash_thrust | Dash thrust with blue energy |
 | Down-Right-A-B | energy_wave | Upswing that launches a large energy crescent |
@@ -142,11 +142,13 @@ use the Dreamcast inputs from the table above:
 
 `web/input.js` reads `game/input_map.json` exactly: holds loop while held, B is parry when tapped
 (up to `tap_max_ms`) and block when held, chords need their face and shoulder buttons within
-`chord_window_ms` (directions only need to be held, so hold Right and press A for the thrust),
-sequences need each press within `sequence_window_ms` of the last, and releasing a full charge
-(Up) swings the heavy chop. The longest sequence wins, then the largest chord, then a single
-button. A plain press made during another attack waits for it to finish; chords, sequences, taps
-and releases cut in. A move that ends in the air (the sky dash) falls back down and lands.
+`chord_window_ms` (directions only need to be held, so hold Right and press A for the thrust; A+B
+also fires when B is held and A is tapped), and
+sequences need each press within `sequence_window_ms` of the last. In a two-step sequence that
+starts with a direction (Up-A for the heavy chop, Down-Y for the sky dash), holding the direction
+counts the same as tapping it. The longest sequence wins, then the largest chord, then a single
+button. A plain press made during another attack waits for it to finish; chords, sequences and taps
+cut in. A move that ends in the air (the sky dash) falls back down and lands.
 
 The assets in `web/assets/` are generated: each move frame is one image with the effects and the
 character, drawn around the character so the game can place it anywhere in the scrolling scene.
