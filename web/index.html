@@ -43,6 +43,8 @@
   td.keys { font-family: ui-monospace, monospace; white-space: nowrap; }
   td.how { color: var(--dim); }
   tr.playing td { background: #2c2a22; }
+  #inputmon { margin-top: 16px; }
+  #monitor { font: 12px/1.4 ui-monospace, monospace; color: var(--dim); white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0; }
   p.note { color: var(--dim); margin: 8px 0 0; font-size: 13px; }
 </style>
 </head>
@@ -78,6 +80,12 @@
       <ol id="log"></ol>
     </section>
   </div>
+  <section id="inputmon">
+    <h2>Input monitor</h2>
+    <label class="note"><input type="checkbox" id="monitor-on"> Show raw key and controller events
+      (for checking what a controller sends; hold a direction, press a button, and read the list)</label>
+    <pre id="monitor"></pre>
+  </section>
 </main>
 <script src="assets/data.js"></script>
 <script src="input.js"></script>

@@ -265,6 +265,80 @@ const shots = process.argv[2];
   }
   await page.evaluate(() => window.bibooGame.setEnemies([]));
 
+  // heavy: the impact frame and shake only after a full 2 s charge; crash: only from over two body lengths
+  const heavyRun = async act => {
+    await settle(); await act();
+    let info = null; const ks = new Set();
+    for (let i = 0; i < 150; i++) {
+      const h = await page.evaluate(() => window.bibooGame.heavy());
+      const c = await cur();
+      if (h) { info = info || h; ks.add(c.k); } else if (info) break;
+      await wait(8);
+    }
+    return { info, ks: [...ks] };
+  };
+  const BW_K = await page.evaluate(() => window.BIBOO.moves.heavy.frames.findIndex(f => f.bw));
+  let r = await heavyRun(async () => { await down('Up'); await wait(1000); await tap('A'); await up('Up'); });
+  check('heavy after a 1 s charge: no impact frame', r.info && r.info.lite && !r.ks.includes(BW_K), JSON.stringify(r));
+  r = await heavyRun(async () => { await down('Up'); await wait(2300); await tap('A'); await up('Up'); });
+  check('heavy after a 2.3 s charge: impact frame shown', r.info && !r.info.lite && r.ks.includes(BW_K), JSON.stringify(r));
+  r = await heavyRun(seq(['Up', 'A']));
+  check('tap Up, A heavy (no charge): no impact frame', r.info && r.info.lite && !r.ks.includes(BW_K), JSON.stringify(r));
+  r = await heavyRun(async () => { await tap('Y'); await wait(300); await tap('A'); });
+  check('crash from a jump (two body lengths or less): no impact frame or shake', r.info && r.info.id === 'jump_crash' && r.info.lite && r.info.height <= 164, JSON.stringify(r));
+  r = await heavyRun(async () => { await seq(['Down', 'Y'])(); await wait(700); await tap('A'); });
+  check('crash from high after the sky dash: impact frame and shake', r.info && r.info.id === 'jump_crash' && !r.info.lite && r.info.height > 164, JSON.stringify(r));
+
+  // walking is blocked by enemies, both ways
+  {
+    await settle();
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 150, 60000]]));
+    await down('Right'); await wait(5000);
+    const px = await page.evaluate(() => window.bibooGame.playerX());
+    await up('Right');
+    const o = (await E())[0];
+    check('walking right stops at the orc', px + 60 <= o.x - 26 + 1 && px + 60 >= o.x - 26 - 12, `her front ${px + 60}, orc left edge ${o.x - 26}`);
+    await settle();
+    const p0 = await page.evaluate(() => window.bibooGame.playerX());
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', -90, 60000]]));
+    await down('Left'); await wait(4000);
+    const p1 = await page.evaluate(() => window.bibooGame.playerX());
+    await up('Left');
+    const o2 = (await E())[0];
+    check('walking left stops at an orc behind her', p1 + 10 >= o2.x + 26 - 1 && p1 < p0, `her back ${p1 + 10}, orc right edge ${o2.x + 26}`);
+    await page.evaluate(() => window.bibooGame.setEnemies([]));
+  }
+
+  // controller: a held d-pad direction still counts when a face button is pressed
+  for (const [d, bt, want] of [[15, 0, 'thrust'], [13, 0, 'upswing'], [14, 0, 'backstep_upswing'], [13, 3, 'sky_dash']]) {
+    await settle();
+    const n = await startedCount();
+    await page.evaluate(d => { window.__pad.buttons[d] = { pressed: true, value: 1 }; }, d); await wait(300);
+    await page.evaluate(b => { window.__pad.buttons[b] = { pressed: true, value: 1 }; }, bt); await wait(80);
+    await page.evaluate(b => { window.__pad.buttons[b] = { pressed: false, value: 0 }; }, bt); await wait(150);
+    await page.evaluate(d => { window.__pad.buttons[d] = { pressed: false, value: 0 }; }, d);
+    const got = await startedSince(n);
+    check(`pad: hold d-pad ${d}, press button ${bt} -> ${want}`, got.includes(want), JSON.stringify(got));
+  }
+  // a controller that sends its d-pad as arrow keys with no e.code (as Android can) still works
+  {
+    await settle();
+    const n = await startedCount();
+    await page.evaluate(() => dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', keyCode: 39 }))); await wait(300);
+    await page.evaluate(() => { window.__pad.buttons[0] = { pressed: true, value: 1 }; }); await wait(80);
+    await page.evaluate(() => { window.__pad.buttons[0] = { pressed: false, value: 0 }; }); await wait(150);
+    await page.evaluate(() => dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowRight', keyCode: 39 })));
+    const got = await startedSince(n);
+    check('d-pad as arrow keys (no code) + pad A -> thrust', got.includes('thrust'), JSON.stringify(got));
+  }
+  {
+    await page.check('#monitor-on');
+    await tap('Right'); await wait(100);
+    const mon = await page.textContent('#monitor');
+    check('input monitor lists raw key events', mon.includes('key down') && mon.includes('ArrowRight'), mon.slice(0, 200));
+    await page.uncheck('#monitor-on');
+  }
+
   // gamepad: face buttons, d-pad and stick drive the same reader as the keyboard
   const padSet = (fn) => page.evaluate(fn);
   const padButton = async (i, ms = 60) => {

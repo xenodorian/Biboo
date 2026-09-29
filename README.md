@@ -140,9 +140,17 @@ use the Dreamcast inputs from the table above:
 | A / B / X / Y | Z / X / C / V | bottom / right / left / top face button |
 | L / R | Q / W | shoulders or triggers |
 
+The heavy chop shows its black-and-white impact frame and shakes the camera only after a full
+2 second charge (Up held); a quicker chop keeps the dirt plume but skips both. The crash (A in the
+air) gets them only when it starts more than two body lengths (164 px) up, so from the sky dash but
+not from a normal jump. Walking and the plain dash stop at enemies instead of passing through.
+
 Gamepads, wired or Bluetooth (including on an Android phone in Chrome), come through the browser's
 Gamepad API with the standard layout. A pad shows up after one of its buttons is pressed; its name
 is shown under the pad chips. Pads without the standard layout also get their d-pad read from axes 6-7.
+Android can also send a pad's d-pad as arrow-key events (sometimes with no key code); those are read
+too, and a direction held on either path stays held while other buttons are pressed. The input
+monitor under the page lists every raw key and controller event, for checking what a pad sends.
 
 `web/input.js` reads `game/input_map.json` exactly: holds loop while held, B is parry when tapped
 (up to `tap_max_ms`) and block when held, chords need their face and shoulder buttons within

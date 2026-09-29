@@ -53,15 +53,59 @@
                       && cur.k >= D.moves[cur.id].loopFrom,
   });
 
+  // Some controllers reach the page as key events (Android can send a pad's d-pad as arrow keys),
+  // and those can come with an empty e.code, so the key name and legacy keyCode are checked too.
+  const KEY_NAMES = { ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right',
+                      z: 'A', x: 'B', c: 'X', v: 'Y', q: 'L', w: 'R', Z: 'A', X: 'B', C: 'X', V: 'Y', Q: 'L', W: 'R' };
+  const KEY_CODES = { 37: 'Left', 38: 'Up', 39: 'Right', 40: 'Down' };
+  const keyButton = e => KEYS[e.code] || KEY_NAMES[e.key] || KEY_CODES[e.keyCode];
   addEventListener('keydown', e => {
     if (e.code === 'KeyH' && !e.repeat) { showBoxes = !showBoxes; return; }
-    const b = KEYS[e.code];
+    const b = keyButton(e);
+    if (!e.repeat) monitor(`key down  key "${e.key}"  code "${e.code}"  keyCode ${e.keyCode}  -> ${b || 'not used'}`);
     if (!b) return;
     e.preventDefault();
     keyDown.add(b);
   });
-  addEventListener('keyup', e => { const b = KEYS[e.code]; if (b) { e.preventDefault(); keyDown.delete(b); } });
-  addEventListener('blur', () => keyDown.clear());
+  addEventListener('keyup', e => {
+    const b = keyButton(e);
+    monitor(`key up    key "${e.key}"  code "${e.code}"  keyCode ${e.keyCode}  -> ${b || 'not used'}`);
+    if (b) { e.preventDefault(); keyDown.delete(b); }
+  });
+  addEventListener('blur', () => { if (keyDown.size) monitor('page lost focus: held keys released'); keyDown.clear(); });
+
+  // input monitor: raw key and controller events, to see what a controller really sends
+  const monEl = document.getElementById('monitor'), monOn = document.getElementById('monitor-on');
+  const monLines = [];
+  let padSnap = {};                     // last seen button and axis values per pad index
+  function monitor(text) {
+    if (!monOn || !monOn.checked) return;
+    monLines.unshift(`${(performance.now() / 1000).toFixed(2)}s  ${text}`);
+    monLines.length = Math.min(monLines.length, 14);
+  }
+  function monitorPads(pads) {
+    if (!monOn || !monOn.checked) return;
+    for (const p of pads) {
+      if (!p) continue;
+      const old = padSnap[p.index] || { b: [], a: [] };
+      p.buttons.forEach((bt, i) => {
+        const on = bt.pressed || bt.value > 0.5;
+        if (on !== !!old.b[i]) monitor(`pad ${p.index} button ${i} ${on ? 'down' : 'up'}  -> ${PAD[i] || 'not used'}`);
+      });
+      p.axes.forEach((v, i) => {
+        const r = Math.round(v * 2) / 2;
+        if (r !== (old.a[i] || 0)) monitor(`pad ${p.index} axis ${i} = ${v.toFixed(2)}`);
+      });
+      padSnap[p.index] = { b: p.buttons.map(bt => bt.pressed || bt.value > 0.5), a: p.axes.map(v => Math.round(v * 2) / 2) };
+    }
+  }
+  function drawMonitor() {
+    if (!monEl) return;
+    if (!monOn.checked) { if (monEl.textContent) monEl.textContent = ''; return; }
+    const held = `held  keys [${[...keyDown].join(' ')}]  pad [${[...padDown].join(' ')}]  game [${[...isDown].join(' ')}]`;
+    const text = [held, ...monLines].join('\n');
+    if (monEl.textContent !== text) monEl.textContent = text;
+  }
 
   // Controllers (USB or Bluetooth, including on Android) come through the browser's Gamepad API.
   // Browsers report most pads with the "standard" layout (A bottom, B right, X left, Y top, d-pad
@@ -73,6 +117,7 @@
     padDown.clear();
     let pads = [];
     try { pads = navigator.getGamepads ? navigator.getGamepads() : []; } catch (e) { pads = []; }
+    monitorPads(pads);
     let name = '';
     for (const p of pads) {
       if (!p || !p.connected) continue;
@@ -133,7 +178,7 @@
     fall = null; queued = null;
     const m = D.moves.jump_crash, k0 = m.frames.findIndex(f => f.name === 'apex');
     const a = m.frames[k0].root;
-    cur = { id: 'jump_crash', k: k0, t: 0, kind: 'action', from: x, air: { x0: a[0], s: h / a[1] } };
+    cur = { id: 'jump_crash', k: k0, t: 0, kind: 'action', from: x, air: { x0: a[0], s: h / a[1] }, lite: h <= CRASH_HIGH, height: h };
     started.push({ id: 'jump_crash', via: via || 'air' });
     logMove('jump_crash', 'air');
     queueHit();
@@ -155,10 +200,18 @@
     return Math.max(0, find(en.default));
   }
 
+  // The heavy chop gets its black-and-white impact frame and camera shake only after a full charge
+  // (Up held FULL_CHARGE ms); the crash only when it starts more than two body lengths up.
+  // Without them the move plays its other frames and effects (the dirt plume) with no shake.
+  const FULL_CHARGE = 2000, BODY_LEN = 82, CRASH_HIGH = 2 * BODY_LEN;
+  let chargeT0 = 0;
   function start(id, kind, via) {
     const k0 = entryFrame(id);
+    const charged = cur && cur.id === 'charge' ? clock - chargeT0 : 0;
+    if (id === 'charge' && !(cur && cur.id === 'charge')) chargeT0 = clock;
     if (cur) x += rootOf(cur)[0];       // keep the ground covered so far; height resets
     cur = { id, k: k0, t: 0, kind, from: x };
+    if (id === 'heavy') { cur.lite = charged < FULL_CHARGE; cur.charged = charged; }
     if (kind === 'action') queueHit();
     if (kind === 'action' || kind === 'land') {
       started.push({ id, via: via || kind });
@@ -201,6 +254,9 @@
     if (!cur || cur.id !== want) start(want, 'hold');
   }
 
+  // a light heavy chop or crash passes straight over its black-and-white frame
+  function msOf(c, k) { const f = D.moves[c.id].frames[k]; return c.lite && f.bw ? 0 : f.ms; }
+
   function step(dt, t) {
     if (stun) { stepStun(dt); return; }
     if (slide) {
@@ -221,8 +277,8 @@
     }
     const m = D.moves[cur.id];
     cur.t += dt;
-    while (cur.t >= m.frames[cur.k].ms) {
-      cur.t -= m.frames[cur.k].ms;
+    while (cur.t >= msOf(cur, cur.k)) {
+      cur.t -= msOf(cur, cur.k);
       cur.k++;
       if (cur.k < m.frames.length) { if (cur.kind === 'action') queueHit(); continue; }
       if (cur.kind === 'land') { cur.k = m.frames.length - 1; finishAction(t); return; }
@@ -441,17 +497,21 @@
     }
   }
 
-  // the plain dash stops at the first enemy in front of her instead of passing through it
-  const BODY_FRONT = 60;                // px from her anchor to the front of her body in the dash
-  function blockDash() {
-    if (!cur || cur.id !== 'dash' || cur.kind !== 'action') return;
-    let lim = Infinity;
+  // walking and the plain dash stop at an enemy instead of passing through it: her body (HURT x
+  // range) may not move into an enemy's hurtbox from the side it was on before this step
+  const BLOCKED = new Set(['dash', 'walk_right', 'walk_left']);
+  function blockMove(before) {
+    if (!cur || !BLOCKED.has(cur.id) || before === null) return;
+    const px = playerX();
+    let front = Infinity, back = -Infinity;
     for (const e of enemies) {
       const b = hurtOf(e);
-      if (b && b[0] >= cur.from + BODY_FRONT - 8) lim = Math.min(lim, b[0] - BODY_FRONT);
+      if (!b) continue;
+      if (b[0] >= before + HURT[2] - 1) front = Math.min(front, b[0] - HURT[2]);       // ahead of her
+      else if (b[2] <= before + HURT[0] + 1) back = Math.max(back, b[2] - HURT[0]);   // behind her
     }
-    const px = x + rootOf(cur)[0];
-    if (px > lim) x -= px - lim;
+    if (px > front) x -= px - front;
+    else if (px < back) x += back - px;
   }
 
   function stepEnemies(dt) {
@@ -482,7 +542,7 @@
     const m = D.moves[cur.id];
     const f = m.frames[cur.k];
     const [rx, ry] = stun ? [0, stun.y] : fall ? [0, fall.y] : (cur.kind === 'fall' ? [0, 0] : rootOf(cur));
-    let [sx, sy] = cur.kind === 'fall' || cur.kind === 'land' ? [0, 0] : f.shake;
+    let [sx, sy] = cur.kind === 'fall' || cur.kind === 'land' || cur.lite ? [0, 0] : f.shake;
     if (rumble) {                                                // fading aftershock
       const e = clock - rumble.t0;
       if (e >= rumble.ms) rumble = null;
@@ -667,9 +727,10 @@
     clock = t;
     readButtons(t);
     for (const e of reader.update(t)) request(e.move, e.via);
+    const before = cur && BLOCKED.has(cur.id) ? playerX() : null;
     step(dt, t);
     if (cur && cur.crash && cur.id === 'jump' && rootOf(cur)[1] > 0) airCrash('air');
-    blockDash();
+    blockMove(before);
     if (cur && cur.kind === 'action' && !hitQ.length) queueHit();   // the frame still on screen
     stepEnemies(dt);
     resolveHits();
@@ -677,6 +738,7 @@
     follow(dt);
     draw();
     hud();
+    drawMonitor();
     requestAnimationFrame(frame);
   }
 
@@ -696,6 +758,7 @@
     enemies: () => enemies.map(e => ({ type: e.type, x: e.x, face: e.face, state: e.state, anim: e.anim,
                                        tint: e.tint && clock < e.tint.until ? e.tint.color : null })),
     kills: () => kills,
+    heavy: () => cur && (cur.id === 'heavy' || cur.id === 'jump_crash') ? { id: cur.id, lite: !!cur.lite, charged: cur.charged, height: cur.height } : null,
     combat: () => ({ stun: !!stun, hits, blocks, parries, tint: tint && clock < tint.until ? tint.color : null }),
     setRespawn: on => { respawnOn = on; },
     attack: (i, anim) => { const e = enemies[i]; e.state = 'attack'; play(e, anim); },
