@@ -186,8 +186,8 @@ touches one kills it at once (HP comes later). When one of theirs reaches her:
 
 An enemy hit lands 90 ms after its hitting frame first touches her hurtbox (about one enemy frame),
 which leaves time to parry the swing as it appears. Her hurtbox reaches the top of her body on each
-frame (81 px standing) and stops 5 px under her head while ducking (69 px). The orc is drawn at 5x,
-so its swing (70-110 px up) hits her standing but passes over her duck.
+frame (81 px standing) and stops 5 px under her head in the full kneeling duck (57 px). The orc is drawn at 5x,
+so its swing (70-110 px up) hits her standing but passes over her kneeling duck.
 
 Enemy attack areas are the weapon and smear in front of the body on hand-picked frames (goblin 20,
 21, 24, 25, 31, 32, 39-41, and 47-49 for the green spin all round; orc 27-28). Press H in the game to

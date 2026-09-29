@@ -210,12 +210,13 @@ const shots = process.argv[2];
     const c0 = await combat();
     const x0 = await page.evaluate(() => window.bibooGame.x());
     await page.evaluate(() => { window.bibooGame.setEnemies([['orc', 75, 60000]]); window.bibooGame.attack(0, 'attack'); });
-    const seen = await watch(900, async () => ({ c: await combat(), cur: await cur() }));
+    const seen = await watch(900, async () => ({ c: await combat(), cur: await cur(), e: (await E())[0],
+                                                 me: await page.evaluate(() => window.bibooGame.herBox()) }));
     const stunned = seen.filter(v => v.c.stun);
     const x1 = await page.evaluate(() => window.bibooGame.x());
     check('orc attack hits her: red, stunned in the raised sword pose',
           stunned.length > 0 && stunned.some(v => v.c.tint === '#ff2b2b') && stunned.every(v => v.cur.id === 'heavy' && v.cur.kind === 'stun'),
-          JSON.stringify(seen.slice(0, 12)));
+          JSON.stringify(seen.filter((v, i) => i % 5 === 0)));
     check('the hit knocks her back about 64 px', x0 - x1 > 55 && x0 - x1 < 72, `moved ${x1 - x0}`);
     await settle();
     check('she recovers to idle after the stun', !(await combat()).stun && (await combat()).hits === c0.hits + 1, JSON.stringify(await combat()));
@@ -231,8 +232,9 @@ const shots = process.argv[2];
     await wait(900);
     const c1 = await combat();
     await up('Down');
-    check('hurtbox: standing top at her head (81 px), ducking a few px under her head (69 px)',
-          stand[3] - stand[1] === 81 && duck[3] - duck[1] === 69, JSON.stringify({ stand, duck }));
+    const tops = await page.evaluate(() => [window.BIBOO.moves.idle.frames[0].top, window.BIBOO.moves.duck.frames[2].top]);
+    check(`hurtbox: standing top at her head (${tops[0]} px), ducking 5 px under her head (${tops[1] - 5} px)`,
+          stand[3] - stand[1] === tops[0] && duck[3] - duck[1] === tops[1] - 5, JSON.stringify({ stand, duck, tops }));
     check('ducking: the orc swing passes over her', c1.hits === c0.hits && !c1.stun, JSON.stringify(c1));
     await page.evaluate(() => window.bibooGame.setEnemies([]));
   }

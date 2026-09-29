@@ -48,18 +48,19 @@ def walk_left():
         (-10, (-15, 0), (15, 0), 4), (-15, (-10, 0), (5, -5), 2), (-20, (-5, 0), (-2, -3), 2)])
 
 
-# crouch (unchanged): a deeper hip drop, more waist bend or a lowered head uncovers the hair
-# underpaint behind her back, a renderer limit described in docs/duck_depth_report.txt
-DUCK = pose(hip=(0, 7), bend=16, lean=2, hand=(40.0, 44.0), theta=18, gaze=1, hair=(0, 2), cloth=(-1, 0, 2),
-            shoulders=dict(near=(0.5, 1.0), far=(0.5, 1.0)))
+# full kneeling duck: hips 16 px down, rear heel up with the knee near the ground, bent forward at
+# the waist, head lowered. (A pale patch of the hair underpaint shows behind her back in this pose;
+# left as is, see docs/duck_depth_report.txt.)
+DUCK = pose(hip=(0, 16), bend=24, lean=4, head=(1, 3), heel_up=True, hand=(42.0, 54.0), theta=12, gaze=1,
+            hair=(0, 3), cloth=(-1, 0, 3), shoulders=dict(near=(0.5, 2.0), far=(0.5, 2.0)))
 
 
 def duck():
     return Move('duck', 'Duck', 'Down', 'non-combat', [
-        pose(name='duck1', ms=60, hip=(0, 3), bend=8, hand=(38.5, 40.5), theta=22, hair=(0, 1)),
+        pose(name='duck1', ms=60, hip=(0, 8), bend=12, lean=2, head=(0, 1), hand=(40.0, 46.0), theta=18, hair=(0, 1)),
         dict(DUCK, name='duck2', ms=80, hair=(0, 3)),
         dict(DUCK, name='duck3', ms=200),
-    ], loop=True, loop_from=2, input_type='hold', notes='frames 1-2 enter the crouch, frame 3 holds')
+    ], loop=True, loop_from=2, input_type='hold', notes='frames 1-2 drop into a full kneel, frame 3 holds')
 
 
 def jump():

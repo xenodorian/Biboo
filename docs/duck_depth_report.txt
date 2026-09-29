@@ -43,3 +43,9 @@ Online search
 -------------
 This is custom rig code in this repository, so there is no outside documentation for it. No fix was
 found online.
+
+Update
+------
+The user chose to keep the full kneeling duck and accept the patch. DUCK now drops the hips 16 px
+with the rear heel up, bends 24 degrees at the waist and lowers the head 3 px; the patch shows and
+is left alone.
