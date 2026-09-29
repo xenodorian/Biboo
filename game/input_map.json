@@ -1,5 +1,5 @@
 {
-  "note": "Dreamcast pad. '+' = pressed together (within the chord window); '-' = pressed in sequence (within the sequence window). Moves are ids in out/moves/moves.json. Longer sequences take priority over their endings; chords over single buttons. In a two-step sequence that starts with a direction (Up-A, Down-Y), holding the direction counts the same as tapping it.",
+  "note": "Dreamcast pad. '+' = pressed together (within the chord window); '-' = pressed in sequence (within the sequence window). Moves are ids in out/moves/moves.json. Longer sequences take priority over their endings; chords over single buttons. A sequence step can be a chord (B-X+A: B, then X and A together). In a two-step sequence that starts with a direction or a hold button (Up-A, Down-Y, B-X+A), holding that button counts the same as tapping it. 'held' lists chord buttons that may already be held down; a 'loose' chord also takes its buttons one after another, in any order, within the sequence window.",
   "chord_window_ms": 60,
   "sequence_window_ms": 400,
   "tap_max_ms": 150,
@@ -21,7 +21,7 @@
     {"input": "R", "type": "hold", "move": "recover"},
     {"input": "A+B", "type": "chord", "move": "energy_slash", "held": ["B"]},
     {"input": "B+L", "type": "chord", "move": "heavy_kick"},
-    {"input": "A+B+L", "type": "chord", "move": "energy_kick"},
+    {"input": "A+B+L", "type": "chord", "move": "energy_kick", "loose": true},
     {"input": "L+R", "type": "chord", "move": "energy_burst"},
     {"input": "X+Y", "type": "chord", "move": "taunt"},
     {"input": "X+A", "type": "chord", "move": "dash_thrust"},
@@ -29,7 +29,7 @@
     {"input": "Y-A", "type": "sequence", "move": "jump_crash"},
     {"input": "Down-Y", "type": "sequence", "move": "sky_dash"},
     {"input": "Left-Right-A", "type": "sequence", "move": "spin_attack"},
-    {"input": "B-X-A", "type": "sequence", "move": "energy_dash_thrust"},
+    {"input": "B-X+A", "type": "sequence", "move": "energy_dash_thrust"},
     {"input": "Down-Right-A-B", "type": "sequence", "move": "energy_wave"},
     {"input": "Down-Down-Down-Down-A", "type": "sequence", "move": "earthquake"},
     {"input": "Up-Up-Up-Up-A", "type": "sequence", "move": "meteor_shower"}

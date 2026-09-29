@@ -75,6 +75,7 @@ const shots = process.argv[2];
     ['hold B + tap A -> energy_slash', 'energy_slash', async () => { await down('B'); await wait(600); await tap('A'); await wait(60); await up('B'); }],
     ['B+L -> heavy_kick', 'heavy_kick', chord(['B', 'L'])],
     ['A+B+L -> energy_kick', 'energy_kick', chord(['A', 'B', 'L'])],
+    ['A, B, L one after another -> energy_kick', 'energy_kick', seq(['A', 'B', 'L'])],
     ['L+R -> energy_burst', 'energy_burst', chord(['L', 'R'])],
     ['X+Y -> taunt', 'taunt', chord(['X', 'Y'])],
     ['X+A -> dash_thrust', 'dash_thrust', chord(['X', 'A'])],
@@ -82,7 +83,8 @@ const shots = process.argv[2];
     ['Down-Y -> sky_dash', 'sky_dash', seq(['Down', 'Y'])],
     ['hold Down + Y -> sky_dash', 'sky_dash', async () => { await down('Down'); await wait(800); await tap('Y'); await up('Down'); }],
     ['Left-Right-A -> spin_attack', 'spin_attack', seq(['Left', 'Right', 'A'])],
-    ['B-X-A -> energy_dash_thrust', 'energy_dash_thrust', seq(['B', 'X', 'A'])],
+    ['tap B, then X+A -> energy_dash_thrust', 'energy_dash_thrust', async () => { await tap('B', 50); await wait(80); await chord(['X', 'A'])(); }],
+    ['hold B, then X+A -> energy_dash_thrust', 'energy_dash_thrust', async () => { await down('B'); await wait(600); await chord(['X', 'A'])(); await up('B'); }],
     ['Down-Right-A-B -> energy_wave', 'energy_wave', seq(['Down', 'Right', 'A', 'B'])],
     ['Down x4, A -> earthquake', 'earthquake', seq(['Down', 'Down', 'Down', 'Down', 'A'])],
     ['Up x4, A -> meteor_shower', 'meteor_shower', seq(['Up', 'Up', 'Up', 'Up', 'A'])],
@@ -100,6 +102,16 @@ const shots = process.argv[2];
     const got = await startedSince(n);
     check(name, got.includes(want) && seen, `started ${JSON.stringify(got)}`);
   }
+  // the heavy chop picks up from the charge pose: never its idle (plow) frame
+  const firstHeavyFrame = async act => {
+    await settle(); await act();
+    for (let i = 0; i < 40; i++) { const c = await cur(); if (c && c.id === 'heavy') return c.k; await wait(10); }
+    return null;
+  };
+  let k = await firstHeavyFrame(async () => { await down('Up'); await wait(800); await tap('A'); await up('Up'); });
+  check('held charge + A starts heavy on the high pose (frame 4)', k === 3, `first frame index ${k}`);
+  k = await firstHeavyFrame(seq(['Up', 'A']));
+  check('tap Up, A starts heavy past the idle frame', k !== null && k >= 1, `first frame index ${k}`);
   await settle();
   check('no page errors', errors.length === 0, errors.join(' | '));
   await browser.close();

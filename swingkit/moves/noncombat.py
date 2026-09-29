@@ -27,24 +27,25 @@ def idle():
 
 
 def _walk(id, title, inputs, rows):
+    d = 1 if rows[-1][0] > 0 else -1                 # hair and skirt trail against the walk
     specs = []
     for k, (root, front, rear, hip) in enumerate(rows):
         specs.append(pose(name=f'{id}{k + 1}', ms=110, root=(root, 0), front=front, rear=rear, hip=(0, hip),
-                          hair=(-1 if root > 0 else 1, 0), cloth=(0, -1 if root > 0 else 1, 0)))
+                          hair=(-d, 0), cloth=(0, -d, 0)))
     return Move(id, title, inputs, 'non-combat', specs, loop=True, input_type='hold', preview_cycles=3,
-                notes='shuffle step in guard; root x is the distance covered within one cycle (12 px)')
+                notes='shuffle step in guard; root x is the distance covered within one cycle (10 px)')
 
 
 def walk_right():
     return _walk('walk_right', 'Walk right', 'Right', [
-        (0, (0, 0), (0, 0), 1), (2, (-2, 0), (2, -2), 1), (4, (-4, 0), (5, -2), 2),
-        (6, (-6, 0), (6, 0), 2), (8, (-2, -2), (4, 0), 1), (10, (1, -1), (2, 0), 1)])
+        (0, (-2, 0), (2, -2), 1), (2, (-4, 0), (5, -2), 2),
+        (4, (-6, 0), (6, 0), 2), (6, (-2, -2), (4, 0), 1), (8, (1, -1), (2, 0), 1)])
 
 
 def walk_left():
     return _walk('walk_left', 'Walk left (backpedal in guard)', 'Left', [
-        (0, (0, 0), (0, 0), 1), (-2, (-2, -2), (2, 0), 1), (-4, (-5, -2), (4, 0), 2),
-        (-6, (-6, 0), (6, 0), 2), (-8, (-4, 0), (2, -2), 1), (-10, (-2, 0), (-1, -1), 1)])
+        (0, (-2, -2), (2, 0), 1), (-2, (-5, -2), (4, 0), 2),
+        (-4, (-6, 0), (6, 0), 2), (-6, (-4, 0), (2, -2), 1), (-8, (-2, 0), (-1, -1), 1)])
 
 
 DUCK = pose(hip=(0, 7), bend=16, lean=2, hand=(40.0, 44.0), theta=18, gaze=1, hair=(0, 2), cloth=(-1, 0, 2),
@@ -106,11 +107,11 @@ def parry():
     snap = pose(theta=62, hand=(44.0, 33.0), gap=12, order='LOW', hip=(1, 2), bend=6, lean=1, front=(2, 0),
                 far=dict(sleeve=3.5, rs=2.6))
     return Move('parry', 'Parry (tap B)', 'B (tap)', 'non-combat', [
-        tween(P, snap, 0.5, 'parry1', 40, order='LOW', far=dict(sleeve=3.5, rs=2.6)),
-        dict(snap, name='parry2', ms=70, fx=[('spark', dict(u=48, size=7))], shake=(1, 0), active=True),
-        dict(snap, name='parry3', ms=60, theta=55, fx=[('spark', dict(u=48, size=4))]),
-        tween(snap, P, 0.5, 'parry4', 80, order='PLOW', far=dict(sleeve=2.5, rs=2.6)),
-        pose(name='parry5', ms=80),
+        tween(P, snap, 0.5, 'parry1', 30, order='LOW', far=dict(sleeve=3.5, rs=2.6)),
+        dict(snap, name='parry2', ms=50, fx=[('spark', dict(u=48, size=7))], shake=(1, 0), active=True),
+        dict(snap, name='parry3', ms=40, theta=55, fx=[('spark', dict(u=48, size=4))]),
+        tween(snap, P, 0.5, 'parry4', 40, order='PLOW', far=dict(sleeve=2.5, rs=2.6)),
+        pose(name='parry5', ms=40),
     ], input_type='tap', notes='frame 2 is the parry window')
 
 

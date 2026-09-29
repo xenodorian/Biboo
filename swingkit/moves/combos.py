@@ -86,7 +86,7 @@ def dash_thrust(id='dash_thrust', title='Dash thrust', inputs='X+A', energy=None
 
 
 def energy_dash_thrust():
-    m = dash_thrust('energy_dash_thrust', 'Energy dash thrust', 'B-X-A', energy='blue')
+    m = dash_thrust('energy_dash_thrust', 'Energy dash thrust', 'B-X+A', energy='blue')
     specs = [dict(s) for s in m.specs]
     for s in specs:
         if s.get('active'):

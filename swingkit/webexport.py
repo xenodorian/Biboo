@@ -20,6 +20,10 @@ W, H, M, VH = bg.W, bg.H, bg.M, bg.VH
 WEB = ROOT / 'web'
 # the ground keeps rumbling after these moves end: fading camera shake (ms, peak px)
 AFTERSHAKE = {'earthquake': dict(ms=1500, amp=6)}
+# where a move starts in the game: skip its opening frames, or pick up from the pose of the move
+# it interrupts (frames with the same name; loop frames listed here map onto a named frame)
+ENTER = {'heavy': dict(default='raise1',
+                       fromMove={'charge': {'charge1': 'high', 'charge2': 'high', 'charge3': 'high'}})}
 
 
 def _game_cam(root):
@@ -102,11 +106,11 @@ def export(out_dir=WEB, log=print):
             if bw is not None:
                 bw_path = f'assets/bw/{mid}_{k + 1:02d}.png'
                 Image.fromarray(bw).save(out / bw_path, optimize=True)
-            fl.append(dict(ms=int(f['ms']), root=[round(float(f['root'][0]), 1), round(float(f['root'][1]), 1)],
+            fl.append(dict(name=f['name'], ms=int(f['ms']), root=[round(float(f['root'][0]), 1), round(float(f['root'][1]), 1)],
                            shake=[int(v) for v in f.get('shake', (0, 0))], bw=bw_path))
         entries[mid] = dict(title=title, input=inp, loop=bool(loop), loopFrom=int(loop_from),
                             inputType=input_type, sheet=f'assets/moves/{mid}.png', cell=cell, anchor=anchor, frames=fl,
-                            aftershake=AFTERSHAKE.get(mid))
+                            aftershake=AFTERSHAKE.get(mid), enter=ENTER.get(mid))
 
     hf = [dict(f, root=(0.0, 0.0), shake=cp.SHAKE.get(i, (0, 0))) for i, f in enumerate(anim.FRAMES)]
     add('heavy', 'Heavy overhead chop', 'Up-A', False, 0, 'sequence', hf, [heavy_frame(i) for i in range(len(anim.FRAMES))])

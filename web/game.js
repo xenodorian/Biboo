@@ -87,9 +87,24 @@
 
   function rootOf(c) { return D.moves[c.id].frames[c.k].root; }
 
+  // first frame of a move: some moves skip their opening, or pick up from the pose of the move
+  // they interrupt (the heavy chop starts from the charge pose, not from the idle guard)
+  function entryFrame(id) {
+    const m = D.moves[id], en = m.enter;
+    if (!en) return 0;
+    const find = name => m.frames.findIndex(f => f.name === name);
+    if (cur && en.fromMove && en.fromMove[cur.id]) {
+      const now = D.moves[cur.id].frames[cur.k].name;
+      const k = find(en.fromMove[cur.id][now] || now);
+      if (k >= 0) return k;
+    }
+    return Math.max(0, find(en.default));
+  }
+
   function start(id, kind, via) {
+    const k0 = entryFrame(id);
     if (cur) x += rootOf(cur)[0];       // keep the ground covered so far; height resets
-    cur = { id, k: 0, t: 0, kind };
+    cur = { id, k: k0, t: 0, kind };
     if (kind === 'action' || kind === 'land') {
       started.push({ id, via: via || kind });
       logMove(id, via);
@@ -222,12 +237,36 @@
     logEl.prepend(li);
     while (logEl.children.length > 8) logEl.lastChild.remove();
   }
-  const table = document.getElementById('moves');
+  const table = document.querySelector('#moves tbody');
   const rows = {};
+  const HOLDABLE = b => BibooInput.DIRS.includes(b) || D.input.bindings.some(x => x.input === b && x.type === 'hold');
+  const keysOf = input => input === 'none' ? '' :
+    input.split('-').map(step => step.split('+').map(b => KEY_LABEL[b] || b).join('+')).join(' then ');
+  function how(b) {
+    const steps = b.input.split('-');
+    if (b.type === 'idle') return 'nothing pressed';
+    if (b.type === 'hold') return 'hold';
+    if (b.type === 'tap') return 'tap';
+    if (b.type === 'press') return 'press';
+    if (b.type === 'chord') {
+      const keys = b.input.split('+');
+      if (b.loose) return 'together, or one after another in any order';
+      if (b.held) return `together, or hold ${b.held.join('+')} and press ${keys.filter(k => !b.held.includes(k)).join('+')}`;
+      const dirs = keys.filter(k => BibooInput.DIRS.includes(k));
+      if (dirs.length) return `hold ${dirs.join('+')}, press ${keys.filter(k => !dirs.includes(k)).join('+')}`;
+      return 'together';
+    }
+    if (steps.length === 2 && HOLDABLE(steps[0])) {
+      const last = steps[1].includes('+') ? steps[1] + ' together' : steps[1];
+      return `tap or hold ${steps[0]}, then ${last}`;
+    }
+    return 'one after another' + (b.input.includes('+') ? ' (+ together)' : '');
+  }
   for (const b of D.input.bindings) {
     const tr = document.createElement('tr');
     const m = D.moves[b.move];
-    tr.innerHTML = `<td>${b.input}</td><td>${b.move}</td><td>${m ? m.title : ''}${b.release_into ? ' (release: ' + b.release_into + ')' : ''}</td>`;
+    tr.innerHTML = `<td class="pad">${b.input === 'none' ? '(nothing)' : b.input}</td><td class="keys">${keysOf(b.input)}</td>` +
+                   `<td>${m ? m.title : b.move}</td><td class="how">${how(b)}</td>`;
     table.appendChild(tr);
     (rows[b.move] = rows[b.move] || []).push(tr);
   }

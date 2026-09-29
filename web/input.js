@@ -5,7 +5,7 @@
  *   hold      held button, loops while held       Right, Left, Down, Up, B, R
  *   tap       quick press and release             B (parry)
  *   chord     pressed together                    Right+A, A+B, A+B+L ... ('+')
- *   sequence  pressed one after another           Up-A, Y-A, Left-Right-A ... ('-')
+ *   sequence  pressed one after another           Up-A, Y-A, Left-Right-A, B-X+A ... ('-')
  * Directions in a chord only need to be held (hold Right, press A = thrust), and so do buttons a
  * chord lists under "held" (A+B: hold B, tap A); other buttons must go down within
  * chord_window_ms of each other. A press waits chord_window_ms before
@@ -29,19 +29,14 @@
       else if (b.type === 'hold') {
         B.hold[b.input] = b.move;
         if (b.release_into) B.releaseInto[b.input] = b.release_into;
-      } else if (b.type === 'chord') B.chords.push({ keys: b.input.split('+'), move: b.move, held: b.held || [] });
-      else if (b.type === 'sequence') B.sequences.push({ keys: b.input.split('-'), move: b.move });
+      } else if (b.type === 'chord') B.chords.push({ keys: b.input.split('+'), move: b.move, held: b.held || [], loose: !!b.loose });
+      else if (b.type === 'sequence') B.sequences.push({ steps: b.input.split('-').map(s => s.split('+')), move: b.move });
     }
     B.chords.sort((a, b) => b.keys.length - a.keys.length);
-    B.sequences.sort((a, b) => b.keys.length - a.keys.length);
+    B.sequences.sort((a, b) => b.steps.length - a.steps.length || b.steps.flat().length - a.steps.flat().length);
     return B;
   }
 
-  // Direction first, button second: a direction still held when the button goes down counts
-  // however long ago it was pressed.
-  function heldThrough(tail, i, n) {
-    return n === 2 && i === 1 && DIRS.includes(tail[0].b) && (tail[0].u === null || tail[0].u >= tail[1].t);
-  }
 
   class Reader {
     /* map: the input_map.json object. opts.holdReady(button, ms) -> true once a hold move has
@@ -64,7 +59,7 @@
       if (this.held.has(b)) return;                     // key repeat
       this.held.set(b, t);
       this.consumed.delete(b);
-      this.history.push({ b, t, u: null });   // u: when it was released
+      this.history.push({ b, t, u: null, used: false });   // u: when it was released
       if (this.history.length > 16) this.history.shift();
       if (this.group && t - this.group.t <= this.chordMs) this.group.keys.push(b);
       else {
@@ -102,30 +97,51 @@
       const g = this.group;
       this.group = null;
       if (!g) return;
-      // 1. sequences: the last presses, oldest first, each within the sequence window of the next
+      // 1. sequences: the earlier steps are the presses just before this group, oldest first, each
+      //    within the sequence window of the next; the last step (one button or a chord) is this group.
+      //    In a two-step sequence whose first button is a direction or a hold button (Up-A, Down-Y,
+      //    B-X+A), holding that button counts the same as tapping it.
+      const prior = this.history.filter(e => e.t < g.t);
       for (const s of this.B.sequences) {
-        const n = s.keys.length;
-        if (this.history.length < n) continue;
-        const tail = this.history.slice(-n);
-        if (!g.keys.includes(tail[n - 1].b)) continue;
+        const n = s.steps.length, last = s.steps[n - 1];
+        let earlier, lastT;
+        if (last.length === 1) {                         // ends in one button: the last n presses
+          if (this.history.length < n) continue;
+          const tail = this.history.slice(-n);
+          if (tail[n - 1].b !== last[0] || !g.keys.includes(last[0])) continue;
+          earlier = tail.slice(0, n - 1); lastT = tail[n - 1].t;
+        } else {                                         // ends in a chord: all of it in this group
+          if (!last.every(k => g.keys.includes(k)) || prior.length < n - 1) continue;
+          earlier = prior.slice(prior.length - (n - 1)); lastT = g.t;
+        }
         let ok = true;
-        for (let i = 0; i < n && ok; i++) {
-          if (tail[i].b !== s.keys[i]) ok = false;
-          else if (i && tail[i].t - tail[i - 1].t > this.seqMs && !heldThrough(tail, i, n)) ok = false;
+        for (let i = 0; i < n - 1 && ok; i++) {
+          const e = earlier[i], next = i < n - 2 ? earlier[i + 1].t : lastT;
+          if (s.steps[i].length !== 1 || e.b !== s.steps[i][0]) ok = false;
+          else if (next - e.t > this.seqMs) {
+            const holdable = DIRS.includes(e.b) || !!this.B.hold[e.b];
+            ok = n === 2 && holdable && (e.u === null || e.u >= next);
+          }
         }
         if (ok) {
-          for (const k of s.keys) if (this.held.has(k)) this.consumed.add(k);
+          for (const k of s.steps.flat()) if (this.held.has(k)) this.consumed.add(k);
           this.history = [];                             // a finished sequence starts fresh
           return this.emit(s.move, 'sequence');
         }
       }
       // 2. chords: directions may just be held, other buttons must be in this press group
+      //    a loose chord (A+B+L) also takes its buttons one after another, in any order, each
+      //    held or pressed within the sequence window
+      const now = g.t + this.chordMs;
+      const recent = k => this.history.some(e => e.b === k && !e.used && now - e.t <= this.seqMs);
       for (const c of this.B.chords) {
         const may = k => DIRS.includes(k) || c.held.includes(k);   // may already be held down
-        const ok = c.keys.every(k => may(k) ? this.held.has(k) || g.keys.includes(k) : g.keys.includes(k));
+        const ok = c.keys.every(k => g.keys.includes(k) || (may(k) || c.loose) && this.held.has(k) && !this.consumed.has(k)
+                                     || c.loose && recent(k));
         const fresh = c.keys.some(k => g.keys.includes(k) && !DIRS.includes(k));
         if (ok && fresh) {
           for (const k of c.keys) if (this.held.has(k) && !DIRS.includes(k)) this.consumed.add(k);
+          if (c.loose) for (const e of this.history) if (c.keys.includes(e.b)) e.used = true;
           return this.emit(c.move, 'chord');
         }
       }

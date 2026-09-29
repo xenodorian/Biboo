@@ -33,8 +33,13 @@
   #log li { padding: 1px 0; color: var(--dim); }
   #log li:first-child { color: var(--text); }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  #combos { margin-top: 16px; }
+  .scroll { overflow-x: auto; }
+  th { text-align: left; font-weight: 600; color: var(--dim); padding: 3px 6px; font-size: 12px; }
   td { padding: 3px 6px; border-top: 1px solid var(--line); vertical-align: top; }
-  td:first-child { font-family: ui-monospace, monospace; white-space: nowrap; color: var(--lit); }
+  td.pad { font-family: ui-monospace, monospace; white-space: nowrap; color: var(--lit); }
+  td.keys { font-family: ui-monospace, monospace; white-space: nowrap; }
+  td.how { color: var(--dim); }
   tr.playing td { background: #2c2a22; }
   p.note { color: var(--dim); margin: 8px 0 0; font-size: 13px; }
 </style>
@@ -47,6 +52,13 @@
     <div id="now"></div>
     <div id="loading">Loading...</div>
   </div>
+  <section id="combos">
+    <h2>Moves and combos</h2>
+    <div class="scroll"><table id="moves">
+      <thead><tr><th>Pad</th><th>Keyboard</th><th>Move</th><th>How</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
   <div class="row">
     <section>
       <h2>Pad</h2>
@@ -59,10 +71,6 @@
       <ol id="log"></ol>
     </section>
   </div>
-  <section style="margin-top:16px">
-    <h2>Moves ('+' together, '-' one after another)</h2>
-    <table id="moves"></table>
-  </section>
 </main>
 <script src="assets/data.js"></script>
 <script src="input.js"></script>
