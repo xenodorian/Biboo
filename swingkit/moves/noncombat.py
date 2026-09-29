@@ -30,24 +30,26 @@ def _walk(id, title, inputs, rows):
     d = 1 if rows[-1][0] > 0 else -1                 # hair and skirt trail against the walk
     specs = []
     for k, (root, front, rear, hip) in enumerate(rows):
-        specs.append(pose(name=f'{id}{k + 1}', ms=110, root=(root, 0), front=front, rear=rear, hip=(0, hip),
+        specs.append(pose(name=f'{id}{k + 1}', ms=100, root=(root, 0), front=front, rear=rear, hip=(0, hip),
                           hair=(-d, 0), cloth=(0, -d, 0)))
     return Move(id, title, inputs, 'non-combat', specs, loop=True, input_type='hold', preview_cycles=3,
-                notes='shuffle step in guard; root x is the distance covered within one cycle (10 px)')
+                notes='long step in guard; root x is the distance covered within one cycle (25 px, 50 px/s)')
 
 
 def walk_right():
     return _walk('walk_right', 'Walk right', 'Right', [
-        (0, (-2, 0), (2, -2), 1), (2, (-4, 0), (5, -2), 2),
-        (4, (-6, 0), (6, 0), 2), (6, (-2, -2), (4, 0), 1), (8, (1, -1), (2, 0), 1)])
+        (0, (-5, 0), (5, -5), 2), (5, (-10, 0), (12, -5), 4),
+        (10, (-15, 0), (15, 0), 4), (15, (-5, -5), (10, 0), 2), (20, (2, -3), (5, 0), 2)])
 
 
 def walk_left():
     return _walk('walk_left', 'Walk left (backpedal in guard)', 'Left', [
-        (0, (-2, -2), (2, 0), 1), (-2, (-5, -2), (4, 0), 2),
-        (-4, (-6, 0), (6, 0), 2), (-6, (-4, 0), (2, -2), 1), (-8, (-2, 0), (-1, -1), 1)])
+        (0, (-5, -5), (5, 0), 2), (-5, (-12, -5), (10, 0), 4),
+        (-10, (-15, 0), (15, 0), 4), (-15, (-10, 0), (5, -5), 2), (-20, (-5, 0), (-2, -3), 2)])
 
 
+# crouch (unchanged): a deeper hip drop, more waist bend or a lowered head uncovers the hair
+# underpaint behind her back, a renderer limit described in docs/duck_depth_report.txt
 DUCK = pose(hip=(0, 7), bend=16, lean=2, hand=(40.0, 44.0), theta=18, gaze=1, hair=(0, 2), cloth=(-1, 0, 2),
             shoulders=dict(near=(0.5, 1.0), far=(0.5, 1.0)))
 

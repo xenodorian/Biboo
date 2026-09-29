@@ -43,7 +43,9 @@ ENEMIES = {
                 rest=[500, 1100], death=None, stun=None, knock=[40, 300], parried=[50, 450]),
     ),
     'orc': dict(
-        title='Orc', src='orc.gif', px=12, bg=(113, 113, 113), scale=3,
+        # 5x: the swing (frames 27-28) then passes 70-105 px up, over a ducking Max (hurtbox top 69)
+        # but into her standing hurtbox (top 81)
+        title='Orc', src='orc.gif', px=12, bg=(113, 113, 113), scale=5,
         feet=47, anchor=19, body=8, tall=26,
         smear=(121, 126, 165, 169, 175),         # translucent white over the background
         anims=dict(
@@ -55,7 +57,8 @@ ENEMIES = {
         ),
         active=[27, 28],                         # the overhead swing and its smear
         front='anchor',                          # the sword swings close: count all of it ahead of the centre
-        ai=dict(speed=30, reach=52, attacks=['attack'], rest=[700, 1300], death='death', stun='hurt',
+        weapon=(235, 171),                       # blade greys: only the sword and its smear hit, not the body
+        ai=dict(speed=40, reach=52, attacks=['attack'], rest=[700, 1300], death='death', stun='hurt',
                 knock=[64, 400], parried=[40, 450]),
     ),
 }
@@ -115,6 +118,10 @@ def hurtbox(rgba, cfg):
 def hitbox(rgba, cfg, hurt):
     """[x0, y0, x1, y1] native: the weapon and smear in front of the body on an active frame."""
     vis = (rgba[..., 3] > 0) & (rgba[..., 3] != 80)          # anything drawn but the ground shadow
+    if 'weapon' in cfg:                                      # just the blade and the translucent smear
+        c = rgba[..., :3].astype(int)
+        grey = (c[..., 0] == c[..., 1]) & (c[..., 1] == c[..., 2])
+        vis = (grey & np.isin(c[..., 0], cfg['weapon']) & (rgba[..., 3] == 255)) | ((rgba[..., 3] > 0) & (rgba[..., 3] < 255))
     front = cfg['anchor'] if (cfg.get('front') == 'anchor' or not hurt) else hurt[2] - 2
     ys, xs = np.nonzero(vis[:, front:])
     if not len(xs):

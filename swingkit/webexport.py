@@ -124,6 +124,16 @@ def hit_shapes(move_id, fr, prev=None):
     return out or None
 
 
+SWORD_OPS = ('grip', 'guard', 'blade')
+
+
+def body_top(fr):
+    """Height of the top of her drawn body (hair, head, arms; not the sword) above the feet row, px."""
+    C, _, _ = anim.render_pose(dict(fr, order=[o for o in fr['order'] if o not in SWORD_OPS]))
+    rows = np.nonzero((C >= 0).any(1))[0]
+    return int(rig.PY + rig.FEET_ROW - rows.min())
+
+
 def _game_cam(root):
     """The game camera: locked to the character in x, rises once a jump clears 30 px."""
     return (root[0], max(0.0, root[1] - 30))
@@ -210,7 +220,7 @@ def export(out_dir=WEB, log=print):
                 bw_path = f'assets/bw/{mid}_{k + 1:02d}.png'
                 Image.fromarray(bw).save(out / bw_path, optimize=True)
             fl.append(dict(name=f['name'], ms=int(f['ms']), root=[round(float(f['root'][0]), 1), round(float(f['root'][1]), 1)],
-                           shake=[int(v) for v in f.get('shake', (0, 0))], bw=bw_path, hits=hits(mid, f, frames[k - 1] if k else None)))
+                           shake=[int(v) for v in f.get('shake', (0, 0))], bw=bw_path, hits=hits(mid, f, frames[k - 1] if k else None), top=body_top(f)))
         entries[mid] = dict(title=title, input=inp, loop=bool(loop), loopFrom=int(loop_from),
                             inputType=input_type, sheet=f'assets/moves/{mid}.png', cell=cell, anchor=anchor, frames=fl,
                             aftershake=AFTERSHAKE.get(mid), enter=ENTER.get(mid))

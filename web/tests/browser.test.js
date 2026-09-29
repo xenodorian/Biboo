@@ -220,6 +220,22 @@ const shots = process.argv[2];
     await settle();
     check('she recovers to idle after the stun', !(await combat()).stun && (await combat()).hits === c0.hits + 1, JSON.stringify(await combat()));
   }
+  // ducking: her hurtbox drops under the orc's swing; standing, the swing hits
+  {
+    await settle();
+    const stand = await page.evaluate(() => window.bibooGame.herBox());
+    await down('Down'); await wait(500);
+    const duck = await page.evaluate(() => window.bibooGame.herBox());
+    const c0 = await combat();
+    await page.evaluate(() => { window.bibooGame.setEnemies([['orc', 75, 60000]]); window.bibooGame.attack(0, 'attack'); });
+    await wait(900);
+    const c1 = await combat();
+    await up('Down');
+    check('hurtbox: standing top at her head (81 px), ducking a few px under her head (69 px)',
+          stand[3] - stand[1] === 81 && duck[3] - duck[1] === 69, JSON.stringify({ stand, duck }));
+    check('ducking: the orc swing passes over her', c1.hits === c0.hits && !c1.stun, JSON.stringify(c1));
+    await page.evaluate(() => window.bibooGame.setEnemies([]));
+  }
   {
     await settle();
     await page.evaluate(() => window.bibooGame.setEnemies([]));
@@ -252,6 +268,21 @@ const shots = process.argv[2];
     check('a parry leaves her unhurt', c1.hits === c0.hits && !c1.stun, JSON.stringify(c1));
     await wait(600);
     check('the orc recovers after the push', (await E())[0].state !== 'stunned', JSON.stringify(await E()));
+  }
+  // parry as the swing lands: the first hitting frame (200 ms in) still counts until the hit lands
+  // 90 ms later; after that it is too late
+  for (const [at, ok] of [[215, true], [420, false]]) {
+    await settle();
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 75, 60000]]));
+    const c0 = await combat();
+    await page.evaluate(() => window.bibooGame.attack(0, 'attack'));
+    await wait(at);
+    await tap('B', 40);
+    await wait(600);
+    const c1 = await combat();
+    check(`parry ${at} ms into the orc swing: ${ok ? 'parried' : 'too late, hit'}`,
+          ok ? c1.parries === c0.parries + 1 && c1.hits === c0.hits : c1.hits === c0.hits + 1 && c1.parries === c0.parries, JSON.stringify(c1));
+    await settle();
   }
   {
     await settle();
@@ -297,15 +328,17 @@ const shots = process.argv[2];
     const px = await page.evaluate(() => window.bibooGame.playerX());
     await up('Right');
     const o = (await E())[0];
-    check('walking right stops at the orc', px + 60 <= o.x - 26 + 1 && px + 60 >= o.x - 26 - 12, `her front ${px + 60}, orc left edge ${o.x - 26}`);
+    const OH = await page.evaluate(() => window.BIBOO.enemies.orc.frames[0].hurt[2]);
+    check('walking right stops at the orc', px + 60 <= o.x - OH + 1 && px + 60 >= o.x - OH - 30, `her front ${px + 60}, orc left edge ${o.x - OH}`);
     await settle();
     const p0 = await page.evaluate(() => window.bibooGame.playerX());
-    await page.evaluate(() => window.bibooGame.setEnemies([['orc', -90, 60000]]));
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', -110, 60000]]));
     await down('Left'); await wait(4000);
     const p1 = await page.evaluate(() => window.bibooGame.playerX());
     await up('Left');
     const o2 = (await E())[0];
-    check('walking left stops at an orc behind her', p1 + 10 >= o2.x + 26 - 1 && p1 < p0, `her back ${p1 + 10}, orc right edge ${o2.x + 26}`);
+    const OH2 = await page.evaluate(() => window.BIBOO.enemies.orc.frames[0].hurt[2]);
+    check('walking left stops at an orc behind her', p1 + 10 >= o2.x + OH2 - 1 && p1 + 10 <= o2.x + OH2 + 30 && p1 < p0, `her back ${p1 + 10}, orc right edge ${o2.x + OH2}`);
     await page.evaluate(() => window.bibooGame.setEnemies([]));
   }
 

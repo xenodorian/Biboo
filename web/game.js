@@ -1,4 +1,4 @@
-/* Biboo move test: the move library played live from the Dreamcast pad.
+/* Parry Perry: the move library of Max Perry played live from the Dreamcast pad.
  *
  * World: the parallax scene from swingkit (layers tile in x). The character always faces right.
  * Each move frame is one actor image (effects + character) placed at the character's world
@@ -320,7 +320,7 @@
   }
   function frameOf(e) { const T = EN[e.type]; return T.frames[T.anims[e.anim].frames[e.k]]; }
   function groundOff(e) { const gx = frameOf(e).ground || 0; return e.face < 0 ? gx : -gx; }
-  function play(e, anim) { e.anim = anim; e.k = 0; e.t = 0; e.hitDone = false; e.base = e.x - groundOff(e); }
+  function play(e, anim) { e.anim = anim; e.k = 0; e.t = 0; e.hitDone = false; e.landAt = 0; e.base = e.x - groundOff(e); }
   function turn(e, face) { if (face !== e.face) { e.face = face; e.base = e.x - groundOff(e); } }
   function alive(e) { return e.state !== 'dying'; }
 
@@ -425,10 +425,18 @@
   let lastHits = [];
 
   // ------------------------------------------------------------------ enemy attacks on her
-  const HURT = [10, 0, 60, 88];         // her body, px from her anchor (x right, y up)
+  // her hurtbox: x from her anchor, up to the top of her drawn body on this frame (hair, head and
+  // arms, not the sword); while ducking it stops DUCK_TRIM px under the top of her head
+  const HURT = [10, 0, 60];
+  const DUCK_TRIM = 5;
+  function herTop() {
+    if (!cur) return D.moves.idle.frames[0].top;
+    const top = D.moves[cur.id].frames[cur.k].top;
+    return cur.id === 'duck' ? top - DUCK_TRIM : top;
+  }
   const RED = '#ff2b2b', WHITE = '#ffffff';
   function herY() { return stun ? stun.y : fall ? fall.y : (cur && cur.kind !== 'fall' ? rootOf(cur)[1] : 0); }
-  function herBox() { const px = playerX(), py = herY(); return [px + HURT[0], py + HURT[1], px + HURT[2], py + HURT[3]]; }
+  function herBox() { const px = playerX(), py = herY(); return [px + HURT[0], py + HURT[1], px + HURT[2], py + herTop()]; }
   function boxOf(e, h) {
     if (!h) return null;
     return e.face < 0 ? [e.base + h[0], h[1], e.base + h[2], h[3]] : [e.base - h[2], h[1], e.base - h[0], h[3]];
@@ -476,10 +484,16 @@
   }
   let hits = 0, blocks = 0, parries = 0;
 
+  // An enemy attack that reaches her lands HIT_DELAY ms after first contact. Until then a parry
+  // still works, so the window covers the frames just before the swing and the start of its first
+  // hitting frame. 90 ms is about one enemy frame: long enough to react to the swing appearing,
+  // short enough that the hit does not feel late.
+  const HIT_DELAY = 90;
   function enemyAttacks() {
     const me = herBox();
     for (const e of enemies) {
       if (e.state !== 'attack' || e.hitDone) continue;
+      if (parrying() && e.landAt) { parried(e); continue; }   // parried during the first hitting frame
       const T = EN[e.type], A = T.anims[e.anim];
       if (parrying()) {                 // the attack lands this frame or within the next two
         let soon = false;
@@ -489,8 +503,12 @@
         }
         if (soon) { parried(e); continue; }
       }
-      const h = boxOf(e, frameOf(e).hit);
-      if (!h || !overlap(h, me)) continue;
+      if (!e.landAt) {
+        const h = boxOf(e, frameOf(e).hit);
+        if (!h || !overlap(h, me)) continue;
+        e.landAt = clock + HIT_DELAY;   // contact: the hit lands shortly, parry still possible
+      }
+      if (clock < e.landAt) continue;
       e.hitDone = true;
       if (blocking()) blocked(e);
       else if (clock >= invuln && !stun) knocked(e);
@@ -759,6 +777,7 @@
                                        tint: e.tint && clock < e.tint.until ? e.tint.color : null })),
     kills: () => kills,
     heavy: () => cur && (cur.id === 'heavy' || cur.id === 'jump_crash') ? { id: cur.id, lite: !!cur.lite, charged: cur.charged, height: cur.height } : null,
+    herBox: () => herBox(),
     combat: () => ({ stun: !!stun, hits, blocks, parries, tint: tint && clock < tint.until ? tint.color : null }),
     setRespawn: on => { respawnOn = on; },
     attack: (i, anim) => { const e = enemies[i]; e.state = 'attack'; play(e, anim); },

@@ -1,4 +1,4 @@
-/* Dreamcast pad reader for the Biboo move library.
+/* Dreamcast pad reader for Parry Perry.
  *
  * Reads game/input_map.json (embedded in assets/data.js) and turns button presses into moves:
  *   press     one button                          Y, X, A, L

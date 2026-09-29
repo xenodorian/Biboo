@@ -1,6 +1,7 @@
-# Biboo
+# Parry Perry
 
-Procedural pixel-art pipeline for a 11-frame greatsword chop in a sunset side-scroller scene.
+The game's main character is Max Perry. This repository (named Biboo, the project's earlier name)
+holds her procedural pixel-art pipeline for a 11-frame greatsword chop in a sunset side-scroller scene.
 One command rebuilds everything: the tileable background layers, the character sprite frames,
 the effect overlays, a scene manifest for a game engine, and the preview GIFs.
 
@@ -179,9 +180,14 @@ touches one kills it at once (HP comes later). When one of theirs reaches her:
 - Hit: she turns red and is knocked back (goblin 40 px, orc 64 px). She is stunned in the raised
   sword pose, with no control, until the push stops, and cannot be hit again for 0.4 s after.
 - Blocking (holding B): she flashes white and slides back 8 px. No stun; she keeps blocking.
-- Parry (tap B): if her parry frames 1-3 are showing while the attack is on its hitting frame or
-  at most two frames before it, the enemy turns white, is pushed back (goblin 50 px, orc 40 px)
+- Parry (tap B): if her parry frames 1-3 are showing while the attack is up to two frames from
+  hitting her, or on its first hitting frame before the hit lands, the enemy turns white, is pushed back (goblin 50 px, orc 40 px)
   and is stunned until the push stops. She takes nothing.
+
+An enemy hit lands 90 ms after its hitting frame first touches her hurtbox (about one enemy frame),
+which leaves time to parry the swing as it appears. Her hurtbox reaches the top of her body on each
+frame (81 px standing) and stops 5 px under her head while ducking (69 px). The orc is drawn at 5x,
+so its swing (70-110 px up) hits her standing but passes over her duck.
 
 Enemy attack areas are the weapon and smear in front of the body on hand-picked frames (goblin 20,
 21, 24, 25, 31, 32, 39-41, and 47-49 for the green spin all round; orc 27-28). Press H in the game to
@@ -189,7 +195,7 @@ show hurtboxes (yellow enemies, blue her), her attack shapes (red) and enemy att
 
 `swingkit/enemies.py` builds them from the packed GIFs in `data/enemies/`: it samples each GIF down
 to native pixels, keys out the background (the goblin's shadow and the orc's sword smear become
-translucent), flips the art to face left, scales it (goblin x2, orc x3) and splits it into
+translucent), flips the art to face left, scales it (goblin x2, orc x5) and splits it into
 animations:
 
 | Enemy | Animation | GIF frames | Use |
