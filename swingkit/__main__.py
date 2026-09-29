@@ -1,4 +1,4 @@
-"""Command line: python -m swingkit [--out DIR] [--scales 3 1] [--no-check] [--no-moves]"""
+"""Command line: python -m swingkit [--out DIR] [--scales 3 1] [--no-check] [--no-moves] [--web]"""
 import argparse
 import sys
 from pathlib import Path
@@ -13,11 +13,15 @@ def main(argv=None):
     ap.add_argument('--scales', type=int, nargs='+', default=[3, 1], help='GIF integer scales to write')
     ap.add_argument('--no-check', action='store_true', help='skip the consistency checks')
     ap.add_argument('--no-moves', action='store_true', help='skip the move library (out/moves)')
+    ap.add_argument('--web', action='store_true', help='also export the browser game assets (web/assets)')
     a = ap.parse_args(argv)
     frames = build.build(a.out, scales=a.scales)
     if not a.no_moves:
         from . import movekit
         movekit.build_all(a.out)
+    if a.web:
+        from . import webexport
+        webexport.export()
     if a.no_check:
         return 0
     results = checks.run_all(frames, [(a.out / f'swing_x{s}.gif', s) for s in a.scales])

@@ -129,6 +129,37 @@ Moves are written as short pose specs (only what differs from the plow guard) in
 (root motion, follow camera, afterimages) in `swingkit/movekit.py`. The `moves` check keeps every
 move on the rig rules (fixed limb lengths, planted feet, grip, draw order, face clear).
 
+## Web game
+
+`web/index.html` plays the move library live. Open the file in a browser (no server needed) and
+use the Dreamcast inputs from the table above:
+
+| Pad | Keyboard | Gamepad |
+|---|---|---|
+| Up / Down / Left / Right | arrow keys | d-pad or left stick |
+| A / B / X / Y | Z / X / C / V | bottom / right / left / top face button |
+| L / R | Q / W | shoulders or triggers |
+
+`web/input.js` reads `game/input_map.json` exactly: holds loop while held, B is parry when tapped
+(up to `tap_max_ms`) and block when held, chords need their face and shoulder buttons within
+`chord_window_ms` (directions only need to be held, so hold Right and press A for the thrust),
+sequences need each press within `sequence_window_ms` of the last, and releasing a full charge
+(Up) swings the heavy chop. The longest sequence wins, then the largest chord, then a single
+button. A plain press made during another attack waits for it to finish; chords, sequences, taps
+and releases cut in. A move that ends in the air (the sky dash) falls back down and lands.
+
+The assets in `web/assets/` are generated: each move frame is one image with the effects and the
+character, drawn around the character so the game can place it anywhere in the scrolling scene.
+Rebuild them after changing a move:
+
+```
+python -m swingkit --web
+```
+
+Tests: `node web/tests/input.test.js` drives every binding through the input reader (also run by
+`pytest`), and `NODE_PATH=$(npm root -g) node web/tests/browser.test.js` presses real keys in
+headless Chromium and checks that each binding starts its move (needs Playwright).
+
 ## Project layout
 
 ```
@@ -140,12 +171,14 @@ swingkit/
   composite.py  frame assembly with parallax camera shake
   gifwrite.py   exact-palette GIF writer and verifier
   build.py      writes every deliverable
+  webexport.py  assets for the browser game (web/)
   checks.py     frame count, arm and leg lengths, planted feet, occlusion, tiling, GIF fidelity
 data/
   pal.npy       20-colour character palette
   body_old.npy  character body (no arms or sword), 128x82 palette indices
 docs/           preview GIF and sprite sheet
-tests/          pytest wrapper around checks.py
+tests/          pytest wrapper around checks.py and the web input tests
+web/            browser game: index.html, game.js, input.js, generated assets/
 ```
 
 ## Changing things

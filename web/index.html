@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Biboo Move Test</title>
+<style>
+  :root {
+    --bg: #15151b; --panel: #1f1f28; --line: #33333f; --text: #e6e6ec; --dim: #9a9aa8;
+    --lit: #f0b44c; --key: #2b2b36;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+  main { max-width: 1184px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 18px; margin: 0 0 10px; font-weight: 600; }
+  #stage { position: relative; background: #000; border: 1px solid var(--line); }
+  canvas { display: block; width: 100%; image-rendering: pixelated; image-rendering: crisp-edges; aspect-ratio: 384 / 216; }
+  #now { position: absolute; left: 10px; top: 8px; padding: 4px 8px; background: rgba(0,0,0,.55);
+         border-radius: 4px; font-weight: 600; pointer-events: none; }
+  #now small { font-weight: 400; color: var(--dim); margin-left: 6px; }
+  #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 760px) { .row { grid-template-columns: 1fr; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); margin: 0 0 8px; }
+  #pad { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btn { min-width: 44px; padding: 4px 8px; border-radius: 4px; background: var(--key); text-align: center;
+         border: 1px solid var(--line); font-weight: 600; }
+  .btn kbd { display: block; font: 11px ui-monospace, monospace; color: var(--dim); font-weight: 400; }
+  .btn.on { background: var(--lit); color: #1a1206; border-color: var(--lit); }
+  .btn.on kbd { color: #3d2c0b; }
+  #log { list-style: none; margin: 0; padding: 0; font: 13px ui-monospace, monospace; min-height: 8.5em; }
+  #log li { padding: 1px 0; color: var(--dim); }
+  #log li:first-child { color: var(--text); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td { padding: 3px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+  td:first-child { font-family: ui-monospace, monospace; white-space: nowrap; color: var(--lit); }
+  tr.playing td { background: #2c2a22; }
+  p.note { color: var(--dim); margin: 8px 0 0; font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Biboo move test</h1>
+  <div id="stage">
+    <canvas id="view" width="384" height="216" tabindex="0" aria-label="Game view"></canvas>
+    <div id="now"></div>
+    <div id="loading">Loading...</div>
+  </div>
+  <div class="row">
+    <section>
+      <h2>Pad</h2>
+      <div id="pad"></div>
+      <p class="note">Keyboard: arrows = pad, Z = A, X = B, C = X, V = Y, Q = L, W = R. A connected gamepad
+        works too (face buttons, shoulders or triggers, d-pad or left stick). Click the view first if keys do nothing.</p>
+    </section>
+    <section>
+      <h2>Last moves</h2>
+      <ol id="log"></ol>
+    </section>
+  </div>
+  <section style="margin-top:16px">
+    <h2>Moves ('+' together, '-' one after another)</h2>
+    <table id="moves"></table>
+  </section>
+</main>
+<script src="assets/data.js"></script>
+<script src="input.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
