@@ -1,5 +1,9 @@
 """Basic attacks: A, Right+A, Down+A, Left+A, L, R."""
-from .base import Move, PLOW, tween
+import numpy as np
+
+from .. import rig
+from .base import Move, PLOW, tween, fit
+from . import noncombat as nc
 from .noncombat import DUCK
 
 P = dict(PLOW)
@@ -90,26 +94,62 @@ def left_a():
     ], notes='hops 36 px back; active frame 2')
 
 
-# L: push kick (teep): chamber the knee, drive the hips forward and extend, recoil at once.
+# L: push kick (teep). One cock frame: the kicking knee comes up and the foot draws back while the
+# sword goes up into the high guard, out of the kick's way. Then the kicking leg drives out straight
+# and she slides forward until the boot passes the point where the blade tip was in the guard, so
+# the kick lands on anything the blade would have reached. The support leg straightens under her.
+def _straight_leg(name, hip_off, angle, reach=0.998):
+    """Ankle offset from neutral for a straight leg: `angle` degrees below horizontal (forward)."""
+    v = rig.LEG_NEUTRAL[name]
+    hip = np.array(v['hip'], float) + np.array(hip_off, float)
+    a = np.radians(angle)
+    ankle = hip + sum(rig.LEG_LEN[name]) * reach * np.array([np.cos(a), np.sin(a)])
+    return tuple(np.round(ankle - np.array(v['ankle'], float), 2))
+
+
+def _straight_support(hip_off, reach=0.998):
+    """Rear ankle offset that straightens the support leg with the foot still on the ground."""
+    v = rig.LEG_NEUTRAL['left']
+    hip = np.array(v['hip'], float) + np.array(hip_off, float)
+    drop = v['ankle'][1] - hip[1]
+    dx = np.sqrt(max((sum(rig.LEG_LEN['left']) * reach) ** 2 - drop ** 2, 0.0))
+    return (round(float(hip[0] - dx - v['ankle'][0]), 2), 0.0)
+
+
+def _guard_tip_x():
+    from .base import frame
+    fr = frame(dict(P, name='plow', ms=100))
+    return float(rig.Sword(fr['theta'], fr['H']).tip[0])
+
+
 def push_kick(id='push_kick', title='Push kick', inputs='L', heavy=False, energy=None):
     e = [('energy', dict(color=energy, glow=False, n=10))] if energy else []
-    ext = (11, -25) if heavy else (10, -24)
+    col = energy or 'white'
+    up = {k: v for k, v in nc.HIGH.items()}                    # sword raised, clear of the kick
+    kick_hip = (1, 1)
+    front = _straight_leg('right', kick_hip, 6 if heavy else 8)
+    rear = _straight_support(kick_hip)
+    toe = rig.LEG_NEUTRAL['right']['ankle'][0] + front[0] + rig.LEG_NEUTRAL['right']['toe_reach']
+    hip = np.array(rig.LEG_NEUTRAL['right']['hip']) + np.array(up['hip'])
+    cock = tuple(np.round(hip + (-4.0, 16.0) - np.array(rig.LEG_NEUTRAL['right']['ankle']), 2))   # foot tucked back under the hip
+    slide = int(np.ceil(_guard_tip_x() - toe + 6))           # boot ends past the old blade tip
+    kick = fit({**P, **up, **dict(hip=kick_hip, front=front, rear=rear, hair=(-2, 1), cloth=(2, -1, 1), active=True,
+                                   hit='foot', name='kick', ms=50 if heavy else 40)})
     specs = [
-        pose(name='chamber', ms=90 if heavy else 70, front=(-7, -19), bend=-5, lean=-1, hip=(0, 1), hair=(1, 0),
-             cloth=(1, 0, 1)),
-        pose(name='kick', ms=50 if heavy else 40, front=ext, hip=(2, 1), bend=-7, lean=-1, active=True, hit='foot',
-             hair=(-2, 1), cloth=(2, -1, 1), shake=(2, 0) if heavy else (1, 0),
-             fx=[('kickwave', dict(big=heavy, color=energy or 'white'))] + e),
-        pose(name='extend', ms=70 if heavy else 50, front=ext, hip=(2, 1), bend=-7, lean=-1, active=True, hit='foot',
-             hair=(-1, 1), cloth=(2, -1, 1), fx=[('kickwave', dict(big=heavy, color=energy or 'white'))] if heavy else []),
-        pose(name='recoil', ms=60, front=(-5, -14), bend=-4, hair=(1, 0)),
-        pose(name='plant', ms=80, front=(0, 0), fx=[('dust', dict(foot='front', t=0.3))]),
-        pose(name='plow', ms=100),
+        fit({**P, **up, **dict(name='cock', ms=100 if heavy else 80, front=cock, hair=(1, 0), cloth=(1, 0, 1),
+                               fx=[('aura', dict(color=energy, width=1))] if energy else [])}),
+        dict(kick, root=(round(slide * 0.6), 0), shake=(2, 0) if heavy else (1, 0),
+             fx=[('kickwave', dict(big=heavy, color=col)), ('dust', dict(foot='rear', t=0.0))] + e),
+        dict(kick, name='extend', ms=70 if heavy else 50, root=(slide, 0), hair=(-1, 1),
+             fx=[('kickwave', dict(big=heavy, color=col)), ('dust', dict(foot='rear', t=0.2))] + e),
+        tween(kick, P, 0.5, 'recoil', 70, root=(slide, 0), front=(-5, -14), rear=(0, 0), hair=(1, 0),
+              order='HIGH', far=dict(sleeve=3.5, rs=2.6), fx=[('dust', dict(foot='rear', t=1.0))]),
+        pose(name='plant', ms=80, root=(slide, 0), fx=[('dust', dict(foot='front', t=0.3))]),
+        pose(name='plow', ms=100, root=(slide, 0)),
     ]
-    if energy:
-        specs[0]['fx'] = [('aura', dict(color=energy, width=1))]
     return Move(id, title, inputs, 'basic' if not (heavy or energy) else 'combo', specs,
-                notes='pushes the enemy back; active frames 2-3 (foot)')
+                notes=f'pushes the enemy back; slides {slide} px so the boot passes the guard\'s blade tip; '
+                      'active frames 2-3 (foot)')
 
 
 # R: kneel with the sword planted, glow green while + signs float up (recover HP).

@@ -108,7 +108,7 @@ sequence) with chord, sequence and tap windows. Previews of every move are in `d
 | Right+A | thrust | Lunging thrust, 18 px forward |
 | Down+A | upswing | Duck, then rising cut |
 | Left+A | backstep_upswing | Rising cut while hopping 36 px back |
-| L | push_kick | Chamber, hip-height push, recoil |
+| L | push_kick | One cock-back frame with the sword raised out of the way, then a straight-leg push that slides her 49 px so the boot passes where the blade tip was; recoil |
 | R (hold) | recover | Kneel on the planted sword, green glow, rising + signs |
 | A+B | energy_slash | Slash with glittering blue energy; press A and B together, or hold B and tap A |
 | B+L / A+B+L | heavy_kick / energy_kick | Bigger push kick; with blue energy (A, B and L together, or one after another in any order) |
