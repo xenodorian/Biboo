@@ -31,10 +31,15 @@ const { chromium } = require('playwright');
 
   // ---- meters start at 50 max
   await ev('bibooGame.resetAll()');
-  check('every meter maximum starts at 50', JSON.stringify(await ev('bibooGame.maxes()')) === JSON.stringify({ energy: 50, empower: 50, super: 50 }), await ev('bibooGame.maxes()'));
+  check('energy and empower maximums start at 50 and the super meter at 100', JSON.stringify(await ev('bibooGame.maxes()')) === JSON.stringify({ energy: 50, empower: 50, super: 100 }), await ev('bibooGame.maxes()'));
   await ev("bibooGame.unlock('L1')");
   let m = await ev('bibooGame.meters()');
   check('unlocking L1 gives an energy meter that starts at 50', m.energy === 50 && m.empower === 0, m);
+
+  await ev("bibooGame.unlock('earthquake')");
+  m = await ev('bibooGame.meters()');
+  check('unlocking the super meter gives a super maximum of 100 and starts it at 100', m.super === 100 && (await ev('bibooGame.maxes()')).super === 100, m);
+  await ev('bibooGame.resetAll()');
 
   // ---- crates: every crate drops something; upgrades raise the max by 25 and the meter by 25
   await custom({ crates: Array.from({ length: 10 }, (_, i) => ({ x: 40 + i * 30, fy: 0 })) });

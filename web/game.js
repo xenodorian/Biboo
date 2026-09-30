@@ -140,7 +140,7 @@
   function spawnGem(wx, kind, fy) { gems.push({ x: wx, y: (fy || 0) + 14 + Math.random() * 8, fy: fy || 0, kind, bob: Math.random() * 6.28, t0: clock }); }
   // Progress is kept in progress.js; the meters live here while playing and are copied over when it is saved.
   function syncProgress() { P.state.meters = { energy: energyMeter, empower: empowerMeter, super: superMeter }; P.save(); }
-  function meterStarts(had) {                        // a meter that has just become available starts full (50)
+  function meterStarts(had) {                        // a meter that has just become available starts full (50, the super meter 100)
     if (!had.energy && P.meterOn('energy')) energyMeter = Math.max(energyMeter, maxOf('energy'));
     if (!had.empower && P.meterOn('empower')) empowerMeter = Math.max(empowerMeter, maxOf('empower'));
     if (!had.super && P.meterOn('super')) superMeter = Math.max(superMeter, maxOf('super'));
@@ -1017,7 +1017,8 @@
   // the unlocks a golden crate may give: only ones the player does not own yet, and not already floating as an item
   function unlockPool(forItem) {
     const float = new Set(powerups.map(u => u.item)), placed = new Set(Object.keys(LV.whereIs));
-    const open = P.UNLOCKS.map(u => u.id).filter(id => !P.has(id) && !float.has(id));
+    const LATE = { earthquake: 3, meteor: 4 };                               // late-game unlocks: only handed out as substitutes from their level on
+    const open = P.UNLOCKS.map(u => u.id).filter(id => !P.has(id) && !float.has(id) && !(LATE[id] && level && level.n < LATE[id]));
     const free = open.filter(id => !placed.has(id) || id === forItem);      // not promised to another crate
     return free.length ? free : open;
   }

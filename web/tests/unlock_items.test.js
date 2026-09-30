@@ -56,7 +56,10 @@ const { chromium } = require('playwright');
   const items = st2.powerups.map(p => p.item);
   check('simultaneous golden crates give distinct unlocks', new Set(items).size === items.length, items);
   check('none of them is already owned', !items.includes('thrust'), items);
-  check('all 15 still-locked unlocks are handed out and the extra crates give nothing', items.length === n - 1, items.length);
+  check('early on, the late-game Earthquake and Meteor Shower are never handed out as substitutes', !items.includes('earthquake') && !items.includes('meteor'), items);
+  check('the other 13 still-locked unlocks are handed out and the extra crates give nothing', items.length === n - 3, items.length);
+  const late = await ev(`(() => { const w = BIBOO_LEVELS.whereIs; return { eq: w.earthquake, mt: w.meteor }; })()`);
+  check('Earthquake and Meteor Shower stay in their late-game crates (level 3 or later)', parseInt(late.eq) >= 3 && parseInt(late.mt) >= 3, late);
 
   // ---- a real pickup shows the name and the controller input
   await ev('bibooGame.resetAll(); bibooGame.enterLevel(1)'); await wait(500);
