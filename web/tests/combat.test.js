@@ -11,7 +11,7 @@ const { chromium } = require('playwright');
   page.on('pageerror', e => errors.push(String(e)));
   await page.goto('file://' + path.resolve(__dirname, '../index.html'));
   await page.waitForFunction(() => { const b = document.getElementById('btn-start'); return b && !b.disabled; }, null, { timeout: 20000 });
-  await page.click('#btn-start'); await page.click('#view');
+  await page.click('#btn-start'); await page.evaluate('bibooGame.arena()'); await page.click('#view');
   const ev = js => page.evaluate(js), wait = ms => page.waitForTimeout(ms);
   const press = async (keys, ms = 70) => { for (const k of keys) await page.keyboard.down(k); await wait(ms); for (const k of keys) await page.keyboard.up(k); };
   const results = [];

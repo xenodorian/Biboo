@@ -28,6 +28,7 @@ const shots = process.argv[2];
   await page.waitForFunction(() => !document.getElementById('loading'), null, { timeout: 20000 });
   await page.waitForFunction(() => { const b = document.getElementById('btn-start'); return b && !b.disabled; }, null, { timeout: 20000 });
   await page.click('#btn-start');                               // the game waits on its start menu
+  await page.evaluate('bibooGame.arena()');                    // everything unlocked, one closed map
   await page.click('#view');
   const E = () => page.evaluate(() => window.bibooGame.enemies());
   const e0 = await E();

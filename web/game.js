@@ -742,8 +742,8 @@
   let lastHint = -1e9;
   function hint(text) { if (clock - lastHint > 2500) { lastHint = clock; banners.push({ title: text, t0: clock, ms: 2200 }); } }
 
-  function startLevel(n) {
-    const def = LV.levels[n - 1];
+  function startLevel(n, custom) {
+    const def = custom || LV.levels[n - 1];
     if (!def) return;
     level = { n, def, idx: 0, killed: new Set(), broken: new Set(), pending: new Map() };
     kills = 0; hp = MAX_HP; gameOver = false; paused = false; respawnOn = false;
@@ -796,6 +796,10 @@
       if (herY() >= sd.top - 2 || px + FOOT <= sd.x0 || px - FOOT >= sd.x1) continue;
       const mid = (sd.x0 + sd.x1) / 2;
       if ((lastCx !== null ? lastCx : px) < mid) x -= (px + FOOT) - sd.x0; else x += sd.x1 - (px - FOOT);
+      px = playerX();
+    }
+    if (curMap.def.arena) {                       // test arena: one closed map, no doors
+      if (px > MAP_W - EDGE - 1) x -= px - (MAP_W - EDGE - 1); else if (px < EDGE + 1) x += EDGE + 1 - px;
       px = playerX();
     }
     // 2. the doors: past the right edge is the next map, past the left edge the one before (while stunned she is only kept in)
@@ -2010,6 +2014,13 @@
                     solids: curMap ? curMap.solids : [], plats: curMap ? curMap.plats : [], fx: { gems: gems.length } }),
     enterLevel: n => enterLevel(n), warp: idx => { loadMap(idx, 'left'); }, setX: v => { x = v; }, goOverworld: () => goOverworld(),
     menuOpen: () => !!(UI && UI.isOpen()),
+    unlock: id => unlockItem(id), resetAll: () => { P.reset(); energyMeter = empowerMeter = superMeter = 0; refreshUnlocks(); },
+    // the old combat tests: everything unlocked, one closed map with no scenery, enemies as the test places them
+    arena: () => {
+      unlockEverything();
+      startLevel(0, { n: 0, name: 'Arena', blurb: '', tint: null, maps: [{ id: 'arena', solids: [], plats: [], crates: [], enemies: [], arena: true }] });
+      respawnOn = true; paused = false; hideMenu();
+    },
     hurtFoe: (i, dmg) => { if (enemies[i]) hurtEnemy(enemies[i], dmg); }, killFoe: i => { if (enemies[i]) kill(enemies[i]); },
     hurtHer: d => hurtHer(d), gemBag: () => ({ ...P.state.gems }), pickups: () => gems.map(g => ({ x: g.x, kind: g.kind })),
     // test setup: clear the field and place enemies at distances from her anchor
