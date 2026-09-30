@@ -108,6 +108,11 @@ Done in stages, pushed to main after each. Per the request, no test suites were 
 - [x] Jump crash costs 30 energy (paid when it starts; A in the air does nothing and shows "No energy" below 30) and does 150 damage flat (`CRASH_COST`, `CRASH_DMG`). Its impact frame and shake still depend on height as before.
 - Status: DONE
 
+### Stage 3. Meteor shower fills the screen
+- [x] The meteor effect is drawn at 1.8x (`FX_SCALE`, was 1.4) and there are 18 meteors (was 9) landing across everything the view shows at that scale, ahead of and behind Max (`METEOR_N`, `METEOR_SPAN` in `swingkit/movefx.py`; the hit circles use the same draws through `movefx.meteor_lands`). Max stays at 0.5. Checked by screenshot: meteors and blasts across the whole width.
+- Status: DONE
+- Tests: `web/tests/combat.test.js` and `web/tests/browser.test.js` still hold the pre-change numbers for the wave, heavy chop, crash, slash and energy dash; updating them is the next step.
+
 ## Open questions
 - (none; the old dip/recover2 open question is obsolete: those frames were removed when the animation was restructured to plow/raise/high/impact.)
 

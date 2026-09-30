@@ -329,12 +329,22 @@ def quake(ctx, t=0.0, reach=150):
     fx.flash(ctx.front, I, scale=0.8, remnant=t > 0.5)
 
 
-def meteors(ctx, t=0.0, n=9, seed=17):
-    """Meteor shower: fireballs streak down from the upper left with trails and burst on impact."""
+# The shower is drawn at fxScale (see webexport.FX_SCALE, 1.8) around Max, and the game view shows about
+# 160 px ahead of her and 53 px behind at that scale (native px). Meteors land across that whole span, so
+# they fill the screen.
+METEOR_N, METEOR_SPAN = 18, (-55.0, 165.0)
+
+
+def meteor_lands(seed=17, n=METEOR_N):
+    """(t0, x_land, speed) of every meteor; x_land in layer coordinates. Shared with the hit shapes."""
     rng = np.random.default_rng(seed)
+    return [(rng.uniform(0, 3.0), fx.X0 + rng.uniform(*METEOR_SPAN), rng.uniform(55, 80)) for _ in range(n)]
+
+
+def meteors(ctx, t=0.0, n=METEOR_N, seed=17):
+    """Meteor shower: fireballs streak down from the upper left with trails and burst on impact."""
     gy = ctx.gy
-    for k in range(n):
-        t0 = rng.uniform(0, 3.0); x_land = rng.uniform(150, 380); spd = rng.uniform(55, 80)
+    for t0, x_land, spd in meteor_lands(seed, n):
         tt = t - t0
         if tt < 0: continue
         fall = tt * spd
