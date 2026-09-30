@@ -36,7 +36,7 @@ Steps 29-38 DONE. See git history and README.
 - Status: DONE
 - Signed off: Claude, 2026-09-30
 
-### Open: `web/tests/browser.test.js` is stale
+### Closed: `web/tests/browser.test.js` was stale (brought up to date, see the catch-up section below)
 It now clicks Start, but many checks still expect the old game: the pre-Grok remaps (Left+A is thrust now, Down-Down-A spins, R2 is the energy wave, beams moved to shoulder buttons), the 0.5 sprite scale, closer spawns and enemy reach, and meters that gate the beams. About 40 of them fail for those reasons, not because of the meter work. Bring the expectations up to date.
 
 ## Workflow: wave, meteors, enemies, gems review (user request, 2026-09-30)
@@ -86,10 +86,19 @@ Done in stages, pushed to main after each. Per the request, no test suites were 
 - Measured knockback runs 3 to 13 px over the stated distance on some pushes because the enemy's stun animation shifts its art a little; the test allows 20 px.
 - Not run: `tests/test_web.py` (pytest is not installed here; the 9 other python checks pass) and `web/tests/browser.test.js` (still stale, see Open above).
 
+## Workflow: test suite catch-up, pad start (user request, 2026-09-30)
+
+- [x] Installed pytest (`pip install pytest`). Python tests 13/13.
+- [x] `web/tests/browser.test.js` brought up to date and passing 122/122 (the open item above is closed): new key names (L1 Q, R1 T, R2 R, R W is the recover hold), the remaps (Left+A is thrust, Down-Down-A is the spin, B+L1 energy kick, L1+R1 burst, Right-X+A energy dash thrust, R2 energy wave), 0.5 scale distances and boxes, meters filled before each move, Empowerment Beam does no damage, parry push 300 px, laser 15 per tick, and the Game Over menu with Restart.
+- [x] Restart (`resetRun`) now also puts both meters back to 50 and clears gems and explosions.
+- [x] Fix: the Options (Start) button on a pad could pause, resume and restart but not start the game, because the frame loop that reads the pad only begins after the first start. A small `menuPoll` loop now reads the pad until the game starts. Checked with a fake PS3 pad: Options hides the menu and starts.
+- Status: DONE
+
 ## Open questions
 - (none; the old dip/recover2 open question is obsolete: those frames were removed when the animation was restructured to plow/raise/high/impact.)
 
 ## Log
+- 2026-09-30: Pad Options button now starts the game; browser test updated (122/122); pytest installed (Claude).
 - 2026-09-30: New combat stats (batches 1 and 2) done and verified; combat.test.js added; kick knockback direction fixed (Claude).
 - 2026-09-30: Stage 4 (Empowerment Beam rename at source, taunt speed and tint, review of gems and meters) (Claude).
 - 2026-09-30: Stage 3 (enemy reach, scaled hitboxes, normal-size spawns) (Claude).

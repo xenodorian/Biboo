@@ -7,7 +7,8 @@ const fs = require('fs');
 const { chromium } = require('playwright');
 
 const K = { Up: 'ArrowUp', Down: 'ArrowDown', Left: 'ArrowLeft', Right: 'ArrowRight',
-            A: 'KeyZ', B: 'KeyX', X: 'KeyC', Y: 'KeyV', L: 'KeyQ', R: 'KeyW' };
+            A: 'KeyZ', B: 'KeyX', X: 'KeyC', Y: 'KeyV', L: 'KeyQ', R: 'KeyW',
+            L1: 'KeyQ', R1: 'KeyT', L2: 'KeyE', R2: 'KeyR' };   // R (W) is the recover hold; R1 (T) and R2 (R) are the shoulder buttons
 const shots = process.argv[2];
 
 (async () => {
@@ -94,28 +95,27 @@ const shots = process.argv[2];
     ['hold Up + A -> heavy', 'heavy', async () => { await down('Up'); await wait(800); await tap('A'); await up('Up'); }],
     ['Right+A -> thrust', 'thrust', chord(['A'], ['Right'])],
     ['Down+A -> upswing', 'upswing', chord(['A'], ['Down'])],
-    ['Left+A -> spin_attack', 'spin_attack', chord(['A'], ['Left'])],
+    ['Left+A -> thrust (turns her left)', 'thrust', chord(['A'], ['Left'])],
+    ['Down-Down-A -> spin_attack', 'spin_attack', seq(['Down', 'Down', 'A'])],
     ['A+L -> beam_laser', 'beam_laser', chord(['A', 'L'])],
-    ['A+R -> beam_plasma', 'beam_plasma', chord(['A', 'R'])],
+    ['A+R1 -> beam_plasma (Empowerment Beam)', 'beam_plasma', chord(['A', 'R1'])],
     ['Left-Right-A -> beam_cloud', 'beam_cloud', seq(['Left', 'Right', 'A'])],
     ['A+B -> beam_fire', 'beam_fire', chord(['A', 'B'])],
     ['hold B + tap A -> beam_fire', 'beam_fire', async () => { await down('B'); await wait(600); await tap('A'); await wait(60); await up('B'); }],
-    ['B+L -> heavy_kick', 'heavy_kick', chord(['B', 'L'])],
-    ['A+B+L -> energy_kick', 'energy_kick', chord(['A', 'B', 'L'])],
-    ['A, B, L one after another -> energy_kick', 'energy_kick', seq(['A', 'B', 'L'])],
-    ['L+R -> energy_burst', 'energy_burst', chord(['L', 'R'])],
+    ['B+L1 -> energy_kick', 'energy_kick', chord(['B', 'L1'])],
+    ['L1+R1 -> energy_burst', 'energy_burst', chord(['L1', 'R1'])],
     ['X+Y -> taunt', 'taunt', chord(['X', 'Y'])],
     ['X+A -> dash_thrust', 'dash_thrust', chord(['X', 'A'])],
     ['Down-Y -> sky_dash', 'sky_dash', seq(['Down', 'Y'])],
     ['hold Down + Y -> sky_dash', 'sky_dash', async () => { await down('Down'); await wait(800); await tap('Y'); await up('Down'); }],
-    ['tap B, then X+A -> energy_dash_thrust', 'energy_dash_thrust', async () => { await tap('B', 50); await wait(80); await chord(['X', 'A'])(); }],
-    ['hold B, then X+A -> energy_dash_thrust', 'energy_dash_thrust', async () => { await down('B'); await wait(600); await chord(['X', 'A'])(); await up('B'); }],
-    ['Down-Right-A-B -> energy_wave', 'energy_wave', seq(['Down', 'Right', 'A', 'B'])],
+    ['tap Right, then X+A -> energy_dash_thrust', 'energy_dash_thrust', async () => { await tap('Right', 50); await wait(80); await chord(['X', 'A'])(); }],
+    ['R2 -> energy_wave', 'energy_wave', async () => tap('R2')],
     ['Down x4, A -> earthquake', 'earthquake', seq(['Down', 'Down', 'Down', 'Down', 'A'])],
     ['Up x4, A -> meteor_shower', 'meteor_shower', seq(['Up', 'Up', 'Up', 'Up', 'A'])],
   ];
   for (const [name, want, act] of cases) {
     await settle();
+    await page.evaluate(() => window.bibooGame.setMeters(100, 100));
     const n = await startedCount();
     await act();
     let seen = false;
@@ -141,6 +141,7 @@ const shots = process.argv[2];
   const kills = () => page.evaluate(() => window.bibooGame.kills());
   const fight = async (name, list, act, want) => {
     await settle();
+    await page.evaluate(() => window.bibooGame.setMeters(100, 100));
     await page.evaluate(l => window.bibooGame.setEnemies(l), list);
     const n = await kills();
     await act();
@@ -151,26 +152,28 @@ const shots = process.argv[2];
     check(`${name}: ${want} kill(s)`, got === want, `kills ${got}, enemies ${JSON.stringify(es)}`);
     await page.evaluate(() => window.bibooGame.setEnemies([]));
   };
-  await fight('A slash kills an orc in reach', [['orc', 100, 3000]], async () => tap('A'), 1);
-  await fight('A slash kills a goblin in reach', [['goblin', 100, 3000]], async () => tap('A'), 1);
+  await fight('A slash kills an orc in reach', [['orc', 60, 3000]], async () => tap('A'), 1);
+  await fight('A slash kills a goblin in reach', [['goblin', 60, 3000]], async () => tap('A'), 1);
   await fight('L push kick kills an orc', [['orc', 85, 3000]], async () => tap('L'), 1);
-  await fight('Up-A heavy kills a goblin', [['goblin', 100, 3000]], seq(['Up', 'A']), 1);
-  await fight('energy wave kills a far orc', [['orc', 260, 3000]], seq(['Down', 'Right', 'A', 'B']), 1);
-  await fight('energy burst kills both sides', [['orc', 80, 3000], ['goblin', -40, 3000]], chord(['L', 'R']), 2);
-  await fight('Down+A upswing kills an orc in front', [['orc', 90, 3000]], chord(['A'], ['Down']), 1);
-  await fight('Down+A upswing kills a goblin in front', [['goblin', 95, 3000]], chord(['A'], ['Down']), 1);
+  await fight('Up-A heavy kills a goblin', [['goblin', 55, 3000]], seq(['Up', 'A']), 1);
+  await fight('energy wave kills a far orc', [['orc', 260, 3000]], async () => tap('R2'), 1);
+  await fight('energy burst kills both sides', [['orc', 80, 3000], ['goblin', -40, 3000]], chord(['L1', 'R1']), 2);
+  await fight('Down+A upswing kills an orc in front', [['orc', 60, 3000]], chord(['A'], ['Down']), 1);
+  await fight('Down+A upswing kills a goblin in front', [['goblin', 60, 3000]], chord(['A'], ['Down']), 1);
   const faceLeft = async () => { await tap('Left', 120); await wait(400); };
   await fight('facing left: slash kills an orc on her left', [['orc', -100, 3000]], async () => { await faceLeft(); await tap('A'); }, 1);
   await fight('facing left: slash does not hit an orc behind her', [['orc', 60, 3000]], async () => { await faceLeft(); await tap('A'); }, 0);
-  await fight('Left+A spin attack kills enemies in front and behind', [['orc', 85, 3000], ['goblin', -85, 3000]], chord(['A'], ['Left']), 2);
+  await fight('Down-Down-A spin attack kills enemies in front and behind', [['orc', 55, 3000], ['goblin', -55, 3000]], seq(['Down', 'Down', 'A']), 2);
   // beams: drawn from the blade tip in her facing direction; they kill what they touch, far ahead
-  for (const [nm, act] of [['cloud', seq(['Left', 'Right', 'A'])], ['fire', chord(['A', 'B'])], ['laser', chord(['A', 'L'])], ['plasma', chord(['A', 'R'])]])
+  for (const [nm, act] of [['cloud', seq(['Left', 'Right', 'A'])], ['fire', chord(['A', 'B'])], ['laser', chord(['A', 'L'])]])
     await fight(`${nm} beam kills an orc 240 px ahead`, [['orc', 240, 3000]], act, 1);
+  await fight('Empowerment Beam does no damage: an orc 240 px ahead is not killed', [['orc', 240, 3000]], chord(['A', 'R1']), 0);
   await fight('laser beam misses an orc 620 px ahead', [['orc', 620, 3000]], chord(['A', 'L']), 0);
-  await fight('facing left: plasma beam kills an orc 240 px on her left', [['orc', -240, 3000]], async () => { await faceLeft(); await chord(['A', 'R'])(); }, 1);
-  await fight('facing left: plasma beam does not hit an orc behind her', [['orc', 200, 3000]], async () => { await faceLeft(); await chord(['A', 'R'])(); }, 0);
+  await fight('facing left: Empowerment Beam does no damage to an orc 240 px on her left', [['orc', -240, 3000]], async () => { await faceLeft(); await chord(['A', 'R1'])(); }, 0);
+  await fight('facing left: Empowerment Beam does not hit an orc behind her', [['orc', 200, 3000]], async () => { await faceLeft(); await chord(['A', 'R1'])(); }, 0);
   {
     await settle();
+    await page.evaluate(() => window.bibooGame.setMeters(100, 100));
     await chord(['A', 'L'])(); await wait(330);
     const b = await page.evaluate(() => window.bibooGame.beam());
     await shot('beam_laser');
@@ -187,7 +190,7 @@ const shots = process.argv[2];
               async () => { await tap('B', 50); await wait(80); await chord(['X', 'A'])(); }, 1);
   {
     await settle();
-    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 150, 5000]]));
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 90, 5000]]));      // its front edge is inside the 92 px dash
     const x0 = await page.evaluate(() => window.bibooGame.x());
     await tap('X'); await wait(700);
     const x1 = await page.evaluate(() => window.bibooGame.x());
@@ -225,7 +228,7 @@ const shots = process.argv[2];
     await tap('A'); await wait(100);
     check('A on the ground is still the slash', (await startedSince(n))[0] === 'slash', JSON.stringify(await startedSince(n)));
   }
-  await fight('air crash kills an orc below', [['orc', 110, 5000]], async () => { await tap('Y'); await wait(300); await tap('A'); }, 1);
+  await fight('air crash kills an orc below', [['orc', 60, 5000]], async () => { await tap('Y'); await wait(300); await tap('A'); }, 1);
 
   // enemy attacks on her: hit (red, knocked back, stunned), block (white, small slide), parry
   const combat = () => page.evaluate(() => window.bibooGame.combat());
@@ -234,7 +237,7 @@ const shots = process.argv[2];
     await settle();
     const c0 = await combat();
     const x0 = await page.evaluate(() => window.bibooGame.x());
-    await page.evaluate(() => { window.bibooGame.setEnemies([['orc', 75, 60000]]); window.bibooGame.attack(0, 'attack'); });
+    await page.evaluate(() => { window.bibooGame.setEnemies([['orc', 60, 60000]]); window.bibooGame.attack(0, 'attack'); });
     const seen = await watch(900, async () => ({ c: await combat(), cur: await cur(), e: (await E())[0],
                                                  me: await page.evaluate(() => window.bibooGame.herBox()) }));
     const stunned = seen.filter(v => v.c.stun);
@@ -254,13 +257,13 @@ const shots = process.argv[2];
     await down('Down'); await wait(500);
     const duck = await page.evaluate(() => window.bibooGame.herBox());
     const c0 = await combat();
-    await page.evaluate(() => { window.bibooGame.setEnemies([['orc', 75, 60000]]); window.bibooGame.attack(0, 'attack'); });
+    await page.evaluate(() => { window.bibooGame.setEnemies([['orc', 60, 60000]]); window.bibooGame.attack(0, 'attack'); });
     await wait(900);
     const c1 = await combat();
     await up('Down');
     const tops = await page.evaluate(() => [window.BIBOO.moves.idle.frames[0].top, window.BIBOO.moves.duck.frames[2].top]);
     check(`hurtbox: standing top at her head (${tops[0]} px), ducking 5 px under her head (${tops[1] - 5} px)`,
-          stand[3] - stand[1] === tops[0] && duck[3] - duck[1] === tops[1] - 5, JSON.stringify({ stand, duck, tops }));
+          stand[3] - stand[1] === tops[0] * 0.5 && duck[3] - duck[1] === (tops[1] - 5) * 0.5, JSON.stringify({ stand, duck, tops }));
     check('ducking: the orc swing passes over her', c1.hits === c0.hits && !c1.stun, JSON.stringify(c1));
     await page.evaluate(() => window.bibooGame.setEnemies([]));
   }
@@ -270,7 +273,7 @@ const shots = process.argv[2];
     await down('B'); await wait(300);
     const c0 = await combat();
     const x0 = await page.evaluate(() => window.bibooGame.x());
-    await page.evaluate(() => { window.bibooGame.setEnemies([['orc', 75, 60000]]); window.bibooGame.attack(0, 'attack'); });
+    await page.evaluate(() => { window.bibooGame.setEnemies([['orc', 60, 60000]]); window.bibooGame.attack(0, 'attack'); });
     const seen = await watch(700, combat);
     const x1 = await page.evaluate(() => window.bibooGame.x());
     const c1 = await combat(); const c = await cur();
@@ -281,7 +284,7 @@ const shots = process.argv[2];
   }
   {
     await settle();
-    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 75, 60000]]));
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 60, 60000]]));
     const c0 = await combat();
     const o0 = (await E())[0];
     await page.evaluate(() => window.bibooGame.attack(0, 'attack'));
@@ -292,7 +295,7 @@ const shots = process.argv[2];
     const o1 = (await E())[0];
     check('parry just before the swing lands: the orc turns white and is stunned',
           c1.parries === c0.parries + 1 && seen.some(e => e.state === 'stunned' && e.tint === '#ffffff'), JSON.stringify(seen.slice(0, 6)));
-    check('the parried orc is pushed back about 40 px', o1.x - o0.x > 30 && o1.x - o0.x < 50, `moved ${o1.x - o0.x}`);
+    check('the parried orc is pushed back about 300 px', o1.x - o0.x > 280 && o1.x - o0.x < 330, `moved ${o1.x - o0.x}`);
     check('a parry leaves her unhurt', c1.hits === c0.hits && !c1.stun, JSON.stringify(c1));
     await wait(600);
     check('the orc recovers after the push', (await E())[0].state !== 'stunned', JSON.stringify(await E()));
@@ -301,7 +304,7 @@ const shots = process.argv[2];
   // 90 ms later; after that it is too late
   for (const [at, ok] of [[215, true], [420, false]]) {
     await settle();
-    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 75, 60000]]));
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 60, 60000]]));
     const c0 = await combat();
     await page.evaluate(() => window.bibooGame.attack(0, 'attack'));
     await wait(at);
@@ -314,7 +317,7 @@ const shots = process.argv[2];
   }
   {
     await settle();
-    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 75, 60000]]));
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 60, 60000]]));
     const c0 = await combat();
     await tap('B', 40); await wait(400);   // parry long before the swing: too early
     await page.evaluate(() => window.bibooGame.attack(0, 'attack'));
@@ -357,7 +360,8 @@ const shots = process.argv[2];
     await up('Right');
     const o = (await E())[0];
     const OH = await page.evaluate(() => window.BIBOO.enemies.orc.frames[0].hurt[2]);
-    check('walking right stops at the orc', px + 60 <= o.x - OH + 1 && px + 60 >= o.x - OH - 30, `her front ${px + 60}, orc left edge ${o.x - OH}`);
+    const FR = 16.5, EDGE = OH * 0.5;   // her body reaches 16.5 px ahead of her anchor; enemy art is drawn at 0.5
+    check('walking right stops at the orc', px + FR <= o.x - EDGE + 1 && px + FR >= o.x - EDGE - 30, `her front ${px + FR}, orc left edge ${o.x - EDGE}`);
     await settle();
     const p0 = await page.evaluate(() => window.bibooGame.playerX());
     await page.evaluate(() => window.bibooGame.setEnemies([['orc', -110, 60000]]));
@@ -366,12 +370,12 @@ const shots = process.argv[2];
     await up('Left');
     const o2 = (await E())[0];
     const OH2 = await page.evaluate(() => window.BIBOO.enemies.orc.frames[0].hurt[2]);
-    check('walking left stops at an orc on her left', p1 - 60 >= o2.x + OH2 - 1 && p1 - 60 <= o2.x + OH2 + 30 && p1 < p0, `her front ${p1 - 60}, orc right edge ${o2.x + OH2}`);
+    check('walking left stops at an orc on her left', p1 - FR >= o2.x + OH2 * 0.5 - 1 && p1 - FR <= o2.x + OH2 * 0.5 + 30 && p1 < p0, `her front ${p1 - FR}, orc right edge ${o2.x + OH2 * 0.5}`);
     await page.evaluate(() => window.bibooGame.setEnemies([]));
   }
 
   // controller: a held d-pad direction still counts when a face button is pressed
-  for (const [d, bt, want] of [[15, 0, 'thrust'], [13, 0, 'upswing'], [14, 0, 'spin_attack'], [13, 3, 'sky_dash']]) {
+  for (const [d, bt, want] of [[15, 0, 'thrust'], [13, 0, 'upswing'], [14, 0, 'thrust'], [13, 3, 'sky_dash']]) {
     await settle();
     const n = await startedCount();
     await page.evaluate(d => { window.__pad.buttons[d] = { pressed: true, value: 1 }; }, d); await wait(300);
@@ -456,37 +460,43 @@ const shots = process.argv[2];
     const hpOf = () => page.evaluate(() => window.bibooGame.enemyHp());
     const texts = () => page.evaluate(() => window.bibooGame.floaters());
     await settle();
-    await page.evaluate(() => window.bibooGame.setEnemies([['goblin', 100, 6000], ['orc', 900, 60000]]));
+    await page.evaluate(() => window.bibooGame.setEnemies([['goblin', 60, 6000], ['orc', 900, 60000]]));
     check('enemies start with their HP (goblin 60, orc 200)', JSON.stringify(await hpOf()) === '[60,200]', JSON.stringify(await hpOf()));
     await tap('A'); await wait(300);
     check('a slash takes 15 HP off a goblin, shown as red -15', (await hpOf())[0] === 45 && (await texts()).includes('-15'), `${await hpOf()} ${await texts()}`);
     await wait(800);
     check('one slash hurts an enemy only once', (await hpOf())[0] === 45, `${await hpOf()}`);
     await settle();
-    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 100, 6000]]));
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 55, 6000]]));
     await down('Up'); await wait(1300); await tap('A'); await up('Up'); await wait(1200);
     check('a full heavy chop takes 90 HP off an orc', (await hpOf())[0] === 110, `${await hpOf()}`);
     await settle();
-    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 100, 6000]]));
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 55, 6000]]));
     await down('Up'); await wait(300); await tap('A'); await up('Up'); await wait(1200);
     check('a short heavy chop takes 35 HP off an orc', (await hpOf())[0] === 165, `${await hpOf()}`);
     await settle();
-    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 240, 6000]]));
+    await page.evaluate(() => { window.bibooGame.setMeters(100, 100); window.bibooGame.setEnemies([['orc', 240, 6000]]); });
     await chord(['A', 'L'])(); await wait(700);
     const lh = (await hpOf())[0];
-    check('the laser beam hurts on several ticks (12 each)', lh <= 176 && (200 - lh) % 12 === 0, `${lh}`);
+    check('the laser beam hurts on several ticks (15 each)', lh <= 170 && (200 - lh) % 15 === 0, `${lh}`);
     await settle();
-    await page.evaluate(() => { window.bibooGame.setEnemies([]); window.bibooGame.setHp(100); });
+    await page.evaluate(() => { window.bibooGame.setEnemies([]); window.bibooGame.setHp(100); window.bibooGame.setMeters(100, 100); });
     await down('R'); await wait(1700);
     const rh = await page.evaluate(() => window.bibooGame.hp()); const rt = await texts(); await up('R');
     check('kneeling to recover gives HP back with green +6 numbers', rh >= 118 && rt.includes('+6'), `hp ${rh} ${rt}`);
     await settle();
-    await page.evaluate(() => { window.bibooGame.setEnemies([['orc', 75, 60000]]); window.bibooGame.setHp(20); window.bibooGame.attack(0, 'attack'); });
+    await page.evaluate(() => { window.bibooGame.setEnemies([['orc', 60, 60000]]); window.bibooGame.setHp(20); window.bibooGame.attack(0, 'attack'); });
     await wait(900);
     const ko = await page.evaluate(() => window.bibooGame.hp());
     await wait(1800);
     const back = await page.evaluate(() => window.bibooGame.hp());
-    check('at 0 HP she is knocked out, then back at full HP', ko === 0 && back === 200, `ko ${ko}, later ${back}`);
+    const menu = await page.evaluate(() => { const m = document.getElementById('start-menu'); return m && !m.hidden ? m.textContent : ''; });
+    check('at 0 HP she is knocked out and the Game Over menu shows', ko === 0 && back === 0 && /Game Over/.test(menu), `ko ${ko}, later ${back}, menu ${menu.slice(0, 60)}`);
+    await page.click('#btn-start'); await wait(300);
+    await page.evaluate(() => { window.bibooGame.setRespawn(false); window.bibooGame.setEnemyHp(null); window.bibooGame.setEnemies([]); });
+    await wait(300);
+    const mt = await page.evaluate(() => window.bibooGame.meters());
+    check('Restart brings her back at full HP with the meters at 50', (await page.evaluate(() => window.bibooGame.hp())) === 200 && mt.energy === 50 && mt.empower === 50, JSON.stringify(mt));
     await page.evaluate(() => { window.bibooGame.setEnemyHp(1); window.bibooGame.setEnemies([]); });
     await settle();
   }

@@ -1232,6 +1232,15 @@
   }
 
   let startedGame = false, assetsReady = false, paused = false, gameOver = false;
+  // Before the game starts the frame loop is not running, so nothing read the pad and the Options or Start
+  // button could not start it (it worked for pause, resume and restart, which run inside the loop).
+  // Poll the pad from this small loop until the game has started; frame() takes over from there.
+  function menuPoll() {
+    if (startedGame) return;
+    if (typeof pollPad === 'function') pollPad();
+    requestAnimationFrame(menuPoll);
+  }
+  requestAnimationFrame(menuPoll);
   function setStartLabel() {
     const label = gameOver ? 'Restart' : (!startedGame ? 'Start' : (paused ? 'Resume' : 'Pause'));
     for (const id of ['btn-start', 'btn-hud-start']) {
@@ -1264,6 +1273,8 @@
     enemies.length = 0;
     respawns.length = 0;
     floaters.length = 0;
+    gems.length = 0; explosions.length = 0; flashUntil = 0;
+    energyMeter = METER_START; empowerMeter = METER_START;          // a new run starts with the meters at 50
     kills = 0;
     stun = null;
     slide = null;
