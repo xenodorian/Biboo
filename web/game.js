@@ -501,7 +501,8 @@
     if (!D.moves[move] || stun || !moveOpen(move)) return;
     if (!canAfford(move)) { deny(move); return; }             // no meter: the move does not play
     const air = AIR.find(b => usesButton(D.moves[move].input, b.input));
-    if (air && !moveOpen('jump_crash')) return;               // A in the air does nothing until the crash is unlocked
+    const inAir = airborne() || (cur && cur.id === 'jump' && cur.kind === 'action');
+    if (air && inAir && !moveOpen('jump_crash')) return;      // A in the air does nothing until the crash is unlocked
     if (air) {
       if ((airborne() || (cur && cur.id === 'jump' && cur.kind === 'action')) && !canAfford('jump_crash')) { deny('jump_crash'); return; }
       if (airborne()) { airCrash(via); return; }
@@ -1752,6 +1753,7 @@
     blockMove(before);
     physics();
     if (screen !== 'level' || !curMap) return;        // the level just ended
+    if (hp <= 0 && !gameOver) triggerGameOver();     // any source of damage ends the run, not only an enemy hit
     beamHits();
     stepHeal(dt);
     stepPowerups();
@@ -1999,6 +2001,17 @@
     combat: () => ({ stun: !!stun, hits, blocks, parries, tint: tint && clock < tint.until ? tint.color : null }),
     setRespawn: on => { respawnOn = on; },
     attack: (i, anim) => { const e = enemies[i]; e.state = 'attack'; play(e, anim); },
+    // state and controls for the browser tests of levels, unlocks, menus and the dev console
+    state: () => ({ screen, paused, gameOver, levelDone, devOpen, hp, floorY, feet: herY(), px: playerX(), cheats: { ...cheats },
+                    level: level ? { n: level.n, idx: level.idx, id: curMap && curMap.id } : null,
+                    crates: curMap ? curMap.crates.map(c => ({ x: c.x, fy: c.fy, item: c.item, broken: c.broken })) : [],
+                    powerups: powerups.map(u => ({ item: u.item, x: u.x, y: u.y })),
+                    foes: enemies.map(e => ({ type: e.type, x: e.x, fy: e.fy, hp: e.hp, state: e.state, alive: alive(e), path: e.path, dir: e.dir })),
+                    solids: curMap ? curMap.solids : [], plats: curMap ? curMap.plats : [], fx: { gems: gems.length } }),
+    enterLevel: n => enterLevel(n), warp: idx => { loadMap(idx, 'left'); }, setX: v => { x = v; }, goOverworld: () => goOverworld(),
+    menuOpen: () => !!(UI && UI.isOpen()),
+    hurtFoe: (i, dmg) => { if (enemies[i]) hurtEnemy(enemies[i], dmg); }, killFoe: i => { if (enemies[i]) kill(enemies[i]); },
+    hurtHer: d => hurtHer(d), gemBag: () => ({ ...P.state.gems }), pickups: () => gems.map(g => ({ x: g.x, kind: g.kind })),
     // test setup: clear the field and place enemies at distances from her anchor
     setEnemies: list => {
       enemies.length = 0; respawns.length = 0; facing = 1; hp = MAX_HP;
