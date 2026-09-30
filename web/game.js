@@ -130,7 +130,7 @@
     if (img[src]) return img[src].p;
     const im = new Image();
     const p = new Promise((res, rej) => { im.onload = res; im.onerror = () => rej(new Error('missing ' + src)); });
-    im.src = src;
+    im.src = src + (window.BIBOO_VER ? '?v=' + window.BIBOO_VER : '');   // version in the URL so a new build is never served from the cache
     img[src] = { im, p };
     return p;
   }
