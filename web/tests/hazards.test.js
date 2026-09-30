@@ -63,20 +63,20 @@ const { chromium } = require('playwright');
   // ---- jump physics (the plain jump only)
   await custom({}); await ev('bibooGame.setEnemies([])');
   const t0 = await ev('performance.now()');
-  await key('KeyZ', 50);
+  await key('ArrowUp', 50);
   let apex = 0, landed = null;
   for (let i = 0; i < 60; i++) { await wait(25); const f = (await S()).feetNow; apex = Math.max(apex, f); if (i > 8 && f <= 0.5) { landed = (await ev('performance.now()')) - t0; break; } }
   check(`jump apex is 115 to 150 px (${apex.toFixed(0)}) and lasts 550 to 900 ms (${Math.round(landed)})`, apex > 115 && apex < 150 && landed > 550 && landed < 900, { apex, landed });
   // reach: hold right through the flight
   await at(100);
-  await page.keyboard.down('ArrowRight'); await key('KeyZ', 50); await wait(1000); await page.keyboard.up('ArrowRight'); await wait(300);
+  await page.keyboard.down('ArrowRight'); await key('ArrowUp', 50); await wait(1000); await page.keyboard.up('ArrowRight'); await wait(300);
   s = await S();
   check('jump with Right held covers 85 to 130 px sideways', s.px - 100 > 85 && s.px - 100 < 130, s.px - 100);
 
   // ---- double tap Down drops through a platform; a single tap only ducks
   await custom({ plats: [{ x0: 150, x1: 250, top: 60 }] });
   await at(200); await ev('bibooGame.setFloor && 0');
-  await at(120); await page.keyboard.down('ArrowRight'); await key('KeyZ', 50); await wait(1000); await page.keyboard.up('ArrowRight'); await wait(400);
+  await at(120); await page.keyboard.down('ArrowRight'); await key('ArrowUp', 50); await wait(1000); await page.keyboard.up('ArrowRight'); await wait(400);
   s = await S();
   check('she can land on the platform (floorY 60)', s.floorY === 60, { fy: s.floorY, px: s.px });
   await key('ArrowDown', 60); await wait(500);
@@ -88,10 +88,10 @@ const { chromium } = require('playwright');
 
   // jumping off the edge of a platform lands on the ground, not in mid air
   await custom({ plats: [{ x0: 150, x1: 250, top: 60 }] });
-  await at(120); await page.keyboard.down('ArrowRight'); await key('KeyZ', 50); await wait(1000); await page.keyboard.up('ArrowRight'); await wait(300);
+  await at(120); await page.keyboard.down('ArrowRight'); await key('ArrowUp', 50); await wait(1000); await page.keyboard.up('ArrowRight'); await wait(300);
   await at(240); await wait(500);
   check('standing on the platform near its right end', (await S()).floorY === 60, await S());
-  await page.keyboard.down('ArrowRight'); await key('KeyZ', 50); await wait(1200); await page.keyboard.up('ArrowRight'); await wait(600);
+  await page.keyboard.down('ArrowRight'); await key('ArrowUp', 50); await wait(1200); await page.keyboard.up('ArrowRight'); await wait(600);
   s = await S();
   check('jumping off the platform edge lands on the ground (floorY 0, feet on the floor)', s.floorY === 0 && s.feetNow <= 0.5 && s.px > 255, { fy: s.floorY, f: s.feetNow, px: s.px });
 
@@ -110,7 +110,7 @@ const { chromium } = require('playwright');
   check('she dies only once she has fallen off the bottom of the screen: Game Over, hp 0', s.gameOver && s.hp === 0 && (await ev('bibooGame.menuOpen()')), { go: s.gameOver, hp: s.hp });
   await custom({ pits: [{ x0: 150, x1: 210 }] });
   await at(120);
-  await page.keyboard.down('ArrowRight'); await key('KeyZ', 50); await wait(1100); await page.keyboard.up('ArrowRight'); await wait(600);
+  await page.keyboard.down('ArrowRight'); await key('ArrowUp', 50); await wait(1100); await page.keyboard.up('ArrowRight'); await wait(600);
   s = await S();
   check('jumping over the pit works (still alive, past it)', !s.pitFall && s.hp === 200 && s.px > 215, { pf: s.pitFall, hp: s.hp, px: s.px });
   // enemy stops at the edge
@@ -140,33 +140,33 @@ const { chromium } = require('playwright');
   await custom({ crates: [{ x: 300, fy: 0, item: 'thrust' }] }); await ev("bibooGame.unlock('thrust')"); await ev('bibooGame.smash(0)');
   check('a golden crate whose unlock is owned never drops that unlock again', (await S()).powerups.length === 0, (await S()).powerups);
 
-  // ---- face buttons: A (Z) jumps, Y (V) attacks
+  // ---- face buttons: Up jumps, A (Z) attacks
   await custom({}); await at(100);
   const n0 = await ev('bibooGame.started.length');
-  await key('KeyZ', 60); await wait(300);
-  check('A (key Z) jumps', (await ev('bibooGame.started.slice(' + n0 + ').map(m => m.id)')).includes('jump'), await ev('bibooGame.started.slice(' + n0 + ').map(m => m.id)'));
+  await key('ArrowUp', 60); await wait(300);
+  check('Up jumps', (await ev('bibooGame.started.slice(' + n0 + ').map(m => m.id)')).includes('jump'), await ev('bibooGame.started.slice(' + n0 + ').map(m => m.id)'));
   await wait(900);
   const n1 = await ev('bibooGame.started.length');
-  await key('KeyV', 60); await wait(500);
-  check('Y (key V) attacks', (await ev('bibooGame.started.slice(' + n1 + ').map(m => m.id)')).includes('slash'), await ev('bibooGame.started.slice(' + n1 + ').map(m => m.id)'));
+  await key('KeyZ', 60); await wait(500);
+  check('A (key Z) attacks', (await ev('bibooGame.started.slice(' + n1 + ').map(m => m.id)')).includes('slash'), await ev('bibooGame.started.slice(' + n1 + ').map(m => m.id)'));
   await ev('bibooGame.unlock("taunt")');
   await wait(400);
   const n2 = await ev('bibooGame.started.length');
-  await page.keyboard.down('KeyC'); await page.keyboard.down('KeyZ'); await wait(100); await page.keyboard.up('KeyC'); await page.keyboard.up('KeyZ'); await wait(800);
-  check('taunt is now X + A (keys C + Z)', (await ev('bibooGame.started.slice(' + n2 + ').map(m => m.id)')).includes('taunt'), await ev('bibooGame.started.slice(' + n2 + ').map(m => m.id)'));
+  await page.keyboard.down('KeyC'); await page.keyboard.down('KeyV'); await wait(100); await page.keyboard.up('KeyC'); await page.keyboard.up('KeyV'); await wait(800);
+  check('taunt is X + Y (keys C + V)', (await ev('bibooGame.started.slice(' + n2 + ').map(m => m.id)')).includes('taunt'), await ev('bibooGame.started.slice(' + n2 + ').map(m => m.id)'));
 
   // ---- double jump
   await custom({}); await at(100);
-  await key('KeyZ', 60); await wait(450);
+  await key('ArrowUp', 60); await wait(450);
   let before = (await S()).feetNow;
-  await key('KeyZ', 60); await wait(150);
+  await key('ArrowUp', 60); await wait(150);
   check('a second jump press does nothing while double jump is locked', !(await ev('bibooGame.spinning()')), null);
   await wait(1000);
   await ev('bibooGame.unlock("double_jump")');
   await custom({}); await at(100);
-  await key('KeyZ', 60); await wait(380);
+  await key('ArrowUp', 60); await wait(380);
   const pre = (await S()).feetNow;
-  await key('KeyZ', 60); await wait(60);
+  await key('ArrowUp', 60); await wait(60);
   check('the second press in the air shows the spin', await ev('bibooGame.spinning()'), null);
   check('the double jump is used up until she lands', await ev('bibooGame.doubleUsed()'), null);
   let apex2 = pre;
@@ -190,7 +190,7 @@ const { chromium } = require('playwright');
   await ev('bibooGame.setMeters(100,100,100)'); await ev('bibooGame.setHp(200)'); await at(60);
   await ev('bibooGame.unlock("L1")'); await ev('bibooGame.unlock("R2")'); await wait(200);
   // hit the bomb from a distance with a reflected-style hook: use the fire beam (A+R2) aimed right
-  await page.keyboard.down('KeyV'); await page.keyboard.down('KeyR'); await wait(700); await page.keyboard.up('KeyV'); await page.keyboard.up('KeyR'); await wait(400);
+  await page.keyboard.down('KeyZ'); await page.keyboard.down('KeyR'); await wait(700); await page.keyboard.up('KeyZ'); await page.keyboard.up('KeyR'); await wait(400);
   s = await S();
   check('damage from a distance (beam) also sets it off', s.bombs[0].gone, s.bombs);
   check('the orc 80 px away is outside the radius (full hp)', s.foes[0].hp >= 1000 || s.foes[0].hp > 100 || s.foes[0].alive, s.foes[0]);

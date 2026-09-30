@@ -35,6 +35,12 @@
     if (!D.input.bindings.some(b => b.input === inp))
       D.input.bindings.push({ input: inp, type: 'sequence', move: 'spin_attack' });
   }
+  // spin attack: the Y button, a move she starts with. Overhead chop: hold A to charge, release to chop (tap A is still the slash)
+  D.input.bindings = D.input.bindings.filter(b => b.move !== 'spin_attack' && b.move !== 'heavy' && b.move !== 'charge');
+  D.input.bindings.push({ input: 'Y', type: 'press', move: 'spin_attack' });
+  D.moves.spin_attack.input = 'Y'; D.moves.spin_attack.inputType = 'press';
+  D.moves.heavy.input = 'A (release)';
+  D.input.bindings.push({ input: 'A', type: 'hold', move: 'charge', release_into: 'heavy' });
   for (const b of D.input.bindings) {
     if (b.input === 'Down-Right-A-B' && b.type === 'sequence') b.input = 'Down-Right-A';
   }
@@ -93,7 +99,7 @@
   // The player starts with the d-pad and A, B, X, Y only. Every other move is an unlock found in a golden crate
   // (web/progress.js). A move that is not open is not in the input reader at all, so the button that would have
   // triggered it falls back to the plain move (Down+A is just a slash until the upswing is unlocked).
-  const BASE_MOVES = new Set(['idle', 'walk_right', 'walk_left', 'duck', 'block', 'parry', 'jump', 'dash', 'slash']);
+  const BASE_MOVES = new Set(['idle', 'walk_right', 'walk_left', 'duck', 'block', 'parry', 'jump', 'dash', 'slash', 'spin_attack']);
   const moveOpen = move => BASE_MOVES.has(move) || P.hasMove(move);
   const SPRITE_SCALE = 0.5;
   if (D.moves.beam_plasma) D.moves.beam_plasma.title = 'Empowerment Beam';
@@ -245,16 +251,15 @@
   const KEY_LABEL = { Up: '↑', Down: '↓', Left: '←', Right: '→', A: 'Z', B: 'X', X: 'C', Y: 'V', L1: 'Q', L2: 'E', R1: 'T', R2: 'R', R: 'W' };
   const PAD = { 0: 'A', 1: 'B', 2: 'X', 3: 'Y', 4: 'L1', 5: 'R1', 6: 'L2', 7: 'R2', 12: 'Up', 13: 'Down', 14: 'Left', 15: 'Right' };
   const keyDown = new Set(), padDown = new Set(), isDown = new Set();
-  // The face buttons A and Y are swapped for the game: the bottom button (A, key Z) jumps and the top button (Y, key V) attacks. The move
-  // data still calls the attack button 'A' and the jump button 'Y', so the reader is fed the other physical button. Menus keep the
-  // physical A as accept (navPoll reads keyDown and padDown directly).
-  const phys = b => b === 'A' ? 'Y' : b === 'Y' ? 'A' : b;
-  const swapAY = str => str.replace(/[AY]/g, c => c === 'A' ? 'Y' : 'A');   // for what the Moves menu shows
-  const heldPhys = b => keyDown.has(phys(b)) || padDown.has(phys(b));
+  // A attacks, Up jumps (tap Up; a second tap in the air is the double jump). Y is only used in combos (Down then Y, X+Y).
+  const btnHeld = b => keyDown.has(b) || padDown.has(b);
 
   let reader = null;
   function activeInput() {                       // the bindings whose move is open (air and idle bindings are always kept)
-    return Object.assign({}, D.input, { bindings: D.input.bindings.filter(b => b.type === 'idle' || b.type === 'air' || moveOpen(b.move)) });
+    let bs = D.input.bindings.filter(b => b.type === 'idle' || b.type === 'air' || moveOpen(b.move)).filter(b => b.move !== 'jump');
+    // with the chop unlocked A is tap = slash, hold = charge (release = chop), like B's parry and block
+    if (moveOpen('charge')) bs = bs.map(b => b.move === 'slash' && b.type === 'press' ? Object.assign({}, b, { type: 'tap' }) : b);
+    return Object.assign({}, D.input, { bindings: bs });   // jump is the Up button, read in readButtons
   }
   function makeReader() {
     return new BibooInput.Reader(activeInput(), {
@@ -395,17 +400,19 @@
     lastT = t;
     const charging = metersHeld();
     for (const b of BUTTONS) {
-      let now = heldPhys(b);
+      let now = btnHeld(b);
       if (ignoreUntilUp.has(b)) { if (now) now = false; else ignoreUntilUp.delete(b); }   // held when a menu closed
       if (!P.buttonOn(b)) now = false;                             // a shoulder button that is not unlocked yet
       if (charging && (b === 'L1' || b === 'R1')) now = false;
       else if (charging && b === 'R') now = keyDown.has('R');
       if (now && !isDown.has(b)) {
         isDown.add(b); reader.down(b, t);
+        if (b === 'Up' && !charging) request('jump', 'press');   // Up jumps (and double jumps in the air)
         if (b === 'Down') { if (t - lastDownT < DROP_TAP_MS && dropThrough()) lastDownT = -1e9; else lastDownT = t; }
         if (b === 'Left') facing = -1; else if (b === 'Right') facing = 1;
       } else if (!now && isDown.has(b)) {
         isDown.delete(b); reader.up(b, t);
+        if (hold && hold.keys.includes(b)) { const m = hold.move; hold = null; request(m, 'release'); }   // let go: the charged attack fires
         if (b === 'Left' && isDown.has('Right')) facing = 1;        // let go of the newer one: the other still held
         else if (b === 'Right' && isDown.has('Left')) facing = -1;
       }
@@ -415,6 +422,9 @@
   // ------------------------------------------------------------------ state
   // cur: {id, k: frame index, t: ms into the frame, base: [x, y] where the move started, kind}
   let cur = null, queued = null, x = 0, camX = 0, camY = 0;
+  // Hold-and-release attacks: the chord (B+L1 energy kick, direction+A lunging thrust) starts a charge; letting go of a button fires the move.
+  const HOLD_FIRE = { energy_kick: ['B', 'L1'], thrust: ['A'] };
+  let hold = null;                      // {move, keys}: the charge in progress
   let facing = 1, camLead = 0;          // facing: 1 right, -1 left (each move keeps the one it started with)
   let fall = null;                      // {y, v}: coming back down after a move that ends in the air
   let rumble = null;                    // {t0, ms, amp}: shake that outlasts a move (the earthquake)
@@ -588,8 +598,14 @@
     if (!D.moves[move] || stun || !moveOpen(move)) return;
     if (move === 'jump' && tryDoubleJump()) return;
     if (!canAfford(move)) { deny(move); return; }             // no meter: the move does not play
-    const air = AIR.find(b => usesButton(D.moves[move].input, b.input));
+    const air = via === 'sequence' && /^Up-/.test(D.moves[move].input) ? null     // Up then A (heavy, meteor shower) is not the air A
+              : AIR.find(b => usesButton(D.moves[move].input, b.input));
     const inAir = airborne() || (cur && cur.id === 'jump' && cur.kind === 'action');
+    if (via === 'chord' && HOLD_FIRE[move] && !inAir && !fall) {      // hold to charge, fire on release
+      if (!canAfford(move)) { deny(move); return; }
+      hold = { move, keys: HOLD_FIRE[move] }; queued = null;
+      return;
+    }
     if (air && inAir && !moveOpen('jump_crash')) return;      // A in the air does nothing until the crash is unlocked
     if (air) {
       if ((airborne() || (cur && cur.id === 'jump' && cur.kind === 'action')) && !canAfford('jump_crash')) { deny('jump_crash'); return; }
@@ -622,7 +638,7 @@
 
   // Left and Right both walk with the forward walk; which way she goes and faces is `facing`
   const holdId = id => id === 'walk_left' ? 'walk_right' : id;
-  const holdWant = t => { if (metersHeld()) return 'charge'; const w = holdId(reader.holdMove(t)); return w === 'recover' && empowerMeter < HEAL_COST ? 'idle' : w; };
+  const holdWant = t => { if (metersHeld() || hold) return 'charge'; const w = holdId(reader.holdMove(t)); return w === 'recover' && empowerMeter < HEAL_COST ? 'idle' : w; };
   function holdState(t) {
     const want = holdWant(t);
     if (!cur || cur.id !== want || cur.face !== facing) start(want, 'hold');
@@ -632,7 +648,7 @@
   function msOf(c, k) { const f = D.moves[c.id].frames[k]; return f.bw ? (c.lite ? 0 : BW_HOLD) : f.ms; }
 
   function step(dt, t) {
-    if (stun) { stepStun(dt); return; }
+    if (stun) { hold = null; stepStun(dt); return; }
     if (slide) {
       x += slide.v * dt;
       const v = slide.v - Math.sign(slide.v) * slide.a * dt;
@@ -667,7 +683,7 @@
       cur.k++;
       if (cur.k < m.frames.length) { if (cur.kind === 'action') { queueHit(); impactQuake(); } continue; }
       if (cur.kind === 'land') { cur.k = m.frames.length - 1; finishAction(t); return; }
-      if (cur.kind === 'action') { if (cur.id === 'beam_cloud' && heldPhys('A') && energyMeter >= BEAM_TICK_COST.cloud) { cur.beamCut = false;  const bi = D.moves.beam_cloud.frames.findIndex(f => f.beam); cur.k = bi >= 0 ? bi : 2; continue; } cur.k = m.frames.length - 1; finishAction(t); return; }
+      if (cur.kind === 'action') { if (cur.id === 'beam_cloud' && btnHeld('A') && energyMeter >= BEAM_TICK_COST.cloud) { cur.beamCut = false;  const bi = D.moves.beam_cloud.frames.findIndex(f => f.beam); cur.k = bi >= 0 ? bi : 2; continue; } cur.k = m.frames.length - 1; finishAction(t); return; }
       if (m.loop) {                                              // next cycle carries on from here
         const r = m.frames.map(f => f.root[0]);
         const n = r.length;
@@ -876,7 +892,7 @@
     for (const c of curMap.crates)                                   // a golden crate smashed earlier whose item was not picked up
       if (c.broken && c.item && level.pending.has(c.key)) powerups.push({ key: c.key, item: c.item, x: c.x, y: c.fy + 16, t0: clock });
     x = side === 'left' ? 26 : MAP_W - 26; facing = side === 'left' ? 1 : -1;
-    floorY = 0; fall = null; stun = null; slide = null; cur = null; queued = null; rumble = null; tint = null;
+    floorY = 0; fall = null; stun = null; slide = null; cur = null; queued = null; hold = null; rumble = null; tint = null;
     invuln = clock + 600; prevFeet = null; lastCx = null; camX = V.anchorX; camY = 0; fadeUntil = clock + FADE_MS;
     if (killsEl) killsEl.textContent = '';
   }
@@ -1950,7 +1966,7 @@
   function logMove(id, via) {
     if (!logEl) return;
     const li = document.createElement('li');
-    li.textContent = `${id}  (${swapAY(D.moves[id].input)}${via && via !== 'action' ? ', ' + via : ''})`;
+    li.textContent = `${id}  (${id === 'jump' ? 'Up' : D.moves[id].input}${via && via !== 'action' ? ', ' + via : ''})`;
     logEl.prepend(li);
     while (logEl.children.length > 8) logEl.lastChild.remove();
   }
@@ -1960,12 +1976,13 @@
   function how(b) {
     const steps = b.input.split('-');
     if (b.type === 'idle') return 'nothing pressed';
-    if (b.type === 'hold') return 'hold';
+    if (b.type === 'hold') return b.release_into ? 'hold to charge, let go to swing the chop' : 'hold';
     if (b.type === 'tap') return 'tap';
     if (b.type === 'press') return 'press';
     if (b.type === 'air') return 'press while in the air (jumping or falling); crashes down from that height';
     if (b.type === 'chord') {
       const keys = b.input.split('+');
+      if (HOLD_FIRE[b.move]) return 'hold together to charge, let go to fire';
       if (b.loose) return 'together, or one after another in any order';
       if (b.held) return `together, or hold ${b.held.join('+')} and press ${keys.filter(k => !b.held.includes(k)).join('+')}`;
       const dirs = keys.filter(k => BibooInput.DIRS.includes(k));
@@ -1984,12 +2001,12 @@
     for (const b of D.input.bindings) {
       if (b.type === 'idle' || !moveOpen(b.move)) continue;
       const m = D.moves[b.move];
-      const sb = Object.assign({}, b, { input: swapAY(b.input), held: b.held && b.held.map(swapAY) });   // shown with the swapped face buttons
+      const sb = b.move === 'jump' ? Object.assign({}, b, { input: 'Up' }) : b;
       rows.push({ section: BASE_MOVES.has(b.move) ? 'Controls' : 'Unlocked combos',
                   pad: (sb.input === 'none' ? '(nothing)' : sb.input) + (b.type === 'air' ? ' (air)' : ''),
                   keys: keysOf(sb.input), title: m ? m.title : b.move, how: how(sb) });
     }
-    if (P.has('double_jump')) rows.push({ section: 'Unlocked combos', pad: 'A, A (air)', keys: 'Z then Z', title: 'Double jump', how: 'press jump again in the air: a spinning second jump' });
+    if (P.has('double_jump')) rows.push({ section: 'Unlocked combos', pad: 'Up, Up (air)', keys: 'Up then Up', title: 'Double jump', how: 'press jump again in the air: a spinning second jump' });
     return rows.filter(r => r.section === 'Controls').concat(rows.filter(r => r.section !== 'Controls'));
   }
   function lockedCount() {
@@ -2037,7 +2054,7 @@
   }
   // buttons still held when a menu closes are ignored until they are let go, so pressing A on "Resume" does not slash
   const ignoreUntilUp = new Set();
-  function ignoreHeldButtons() { for (const b of BUTTONS) if (heldPhys(b)) ignoreUntilUp.add(b); }
+  function ignoreHeldButtons() { for (const b of BUTTONS) if (btnHeld(b)) ignoreUntilUp.add(b); }
 
   function tickLevel(t, dt) {
     clock += dt;                                      // game time: it does not run while a menu is open
@@ -2048,7 +2065,7 @@
     }
     if (cheats.infinite) { energyMeter = maxOf('energy'); empowerMeter = maxOf('empower'); superMeter = maxOf('super'); }
     readButtons(t);
-    for (const e of reader.update(t)) request(e.move, e.via);
+    for (const e of reader.update(t)) request(e.move, e.move === 'slash' && e.via === 'tap' ? 'press' : e.via);
     const before = cur && BLOCKED.has(cur.id) ? playerX() : null;
     step(dt, t);
     if (cur && cur.crash && cur.id === 'jump' && rootOf(cur)[1] > 0) airCrash('air');
@@ -2139,7 +2156,7 @@
     level = null; curMap = null; screen = 'overworld'; paused = false; gameOver = false; levelDone = false;
     enemies.length = 0; respawns.length = 0; gems.length = 0; explosions.length = 0; floaters.length = 0;
     powerups.length = 0; particles.length = 0; banners.length = 0; hitQ.length = 0;
-    stun = null; slide = null; fall = null; cur = null; queued = null; tint = null; floorY = 0; camY = 0; rumble = null;
+    stun = null; slide = null; fall = null; cur = null; queued = null; hold = null; tint = null; floorY = 0; camY = 0; rumble = null;
     ow.sel = Math.max(0, Math.min(LV.levels.length, P.state.levelsUnlocked) - 1);
     hideMenu(); ignoreHeldButtons(); setStartLabel();
     if (killsEl) killsEl.textContent = '';
@@ -2240,7 +2257,7 @@
     setStartLabel();
   }
   if (UI) UI.init({ mainItems, closeMenu, moveRows, lockedCount, padStatus, gemRows, useGem, devItems,
-    moveNotes: () => ['Keyboard: arrows = d-pad, Z = A (jump), X = B, C = X, V = Y (attack). Shoulders: Q = L1, E = L2, T = R1, R = R2, W = hold R (recover). Enter, Space or Escape opens and closes this menu. Hold Left or Right while jumping to steer. Double tap Down on a platform to drop through it.',
+    moveNotes: () => ['Keyboard: arrows = d-pad, Z = A (attack), X = B, C = X, V = Y, Up = jump. Shoulders: Q = L1, E = L2, T = R1, R = R2, W = hold R (recover). Enter, Space or Escape opens and closes this menu. Hold Left or Right while jumping to steer. Double tap Down on a platform to drop through it.',
                       'A gamepad works too, wired or Bluetooth, also on an Android phone in Chrome: A (bottom) jumps, Y (top) attacks, B is right, X is left. Click the game first if keys do nothing. Press H to show hurtboxes and hit shapes.'] });
   Promise.all(srcs.map(load)).then(() => {
     const loading = document.getElementById('loading');

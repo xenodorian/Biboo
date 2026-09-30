@@ -186,7 +186,16 @@ with 50 and drops of +25 raise the maximum; every crate drops something; remove 
 - [x] Level data rewritten: Level 1 by hand (pits, bombs, chasms over platform rows); generated levels use `X()` pits and `B()` bombs.
 - Tests: `web/tests/hazards.test.js` (37 checks). Test hooks added: custom, smash, shove, maxes, addShot.
 
-### Third request (2026-09-30): pit fall, loot, double jump, A/Y swap
+### Fourth request (2026-09-30): A attacks again, Up jumps
+- [x] The A/Y swap was removed (`phys`/`swapAY` gone). Jump binding is filtered out of the reader and Up calls `request('jump', 'press')` from `readButtons`; Up again in the air is the double jump. Hints, Moves menu and tests updated (tests use ArrowUp to jump, KeyZ to attack, KeyV for Down+Y sky dash and X+Y taunt).
+
+### Sixth request (2026-09-30): hold-and-release energy kick and lunging thrust
+- [x] `HOLD_FIRE` in game.js: the B+L1 and direction+A chords no longer start the move; `request` stores `hold` and plays the charge pose, and releasing one of the move's buttons (readButtons) fires it. "Energy lunge" was read as the Lunging Thrust (direction + A). input.js holdMove now includes A.
+
+### Fifth request (2026-09-30): spin attack on Y, chop on hold A
+- [x] Spin attack is a starting move on Y (BASE_MOVES, `spin` unlock removed, crate in 1.9 now plain). Overhead chop: A hold binding `charge` with `release_into: 'heavy'`; with the chop unlocked A slash is a tap binding (request maps it to 'press'). Up-A sequence and Up hold charge removed.
+
+### Third request (2026-09-30): pit fall, loot, double jump, A/Y swap (swap since reverted)
 - [x] Pit fall is visible: pits are drawn before the entities, the fringe grass is clipped out over them, `pitClip` hides the faller below the ground line outside the hole; she dies (`hp = 0`, Game Over) only when `pitOffScreen()`.
 - [x] No redundant drops: `gemUseful`, `lootGem`, `lootPool` (game.js). A golden crate whose unlock is owned drops ordinary loot.
 - [x] Double jump: unlock id `double_jump` (progress.js), golden crate in Level 2 map 4. `tryDoubleJump`, spin drawn by rotating the sprite (`SPIN_MS` 420), adds about 81 px (2 of her standing heights; "head heights" was read as her standing height). Resets on landing.

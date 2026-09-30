@@ -56,7 +56,7 @@
     map({ pits: [X(100, 150), X(205, 260)], crates: [C(178), C(320), C(60)], bombs: [B(178, 0), B(300)],
           enemies: [G(60, 30, 90, 90), G(178, 165, 192, 90), O(320, 275, 355, 100)] }),
     // 1.9 the ridge: an orc below, a goblin above, the spin attack up top
-    map({ pits: [X(140, 215)], plats: [P(50, 120, 60), P(140, 210, 90), P(230, 300, 60)], crates: [C(85, 60), C(265, 60, 'spin')], bombs: [B(300)],
+    map({ pits: [X(140, 215)], plats: [P(50, 120, 60), P(140, 210, 90), P(230, 300, 60)], crates: [C(85, 60), C(265, 60)], bombs: [B(300)],
           enemies: [O(270, 230, 345, 110), G(175, 150, 200, 80, 90)] }),
     // 1.10 gate guard: clear the map to finish the level
     map({ pits: [X(180, 235)], crates: [C(80), C(300)], bombs: [B(110), B(280)],

@@ -154,7 +154,7 @@
 
     /* The hold move to loop while nothing else plays, from what is held right now. */
     holdMove(t) {
-      const order = ['R', 'B', 'Up', 'Down', 'Right', 'Left'];
+      const order = ['R', 'B', 'A', 'Up', 'Down', 'Right', 'Left'];
       for (const b of order) {
         if (!this.held.has(b) || this.consumed.has(b) || !this.B.hold[b]) continue;
         if (this.B.tap[b] && t - this.held.get(b) <= this.tapMs) continue;   // could still be a tap

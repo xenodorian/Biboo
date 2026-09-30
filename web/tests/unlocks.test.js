@@ -5,21 +5,19 @@ const { chromium } = require('playwright');
 
 // unlock id, the move ids it should start, and the key presses ([keys held together] or {seq: [...steps]})
 const CASES = [
-  ['thrust', ['thrust'], [['ArrowRight', 'KeyV']]],
-  ['upswing', ['upswing'], [['ArrowDown', 'KeyV']]],
-  ['spin', ['spin_attack'], [['ArrowDown'], ['ArrowDown', 'KeyV']]],
+  ['thrust', ['thrust'], [['ArrowRight', 'KeyZ']]],
+  ['upswing', ['upswing'], [['ArrowDown', 'KeyZ']]],
   ['heavy_horizontal', ['heavy_horizontal'], null],
-  ['dash_thrust', ['dash_thrust'], [['KeyC', 'KeyV']]],
-  ['taunt', ['taunt'], [['KeyC', 'KeyZ']]],
-  ['sky_dash', ['sky_dash'], [['ArrowDown'], ['KeyZ']]],
-  ['heavy_chop', ['heavy'], [['ArrowUp'], ['KeyV']]],
+  ['dash_thrust', ['dash_thrust'], [['KeyC', 'KeyZ']]],
+  ['taunt', ['taunt'], [['KeyC', 'KeyV']]],
+  ['sky_dash', ['sky_dash'], [['ArrowDown'], ['KeyV']]],
   ['L1', ['push_kick'], [['KeyQ']]],
-  ['L1', ['beam_laser'], [['KeyV', 'KeyQ']]],
+  ['L1', ['beam_laser'], [['KeyZ', 'KeyQ']]],
   ['L2', ['energy_burst'], [['KeyE']]],
-  ['L2', ['beam_cloud'], [['KeyV', 'KeyE']]],
+  ['L2', ['beam_cloud'], [['KeyZ', 'KeyE']]],
   ['R2', ['energy_wave'], [['KeyR']]],
-  ['R2', ['beam_fire'], [['KeyV', 'KeyR']]],
-  ['R1', ['beam_plasma'], [['KeyV', 'KeyT']]],
+  ['R2', ['beam_fire'], [['KeyZ', 'KeyR']]],
+  ['R1', ['beam_plasma'], [['KeyZ', 'KeyT']]],
 ];
 
 (async () => {
@@ -70,32 +68,63 @@ const CASES = [
   // heavy horizontal: Hold B and tap A
   await fresh(); await ev("bibooGame.unlock('heavy_horizontal'); bibooGame.enterLevel(1)"); await wait(500); await ev('bibooGame.setEnemies([])'); await wait(800);
   let n0 = await ev('bibooGame.started.length');
-  await page.keyboard.down('KeyX'); await wait(150); await page.keyboard.down('KeyV'); await wait(60); await page.keyboard.up('KeyV'); await wait(700); await page.keyboard.up('KeyX'); await wait(300);
+  await page.keyboard.down('KeyX'); await wait(150); await page.keyboard.down('KeyZ'); await wait(60); await page.keyboard.up('KeyZ'); await wait(700); await page.keyboard.up('KeyX'); await wait(300);
   check('heavy_horizontal (hold B, tap A) fires once unlocked', (await played(n0)).includes('heavy_horizontal'), await played(n0));
+
+  // spin attack: a starting move on Y, no unlock needed
+  await fresh(); n0 = await ev('bibooGame.started.length');
+  await page.keyboard.down('KeyV'); await wait(60); await page.keyboard.up('KeyV'); await wait(900);
+  check('spin attack (Y) plays from the start of the game', (await played(n0)).includes('spin_attack'), await played(n0));
+
+  // overhead chop: hold A to charge, release to chop; a tap of A is still the slash
+  await fresh(); n0 = await ev('bibooGame.started.length');
+  await page.keyboard.down('KeyZ'); await wait(1000); await page.keyboard.up('KeyZ'); await wait(1500);
+  check('holding A does not charge or chop while locked', !(await played(n0)).some(m => m === 'charge' || m === 'heavy'), await played(n0));
+  await fresh(); await ev("bibooGame.unlock('heavy_chop'); bibooGame.enterLevel(1)"); await wait(500); await ev('bibooGame.setEnemies([]); bibooGame.setMeters(100, 100, 100)'); await wait(800);
+  n0 = await ev('bibooGame.started.length');
+  await page.keyboard.down('KeyZ'); await wait(1000);
+  check('the chop has not fallen yet while A is held', !(await played(n0)).includes('heavy'), await played(n0));
+  await page.keyboard.up('KeyZ'); await wait(1500);
+  check('releasing A swings the overhead chop', (await played(n0)).includes('heavy'), await played(n0));
+  n0 = await ev('bibooGame.started.length');
+  await page.keyboard.down('KeyZ'); await wait(60); await page.keyboard.up('KeyZ'); await wait(700);
+  check('a tap of A is still the slash with the chop unlocked', (await played(n0)).includes('slash') && !(await played(n0)).includes('heavy'), await played(n0));
+
+  // hold-and-release: the thrust (Right + A) and the energy kick (B + L1) fire on release, not on press
+  for (const [id, mv, keys] of [['thrust', 'thrust', ['ArrowRight', 'KeyZ']], ['L1', 'energy_kick', ['KeyX', 'KeyQ']]]) {
+    await fresh(); await ev(`bibooGame.unlock('${id}'); bibooGame.enterLevel(1)`); await wait(500); await ev('bibooGame.setEnemies([]); bibooGame.setMeters(100, 100, 100)'); await wait(800);
+    n0 = await ev('bibooGame.started.length');
+    for (const k of keys) await page.keyboard.down(k);
+    await wait(900);
+    check(`${mv} has not fired while the keys are held`, !(await played(n0)).includes(mv), await played(n0));
+    for (const k of keys) await page.keyboard.up(k);
+    await wait(900);
+    check(`${mv} fires on release`, (await played(n0)).includes(mv), await played(n0));
+  }
 
   // jumping crash (A in the air) and the energy dash, earthquake, meteor
   await fresh(); await ev("bibooGame.unlock('crash'); bibooGame.enterLevel(1)"); await wait(500); await ev('bibooGame.setEnemies([]); bibooGame.setMeters(100, 100, 100)'); await wait(800);
   n0 = await ev('bibooGame.started.length');
-  await page.keyboard.down('KeyZ'); await wait(60); await page.keyboard.up('KeyZ'); await wait(260); await page.keyboard.down('KeyV'); await wait(60); await page.keyboard.up('KeyV'); await wait(1500);
+  await page.keyboard.down('ArrowUp'); await wait(60); await page.keyboard.up('ArrowUp'); await wait(260); await page.keyboard.down('KeyZ'); await wait(60); await page.keyboard.up('KeyZ'); await wait(1500);
   check('crash: A in the air plays jump_crash once unlocked', (await played(n0)).includes('jump_crash'), await played(n0));
   await fresh();
   n0 = await ev('bibooGame.started.length');
-  await page.keyboard.down('KeyZ'); await wait(60); await page.keyboard.up('KeyZ'); await wait(260); await page.keyboard.down('KeyV'); await wait(60); await page.keyboard.up('KeyV'); await wait(1500);
+  await page.keyboard.down('ArrowUp'); await wait(60); await page.keyboard.up('ArrowUp'); await wait(260); await page.keyboard.down('KeyZ'); await wait(60); await page.keyboard.up('KeyZ'); await wait(1500);
   check('A in the air does nothing while crash is locked', !(await played(n0)).some(m => m === 'jump_crash' || m === 'slash'), await played(n0));
 
   await fresh(); await ev("bibooGame.unlock('earthquake'); bibooGame.enterLevel(1)"); await wait(500); await ev('bibooGame.setEnemies([]); bibooGame.setMeters(0, 0, 100)'); await wait(800);
   n0 = await ev('bibooGame.started.length');
-  await play([['ArrowDown'], ['ArrowDown'], ['ArrowDown'], ['ArrowDown'], ['KeyV']]);
+  await play([['ArrowDown'], ['ArrowDown'], ['ArrowDown'], ['ArrowDown'], ['KeyZ']]);
   check('earthquake plays with a full super meter', (await played(n0)).includes('earthquake'), await played(n0));
   await fresh(); await ev("bibooGame.unlock('meteor'); bibooGame.enterLevel(1)"); await wait(500); await ev('bibooGame.setEnemies([]); bibooGame.setMeters(0, 0, 100)'); await wait(800);
   n0 = await ev('bibooGame.started.length');
-  await play([['ArrowUp'], ['ArrowUp'], ['ArrowUp'], ['ArrowUp'], ['KeyV']]);
+  await play([['ArrowUp'], ['ArrowUp'], ['ArrowUp'], ['ArrowUp'], ['KeyZ']]);
   check('meteor shower plays with a full super meter', (await played(n0)).includes('meteor_shower'), await played(n0));
 
   // energy dash thrust: B then X+A (double tap forward variant is the old one)
   await fresh(); await ev("bibooGame.unlock('energy_dash'); bibooGame.enterLevel(1)"); await wait(500); await ev('bibooGame.setEnemies([]); bibooGame.setMeters(100, 100, 100)'); await wait(800);
   n0 = await ev('bibooGame.started.length');
-  await play([['ArrowRight'], ['ArrowRight'], ['KeyC', 'KeyV']]);
+  await play([['ArrowRight'], ['ArrowRight'], ['KeyC', 'KeyZ']]);
   check('energy dash thrust plays', (await played(n0)).includes('energy_dash_thrust'), await played(n0));
 
   // recover needs R1 (hold W)

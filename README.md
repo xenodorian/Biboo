@@ -105,8 +105,8 @@ sequence) with chord, sequence and tap windows. Previews of every move are in `d
 | Y | jump | Two body heights (164 px) |
 | X | dash | 92 px, afterimages and speed lines |
 | A | slash | Horizontal slash, flat crescent smear. 25 damage, 25 px pushback over 100 ms |
-| Up-A | heavy | The main chop animation above; tap Up then A, or hold Up and press A |
-| Right+A | thrust | Lunging thrust, 18 px forward |
+| A (hold, then release) | heavy | The main chop animation above; hold A to charge, let go to swing (tap A is still the slash) |
+| Right+A (hold, release) | thrust | Lunging thrust, 18 px forward |
 | Down+A | upswing | Duck, then rising cut |
 | L | push_kick | One cock-back frame with the sword raised out of the way, then a straight-leg push that slides her 49 px so the boot passes where the blade tip was; recoil |
 | R (hold) | recover | Kneel on the planted sword, green glow, rising + signs |
@@ -122,7 +122,7 @@ sequence) with chord, sequence and tap windows. Previews of every move are in `d
 | X+A | dash_thrust | Blurred dash into the thrust |
 | A (in the air) | jump_crash | Crash down into the heavy impact from wherever she is in the air (a jump, or falling after the sky dash); no second jump |
 | Down-Y | sky_dash | Rises 6 body lengths (492 px); tap Down then Y, or hold Down and press Y |
-| Left+A | spin_attack | Two turns with a ring smear; hits enemies in front of her and behind her |
+| Y | spin_attack | Two turns with a ring smear; hits enemies in front of her and behind her |
 | B-X+A | energy_dash_thrust | Dash thrust with blue energy; tap or hold B, then press X and A together |
 | Down-Right-A-B | energy_wave | Upswing that launches a large energy crescent |
 | Down x4, A | earthquake | Slam, cracks and rocks along the ground, heavy shake |
@@ -149,8 +149,8 @@ Controls (the in-game Moves menu lists them and the combos you have unlocked):
 | Up / Down / Left / Right | arrow keys | d-pad or left stick |
 | A / B / X / Y | Z / X / C / V | bottom / right / left / top face button |
 
-A (bottom, key Z) jumps and Y (top, key V) attacks: the two are swapped from the move table, so every combo that used A now uses Y and Sky Dash
-is Down then A. A is still the accept button in menus.
+A (key Z) is the attack button again (slash and every combo). Jump is the Up button (tap Up; tap Up again in the air for the double jump).
+Y (key V) is only used in Down then Y (Sky Dash) and X+Y (taunt). A is also the accept button in menus. Holding Up still charges once she has landed.
 | L1 L2 R1 R2 | Q E T (or W) R | shoulders or triggers |
 
 Unlocks: a new game has only the d-pad and A, B, X, Y. Golden crates (marked "?") hold unlocks: combos and the
@@ -161,7 +161,7 @@ crate sits: `web/levels.js` (`whereIs`).
 Jumping: A is a floaty physics jump (about 135 px high, about 670 ms in the air, about 107 px sideways with Left or Right held). Down then A
 (the sky dash) is unchanged. Double tap Down on a platform to drop through it (no unlock needed).
 
-Double Jump (an unlock, Level 2.4): tap A again in the air for a spinning second jump that rises about two more of her heights (81 px). One per trip through the air.
+Double Jump (an unlock, Level 2.4): tap Up again in the air for a spinning second jump that rises about two more of her heights (81 px). One per trip through the air.
 
 Meters: Energy, Empowerment and Super each start with a maximum of 50 (a new meter starts full). Every plain crate drops something useful (never a gem for a meter she has not unlocked, a full bag, or an upgrade at the cap): a health gem,
 a meter gem, or a +25 meter upgrade (raises that meter's maximum by 25 and fills it by 25, up to 150; saved). Earthquake and Meteor Shower need a

@@ -76,7 +76,7 @@ const { chromium } = require('playwright');
   s = await S();
   check('warp to 1.2', s.level.id === '1.2', s.level);
   await ev('bibooGame.setX(120)'); await wait(100);
-  await page.keyboard.down('ArrowRight'); await key('KeyZ', 60);
+  await page.keyboard.down('ArrowRight'); await key('ArrowUp', 60);
   await wait(1100); await page.keyboard.up('ArrowRight'); await wait(500);
   s = await S();
   check('jump with Right held clears the 1.2 pit and she survives', !s.pitFall && s.hp === 200 && s.px > 205 && s.floorY === 0, { px: s.px, hp: s.hp, pf: s.pitFall });
@@ -85,7 +85,7 @@ const { chromium } = require('playwright');
   await ev('bibooGame.warp(0)'); await wait(700); await ev('bibooGame.setEnemies([])');
   await ev('bibooGame.setX(96 - 96 + 118)'); await wait(100);   // world x is screen x here
   s = await S();
-  await page.keyboard.down('ArrowRight'); await key('KeyZ', 60); await wait(600); await page.keyboard.up("ArrowRight"); await wait(600);
+  await page.keyboard.down('ArrowRight'); await key('ArrowUp', 60); await wait(600); await page.keyboard.up("ArrowRight"); await wait(600);
   s = await S();
   check('jump lands on a platform (floorY 44)', s.floorY === 44 && s.px >= 147 && s.px <= 217, { fy: s.floorY, px: s.px });
   await page.keyboard.down('ArrowRight'); await wait(1500); await page.keyboard.up('ArrowRight'); await wait(900);
@@ -96,7 +96,7 @@ const { chromium } = require('playwright');
   await ev('bibooGame.warp(1)'); await wait(700); await ev('bibooGame.setEnemies([])');
   let before = (await S()).crates.filter(c => c.broken).length;
   await ev('bibooGame.setX(300 - 40)'); await wait(100);
-  await key('KeyV', 60); await wait(900);
+  await key('KeyZ', 60); await wait(900);
   s = await S();
   check('slash smashes the golden crate and leaves the item', s.crates.find(c => c.item).broken && ((s.powerups.length === 1 && s.powerups[0].item === 'thrust') || (await ev("BibooProgress.has('thrust')"))), { c: s.crates, p: s.powerups });
   await ev('bibooGame.setX(300 - 4)'); await wait(400);
@@ -109,10 +109,10 @@ const { chromium } = require('playwright');
   const n0 = (await ev('bibooGame.current()')) ; const cnt0 = await ev('bibooGame.started.length');
   await key('KeyQ', 80); await wait(500);
   check('locked L1 does nothing', (await ev('bibooGame.started.length')) === cnt0, null);
-  await key('KeyV', 60); await wait(600);
+  await key('KeyZ', 60); await wait(600);
   check('slash (A) works', (await ev('bibooGame.started.length')) > cnt0, null);
   const cnt1 = await ev('bibooGame.started.length');
-  await hold(['ArrowRight', 'KeyV'], 80); await wait(800);
+  await hold(['ArrowRight', 'KeyZ'], 80); await wait(800);
   const last = await ev('bibooGame.started.slice(-3).map(m => m.id || m.move || m)');
   check('unlocked thrust (Right+A) plays', /thrust/.test(JSON.stringify(last)), last);
 
@@ -250,12 +250,12 @@ const { chromium } = require('playwright');
   check('reset erased progress and returned to the overworld', !(await ev("BibooProgress.has('thrust')")) && (await ev('BibooProgress.state.levelsUnlocked')) === 1 && (await S()).screen === 'overworld' && !(await S()).devOpen && !(await S()).paused, await S());
 
   // ---- 16. save survives a reload
-  await ev("BibooProgress.unlock('spin'); BibooProgress.completeLevel(1); BibooProgress.addGem('health', 3); BibooProgress.save()");
+  await ev("BibooProgress.unlock('thrust'); BibooProgress.completeLevel(1); BibooProgress.addGem('health', 3); BibooProgress.save()");
   await page.reload(); await page.waitForFunction(() => document.getElementById('btn-start') && window.bibooGame, null, { timeout: 20000 });
-  check('progress persists after reload', await ev("BibooProgress.has('spin') && BibooProgress.state.levelsUnlocked === 2 && BibooProgress.state.gems.health === 3"), await ev('JSON.stringify(BibooProgress.state)'));
+  check('progress persists after reload', await ev("BibooProgress.has('thrust') && BibooProgress.state.levelsUnlocked === 2 && BibooProgress.state.gems.health === 3"), await ev('JSON.stringify(BibooProgress.state)'));
   check('title screen again after reload', (await S()).screen === 'title', null);
   await clickText('Moves');
-  check('moves menu now lists the unlocked Spin Attack', /Spin attack/i.test(await ev("document.getElementById('menu-view').textContent")), null);
+  check('moves menu now lists the unlocked Thrust', /Lunging thrust|thrust/i.test(await ev("document.getElementById('menu-view').textContent")), null);
 
   console.log(errors.length ? errors : '');
   console.log(results.filter(x => !x).length ? 'SOME FAILED' : 'ALL PASSED', `${results.filter(Boolean).length}/${results.length}`);
