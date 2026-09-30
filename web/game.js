@@ -473,8 +473,11 @@
   // Tunable numbers. A move hurts each enemy once per use (moves in REHIT_MS again after that many ms);
   // beams hurt on every tick they touch. The heavy chop and the crash do more when full.
   const MAX_HP = 200, ENEMY_HP = { goblin: 60, orc: 200 }, ENEMY_DMG = { goblin: 12, orc: 30 };
-  const DAMAGE = { slash: 15, thrust: 18, upswing: 18, push_kick: 12, heavy_kick: 25, energy_kick: 30, energy_burst: 30,
+  const DAMAGE = { slash: 15, thrust: 18, upswing: 18, push_kick: 10, heavy_kick: 25, energy_kick: 30, energy_burst: 50,
                    dash_thrust: 22, energy_dash_thrust: 35, spin_attack: 20, energy_wave: 40, earthquake: 250, meteor_shower: 200 };
+  // knockback of the moves that push an enemy: [distance px, duration ms]
+  const KNOCK = { push_kick: [100, 200], energy_kick: [200, 300], energy_burst: [400, 500] };
+  const PARRY_KNOCK = [300, 400];                                    // an enemy parried: pushed back this far, stunned this long
   const REHIT_MS = { earthquake: 250, meteor_shower: 300 };
   const BEAM_DMG = { cloud: 7, fire: 9, laser: 12, plasma: 10 };
   const HEAVY_DMG = [35, 90], CRASH_DMG = [30, 100];      // [short, full]
@@ -715,8 +718,8 @@
           if (last !== undefined && !(gap && clock - last >= gap)) continue;
           seen.set(e, clock);
           hurtEnemy(e, dmgOf(h.mv));
-          if (h.mv.id === 'push_kick' || h.mv.id === 'energy_kick') {
-            const dist = h.mv.id === 'energy_kick' ? 160 : 70, ms = h.mv.id === 'energy_kick' ? 420 : 320;
+          if (KNOCK[h.mv.id] && alive(e)) {                        // knocked back and stunned
+            const [dist, ms] = KNOCK[h.mv.id];
             const p = push(dist, ms), dir = e.x >= bodyX() ? 1 : -1;
             e.state = 'stunned'; play(e, (EN[e.type].ai.stun || 'idle'));
             e.push = { v: p.v * dir, a: p.a };
@@ -785,7 +788,7 @@
   const blocking = () => cur && cur.id === 'block';
 
   function parried(e) {
-    const T = EN[e.type], [d, ms] = T.ai.parried, p = push(d, ms);
+    const T = EN[e.type], [d, ms] = PARRY_KNOCK, p = push(d, ms);
     e.hitDone = true;
     e.state = 'stunned';
     play(e, T.ai.stun || 'idle');

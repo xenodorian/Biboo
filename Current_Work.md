@@ -68,6 +68,13 @@ Done in stages, pushed to main after each. Per the request, no test suites were 
 - Noted, not changed: on a pad, holding R1 also adds the `R` hold (`padDown.add('R')` in the pad reader), so R1 alone starts the recover kneel when Max is hurt and has empower. A+R1 (the Empowerment Beam chord) takes priority when both are down.
 - Status: DONE. Nothing was run in a browser, per the request. `web/tests/browser.test.js` is still stale (see Open above) and `web/tests/meters.test.js` was not re-run after these changes.
 
+## Workflow: new combat stats (user request, 2026-09-30)
+
+### Batch 1. Kicks, parry, energy burst
+- [x] Push kick 10 damage, 100 px, 200 ms. Energy kick 30 damage, 200 px, 300 ms. Energy burst 50 damage, 400 px, 500 ms (it had no knockback before). Parry 300 px, 400 ms, no damage (`PARRY_KNOCK`; it overrides the per enemy numbers in `data.js`). All in `web/game.js` (`DAMAGE`, `KNOCK`, `PARRY_KNOCK`); README updated.
+- [x] Fix: an enemy killed by a knockback hit was set back to 'stunned' and lost its death state; knockback now only applies to living enemies.
+- Status: DONE
+
 ## Open questions
 - (none; the old dip/recover2 open question is obsolete: those frames were removed when the animation was restructured to plow/raise/high/impact.)
 
