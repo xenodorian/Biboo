@@ -1,4 +1,4 @@
-/* Enemy hits push her back 10 px (goblin) or 25 px (orc), and a push only drops her into a pit when she is carried fully over the edge.
+/* Enemy hits push her back 40 px (goblin) or 64 px (orc). A push only drops her into a pit when she is carried fully over the edge, and the run ends only once she has fallen to the bottom.
  * Run: NODE_PATH=$(npm root -g) node web/tests/pushback.test.js */
 const path = require('path');
 const { chromium } = require('playwright');
@@ -22,14 +22,23 @@ const { chromium } = require('playwright');
     return { moved: x0 - s.px, hurt: h0 - await ev('bibooGame.hp()'), pitFall: !!s.pitFall, px: s.px, c: await ev('bibooGame.combat()') };
   }
   const gob = await hit('goblin', 'slash', 100);
-  check('a goblin hit pushes her back about 10 px', gob.hurt > 0 && Math.abs(gob.moved - 10) <= 6, gob);
+  check('a goblin hit pushes her back about 40 px', gob.hurt > 0 && Math.abs(gob.moved - 40) <= 12, gob);
   const orc = await hit('orc', 'attack', 100);
-  check('an orc hit pushes her back about 25 px', orc.hurt > 0 && Math.abs(orc.moved - 25) <= 8, orc);
+  check('an orc hit pushes her back about 64 px', orc.hurt > 0 && Math.abs(orc.moved - 64) <= 14, orc);
   // a goblin pushes her half over a pit edge (she stands 5 px past the right edge; 10 px push puts her centre inside the gap): no fall
-  const edge = await hit('goblin', 'slash', 215, { x0: 150, x1: 210 });
+  const edge = await hit('goblin', 'slash', 240, { x0: 150, x1: 210 });
   check('a push that only reaches half over the edge does not start a fall', edge.hurt > 0 && !edge.pitFall, edge);
   const ground = await ev("(() => { const s = bibooGame.state(); return s.feetNow; })()");
   check('she is standing on the ground at the edge afterwards', ground <= 1 && edge.px >= 149, { ground, px: edge.px });
+  // knocked well into a wide pit: she falls, and Game Over waits until she has dropped all the way down
+  await custom({ pits: [{ x0: 150, x1: 260 }], enemies: [] }); await ev('bibooGame.setX(270)'); await wait(200);
+  await ev("bibooGame.setRespawn(false); bibooGame.setEnemies([['orc', 60, 99999]])"); await wait(1200);
+  await ev("bibooGame.attack(0, 'attack')");
+  let early = null, end = null;
+  for (let i = 0; i < 60; i++) { await wait(50); const t = await S(); if (t.pitFall && t.gameOver && t.feetNow > -28) early = { feet: t.feetNow }; if (t.gameOver) { end = { feet: t.feetNow, hp: t.hp }; break; } }
+  check('knocked into a pit: she falls', !!(await S()).pitFall);
+  check('no Game Over while she is still above the bottom of the pit', !early, early);
+  check('Game Over comes once she has fallen to the bottom', !!end && end.hp === 0, end);
   // walking in on purpose still falls
   await custom({ pits: [{ x0: 150, x1: 210 }], enemies: [] }); await ev('bibooGame.setX(120)'); await wait(150);
   await page.keyboard.down('ArrowRight');

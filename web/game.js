@@ -22,8 +22,6 @@
   'use strict';
   const D = window.BIBOO;
   D.input.sequence_window_ms = 700;
-  D.enemies.goblin.ai.knock = [10, 120];   // what a landed enemy attack pushes her back: goblin 10 px, orc 25 px
-  D.enemies.orc.ai.knock = [25, 160];
   if (!D.input.bindings.some(b => b.input === 'Left-Right+A'))
     D.input.bindings.push({ input: 'Left-Right+A', type: 'sequence', move: 'beam_cloud' });
   for (const inp of ['Right-Left-A', 'Right-Left+A']) {
