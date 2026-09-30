@@ -15,9 +15,6 @@
   h1 { font-size: 18px; margin: 0 0 10px; font-weight: 600; }
   #stage { position: relative; background: #000; border: 1px solid var(--line); }
   canvas { display: block; width: 100%; image-rendering: pixelated; image-rendering: crisp-edges; aspect-ratio: 384 / 216; }
-  #now { position: absolute; left: 10px; top: 8px; padding: 4px 8px; background: rgba(0,0,0,.55);
-         border-radius: 4px; font-weight: 600; pointer-events: none; }
-  #now small { font-weight: 400; color: var(--dim); margin-left: 6px; }
   #kills { position: absolute; right: 10px; top: 8px; padding: 4px 8px; background: rgba(0,0,0,.55);
            border-radius: 4px; font-weight: 600; pointer-events: none; font-variant-numeric: tabular-nums; }
   #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); }
@@ -53,7 +50,6 @@
   <h1>Parry Perry</h1>
   <div id="stage">
     <canvas id="view" width="384" height="216" tabindex="0" aria-label="Game view"></canvas>
-    <div id="now"></div>
     <div id="kills"></div>
     <div id="loading">Loading...</div>
   </div>
