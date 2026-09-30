@@ -1,0 +1,101 @@
+/* Progress for Parry Perry: what the player has unlocked, the gems in the bag, the meters, and which levels are open.
+ * Saved in localStorage (every read and write is wrapped, so a browser that blocks storage just plays without saving).
+ *
+ * A new game starts with only the d-pad and A, B, X, Y (walk, duck, slash, block and parry, dash, jump).
+ * Everything else is an "unlock": a golden crate holds one, and smashing the crate then touching the item unlocks it.
+ * An unlock can give buttons (L1, L2, R1, R2), moves (ids from data.js) and meters. A meter is drawn only once
+ * some unlock that uses it is owned. The health bar is always drawn.
+ *
+ * game.js reads this through window.BibooProgress; it holds no game logic of its own.
+ */
+(function (root) {
+  'use strict';
+  const KEY = 'parryperry.save.v1';
+  const GEM_KINDS = ['health', 'energy', 'empower', 'super'];
+  const SHOULDERS = new Set(['L1', 'L2', 'R1', 'R2', 'R']);
+
+  // id, what the player sees, which button or combo it is, the moves it switches on, the buttons and meters it brings
+  const UNLOCKS = [
+    { id: 'thrust', kind: 'Combo', name: 'Lunging Thrust', hint: 'Hold Right (or Left) and press A', moves: ['thrust'] },
+    { id: 'upswing', kind: 'Combo', name: 'Ducking Upswing', hint: 'Hold Down and press A', moves: ['upswing'] },
+    { id: 'spin', kind: 'Combo', name: 'Spin Attack', hint: 'Press Down, Down, then A', moves: ['spin_attack'] },
+    { id: 'heavy_horizontal', kind: 'Combo', name: 'Heavy Horizontal', hint: 'Hold B and tap A', moves: ['heavy_horizontal'] },
+    { id: 'dash_thrust', kind: 'Combo', name: 'Dash Thrust', hint: 'Press X and A together', moves: ['dash_thrust'] },
+    { id: 'energy_dash', kind: 'Combo', name: 'Energy Dash Thrust', hint: 'Double tap forward, then X and A', moves: ['energy_dash_thrust'] },
+    { id: 'taunt', kind: 'Combo', name: 'Taunt', hint: 'Press X and Y together', moves: ['taunt'] },
+    { id: 'sky_dash', kind: 'Combo', name: 'Sky Dash', hint: 'Press Down, then Y', moves: ['sky_dash'] },
+    { id: 'crash', kind: 'Combo', name: 'Jumping Crash', hint: 'Press A in the air (30 energy)', moves: ['jump_crash'], meters: ['energy'] },
+    { id: 'heavy_chop', kind: 'Combo', name: 'Heavy Overhead Chop', hint: 'Hold Up to charge, then press A', moves: ['heavy', 'charge'], meters: ['energy'] },
+    { id: 'earthquake', kind: 'Combo', name: 'Earthquake', hint: 'Down four times, then A (full super meter)', moves: ['earthquake'], meters: ['super'] },
+    { id: 'meteor', kind: 'Combo', name: 'Meteor Shower', hint: 'Up four times, then A (full super meter)', moves: ['meteor_shower'], meters: ['super'] },
+    { id: 'L1', kind: 'Button', name: 'L1 button', hint: 'L1 push kick, B+L1 energy kick, A+L1 laser beam', moves: ['push_kick', 'energy_kick', 'beam_laser'], buttons: ['L1'], meters: ['energy'] },
+    { id: 'L2', kind: 'Button', name: 'L2 button', hint: 'L2 energy burst, A+L2 cloud beam', moves: ['energy_burst', 'beam_cloud'], buttons: ['L2'], meters: ['energy'] },
+    { id: 'R1', kind: 'Button', name: 'R1 button', hint: 'A+R1 Empowerment Beam, hold R1 to kneel and recover', moves: ['beam_plasma', 'recover'], buttons: ['R1', 'R'], meters: ['empower'] },
+    { id: 'R2', kind: 'Button', name: 'R2 button', hint: 'R2 energy wave, A+R2 fire beam', moves: ['energy_wave', 'beam_fire'], buttons: ['R2'], meters: ['energy'] },
+  ];
+  const byId = {};
+  for (const u of UNLOCKS) byId[u.id] = u;
+
+  const fresh = () => ({
+    v: 1,
+    unlocked: [],                                        // unlock ids owned
+    levelsUnlocked: 1,                                   // levels 1..levelsUnlocked can be entered
+    cleared: [],                                         // level numbers beaten
+    gems: { health: 0, energy: 0, empower: 0, super: 0 },
+    meters: { energy: 0, empower: 0, super: 0 },
+  });
+
+  const P = { UNLOCKS, byId, GEM_KINDS, MAX_GEMS: 99, state: fresh() };
+  P.levelCount = () => (root.BIBOO_LEVELS && root.BIBOO_LEVELS.levels.length) || 5;
+
+  P.has = id => P.state.unlocked.includes(id);
+  P.hasMove = move => P.state.unlocked.some(id => byId[id] && (byId[id].moves || []).includes(move));
+  P.buttonOn = b => !SHOULDERS.has(b) || P.state.unlocked.some(id => byId[id] && (byId[id].buttons || []).includes(b));
+  P.meterOn = k => P.state.unlocked.some(id => byId[id] && (byId[id].meters || []).includes(k));
+  P.unlock = id => {
+    if (!byId[id] || P.has(id)) return false;
+    P.state.unlocked.push(id);
+    P.save();
+    return true;
+  };
+  P.unlockAll = () => { for (const u of UNLOCKS) if (!P.has(u.id)) P.state.unlocked.push(u.id); P.save(); };
+  P.unlockAllLevels = () => { P.state.levelsUnlocked = P.levelCount(); P.save(); };
+  P.levelOpen = n => n >= 1 && n <= P.state.levelsUnlocked;
+  P.completeLevel = n => {
+    if (!P.state.cleared.includes(n)) P.state.cleared.push(n);
+    P.state.levelsUnlocked = Math.max(P.state.levelsUnlocked, Math.min(P.levelCount(), n + 1));
+    P.save();
+  };
+  P.addGem = (kind, n) => {
+    const before = P.state.gems[kind] || 0;
+    P.state.gems[kind] = Math.min(P.MAX_GEMS, before + (n == null ? 1 : n));
+    return P.state.gems[kind] - before;
+  };
+  P.takeGem = kind => {
+    if ((P.state.gems[kind] || 0) < 1) return false;
+    P.state.gems[kind]--;
+    return true;
+  };
+
+  P.save = () => {
+    try { if (root.localStorage) root.localStorage.setItem(KEY, JSON.stringify(P.state)); } catch (e) { /* storage blocked: play without saving */ }
+  };
+  P.load = () => {
+    try {
+      const raw = root.localStorage && root.localStorage.getItem(KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw), f = fresh();
+      if (Array.isArray(s.unlocked)) f.unlocked = s.unlocked.filter(id => byId[id]);
+      if (Number.isFinite(s.levelsUnlocked)) f.levelsUnlocked = Math.max(1, s.levelsUnlocked | 0);
+      if (Array.isArray(s.cleared)) f.cleared = s.cleared.filter(n => Number.isFinite(n));
+      for (const k of GEM_KINDS) if (s.gems && Number.isFinite(s.gems[k])) f.gems[k] = Math.max(0, Math.min(P.MAX_GEMS, s.gems[k] | 0));
+      for (const k of ['energy', 'empower', 'super']) if (s.meters && Number.isFinite(s.meters[k])) f.meters[k] = Math.max(0, Math.min(100, s.meters[k]));
+      P.state = f;
+    } catch (e) { P.state = fresh(); }
+  };
+  P.reset = () => { P.state = fresh(); P.save(); };
+
+  P.load();
+  root.BibooProgress = P;
+  if (typeof module !== 'undefined' && module.exports) module.exports = P;
+})(typeof window !== 'undefined' ? window : globalThis);

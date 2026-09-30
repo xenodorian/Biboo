@@ -88,6 +88,12 @@
     D.moves.heavy_horizontal = Object.assign({}, D.moves.slash, { title: 'Heavy Horizontal', input: 'A+B', inputType: 'chord' });
   D.input.bindings.push({ input: 'A+B', type: 'chord', move: 'heavy_horizontal', held: ['B'] });
   const V = D.view;
+  const P = window.BibooProgress;
+  // The player starts with the d-pad and A, B, X, Y only. Every other move is an unlock found in a golden crate
+  // (web/progress.js). A move that is not open is not in the input reader at all, so the button that would have
+  // triggered it falls back to the plain move (Down+A is just a slash until the upswing is unlocked).
+  const BASE_MOVES = new Set(['idle', 'walk_right', 'walk_left', 'duck', 'block', 'parry', 'jump', 'dash', 'slash']);
+  const moveOpen = move => BASE_MOVES.has(move) || P.hasMove(move);
   const SPRITE_SCALE = 0.5;
   if (D.moves.beam_plasma) D.moves.beam_plasma.title = 'Empowerment Beam';
   // Energy (blue) and empower (orange) meters. Gems dropped by defeated enemies fill them: taunted enemies
@@ -99,7 +105,7 @@
   // The super meter (purple, SUP) starts empty and is filled only by Super Gems: one drops when an enemy is
   // killed by a beam. A full meter (100) pays for the earthquake and the meteor shower.
   const SUPER_MAX = 100;
-  let energyMeter = METER_START, empowerMeter = METER_START, superMeter = 0;
+  let energyMeter = P.state.meters.energy, empowerMeter = P.state.meters.empower, superMeter = P.state.meters.super;   // saved with the progress
   const GEM_VALUE = 25, GEM_CHANCE = 0.35, GEM_LIFE = 20000, GEM_PICKUP = 28;
   const BEAM_TICK_COST = { cloud: 1, fire: 3, laser: 3, plasma: 5 };         // per beam tick (100 ms)
   const MOVE_COST = { energy_wave: ['energy', 10], jump_crash: ['energy', 30], earthquake: ['super', 100], meteor_shower: ['super', 100] };   // earthquake and meteor shower need a full super meter and use all of it                          // paid once, when the move starts
@@ -112,6 +118,23 @@
   }
   let gems = [], meterFlash = { energy: 0, empower: 0, super: 0 }, lastDeny = 0;
   function spawnGem(wx, kind) { gems.push({ x: wx, y: 14 + Math.random() * 8, kind, bob: Math.random() * 6.28, t0: clock }); }
+  // Progress is kept in progress.js; the meters live here while playing and are copied over when it is saved.
+  function syncProgress() { P.state.meters = { energy: energyMeter, empower: empowerMeter, super: superMeter }; P.save(); }
+  function meterStarts(had) {                        // a meter that has just become available starts at METER_START
+    if (!had.energy && P.meterOn('energy')) energyMeter = Math.max(energyMeter, METER_START);
+    if (!had.empower && P.meterOn('empower')) empowerMeter = Math.max(empowerMeter, METER_START);
+  }
+  const meterState = () => ({ energy: P.meterOn('energy'), empower: P.meterOn('empower'), super: P.meterOn('super') });
+  function unlockItem(id) {                          // from a golden crate or the dev console
+    const had = meterState();
+    if (!P.unlock(id)) return false;
+    meterStarts(had); refreshUnlocks(); syncProgress();
+    return true;
+  }
+  function unlockEverything() {
+    const had = meterState();
+    P.unlockAll(); meterStarts(had); refreshUnlocks(); syncProgress();
+  }
   // what a move needs before it may start: [meter, amount] or null
   function needOf(move) {
     if (MOVE_COST[move]) return MOVE_COST[move];
@@ -172,11 +195,22 @@
   const PAD = { 0: 'A', 1: 'B', 2: 'X', 3: 'Y', 4: 'L1', 5: 'R1', 6: 'L2', 7: 'R2', 12: 'Up', 13: 'Down', 14: 'Left', 15: 'Right' };
   const keyDown = new Set(), padDown = new Set(), isDown = new Set();
 
-  const reader = new BibooInput.Reader(D.input, {
-    // releasing Up turns the charge into the heavy chop once the aura loop has started
-    holdReady: (b) => cur && cur.id === D.input.bindings.find(x => x.input === b && x.type === 'hold').move
-                      && cur.k >= D.moves[cur.id].loopFrom,
-  });
+  let reader = null;
+  function activeInput() {                       // the bindings whose move is open (air and idle bindings are always kept)
+    return Object.assign({}, D.input, { bindings: D.input.bindings.filter(b => b.type === 'idle' || b.type === 'air' || moveOpen(b.move)) });
+  }
+  function makeReader() {
+    return new BibooInput.Reader(activeInput(), {
+      // releasing Up turns the charge into the heavy chop once the aura loop has started
+      holdReady: (b) => { const hb = D.input.bindings.find(x => x.input === b && x.type === 'hold'); return !!cur && !!hb && cur.id === hb.move && cur.k >= D.moves[cur.id].loopFrom; },
+    });
+  }
+  reader = makeReader();
+  let lastT = 0;                                 // time of the last frame, for rebuilding the reader mid-game
+  function refreshUnlocks() {                    // an unlock changed: rebuild the reader and tell it what is held
+    reader = makeReader();
+    for (const b of isDown) reader.held.set(b, lastT);
+  }
 
   // Some controllers reach the page as key events (Android can send a pad's d-pad as arrow keys),
   // and those can come with an empty e.code, so the key name and legacy keyCode are checked too.
@@ -298,13 +332,15 @@
   // L1 and R1 held together charge all three meters (+METER_CHARGE_STEP each METER_CHARGE_TICK ms). While they are
   // held the reader is not shown L1, R1 or the pad's R1-as-R, so no push kick or recover starts.
   const METER_CHARGE_STEP = 1, METER_CHARGE_TICK = 500;
-  const metersHeld = () => (keyDown.has('L1') || padDown.has('L1')) && (keyDown.has('R1') || padDown.has('R1'));
+  const metersHeld = () => P.buttonOn('L1') && P.buttonOn('R1') && (keyDown.has('L1') || padDown.has('L1')) && (keyDown.has('R1') || padDown.has('R1'));
   function readButtons(t) {
     pollPad();
+    lastT = t;
     const charging = metersHeld();
     for (const b of BUTTONS) {
       let now = keyDown.has(b) || padDown.has(b);
       if (ignoreUntilUp.has(b)) { if (now) now = false; else ignoreUntilUp.delete(b); }   // held when a menu closed
+      if (!P.buttonOn(b)) now = false;                             // a shoulder button that is not unlocked yet
       if (charging && (b === 'L1' || b === 'R1')) now = false;
       else if (charging && b === 'R') now = keyDown.has('R');
       if (now && !isDown.has(b)) {
@@ -424,9 +460,10 @@
   }
 
   function request(move, via) {
-    if (!D.moves[move] || stun) return;
+    if (!D.moves[move] || stun || !moveOpen(move)) return;
     if (!canAfford(move)) { deny(move); return; }             // no meter: the move does not play
     const air = AIR.find(b => usesButton(D.moves[move].input, b.input));
+    if (air && !moveOpen('jump_crash')) return;               // A in the air does nothing until the crash is unlocked
     if (air) {
       if ((airborne() || (cur && cur.id === 'jump' && cur.kind === 'action')) && !canAfford('jump_crash')) { deny('jump_crash'); return; }
       if (airborne()) { airCrash(via); return; }
@@ -1088,7 +1125,9 @@
   // meters under the health bar: ENG (blue) and EMP (orange); a bar flashes white when a move was refused
   function drawMeters() {
     g.font = 'bold 7px monospace'; g.textBaseline = 'top'; g.textAlign = 'left'; g.lineWidth = 2; g.lineJoin = 'round';
-    [['ENG', 'energy', energyMeter, ENERGY_MAX, '#4af', 24], ['EMP', 'empower', empowerMeter, EMPOWER_MAX, '#fa4', 33], ['SUP', 'super', superMeter, SUPER_MAX, '#c6f', 42]].forEach(([lab, k, v, max, col, y]) => {
+    let y = 24;                                                    // only the meters the player has unlocked are drawn
+    for (const [lab, k, v, max, col] of [['ENG', 'energy', energyMeter, ENERGY_MAX, '#4af'], ['EMP', 'empower', empowerMeter, EMPOWER_MAX, '#fa4'], ['SUP', 'super', superMeter, SUPER_MAX, '#c6f']]) {
+      if (!P.meterOn(k)) continue;
       g.strokeStyle = '#000'; g.fillStyle = '#fff';
       g.strokeText(lab, 8, y - 1); g.fillText(lab, 8, y - 1);
       const flash = clock < meterFlash[k];
@@ -1099,7 +1138,8 @@
       g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(28, y, fw, 1);
       const t = `${Math.round(v)}/${max}`;
       g.strokeStyle = '#000'; g.fillStyle = '#fff'; g.strokeText(t, 132, y - 1); g.fillText(t, 132, y - 1);
-    });
+      y += 9;
+    }
   }
 
   // health bars: hers at the top left of the view, each living enemy's over its head
@@ -1252,8 +1292,6 @@
     return 'one after another' + (b.input.includes('+') ? ' (+ together)' : '');
   }
   // Rows for the Moves menu: the base controls first, then every combo or button the player has unlocked.
-  const BASE_MOVES = new Set(['idle', 'walk_right', 'walk_left', 'duck', 'block', 'parry', 'jump', 'dash', 'slash']);
-  const moveOpen = move => true;                     // stage 3 replaces this with the unlock check
   function moveRows() {
     const rows = [];
     for (const b of D.input.bindings) {
@@ -1363,7 +1401,6 @@
     respawns.length = 0;
     floaters.length = 0;
     gems.length = 0; explosions.length = 0; flashUntil = 0;
-    energyMeter = METER_START; empowerMeter = METER_START; superMeter = 0;   // a new run: energy and empower at 50, super empty
     kills = 0;
     stun = null;
     slide = null;
@@ -1418,6 +1455,8 @@
   });
   requestAnimationFrame(frame);
 
+  addEventListener('pagehide', syncProgress);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) syncProgress(); });
   canvas.addEventListener('pointerdown', () => canvas.focus());
   window.togglePause = togglePause;
   const hudBtn = document.getElementById('btn-hud-start');
