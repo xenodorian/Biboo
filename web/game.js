@@ -239,10 +239,16 @@
         if (!PAD[i]) return;
         if (pressed(bt, thr(i))) padDown.add(PAD[i]);
       });
-      if (!padDown.has('L1') && pressed(p.buttons[10], 0.35)) padDown.add('L1');
-      if (!padDown.has('R1') && pressed(p.buttons[11], 0.35)) padDown.add('R1');
-      if (!padDown.has('L2') && pressed(p.buttons[8], 0.12)) padDown.add('L2');
-      if (!padDown.has('R2') && pressed(p.buttons[9], 0.12)) padDown.add('R2');
+      // Some non-standard pads put the shoulder buttons on buttons 8 to 11. On a standard-mapping pad, and on
+      // Sony pads, 8 is Select, 9 is Start or Options and 10 and 11 are the stick clicks, so they are not
+      // read as shoulder buttons there (Options used to fire the energy wave, which is R2).
+      const shoulderAlias = p.mapping !== 'standard' && !/054c|sony|playstation|ps3|ps4|ps5|dualshock|dualsense|wireless controller/i.test(p.id || '');
+      if (shoulderAlias) {
+        if (!padDown.has('L1') && pressed(p.buttons[10], 0.35)) padDown.add('L1');
+        if (!padDown.has('R1') && pressed(p.buttons[11], 0.35)) padDown.add('R1');
+        if (!padDown.has('L2') && pressed(p.buttons[8], 0.12)) padDown.add('L2');
+        if (!padDown.has('R2') && pressed(p.buttons[9], 0.12)) padDown.add('R2');
+      }
       const axn = (i) => (p.axes && p.axes.length > i ? p.axes[i] : 0);
       if (!padDown.has('L2') && axn(2) > 0.2) padDown.add('L2');
       if (!padDown.has('R2') && axn(5) > 0.2) padDown.add('R2');

@@ -98,6 +98,7 @@ Done in stages, pushed to main after each. Per the request, no test suites were 
 - (none; the old dip/recover2 open question is obsolete: those frames were removed when the animation was restructured to plow/raise/high/impact.)
 
 ## Log
+- 2026-09-30: Fixed the pad Options button firing the energy wave: buttons 8 to 11 were read as shoulder buttons on every pad; now only on non-standard, non-Sony pads (Claude).
 - 2026-09-30: Recover now costs 1 empower per tick and heals 5 HP per tick (Claude).
 - 2026-09-30: Pad Options button now starts the game; browser test updated (122/122); pytest installed (Claude).
 - 2026-09-30: New combat stats (batches 1 and 2) done and verified; combat.test.js added; kick knockback direction fixed (Claude).
