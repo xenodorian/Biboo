@@ -1,5 +1,5 @@
 (async function () {
-  const n = 4;
+  const n = 8;
   const parts = await Promise.all(
     Array.from({ length: n }, (_, i) =>
       fetch('game.p' + i + '.js').then(r => r.text())
