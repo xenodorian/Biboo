@@ -112,7 +112,7 @@ sequence) with chord, sequence and tap windows. Previews of every move are in `d
 | R (hold) | recover | Kneel on the planted sword, green glow, rising + signs |
 | A+B | beam_fire | Fire beam from the blade tip; press A and B together, or hold B and tap A |
 | A+L | beam_laser | Laser beam: a yellow-white bar with cyan lightning |
-| A+R | beam_plasma | Plasma beam: cyan, pink and white bursts |
+| A+R | beam_plasma | Empowerment Beam (was the plasma beam): cyan, pink and white bursts. Enlarges the enemies it hits, which then drop Energy Gems. Costs 10 Empower per tick |
 | Left-Right-A | beam_cloud | Cloud beam: white and cyan wisps |
 | B+L / A+B+L | heavy_kick / energy_kick | Bigger push kick; with blue energy (A, B and L together, or one after another in any order) |
 | L+R | energy_burst | Ring and rays in all directions |

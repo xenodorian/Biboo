@@ -60,10 +60,19 @@ Done in stages, pushed to main after each. Per the request, no test suites were 
 - [x] Enemies spawn at `scale: 1` (the scaled-down normal size) explicitly. Start, respawn and test spawns all use it; the only thing that ever enlarges one is the Empowerment Beam.
 - Status: DONE. Not run in the browser (per the request); check the look of the closer approach in play.
 
+### Stage 4. Empowerment Beam, taunt, gems and meters: review and fixes
+- [x] Reviewed by reading the code, all already in place from step 39 and earlier: meters drawn after the scene (`drawMeters`), gems drawn on top (`drawGems`), pickup by walking over them, taunted enemies drop Empower Gems, enemies hit by the Empowerment Beam drop Energy Gems, energy pays for the cloud, fire and laser beams and the wave, empower pays for the Empowerment Beam and kneeling, `request()` refuses a move (and a queued move) whose meter cannot pay, a beam or the kneel stops when its meter runs dry.
+- [x] Renamed at the source: `swingkit/moves/combos.py` title is now "Empowerment Beam", data re-exported (only that title changed in `data.js`), README row updated. The runtime title patch in `game.js` is now redundant but harmless.
+- [x] Taunt: enemies turn red and stay red (a parry, hit or beam flash used to end the taunt tint for good; it now returns), deal 2x damage, and now run 2x as fast in everything (animations, resting, walking), not just walking.
+- [x] Empowerment Beam enlarging: an enlarged enemy's hurtbox, hit box and stop distance now scale with it (stage 3).
+- Noted, not changed: on a pad, holding R1 also adds the `R` hold (`padDown.add('R')` in the pad reader), so R1 alone starts the recover kneel when Max is hurt and has empower. A+R1 (the Empowerment Beam chord) takes priority when both are down.
+- Status: DONE. Nothing was run in a browser, per the request. `web/tests/browser.test.js` is still stale (see Open above) and `web/tests/meters.test.js` was not re-run after these changes.
+
 ## Open questions
 - (none; the old dip/recover2 open question is obsolete: those frames were removed when the animation was restructured to plow/raise/high/impact.)
 
 ## Log
+- 2026-09-30: Stage 4 (Empowerment Beam rename at source, taunt speed and tint, review of gems and meters) (Claude).
 - 2026-09-30: Stage 3 (enemy reach, scaled hitboxes, normal-size spawns) (Claude).
 - 2026-09-30: Stages 1 and 2 of the wave, meteors, enemies, gems review (Claude).
 - 2026-09-30: Step 39 done: meters on screen, gem pickups and drops, moves gated by meter; game.js consolidated into one plain file (Claude). Old browser test noted as stale.

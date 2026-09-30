@@ -46,7 +46,7 @@ def beam(kind, title, inputs):
 def beam_cloud(): return beam('cloud', 'Cloud beam', 'Left-Right-A')
 def beam_fire(): return beam('fire', 'Fire beam', 'A+B')
 def beam_laser(): return beam('laser', 'Laser beam', 'A+L')
-def beam_plasma(): return beam('plasma', 'Plasma beam', 'A+R')
+def beam_plasma(): return beam('plasma', 'Empowerment Beam', 'A+R')
 
 
 def heavy_kick():

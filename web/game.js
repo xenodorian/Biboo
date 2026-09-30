@@ -367,7 +367,7 @@
       for (const en of enemies) {
         if (!alive(en)) continue;
         en.taunted = true; en.dropEmpower = true; en.speedMul = 2; en.dmgMul = 2;
-        en.tint = { color: '#e22', alpha: 0.55, until: clock + 999999 };
+        en.tint = TAUNT_TINT;
       }
     }
     if (kind === 'action' || kind === 'land') {
@@ -579,6 +579,7 @@
   const enemies = [];
   const respawns = [];                  // {type, at}
   let kills = 0, respawnOn = true;
+  const TAUNT_TINT = { color: '#e22', alpha: 0.55, until: Infinity };     // taunted enemies stay red
   const BODY = 32;                      // her body centre, px ahead of her anchor
   // An enemy walks in until it is APPROACH x its reach from her body centre. Her plow guard holds the blade
   // out in front of her body, but only her body (herBox) is hit, so the enemy has to close in far enough
@@ -627,6 +628,8 @@
   function stepEnemy(e, dt) {
     const T = EN[e.type], ai = T.ai;
     let A = T.anims[e.anim], ended = false;
+    dt *= (e.speedMul || 1);            // taunted: everything it does, walking, swinging and resting, runs 2x as fast
+    if (e.taunted && (!e.tint || clock >= e.tint.until)) e.tint = TAUNT_TINT;   // back to red after a flash
     e.t += dt;
     while (e.t >= T.frames[A.frames[e.k]].ms) {
       e.t -= T.frames[A.frames[e.k]].ms;
@@ -670,7 +673,7 @@
       if (e.anim !== 'idle') play(e, 'idle');
     } else {
       if (e.anim !== 'walk') play(e, 'walk');
-      const mv = e.face * Math.min((ai.speed * (e.speedMul||1)) * dt / 1000, dist - stop);
+      const mv = e.face * Math.min(ai.speed * dt / 1000, dist - stop);
       e.x += mv; e.base += mv;
     }
   }
