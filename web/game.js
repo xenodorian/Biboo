@@ -241,11 +241,18 @@
   const img = {};
   function load(src) {
     if (img[src]) return img[src].p;
-    const im = new Image();
-    const p = new Promise((res, rej) => { im.onload = res; im.onerror = () => rej(new Error('missing ' + src)); });
-    im.src = src + (window.BIBOO_VER ? '?v=' + window.BIBOO_VER : '');   // version in the URL so a new build is never served from the cache
-    img[src] = { im, p };
-    return p;
+    const ent = { im: null, p: null };
+    // a failed load is retried (a build being published, a dropped connection on a phone) before it is reported
+    const attempt = n => new Promise((res, rej) => {
+      const im = new Image();
+      im.onload = () => { ent.im = im; res(); };
+      im.onerror = () => { if (n < 4) setTimeout(() => attempt(n + 1).then(res, rej), 400 * (n + 1)); else rej(new Error('missing ' + src)); };
+      im.src = src + (window.BIBOO_VER ? '?v=' + window.BIBOO_VER : '') + (n ? (window.BIBOO_VER ? '&' : '?') + 'retry=' + n : '');   // version in the URL so a new build is never served from the cache
+      ent.im = im;
+    });
+    ent.p = attempt(0);
+    img[src] = ent;
+    return ent.p;
   }
   const srcs = [...D.layers.map(l => l.src), D.fringe.src];
   for (const m of Object.values(D.moves)) {
@@ -2404,7 +2411,7 @@
     try { if (window.sessionStorage.getItem('parryperry.fresh')) { window.sessionStorage.removeItem('parryperry.fresh'); hideMenu(); startLevel(1); } } catch (e) {}   // after a hard reset: straight to 1.1
   }).catch(err => {
     const loading = document.getElementById('loading');
-    if (loading) loading.textContent = String(err);
+    if (loading) loading.textContent = String(err) + '. Reload the page (hard refresh) to try again.';
   });
   requestAnimationFrame(frame);
 

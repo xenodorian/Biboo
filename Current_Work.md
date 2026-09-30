@@ -283,3 +283,5 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 - Hard reset erases every parryperry.* key in localStorage and sessionStorage, clears Cache Storage, reloads, and starts straight in Level 1.1 with nothing unlocked.
 
 - st43: a knock only starts a pit fall when her whole drawn body (hurtbox plus 14 px each side) is over the gap; otherwise she is set back at the nearer edge. Game Over waits until she has left the view (feet about -81).
+
+- st44: image loads retry up to 4 times before the "missing asset" message (a build being published or a dropped phone connection); test asset_retry.test.js. The cloud beam file exists on the live site.
