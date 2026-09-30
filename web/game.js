@@ -629,8 +629,9 @@
     if (!e.tint || clock >= e.tint.until) e.tint = { color: RED, alpha: 0.55, until: clock + 110 };
     if (e.hp <= 0) kill(e);
   }
+  const cheats = { invincible: false, infinite: false };     // set from the Dev Console (L1+L2+R1+R2)
   function hurtHer(dmg) {
-    if (dmg <= 0) return;
+    if (dmg <= 0 || cheats.invincible) return;
     hp = Math.max(0, hp - dmg);
     floater(bodyX(), herY() + herTop() + 6, '-' + dmg, RED);
   }
@@ -1701,7 +1702,7 @@
   const killsEl = document.getElementById('kills');
   const padStatus = () => padName ? `Controller: ${padName}` : 'Controller: none seen yet. Connect it, then press any button on it.';
   function hud() {
-    if (killsEl) killsEl.textContent = level ? `Level ${level.n}.${level.idx + 1}   Kills ${kills}` : '';
+    if (killsEl) killsEl.textContent = (level ? `Level ${level.n}.${level.idx + 1}   Kills ${kills}` : '') + (cheats.invincible ? '  [INV]' : '') + (cheats.infinite ? '  [INF]' : '');
   }
 
   // ------------------------------------------------------------------ menus, screens and the loop
@@ -1714,10 +1715,13 @@
 
   // Menu navigation: while a menu is open, Up and Down (arrows, d-pad or stick) move the highlight, A activates and
   // B goes back. On the overworld, Left/Right or Up/Down pick a level and A enters it. Edge detected, with key repeat.
-  const navPrev = { Up: false, Down: false, Left: false, Right: false, A: false, B: false }, navNext = { Up: 0, Down: 0 };
+  const navPrev = { Up: false, Down: false, Left: false, Right: false, A: false, B: false, dev: false }, navNext = { Up: 0, Down: 0 };
   function navPoll(t) {
     const on = k => keyDown.has(k) || padDown.has(k);
     const now = { Up: on('Up'), Down: on('Down'), Left: on('Left'), Right: on('Right'), A: on('A'), B: on('B') };
+    const chord = ['L1', 'L2', 'R1', 'R2'].every(on);                  // all four shoulder buttons together: the Dev Console
+    if (chord && !navPrev.dev && assetsReady) toggleDev();
+    navPrev.dev = chord;
     if (UI && UI.isOpen()) {
       for (const k of ['Up', 'Down']) {
         if (now[k] && (!navPrev[k] || t >= navNext[k])) { UI.nav(k === 'Up' ? -1 : 1); navNext[k] = t + (navPrev[k] ? 110 : 320); }
@@ -1738,6 +1742,7 @@
 
   function tickLevel(t, dt) {
     clock += dt;                                      // game time: it does not run while a menu is open
+    if (cheats.infinite) { energyMeter = ENERGY_MAX; empowerMeter = EMPOWER_MAX; superMeter = SUPER_MAX; }
     readButtons(t);
     for (const e of reader.update(t)) request(e.move, e.via);
     const before = cur && BLOCKED.has(cur.id) ? playerX() : null;
@@ -1832,6 +1837,52 @@
     canvas.focus();
   }
 
+
+  // ---- the Dev Console: L1+L2+R1+R2 together (or the ` key) opens it over whatever screen is up. It pauses the game.
+  let devReturn = null, resetArmed = false;
+  function openDev() {
+    devReturn = UI.isOpen() ? { view: UI.view, opts: UI.opts } : null;
+    devOpen = true; resetArmed = false;
+    UI.open('dev', {});
+  }
+  function closeDev() {                              // back to the menu that was open under it, or to the game
+    devOpen = false; resetArmed = false;
+    if (devReturn) UI.open(devReturn.view, devReturn.opts); else { UI.close(); ignoreHeldButtons(); canvas.focus(); }
+    devReturn = null;
+  }
+  function leaveDev() {                              // close the console and the menus under it: play on
+    devOpen = false; devReturn = null; resetArmed = false;
+    paused = false; gameOver = false; levelDone = false;
+    if (hp <= 0) hp = MAX_HP;
+    UI.close(); ignoreHeldButtons(); setStartLabel();
+  }
+  function toggleDev() { if (devOpen) closeDev(); else if (assetsReady) openDev(); }
+  function devItems() {
+    const onoff = v => v ? 'ON' : 'OFF', act = fn => () => { resetArmed = false; fn(); };
+    const items = [
+      { label: 'Invincible', state: onoff(cheats.invincible), fn: act(() => { cheats.invincible = !cheats.invincible; }) },
+      { label: 'Infinite meters', state: onoff(cheats.infinite), fn: act(() => { cheats.infinite = !cheats.infinite; }) },
+      { label: 'Show hitboxes', state: onoff(showBoxes), fn: act(() => { showBoxes = !showBoxes; }) },
+      { label: 'Unlock all levels', fn: act(() => { P.unlockAllLevels(); }) },
+      { label: 'Unlock all moves and buttons', fn: act(() => unlockEverything()) },
+      { label: 'Give 5 of every gem', fn: act(() => { for (const k of P.GEM_KINDS) P.addGem(k, 5); P.save(); }) },
+      { label: 'Full health and full meters', fn: act(() => { hp = MAX_HP; energyMeter = ENERGY_MAX; empowerMeter = EMPOWER_MAX; superMeter = SUPER_MAX; syncProgress(); }) },
+    ];
+    if (level) {
+      items.push({ label: 'Kill every enemy on this map', fn: act(() => { for (const e of enemies) if (alive(e)) kill(e); }) });
+      items.push({ label: 'Next map', fn: act(() => { if (level.idx < level.def.maps.length - 1) { leaveDev(); loadMap(level.idx + 1, 'left'); } }) });
+      items.push({ label: 'Previous map', fn: act(() => { if (level.idx > 0) { leaveDev(); loadMap(level.idx - 1, 'left'); } }) });
+      items.push({ label: 'Complete this level', fn: act(() => { leaveDev(); levelComplete(); }) });
+    }
+    items.push({ label: resetArmed ? 'Press again to erase the save' : 'Reset all progress', fn: () => {
+      if (!resetArmed) { resetArmed = true; return; }
+      P.reset(); energyMeter = empowerMeter = superMeter = 0; refreshUnlocks();
+      leaveDev(); goOverworld();
+    } });
+    items.push({ label: 'Close', fn: closeDev, primary: true });
+    return items;
+  }
+
   function setStartLabel() {
     const b = document.getElementById('btn-hud-start');
     if (b) b.textContent = screen === 'title' ? 'Start' : gameOver ? 'Retry' : paused ? 'Resume' : 'Menu';
@@ -1845,6 +1896,7 @@
   }
   // B or Escape on the main list: back to the game (not from the title menu, Game Over or Level Complete)
   function closeMenu() {
+    if (devOpen) { closeDev(); return; }
     if (screen === 'title' || gameOver || levelDone || !paused) return;
     togglePause();
   }
@@ -1868,6 +1920,7 @@
   }
   function togglePause() {
     if (!assetsReady) return;
+    if (devOpen) { closeDev(); return; }
     if (screen === 'title') { goOverworld(); return; }
     if (levelDone) { goOverworld(); return; }
     if (gameOver) { retryMap(); return; }
@@ -1876,7 +1929,7 @@
     else { hideMenu(); ignoreHeldButtons(); canvas.focus(); }
     setStartLabel();
   }
-  if (UI) UI.init({ mainItems, closeMenu, moveRows, lockedCount, padStatus, gemRows, useGem,
+  if (UI) UI.init({ mainItems, closeMenu, moveRows, lockedCount, padStatus, gemRows, useGem, devItems,
     moveNotes: () => ['Keyboard: arrows = d-pad, Z = A, X = B, C = X, V = Y. Shoulders: Q = L1, E = L2, T = R1, R = R2, W = hold R (recover). Enter, Space or Escape opens and closes this menu. Hold Left or Right while jumping to steer.',
                       'A gamepad works too, wired or Bluetooth, also on an Android phone in Chrome: A is the bottom face button, B right, X left, Y top. Click the game first if keys do nothing. Press H to show hurtboxes and hit shapes.'] });
   Promise.all(srcs.map(load)).then(() => {
@@ -1915,6 +1968,7 @@
       if (UI && UI.isOpen()) UI.back(); else if (screen !== 'title' && !gameOver) togglePause();
       return;
     }
+    if (e.code === 'Backquote') { e.preventDefault(); toggleDev(); return; }
     if (e.code === 'Enter' || e.code === 'Space') {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON')) return;
       e.preventDefault();

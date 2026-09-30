@@ -167,7 +167,8 @@ no new branches, no em dashes or emoji. Do not add new enemy types (goblin and o
   - Drops in `kill()`: a health gem 35 percent of kills; separately 35 percent for one energy or empower gem of an unlocked meter; taunted enemies still drop 2 empower, Empowerment-Beam-hit enemies 2 energy, a beam kill 1 super. Plain crates drop a random gem 55 percent of the time.
 - [x] Stage 6. Overworld, level flow, level unlocking, Game Over and Level Complete.
   - Screens: `screen` is 'title' (menu over the overworld), 'overworld' or 'level'. `drawOverworld`, `OW_NODES`, `enterLevel`, `goOverworld`, `togglePause`, `mainItems`, `triggerGameOver` (menu: Retry this map, Moves, Gems, Back to the overworld), `levelComplete` (message view, then overworld). `P.completeLevel(n)` opens level n+1. Pick a level with Left/Right and A, or click or tap a node (first select, second enter).
-- [ ] Stage 7. Dev Console (L1+L2+R1+R2).
+- [x] Stage 7. Dev Console (L1+L2+R1+R2).
+  - Opens with all four shoulder buttons held together (pad, or keyboard Q+E+T+R), or the ` key, on any screen; it pauses the game. `cheats = {invincible, infinite}` (`hurtHer` ignores damage; `tickLevel` refills all meters each frame; `[INV]` and `[INF]` show next to the level label). Items (`devItems`): Invincible, Infinite meters, Show hitboxes, Unlock all levels, Unlock all moves and buttons, Give 5 of every gem, Full health and meters, and inside a level: Kill every enemy on this map, Next map, Previous map, Complete this level; Reset all progress (press twice); Close. B, Escape or Start also close it and return to the menu that was open under it.
 - [ ] Stage 8. Docs, handoff, static checks.
 
 ### Handoff status (keep this current)
