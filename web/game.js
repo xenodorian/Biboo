@@ -589,7 +589,7 @@
     if (!curMap || floorY <= 0 || fall || stun) return false;
     if (cur && cur.kind !== 'hold' && cur.kind !== 'land') return false;
     const px = playerX();
-    if (curMap.solids.some(sd => sd.top === floorY && px >= sd.x0 - 3 && px <= sd.x1 + 3)) return false;   // a block is not a plank
+    if (curMap.solids.some(sd => sd.top === floorY && overSurf(sd, span(px)))) return false;   // a block is not a plank
     const S = supportUnder(px, floorY);
     if (S >= floorY - 0.5) return false;
     if (cur) x += rootOf(cur)[0];
@@ -874,15 +874,25 @@
   // up through. She is always standing on `floorY`; in the air her height above it comes from the jump animation, and
   // physics() lands her on a surface she falls onto or drops her off the edge of one.
   const surfaces = m => m.solids.concat(m.plats);
-  function supportBelow(bx, y) {                 // the highest surface at or below height y under x (the ground is 0)
+  // Her sprite counts as touching a surface when ANY part of it is over the surface: bx is the anchor, and the span
+  // is her drawn body (hurtbox plus SPRITE_PAD each side), not just the anchor point.
+  const SPRITE_PAD = 6;
+  function span(bx) {
+    const f = hf(), a = bx + Math.min(f * HURT[0], f * HURT[2]) - SPRITE_PAD, b = bx + Math.max(f * HURT[0], f * HURT[2]) + SPRITE_PAD;
+    return [Math.min(a, bx), Math.max(b, bx)];
+  }
+  const overSurf = (s, sp) => sp[1] >= s.x0 - 3 && sp[0] <= s.x1 + 3;
+  function supportBelow(bx, y) {                 // the highest surface at or below height y under her (the ground is 0)
     let best = 0;
     if (!curMap) return 0;
-    for (const s of surfaces(curMap)) if (bx >= s.x0 - 3 && bx <= s.x1 + 3 && s.top <= y + 0.5 && s.top > best) best = s.top;
+    const sp = span(bx);
+    for (const s of surfaces(curMap)) if (overSurf(s, sp) && s.top <= y + 0.5 && s.top > best) best = s.top;
     return best;
   }
-  function supportUnder(bx, y) {                 // the highest surface strictly below height y under x (the ground is 0)
+  function supportUnder(bx, y) {                 // the highest surface strictly below height y under her (the ground is 0)
     let best = 0;
-    for (const s of surfaces(curMap)) if (bx >= s.x0 - 3 && bx <= s.x1 + 3 && s.top < y - 1 && s.top > best) best = s.top;
+    const sp = span(bx);
+    for (const s of surfaces(curMap)) if (overSurf(s, sp) && s.top < y - 1 && s.top > best) best = s.top;
     return best;
   }
   function surfaceAt(m, bx, top) { return surfaces(m).find(s => s.top === top && bx >= s.x0 - 3 && bx <= s.x1 + 3) || null; }
@@ -966,7 +976,7 @@
     const flying = !stun && cur && (fall || cur.kind === 'fall' || (cur.kind === 'action' && cur.id === 'jump'));
     if (flying && prevFeet !== null && feet < prevFeet) {
       let T = -1;
-      for (const sf of surfaces(curMap)) if (sf.top > floorY && px >= sf.x0 - 3 && px <= sf.x1 + 3 && prevFeet > sf.top && feet <= sf.top && sf.top > T) T = sf.top;
+      for (const sf of surfaces(curMap)) if (sf.top > floorY && overSurf(sf, span(px)) && prevFeet > sf.top && feet <= sf.top && sf.top > T) T = sf.top;
       if (T >= 0) {
         if (cur.kind === 'action') x += rootOf(cur)[0];
         floorY = T; fall = null;
