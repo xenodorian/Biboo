@@ -295,9 +295,9 @@
   }
   addEventListener('gamepadconnected', () => pollPad());
 
-  // L1 and R1 held together charge both meters (+METER_CHARGE_STEP each METER_CHARGE_TICK ms). While they are
+  // L1 and R1 held together charge all three meters (+METER_CHARGE_STEP each METER_CHARGE_TICK ms). While they are
   // held the reader is not shown L1, R1 or the pad's R1-as-R, so no push kick or recover starts.
-  const METER_CHARGE_STEP = 1, METER_CHARGE_TICK = 100;
+  const METER_CHARGE_STEP = 1, METER_CHARGE_TICK = 500;
   const metersHeld = () => (keyDown.has('L1') || padDown.has('L1')) && (keyDown.has('R1') || padDown.has('R1'));
   function readButtons(t) {
     pollPad();
@@ -522,16 +522,18 @@
   const DAMAGE = { slash: 25, heavy_horizontal: 50, thrust: 15, upswing: 15, push_kick: 10, heavy_kick: 25, energy_kick: 30, energy_burst: 50,
                    dash_thrust: 25, energy_dash_thrust: 50, spin_attack: 20, energy_wave: 0, earthquake: 250, meteor_shower: 200 };
   // knockback of the moves that push an enemy: [distance px, duration ms]
-  const KNOCK = { slash: [25, 100], heavy_horizontal: [50, 100], push_kick: [100, 200], energy_kick: [200, 300], energy_burst: [200, 500] };
+  const KNOCK = { heavy: [25, 100], slash: [25, 100], heavy_horizontal: [50, 100], push_kick: [100, 200], energy_kick: [200, 300], energy_burst: [200, 500] };
   const BOTH_SIDES_PUSH = new Set(['energy_burst']);
   const PARRY_KNOCK = [300, 400];                                    // an enemy parried: pushed back this far, stunned this long
   const REHIT_MS = { earthquake: 250, meteor_shower: 300 };
   const BEAM_DMG = { cloud: 5, fire: 10, laser: 15, plasma: 0 };
   const BEAM_PUSH = { cloud: 0, fire: 10, laser: 20, plasma: 30 };     // px an enemy is shoved back on every tick it is touched
-  const HEAVY_MIN = 50, HEAVY_MAX = 200;       // the heavy chop grows from HEAVY_MIN to HEAVY_MAX with its charge
+  // the heavy overhead chop: 200 on a direct hit; where the blade lands it also blasts every other enemy within
+  // HEAVY_AOE_R px for HEAVY_AOE_DMG and pushes it back (KNOCK.heavy). The charge no longer scales the damage.
+  const HEAVY_DMG = 200, HEAVY_AOE_DMG = 150, HEAVY_AOE_R = 25
   const CRASH_DMG = 300, CRASH_COST = 30;      // the jump crash: flat damage, energy paid when it starts
   const HEAL_EVERY = 350, HEAL_AMOUNT = 5, KO_MS = 1500;
-  const dmgOf = c => c.id === 'heavy' ? Math.round(HEAVY_MIN + (HEAVY_MAX - HEAVY_MIN) * Math.min(1, (c.charged || 0) / FULL_CHARGE)) : c.id === 'jump_crash' ? CRASH_DMG : (c.id in DAMAGE ? DAMAGE[c.id] : 15);   // 0 is a real value (the wave hurts only by its blast)
+  const dmgOf = c => c.id === 'heavy' ? HEAVY_DMG : c.id === 'jump_crash' ? CRASH_DMG : (c.id in DAMAGE ? DAMAGE[c.id] : 15);   // 0 is a real value (the wave hurts only by its blast)
   let hp = MAX_HP, hpOverride = null, healAcc = 0;
   const floaters = [];                  // {wx, wy, text, color, t0}: numbers that rise and fade
   const FLOAT_MS = 900;
@@ -553,12 +555,13 @@
   function stepHeal(dt) {
     stepGems(dt);
     if (cur && cur.id === 'charge' && cur.kind === 'hold' && !stun) {
-      if (metersHeld()) {                                          // L1+R1: both meters fill, 1 per tick
+      if (metersHeld()) {                                          // L1+R1: ENG, EMP and SUP each fill by 1 per tick
         meterAcc += dt;
         while (meterAcc >= METER_CHARGE_TICK) {
           meterAcc -= METER_CHARGE_TICK;
           energyMeter = Math.min(ENERGY_MAX, energyMeter + METER_CHARGE_STEP);
           empowerMeter = Math.min(EMPOWER_MAX, empowerMeter + METER_CHARGE_STEP);
+          superMeter = Math.min(SUPER_MAX, superMeter + METER_CHARGE_STEP);
         }
       } else stepCharge(dt);
     } else meterAcc = 0;
@@ -796,6 +799,23 @@
           if (h.mv.id === 'energy_wave') {                          // impact: the wave explodes on the spot
             const b = hurtOf(e) || box;
             waveBlast(h.mv, h.face, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2);
+          }
+        }
+      }
+      if (h.mv.id === 'heavy' && h.f.name === 'impact' && !h.mv.aoeDone) {   // the chop lands: a small blast where the blade meets the ground
+        h.mv.aoeDone = true;
+        const w = worldShape(h.f.hits[0], h);
+        const cx = w.b[0], cy = Math.max(0, w.b[1]);
+        explosions.push({ wx: cx, wy: cy, t0: clock, big: true, r: HEAVY_AOE_R });
+        for (const o of enemies) {
+          if (!alive(o) || seen.has(o)) continue;                   // a direct hit already took 200
+          const b = hurtOf(o);
+          if (!b || distBox(cx, cy, b) > HEAVY_AOE_R) continue;
+          hurtEnemy(o, HEAVY_AOE_DMG);
+          if (alive(o)) {
+            const [dist, ms] = KNOCK.heavy, p = push(dist, ms);
+            o.state = 'stunned'; play(o, (EN[o.type].ai.stun || 'idle'));
+            o.push = { v: p.v * h.face, a: p.a };
           }
         }
       }
