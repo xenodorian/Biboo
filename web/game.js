@@ -477,6 +477,7 @@
                    dash_thrust: 22, energy_dash_thrust: 35, spin_attack: 20, energy_wave: 40, earthquake: 250, meteor_shower: 200 };
   // knockback of the moves that push an enemy: [distance px, duration ms]
   const KNOCK = { push_kick: [100, 200], energy_kick: [200, 300], energy_burst: [400, 500] };
+  const BOTH_SIDES_PUSH = new Set(['energy_burst']);
   const PARRY_KNOCK = [300, 400];                                    // an enemy parried: pushed back this far, stunned this long
   const REHIT_MS = { earthquake: 250, meteor_shower: 300 };
   const BEAM_DMG = { cloud: 5, fire: 10, laser: 15, plasma: 0 };
@@ -723,7 +724,8 @@
           hurtEnemy(e, dmgOf(h.mv));
           if (KNOCK[h.mv.id] && alive(e)) {                        // knocked back and stunned
             const [dist, ms] = KNOCK[h.mv.id];
-            const p = push(dist, ms), dir = e.x >= bodyX() ? 1 : -1;
+            // a kick sends it the way she faces; the burst sends it away from her on either side
+            const p = push(dist, ms), dir = BOTH_SIDES_PUSH.has(h.mv.id) ? (e.x >= h.px ? 1 : -1) : h.face;
             e.state = 'stunned'; play(e, (EN[e.type].ai.stun || 'idle'));
             e.push = { v: p.v * dir, a: p.a };
           }
@@ -1341,7 +1343,7 @@
     started, current: () => cur && { id: cur.id, k: cur.k, kind: cur.kind, y: fall ? fall.y : rootOf(cur)[1], air: !!cur.air }, x: () => x,
     playerX: () => playerX(),
     enemies: () => enemies.map(e => ({ type: e.type, x: e.x, face: e.face, state: e.state, anim: e.anim,
-                                       tint: e.tint && clock < e.tint.until ? e.tint.color : null })),
+                                       scale: e.scale || 1, tint: e.tint && clock < e.tint.until ? e.tint.color : null })),
     kills: () => kills,
     hp: () => hp,
     meters: () => ({ energy: energyMeter, empower: empowerMeter }),

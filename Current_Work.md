@@ -77,12 +77,20 @@ Done in stages, pushed to main after each. Per the request, no test suites were 
 
 ### Batch 2. Beams
 - [x] Cloud 5 damage, 1 energy per tick, no pushback. Fire 10, 2 energy, 10 px per tick. Laser 15, 3 energy, 20 px per tick. Empowerment Beam 0 damage, 5 empower per tick, 30 px per tick (it still enlarges enemies and marks them to drop an Energy Gem, so a gem drops only if something else kills the enemy). `BEAM_DMG`, `BEAM_PUSH`, `BEAM_TICK_COST` in `web/game.js`; the push shifts the enemy along the beam on each tick, whether or not it is stunned. README updated.
-- Status: DONE. Verification pending (last step).
+- Status: DONE. Verified, see below.
+
+### Verification (run after both batches, and for the earlier stages 1 to 4)
+- [x] New `web/tests/combat.test.js` (31 checks, all pass): kick, burst and parry damage and knockback distance; the burst slide lasts about 500 ms; every beam's damage, meter cost and pushback per tick; Empowerment Beam does no damage and enlarges; the energy wave kills every enemy on the map in front and behind and bursts at the screen edge on a miss; taunt is red, 2x walk speed and 2x damage; enemies start at normal size, walk in and start their swing within 0.5 x reach; the meteor shower and wave have their own effect sheets. Run: `NODE_PATH=$(npm root -g) node web/tests/combat.test.js`.
+- [x] `meters.test.js` 19/19 and `input.test.js` 45/45 still pass. Screenshots of the wave explosion and the meteor shower checked by eye: explosion and flash show, meteors are large, Max is at normal size.
+- Found and fixed while verifying: kicks pushed the enemy the wrong way (the direction was taken from her body position, which moves forward during a kick). Kicks now push the way she faces, the burst pushes away from her on either side.
+- Measured knockback runs 3 to 13 px over the stated distance on some pushes because the enemy's stun animation shifts its art a little; the test allows 20 px.
+- Not run: `tests/test_web.py` (pytest is not installed here; the 9 other python checks pass) and `web/tests/browser.test.js` (still stale, see Open above).
 
 ## Open questions
 - (none; the old dip/recover2 open question is obsolete: those frames were removed when the animation was restructured to plow/raise/high/impact.)
 
 ## Log
+- 2026-09-30: New combat stats (batches 1 and 2) done and verified; combat.test.js added; kick knockback direction fixed (Claude).
 - 2026-09-30: Stage 4 (Empowerment Beam rename at source, taunt speed and tint, review of gems and meters) (Claude).
 - 2026-09-30: Stage 3 (enemy reach, scaled hitboxes, normal-size spawns) (Claude).
 - 2026-09-30: Stages 1 and 2 of the wave, meteors, enemies, gems review (Claude).
