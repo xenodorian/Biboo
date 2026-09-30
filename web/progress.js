@@ -43,6 +43,7 @@
     levelsUnlocked: 1,                                   // levels 1..levelsUnlocked can be entered
     cleared: [],                                         // level numbers beaten
     gems: { health: 0, energy: 0, empower: 0, super: 0 },
+    keys: [],                                            // level door keys owned (the level number as a string)
     meters: { energy: 0, empower: 0, super: 0 },
     maxes: { energy: 50, empower: 50, super: 100 },      // meter capacity: 50 (super 100), +25 per upgrade pickup
   });
@@ -71,6 +72,8 @@
     P.state.levelsUnlocked = Math.max(P.state.levelsUnlocked, Math.min(P.levelCount(), n + 1));
     P.save();
   };
+  P.hasKey = id => P.state.keys.includes(String(id));
+  P.addKey = id => { if (P.hasKey(id)) return false; P.state.keys.push(String(id)); P.save(); return true; };
   P.addGem = (kind, n) => {
     const before = P.state.gems[kind] || 0;
     P.state.gems[kind] = Math.min(P.MAX_GEMS, before + (n == null ? 1 : n));
@@ -91,6 +94,7 @@
       if (!raw) return;
       const s = JSON.parse(raw), f = fresh();
       if (Array.isArray(s.unlocked)) f.unlocked = s.unlocked.filter(id => byId[id]);
+      if (Array.isArray(s.keys)) f.keys = s.keys.filter(k => typeof k === 'string');
       if (Number.isFinite(s.levelsUnlocked)) f.levelsUnlocked = Math.max(1, s.levelsUnlocked | 0);
       if (Array.isArray(s.cleared)) f.cleared = s.cleared.filter(n => Number.isFinite(n));
       for (const k of GEM_KINDS) if (s.gems && Number.isFinite(s.gems[k])) f.gems[k] = Math.max(0, Math.min(P.MAX_GEMS, s.gems[k] | 0));

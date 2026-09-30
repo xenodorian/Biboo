@@ -252,3 +252,6 @@ with 50 and drops of +25 raise the maximum; every crate drops something; remove 
 
 ### Twelfth request (2026-09-30): level 1 starter unlocks
 - [x] Level 1 golden crates: 1.2 thrust, 1.3 push_kick (new unlock: L1 button + push kick only), 1.4 upswing, 1.5 heavy_horizontal, 1.6 double_jump, 1.7 dash_thrust, 1.9 sky_dash. The `L1` unlock is now the energy kick + laser beam + energy meter, in level 2 map 1. Older saves with L1 get push_kick added on load. Test: unlock_items.test.js (34).
+
+### Thirteenth request (2026-09-30): level 1 key door
+- [x] Level 1 is 9 maps; the locked door is at the end of 1.9 (`door: 'key'` on the level, `doorLocked`/`keyDue` in game.js, key is a gem kind 'key' that never expires, saved in `P.state.keys`). Level 1 loot is health gems only (`gemUseful`/`lootPool`). Enemies respawn on every `loadMap`; level 1 plain crates respawn each visit so the key can always drop. Test: web/tests/level1_door.test.js (18).

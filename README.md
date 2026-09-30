@@ -139,8 +139,9 @@ move on the rig rules (fixed limb lengths, planted feet, grip, draw order, face 
 `web/index.html` is the game. Open it in a browser (no server needed). Live: https://xenodorian.github.io/Biboo/web/
 
 Flow: title menu, then the overworld (pick a level), then the level. A level is 10 one-screen maps (Level 1.1 to
-1.10); walk off the right edge for the next map and off the left edge to go back. The last map must be cleared of
-enemies to finish the level, which opens the next one on the overworld.
+1.10; level 1 has 9, ending at 1.9); walk off the right edge for the next map and off the left edge to go back. The last map must be cleared of
+enemies to finish levels 2 to 5. Level 1 ends at a locked door at the right edge of 1.9: the key drops only from a crate (level 1's plain crates come back
+each visit) and only once every move in level 1 is unlocked. Level 1 drops health gems only. Enemies respawn whenever you leave a map and come back.
 
 Controls (the in-game Moves menu lists them and the combos you have unlocked):
 

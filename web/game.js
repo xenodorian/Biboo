@@ -125,18 +125,22 @@
   }
   let gems = [], meterFlash = { energy: 0, empower: 0, super: 0 }, lastDeny = 0;
   // A drop is never redundant: no gem for a meter she has not unlocked, none of a kind whose bag is full, no upgrade for a meter at its cap.
-  const gemUseful = k => k === 'health' ? (P.state.gems.health || 0) < P.MAX_GEMS : P.meterOn(k) && (P.state.gems[k] || 0) < P.MAX_GEMS;
+  const gemUseful = k => level && level.n === 1 && k !== 'health' ? false : k === 'health' ? (P.state.gems.health || 0) < P.MAX_GEMS : P.meterOn(k) && (P.state.gems[k] || 0) < P.MAX_GEMS;
   function lootGem(wx, kind, fy) { if (gemUseful(kind)) spawnGem(wx, kind, fy); }
   function lootPool() {
     const pool = [];
     if (gemUseful('health')) pool.push('health', 'health', 'health');
     for (const m of ['energy', 'empower', 'super']) {
-      if (!P.meterOn(m)) continue;
+      if (!P.meterOn(m) || (level && level.n === 1)) continue;          // level 1 drops only health gems
       if (m !== 'super' && gemUseful(m)) pool.push(m);
       if (P.maxOf(m) < P.MAX_CAP) pool.push('up_' + m, 'up_' + m);
     }
     return pool;
   }
+  // A locked door level (door: 'key'): the key exists only as a crate drop, and only once every unlock in the level is owned.
+  const doorLocked = () => !!level && level.def.door === 'key' && !P.hasKey(level.n);
+  const allMovesHere = () => !!level && level.def.maps.every(m => m.crates.every(c => !c.item || P.has(c.item)));
+  const keyDue = () => doorLocked() && allMovesHere() && !gems.some(gm => gm.kind === 'key');
   function spawnGem(wx, kind, fy) { gems.push({ x: wx, y: (fy || 0) + 14 + Math.random() * 8, fy: fy || 0, kind, bob: Math.random() * 6.28, t0: clock }); }
   // Progress is kept in progress.js; the meters live here while playing and are copied over when it is saved.
   function syncProgress() { P.state.meters = { energy: energyMeter, empower: empowerMeter, super: superMeter }; P.save(); }
@@ -171,16 +175,21 @@
     if (clock - lastDeny > 500) { lastDeny = clock; floater(bodyX(), herY() + herTop() + 8, n[0] === 'energy' ? 'No energy' : n[0] === 'super' ? 'No super' : 'No empower', n[0] === 'energy' ? '#4af' : n[0] === 'super' ? '#c6f' : '#fa4'); }
   }
   // Walking over a gem puts it in the gem bag (the Gems menu); nothing is applied until the player uses it there.
-  const GEM_LABEL = { health: 'Health Gem', energy: 'Energy Gem', empower: 'Empower Gem', super: 'Super Gem' };
-  const GEM_COLOR = { health: '#3ddc5f', energy: '#4af', empower: '#fa4', super: '#c6f' };
+  const GEM_LABEL = { key: 'Door Key', health: 'Health Gem', energy: 'Energy Gem', empower: 'Empower Gem', super: 'Super Gem' };
+  const GEM_COLOR = { key: '#ffd24a', health: '#3ddc5f', energy: '#4af', empower: '#fa4', super: '#c6f' };
   const UP_LABEL = { energy: 'ENG', empower: 'EMP', super: 'SUP' };
   const GEM_HEAL = 50;                                                         // a health gem: +25 percent of MAX_HP (200)
   function stepGems(dt) {
     for (const gm of gems) gm.bob += dt * 0.006;
     gems = gems.filter(gm => {
-      if (clock - gm.t0 > GEM_LIFE) return false;
+      if (gm.kind !== 'key' && clock - gm.t0 > GEM_LIFE) return false;
       const hy = herY();
       if (Math.abs(gm.x - bodyX()) < GEM_PICKUP && hy < gm.fy + 50 && hy > gm.fy - 20) {
+        if (gm.kind === 'key') {                           // the door key: kept in the save
+          P.addKey(level ? level.n : 1); P.save();
+          floater(gm.x, gm.y + 24, 'Door Key', GEM_COLOR.key); banners.push({ title: 'You found the key', sub: 'Take it to the door at the end of the level', t0: clock, ms: 3500 });
+          return false;
+        }
         if (gm.kind.startsWith('up_')) {                   // a meter upgrade: applied at once, the meter grows by 25 and fills by 25
           const m = gm.kind.slice(3);
           if (P.raiseMax(m) > 0) { spend(m, -P.MAX_STEP); meterFlash[m] = clock + 600; syncProgress(); floater(gm.x, gm.y + 24, '+25 MAX ' + UP_LABEL[m], GEM_COLOR[m]); }
@@ -885,7 +894,7 @@
     level.idx = idx;
     const md = level.def.maps[idx];
     curMap = { idx, id: md.id, def: md, solids: md.solids, plats: md.plats,
-               crates: md.crates.map((c, i) => ({ key: idx + ':' + i, x: c.x, fy: c.fy, item: c.item || null, broken: level.broken.has(idx + ':' + i) })),
+               crates: md.crates.map((c, i) => ({ key: idx + ':' + i, x: c.x, fy: c.fy, item: c.item || null, broken: (level.n === 1 && !c.item) ? false : level.broken.has(idx + ':' + i) })),   // level 1's plain crates come back each visit, so the key can always drop
                pits: (md.pits || []).map(p => ({ x0: p.x0, x1: p.x1 })),
                bombs: (md.bombs || []).map((b, i) => ({ key: idx + ':b' + i, x: b.x, fy: b.fy || 0, gone: level.popped.has(idx + ':b' + i), fuse: 0 })) };
     shots.length = 0; pitFall = null;
@@ -893,7 +902,6 @@
     powerups.length = 0; particles.length = 0; hitQ.length = 0;
     md.enemies.forEach((d, i) => {
       const key = idx + ':' + i;
-      if (level.killed.has(key)) return;
       const sf = d.fy > 0 ? surfaceAt(curMap, d.x, d.fy) : null;    // an enemy on a platform never leaves it
       let lo = sf ? sf.x0 + 8 : 8, hi = sf ? sf.x1 - 8 : MAP_W - 8;
       const lo0 = lo, hi0 = hi;
@@ -913,7 +921,8 @@
     const last = level.def.maps.length - 1;
     if (dir > 0) {
       if (level.idx < last) { loadMap(level.idx + 1, 'left'); banners.push({ title: `Level ${level.n}.${level.idx + 1}`, t0: clock, ms: 1300 }); return true; }
-      if (enemies.some(alive)) { hint('Defeat every enemy to open the gate'); return false; }
+      if (doorLocked()) { hint(allMovesHere() ? 'The door is locked. Smash a crate for the key.' : 'The door is locked. Unlock every move first.'); return false; }
+      if (level.def.door !== 'key' && enemies.some(alive)) { hint('Defeat every enemy to open the gate'); return false; }
       levelComplete();
       return true;
     }
@@ -1003,6 +1012,8 @@
         if (pool.length) spawnGem(c.x, pool[Math.floor(Math.random() * pool.length)], c.fy);
         floater(c.x, c.fy + 30, 'Everything unlocked', '#ffd24a');
       }
+    } else if (keyDue()) {                       // the key: only from a crate, only once every move in the level is unlocked
+      spawnGem(c.x, 'key', c.fy);
     } else {                                     // every plain crate drops something useful: a health gem, a meter gem, or a +25 meter upgrade
       const pool = lootPool();
       if (pool.length) spawnGem(c.x, pool[Math.floor(Math.random() * pool.length)], c.fy);
@@ -1757,10 +1768,17 @@
     if (level.idx > 0) arrow(12 + sx, -1);
     g.restore();
     if (last) {
-      const open = !enemies.some(alive), gx = MAP_W - 10 + sx;
+      const open = level.def.door === 'key' ? !doorLocked() : !enemies.some(alive), gx = MAP_W - 10 + sx;
       g.fillStyle = open ? 'rgba(90,220,120,0.35)' : 'rgba(30,30,40,0.85)';
       g.fillRect(gx, Y(70), 10, Y(0) - Y(70));
       if (!open) { g.fillStyle = '#8a8a99'; for (let yy = Y(70); yy < Y(0); yy += 6) g.fillRect(gx + 2, yy, 6, 2); }
+      if (!open && level.def.door === 'key') {                      // a padlock on the door
+        const py = Y(34);
+        g.strokeStyle = '#000'; g.lineWidth = 3; g.beginPath(); g.arc(gx + 5, py - 6, 5, Math.PI, 0); g.stroke();
+        g.strokeStyle = '#c9c9d6'; g.lineWidth = 1.5; g.beginPath(); g.arc(gx + 5, py - 6, 5, Math.PI, 0); g.stroke();
+        g.fillStyle = '#000'; g.fillRect(gx - 1, py - 7, 13, 12); g.fillStyle = '#ffd24a'; g.fillRect(gx, py - 6, 11, 10);
+        g.fillStyle = '#000'; g.fillRect(gx + 4, py - 3, 3, 4);
+      }
       else { g.save(); g.globalAlpha = pulse; g.fillStyle = '#7dff9a'; g.beginPath(); g.moveTo(gx - 4, Y(28) - 7); g.lineTo(gx + 5, Y(28)); g.lineTo(gx - 4, Y(28) + 7); g.closePath(); g.fill(); g.restore(); }
     }
   }
@@ -1846,7 +1864,15 @@
   function drawGems(sx, sy) {
     for (const gm of gems) {
       const left = GEM_LIFE - (clock - gm.t0);
-      if (left < 4000 && Math.floor(clock / 120) % 2) continue;
+      if (gm.kind !== 'key' && left < 4000 && Math.floor(clock / 120) % 2) continue;
+      if (gm.kind === 'key') {
+        const KX = Math.round(V.anchorX + (gm.x - camX) + sx), KY = Math.round(V.feetRow + camY + sy - gm.y - Math.sin(gm.bob) * 3);
+        g.save(); g.globalAlpha = 0.3 + 0.15 * Math.sin(gm.bob * 2); g.fillStyle = '#ffd24a'; g.beginPath(); g.arc(KX, KY, 11, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
+        g.fillStyle = '#000'; g.fillRect(KX - 6, KY - 4, 12, 4); g.fillRect(KX + 2, KY - 1, 4, 6); g.fillRect(KX - 9, KY - 6, 6, 8);
+        g.fillStyle = '#ffd24a'; g.fillRect(KX - 5, KY - 3, 10, 2); g.fillRect(KX + 3, KY - 1, 2, 4); g.fillRect(KX - 8, KY - 5, 4, 6);
+        g.fillStyle = '#16202e'; g.fillRect(KX - 7, KY - 3, 2, 2);
+        g.restore(); continue;
+      }
       const X = Math.round(V.anchorX + (gm.x - camX) + sx), Y = Math.round(V.feetRow + camY + sy - gm.y - Math.sin(gm.bob) * 3);
       const up = gm.kind.startsWith('up_'), base = up ? gm.kind.slice(3) : gm.kind;
       const c = base === 'energy' ? ['#bfe6ff', '#4af', '#1d5fb0'] : base === 'super' ? ['#f0d6ff', '#c6f', '#6a2a9a'] : base === 'health' ? ['#c9ffd6', '#3ddc5f', '#15803d'] : ['#ffe3b0', '#fa4', '#b25a10'];
@@ -2376,6 +2402,7 @@
     enterLevel: n => enterLevel(n), warp: idx => { loadMap(idx, 'left'); }, setX: v => { x = v; }, goOverworld: () => goOverworld(),
     menuOpen: () => !!(UI && UI.isOpen()),
     charging: () => ({ cur: cur && cur.id, kind: cur && cur.kind, chargeMs: Math.round(chargeMs), full: isCharged(), energy: Math.round(energyMeter * 10) / 10, power: cur && cur.power, hold: hold && hold.move }),
+    keyDue: () => keyDue(), hasKey: () => P.hasKey(level ? level.n : 1), doorLocked: () => doorLocked(),
     unlockLines: id => unlockLines(P.byId[id]), unlockPool: () => unlockPool(null), banners: () => banners.map(b => ({ title: b.title, sub: b.sub })),
     unlock: id => unlockItem(id), resetAll: () => { P.reset(); energyMeter = empowerMeter = superMeter = 0; refreshUnlocks(); },
     // the old combat tests: everything unlocked, one closed map with no scenery, enemies as the test places them

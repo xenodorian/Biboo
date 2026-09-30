@@ -47,7 +47,7 @@ const { chromium } = require('playwright');
   await ev('bibooGame.resetAll()');
 
   // ---- crates: every crate drops something; upgrades raise the max by 25 and the meter by 25
-  await custom({ crates: Array.from({ length: 10 }, (_, i) => ({ x: 40 + i * 30, fy: 0 })) });
+  await custom({ crates: Array.from({ length: 10 }, (_, i) => ({ x: 120 + i * 26, fy: 0 })) });
   await ev('for (let i = 0; i < 10; i++) bibooGame.smash(i)');
   s = await S();
   check('all 10 plain crates dropped something', s.fx.gems === 10, s.fx.gems);

@@ -1,6 +1,6 @@
 /* Levels for Parry Perry. Data only: no drawing, no game rules (those are in game.js).
  *
- * A level is 10 maps; a map is exactly one screen (MAP_W px wide, the same as the view). The player walks off the right
+ * A level is 10 maps (level 1 is 9: its last map, 1.9, ends at a locked door); a map is exactly one screen (MAP_W px wide, the same as the view). The player walks off the right
  * edge to reach the next map and off the left edge to go back. Level 1 is drawn by hand below; Levels 2 to 5 are
  * generated from a fixed seed by genMap(), so they are the same every time.
  *
@@ -55,12 +55,9 @@
     // 1.8 two pits, bombs and three enemies
     map({ pits: [X(100, 150), X(205, 260)], crates: [C(178), C(320), C(60)], bombs: [B(178, 0), B(300)],
           enemies: [G(60, 30, 90, 90), G(178, 165, 192, 90), O(320, 275, 355, 100)] }),
-    // 1.9 the ridge: an orc below, a goblin above, the sky dash up top
+    // 1.9 the ridge and the locked door at its right edge: an orc below, a goblin above, the sky dash up top
     map({ pits: [X(140, 215)], plats: [P(50, 120, 60), P(140, 210, 90), P(230, 300, 60)], crates: [C(85, 60), C(265, 60, 'sky_dash')], bombs: [B(300)],
           enemies: [O(270, 230, 345, 110), G(175, 150, 200, 80, 90)] }),
-    // 1.10 gate guard: clear the map to finish the level
-    map({ pits: [X(180, 235)], crates: [C(80), C(300)], bombs: [B(110), B(280)],
-          enemies: [O(120, 90, 165, 110), G(150, 100, 170, 100), O(290, 250, 340, 110), G(330, 300, 360, 100)] }),
   ];
 
   // ------------------------------------------------------------------ Levels 2 to 5: generated
@@ -150,9 +147,9 @@
   };
   const gen = n => Array.from({ length: MAPS_PER_LEVEL }, (_, i) => genMap(n, i, (ITEMS[n] || {})[i]));
 
-  L1[MAPS_PER_LEVEL - 1].final = true;
+  L1[L1.length - 1].final = true;              // level 1 ends at map 1.9, behind the locked door
   const levels = [
-    { n: 1, name: 'Green Trail', blurb: 'Goblins in the grass. Learn to jump and to smash crates.', tint: null, maps: L1 },
+    { n: 1, name: 'Green Trail', blurb: 'Goblins in the grass. Find every move to earn the key.', tint: null, door: 'key', maps: L1 },
     { n: 2, name: 'Mossy Ruins', blurb: 'Old walls and ledges. Orcs join the patrols.', tint: { color: '#7a5a1a', alpha: 0.18 }, maps: gen(2) },
     { n: 3, name: 'Dusk Bridge', blurb: 'Night falls. The guards look farther.', tint: { color: '#2a2a80', alpha: 0.25 }, maps: gen(3) },
     { n: 4, name: 'Ember Caves', blurb: 'Hot and crowded.', tint: { color: '#802a10', alpha: 0.22 }, maps: gen(4) },
