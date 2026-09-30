@@ -169,10 +169,12 @@ no new branches, no em dashes or emoji. Do not add new enemy types (goblin and o
   - Screens: `screen` is 'title' (menu over the overworld), 'overworld' or 'level'. `drawOverworld`, `OW_NODES`, `enterLevel`, `goOverworld`, `togglePause`, `mainItems`, `triggerGameOver` (menu: Retry this map, Moves, Gems, Back to the overworld), `levelComplete` (message view, then overworld). `P.completeLevel(n)` opens level n+1. Pick a level with Left/Right and A, or click or tap a node (first select, second enter).
 - [x] Stage 7. Dev Console (L1+L2+R1+R2).
   - Opens with all four shoulder buttons held together (pad, or keyboard Q+E+T+R), or the ` key, on any screen; it pauses the game. `cheats = {invincible, infinite}` (`hurtHer` ignores damage; `tickLevel` refills all meters each frame; `[INV]` and `[INF]` show next to the level label). Items (`devItems`): Invincible, Infinite meters, Show hitboxes, Unlock all levels, Unlock all moves and buttons, Give 5 of every gem, Full health and meters, and inside a level: Kill every enemy on this map, Next map, Previous map, Complete this level; Reset all progress (press twice); Close. B, Escape or Start also close it and return to the menu that was open under it.
-- [ ] Stage 8. Docs, handoff, static checks.
+- [x] Stage 8. Docs, handoff, static checks. README web section rewritten, game.js header updated, `node --check` clean on all web/*.js, ESLint (no-undef, no-unused) 0 errors.
 
 ### Handoff status (keep this current)
 - Nothing below has been run in a browser (user's rule). If you are picking this up and the user has asked for testing, start with: page loads without console errors, Start reaches the overworld, Level 1.1 loads, jump over a barrier, land on a platform, smash a crate.
+- Known open items: `web/tests/*.js` and `game/input_map.json` are stale (old arena mode and old expectations); Heavy Horizontal reuses the slash animation; levels 2 to 5 are generated from seeds (`genMap` in levels.js) and unplayed, so tune by hand if needed; unused vars `camLead` and `CRASH_COST` in game.js; no new enemy types were added (per request).
+- Cache: bump `BIBOO_VER` and the `?v=` stamps in web/index.html after any change (now st16).
 
 ## Open questions
 - (none; the old dip/recover2 open question is obsolete: those frames were removed when the animation was restructured to plow/raise/high/impact.)

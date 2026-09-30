@@ -9,13 +9,14 @@
  *
  * Beam moves draw a scrolling beam from the blade tip (D.beams) that kills what it touches.
  *
- * Enemies (goblin, orc) walk toward her and attack when close. Max and the enemies have HP: her hit
- * shapes (blade, foot, energy, beams) take HP off an enemy's hurtbox they touch, red numbers show the
- * damage, health bars show what is left, and kneeling to recover (R) gives HP back in green numbers.
- * An enemy attack that reaches her: a clean hit turns her red and knocks her back, stunned (raised
- * sword pose) until the push ends; while blocking she flashes white and slides back a little; a
- * parry made while the attack is at most two frames from landing turns the enemy white and knocks
- * it back, stunned.
+ * Game structure: title menu -> overworld -> level (10 one-screen maps, "Level 1.1" and so on). Progress
+ * (unlocked moves and buttons, gems, meters, open levels) is in progress.js; map data is in levels.js; the
+ * menus are in ui.js. Only A, B, X, Y and the d-pad work at first; golden crates hold unlocks. Meters show once
+ * a move that uses them is unlocked. Enemies (goblin, orc) patrol a set path and chase when hit or when she is
+ * within their sight range. Max and the enemies have HP: her hit shapes (blade, foot, energy, beams) take HP off
+ * an enemy's hurtbox they touch. Enemies drop gems into a bag (Gems menu). An enemy attack that reaches her: a
+ * clean hit turns her red and knocks her back; blocking flashes white; a well timed parry knocks the enemy back.
+ * L1+L2+R1+R2 (or the ` key) opens the Dev Console.
  */
 (function () {
   'use strict';
@@ -393,7 +394,7 @@
   let level = null, curMap = null;
   let screen = 'title';                 // 'title', 'overworld' or 'level'
   let floorY = 0;                       // height of the surface she stands on: 0 is the ground, a platform or barrier top is more
-  let prevFeet = null, lastCx = null;   // her feet height and box centre on the last frame, for landing and blocking
+  let prevFeet = null, lastCx = null;   // her feet height and anchor x on the last frame, for landing and blocking
   const powerups = [], particles = [], banners = [];
   const AIR_SPEED = 0.16;               // px/ms she can steer sideways in the air (a jump reaches about 65 px)
   const CAM_KEEP = 100;                 // the camera only rises when she is higher than this above the ground

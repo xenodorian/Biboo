@@ -136,42 +136,48 @@ move on the rig rules (fixed limb lengths, planted feet, grip, draw order, face 
 
 ## Web game
 
-`web/index.html` plays the move library live. Open the file in a browser (no server needed) and
-use the Dreamcast inputs from the table above:
+`web/index.html` is the game. Open it in a browser (no server needed). Live: https://xenodorian.github.io/Biboo/web/
+
+Flow: title menu, then the overworld (pick a level), then the level. A level is 10 one-screen maps (Level 1.1 to
+1.10); walk off the right edge for the next map and off the left edge to go back. The last map must be cleared of
+enemies to finish the level, which opens the next one on the overworld.
+
+Controls (the in-game Moves menu lists them and the combos you have unlocked):
 
 | Pad | Keyboard | Gamepad |
 |---|---|---|
 | Up / Down / Left / Right | arrow keys | d-pad or left stick |
 | A / B / X / Y | Z / X / C / V | bottom / right / left / top face button |
-| L / R | Q / W | shoulders or triggers |
+| L1 L2 R1 R2 | Q E T (or W) R | shoulders or triggers |
+
+Unlocks: a new game has only the d-pad and A, B, X, Y. Golden crates (marked "?") hold unlocks: combos and the
+L1, L2, R1, R2 buttons. Smash the crate and touch the item. Energy, Empowerment and Super meters appear once a move that
+uses them is unlocked; the health bar is always shown. Unlock definitions: `web/progress.js` (UNLOCKS); where each
+crate sits: `web/levels.js` (`whereIs`).
+
+Enemies patrol a set path and chase only when hit or when she is inside their sight range in front of them.
+35% of kills drop a health gem (+25% of max health, 50 of 200 HP, `GEM_HEAL` in game.js). Gems go
+to a bag and are used from the Gems menu. Air control was added because the jump has no sideways motion.
+
+Dev Console: press L1+L2+R1+R2 together (or Q+E+T+R, or the ` key). Cheats: invincibility, infinite meters,
+unlock all levels, unlock all moves, gems, map skipping, reset progress.
+
+Files: `web/game.js` (engine), `web/progress.js` (unlocks, gems, saves in localStorage `parryperry.save.v1`),
+`web/levels.js` (map data, Level 1 by hand, Levels 2 to 5 generated from fixed seeds), `web/ui.js` (menus),
+`web/input.js` (input reader), `web/assets/data.js` (generated move data).
 
 The heavy chop and the crash (A in the air) always play the dust cloud. A full impact also shows the
-black-and-white impact frame (held 110 ms) and shakes the ground (about 0.65 s, fading). The chop is
-full after a 1 second charge (Up held), and Max turns blue when the charge is complete. A quicker
-chop skips the impact frame and the shake. The crash is full only when it starts more than two body
-lengths (164 px) up, so from the sky dash but not from a normal jump. Walking and the plain dash stop at enemies instead of passing through.
+black-and-white impact frame (held 110 ms) and shakes the ground. The chop is full after a 1 second charge (Up held).
+The crash is full only when it starts more than two body lengths (164 px) up.
 
-Gamepads, wired or Bluetooth (including on an Android phone in Chrome), come through the browser's
-Gamepad API with the standard layout. A pad shows up after one of its buttons is pressed; its name
-is shown under the pad chips. Pads without the standard layout also get their d-pad read from axes 6-7.
-Android can also send a pad's d-pad as arrow-key events (sometimes with no key code); those are read
-too, and a direction held on either path stays held while other buttons are pressed. The input
-monitor under the page lists every raw key and controller event, for checking what a pad sends.
+Gamepads, wired or Bluetooth, come through the browser's Gamepad API with the standard layout. The input monitor
+under the page lists every raw key and controller event.
 
-`web/input.js` reads `game/input_map.json` exactly: holds loop while held, B is parry when tapped
-(up to `tap_max_ms`) and block when held, chords need their face and shoulder buttons within
-`chord_window_ms` (directions only need to be held, so hold Right and press A for the thrust; A+B
-also fires when B is held and A is tapped; A+B+L also takes its buttons one after another), and
-sequences need each press within `sequence_window_ms` of the last. In a two-step sequence that
-starts with a direction or a hold button (Up-A for the heavy chop, Down-Y for the sky dash, B-X+A
-for the energy dash thrust), holding that button counts the same as tapping it. A step can be a
-chord: B-X+A is B, then X and A together. The longest sequence wins, then the largest chord, then a single
-button. A plain press made during another attack waits for it to finish; chords, sequences and taps
-cut in. A move that ends in the air (the sky dash) falls back down and lands.
+`web/input.js` reads `game/input_map.json`: holds loop while held, B is parry when tapped and block when held, chords
+need their buttons within `chord_window_ms`, sequences need each press within `sequence_window_ms` of the last. The
+longest sequence wins, then the largest chord, then a single button. Locked buttons are dropped from the reader.
 
-The assets in `web/assets/` are generated: each move frame is one image with the effects and the
-character, drawn around the character so the game can place it anywhere in the scrolling scene.
-Rebuild them after changing a move:
+The assets in `web/assets/` are generated. Rebuild them after changing a move:
 
 ```
 python -m swingkit --web
