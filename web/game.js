@@ -96,7 +96,7 @@
   let energyMeter = METER_START, empowerMeter = METER_START;
   const GEM_VALUE = 25, GEM_CHANCE = 0.35, GEM_LIFE = 20000, GEM_PICKUP = 28;
   const BEAM_TICK_COST = { cloud: 1, fire: 2, laser: 3, plasma: 5 };         // per beam tick (100 ms)
-  const MOVE_COST = { energy_wave: ['energy', 10], jump_crash: ['energy', 30] };                          // paid once, when the move starts
+  const MOVE_COST = { energy_wave: ['energy', 10], jump_crash: ['energy', 30], earthquake: ['energy', 100], meteor_shower: ['energy', 100] };   // earthquake and meteor shower need a full energy meter and use all of it                          // paid once, when the move starts
   const HEAL_COST = 1;                                                        // empower per recover tick
   const meterOf = k => k === 'energy' ? energyMeter : empowerMeter;
   function spend(k, n) { if (k === 'energy') energyMeter = Math.max(0, energyMeter - n); else empowerMeter = Math.max(0, empowerMeter - n); }
@@ -509,8 +509,8 @@
   const REHIT_MS = { earthquake: 250, meteor_shower: 300 };
   const BEAM_DMG = { cloud: 5, fire: 10, laser: 15, plasma: 0 };
   const BEAM_PUSH = { cloud: 0, fire: 10, laser: 20, plasma: 30 };     // px an enemy is shoved back on every tick it is touched
-  const HEAVY_MIN = 25, HEAVY_MAX = 100;       // the heavy chop grows from HEAVY_MIN to HEAVY_MAX with its charge
-  const CRASH_DMG = 150, CRASH_COST = 30;      // the jump crash: flat damage, energy paid when it starts
+  const HEAVY_MIN = 50, HEAVY_MAX = 200;       // the heavy chop grows from HEAVY_MIN to HEAVY_MAX with its charge
+  const CRASH_DMG = 300, CRASH_COST = 30;      // the jump crash: flat damage, energy paid when it starts
   const HEAL_EVERY = 350, HEAL_AMOUNT = 5, KO_MS = 1500;
   const dmgOf = c => c.id === 'heavy' ? Math.round(HEAVY_MIN + (HEAVY_MAX - HEAVY_MIN) * Math.min(1, (c.charged || 0) / FULL_CHARGE)) : c.id === 'jump_crash' ? CRASH_DMG : (c.id in DAMAGE ? DAMAGE[c.id] : 15);   // 0 is a real value (the wave hurts only by its blast)
   let hp = MAX_HP, hpOverride = null, healAcc = 0;
