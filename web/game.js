@@ -1188,6 +1188,7 @@
   // Pitfalls: gaps in the ground. Her feet on the ground inside one mean instant death (she falls out of sight, then Game Over).
   // Enemies stop at the edge instead of walking in; only a push (a hit, a beam, a blast) can send one over, and then it falls.
   const inPit = px => (curMap && curMap.pits.find(p => px > p.x0 + 2 && px < p.x1 - 2)) || null;
+  const PIT_BODY_MARGIN = 14;            // px of sprite beyond the hurtbox on each side
   let lastPushT = -1e9;                  // when she was last pushed by an enemy or shot
   let pitFall = null;                    // {t0}: she is falling
   const PIT_GRAV = 0.0006;                // px/ms^2: she drops out of the bottom of the view; only then does the run end
@@ -1202,7 +1203,7 @@
     if (stun || slide || clock - lastPushT < 300) return;                        // still being pushed: wait and see where it ends
     if (clock - lastPushT < 1200) {
       const b = herBox();
-      if (!(b[0] > p.x0 && b[2] < p.x1)) {
+      if (!(b[0] - PIT_BODY_MARGIN > p.x0 && b[2] + PIT_BODY_MARGIN < p.x1)) {     // the drawn body is wider than the hurtbox: all of it must be over the gap
         const px = playerX();
         x += (px - p.x0 < p.x1 - px) ? p.x0 - px : p.x1 - px;
         return;

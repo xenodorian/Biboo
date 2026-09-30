@@ -34,10 +34,11 @@ const { chromium } = require('playwright');
   await custom({ pits: [{ x0: 150, x1: 260 }], enemies: [] }); await ev('bibooGame.setX(270)'); await wait(200);
   await ev("bibooGame.setRespawn(false); bibooGame.setEnemies([['orc', 60, 99999]])"); await wait(1200);
   await ev("bibooGame.attack(0, 'attack')");
-  let early = null, end = null;
-  for (let i = 0; i < 60; i++) { await wait(50); const t = await S(); if (t.pitFall && t.gameOver && t.feetNow > -28) early = { feet: t.feetNow }; if (t.gameOver) { end = { feet: t.feetNow, hp: t.hp }; break; } }
+  let early = null, end = null, start = null;
+  for (let i = 0; i < 80; i++) { await wait(25); const t = await S(); if (t.pitFall && !start) start = { px: t.px }; if (t.pitFall && t.gameOver && t.feetNow > -70) early = { feet: t.feetNow }; if (t.gameOver) { end = { feet: t.feetNow, hp: t.hp }; break; } }
   check('knocked into a pit: she falls', !!(await S()).pitFall);
-  check('no Game Over while she is still above the bottom of the pit', !early, early);
+  check('the fall starts only with her whole body over the gap (centre at least 30 px inside an edge)', !!start && start.px > 150 + 30 - 10 && start.px < 260 - 30, start);
+  check('no Game Over while she is still visible (feet above -70; she leaves the view at about -81)', !early, early);
   check('Game Over comes once she has fallen to the bottom', !!end && end.hp === 0, end);
   // walking in on purpose still falls
   await custom({ pits: [{ x0: 150, x1: 210 }], enemies: [] }); await ev('bibooGame.setX(120)'); await wait(150);
