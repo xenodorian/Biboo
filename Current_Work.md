@@ -102,6 +102,12 @@ Done in stages, pushed to main after each. Per the request, no test suites were 
 - [x] Energy wave: costs 10 energy; the projectile is Max's height (`FX_SCALE` 0.6, was 2.2); it deals no damage on contact but explodes on the spot (one per side) for 50 damage to every enemy within 75 px (`WAVE_R`, `WAVE_DMG`); a projectile that touches nothing explodes at the end of its flight (200 px out). It no longer clears the map.
 - Status: DONE
 
+### Stage 2. Heavy chop charge and jump crash
+- [x] Heavy chop damage grows with the charge from 25 (no charge) to 100 (full, `HEAVY_MIN`, `HEAVY_MAX`); a 0.5 s charge does about 66.
+- [x] Charging costs energy: 20 for a full charge (1 s), drawn evenly while Up is held (`CHARGE_ENERGY`, `stepCharge`). The charge only grows while the meter can pay, so with 0 energy it stays at 25 damage.
+- [x] Jump crash costs 30 energy (paid when it starts; A in the air does nothing and shows "No energy" below 30) and does 150 damage flat (`CRASH_COST`, `CRASH_DMG`). Its impact frame and shake still depend on height as before.
+- Status: DONE
+
 ## Open questions
 - (none; the old dip/recover2 open question is obsolete: those frames were removed when the animation was restructured to plow/raise/high/impact.)
 

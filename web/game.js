@@ -86,7 +86,7 @@
   let energyMeter = METER_START, empowerMeter = METER_START;
   const GEM_VALUE = 25, GEM_CHANCE = 0.35, GEM_LIFE = 20000, GEM_PICKUP = 28;
   const BEAM_TICK_COST = { cloud: 1, fire: 2, laser: 3, plasma: 5 };         // per beam tick (100 ms)
-  const MOVE_COST = { energy_wave: ['energy', 10] };                          // paid once, when the move starts
+  const MOVE_COST = { energy_wave: ['energy', 10], jump_crash: ['energy', 30] };                          // paid once, when the move starts
   const HEAL_COST = 1;                                                        // empower per recover tick
   const meterOf = k => k === 'energy' ? energyMeter : empowerMeter;
   function spend(k, n) { if (k === 'energy') energyMeter = Math.max(0, energyMeter - n); else empowerMeter = Math.max(0, empowerMeter - n); }
@@ -318,6 +318,8 @@
   }
   // A in the air: the crash starts at its raised-sword frame, at her current height and x
   function airCrash(via) {
+    if (!canAfford('jump_crash')) { if (cur) cur.crash = false; deny('jump_crash'); return; }   // 30 energy, or no crash
+    spend('energy', MOVE_COST.jump_crash[1]);
     const h = fall ? fall.y : rootOf(cur)[1];
     if (cur && !fall && cur.kind !== 'fall') x += rootOf(cur)[0];
     fall = null; queued = null;
@@ -353,16 +355,26 @@
   // shake starts on the frame where the blade lands and fades out over QUAKE_MS.
   const BW_HOLD = 110, QUAKE_AT = { heavy: 'impact', jump_crash: 'crash' }, QUAKE_MS = 1000, QUAKE_AMP = 14;
   const CHARGED_TINT = { color: '#2f7bff', alpha: 0.5 };   // Max turns blue once the charge is complete
-  let chargeT0 = 0;
-  const isCharged = () => !!cur && cur.id === 'charge' && clock - chargeT0 >= FULL_CHARGE;
+  // Charging costs energy: CHARGE_ENERGY for a full charge, drawn evenly while Up is held. The charge only
+  // grows while the meter can pay, so with no energy it stops where it is.
+  const CHARGE_ENERGY = 20;
+  let chargeMs = 0;                                          // charge built up so far, 0 to FULL_CHARGE
+  const isCharged = () => !!cur && cur.id === 'charge' && chargeMs >= FULL_CHARGE;
+  function stepCharge(dt) {
+    if (chargeMs >= FULL_CHARGE) return;
+    const want = dt * CHARGE_ENERGY / FULL_CHARGE, pay = Math.min(want, energyMeter);
+    if (pay <= 0) return;
+    spend('energy', pay);
+    chargeMs = Math.min(FULL_CHARGE, chargeMs + dt * pay / want);
+  }
   function impactQuake() {
     if (!cur || cur.kind !== 'action' || cur.lite) return;
     if (QUAKE_AT[cur.id] === D.moves[cur.id].frames[cur.k].name) rumble = { t0: clock, ms: QUAKE_MS, amp: QUAKE_AMP };
   }
   function start(id, kind, via) {
     const k0 = entryFrame(id);
-    const charged = cur && cur.id === 'charge' ? clock - chargeT0 : 0;
-    if (id === 'charge' && !(cur && cur.id === 'charge')) chargeT0 = clock;
+    const charged = cur && cur.id === 'charge' ? chargeMs : 0;
+    if (id === 'charge' && !(cur && cur.id === 'charge')) chargeMs = 0;
     if (cur) x += rootOf(cur)[0];       // keep the ground covered so far; height resets
     cur = { id, k: k0, t: 0, kind, from: x, face: facing };
     if (id === 'heavy') { cur.lite = charged < FULL_CHARGE; cur.charged = charged; }
@@ -386,6 +398,7 @@
     if (!canAfford(move)) { deny(move); return; }             // no meter: the move does not play
     const air = AIR.find(b => usesButton(D.moves[move].input, b.input));
     if (air) {
+      if ((airborne() || (cur && cur.id === 'jump' && cur.kind === 'action')) && !canAfford('jump_crash')) { deny('jump_crash'); return; }
       if (airborne()) { airCrash(via); return; }
       // pressed during the jump's crouch: crash as soon as she leaves the ground
       if (cur && cur.id === 'jump' && cur.kind === 'action') { cur.crash = true; return; }
@@ -486,9 +499,10 @@
   const REHIT_MS = { earthquake: 250, meteor_shower: 300 };
   const BEAM_DMG = { cloud: 5, fire: 10, laser: 15, plasma: 0 };
   const BEAM_PUSH = { cloud: 0, fire: 10, laser: 20, plasma: 30 };     // px an enemy is shoved back on every tick it is touched
-  const HEAVY_DMG = [35, 90], CRASH_DMG = [30, 100];      // [short, full]
+  const HEAVY_MIN = 25, HEAVY_MAX = 100;       // the heavy chop grows from HEAVY_MIN to HEAVY_MAX with its charge
+  const CRASH_DMG = 150, CRASH_COST = 30;      // the jump crash: flat damage, energy paid when it starts
   const HEAL_EVERY = 350, HEAL_AMOUNT = 5, KO_MS = 1500;
-  const dmgOf = c => c.id === 'heavy' ? HEAVY_DMG[c.lite ? 0 : 1] : c.id === 'jump_crash' ? CRASH_DMG[c.lite ? 0 : 1] : (c.id in DAMAGE ? DAMAGE[c.id] : 15);   // 0 is a real value (the wave hurts only by its blast)
+  const dmgOf = c => c.id === 'heavy' ? Math.round(HEAVY_MIN + (HEAVY_MAX - HEAVY_MIN) * Math.min(1, (c.charged || 0) / FULL_CHARGE)) : c.id === 'jump_crash' ? CRASH_DMG : (c.id in DAMAGE ? DAMAGE[c.id] : 15);   // 0 is a real value (the wave hurts only by its blast)
   let hp = MAX_HP, hpOverride = null, healAcc = 0;
   const floaters = [];                  // {wx, wy, text, color, t0}: numbers that rise and fade
   const FLOAT_MS = 900;
@@ -509,6 +523,7 @@
   }
   function stepHeal(dt) {
     stepGems(dt);
+    if (cur && cur.id === 'charge' && cur.kind === 'hold' && !stun) stepCharge(dt);
     if (!cur || cur.id !== 'recover' || cur.kind !== 'hold' || stun || hp >= MAX_HP) { healAcc = 0; return; }
     healAcc += dt;
     while (healAcc >= HEAL_EVERY && hp < MAX_HP && empowerMeter >= HEAL_COST) {
