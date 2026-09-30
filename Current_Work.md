@@ -243,3 +243,6 @@ with 50 and drops of +25 raise the maximum; every crate drops something; remove 
 
 ### Ninth request (2026-09-30): late-game unlocks, super meter 100
 - [x] `unlockPool` skips earthquake until level 3 and meteor until level 4; super max starts at 100 (P.MAX_START per meter), starts full on unlock.
+
+### Tenth request (2026-09-30): meter cap 200
+- [x] `P.MAX_CAP` is 200 for every meter; saved meter values clamp to 200.

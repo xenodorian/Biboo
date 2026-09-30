@@ -163,8 +163,8 @@ Jumping: A is a floaty physics jump (about 135 px high, about 670 ms in the air,
 
 Double Jump (an unlock, Level 2.4): tap Up again in the air for a spinning second jump that rises about two more of her heights (81 px). One per trip through the air.
 
-Meters: Energy, Empowerment and Super each start with a maximum of 50 (a new meter starts full). Every plain crate drops something useful (never a gem for a meter she has not unlocked, a full bag, or an upgrade at the cap): a health gem,
-a meter gem, or a +25 meter upgrade (raises that meter's maximum by 25 and fills it by 25, up to 150; saved). Earthquake and Meteor Shower need a
+Meters: Energy, Empowerment and Super each start with a maximum of 50 (Super 100) (a new meter starts full). Every plain crate drops something useful (never a gem for a meter she has not unlocked, a full bag, or an upgrade at the cap): a health gem,
+a meter gem, or a +25 meter upgrade (raises that meter's maximum by 25 and fills it by 25, up to 200; saved). Earthquake and Meteor Shower need a
 full Super meter, whatever its maximum is.
 
 Hazards (Level data in `web/levels.js`, code in the "hazards" section of `web/game.js`):

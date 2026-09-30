@@ -41,6 +41,11 @@ const { chromium } = require('playwright');
   check('unlocking the super meter gives a super maximum of 100 and starts it at 100', m.super === 100 && (await ev('bibooGame.maxes()')).super === 100, m);
   await ev('bibooGame.resetAll()');
 
+  await ev('bibooGame.resetAll()');
+  const capped = await ev('(() => { for (let i = 0; i < 12; i++) for (const k of ["energy", "empower", "super"]) BibooProgress.raiseMax(k, 25); return bibooGame.maxes(); })()');
+  check('every meter maximum tops out at 200', capped.energy === 200 && capped.empower === 200 && capped.super === 200, capped);
+  await ev('bibooGame.resetAll()');
+
   // ---- crates: every crate drops something; upgrades raise the max by 25 and the meter by 25
   await custom({ crates: Array.from({ length: 10 }, (_, i) => ({ x: 40 + i * 30, fy: 0 })) });
   await ev('for (let i = 0; i < 10; i++) bibooGame.smash(i)');
@@ -138,7 +143,7 @@ const { chromium } = require('playwright');
   const loot2 = await ev(`(() => { let n = 0; for (let i = 0; i < 60; i++) { bibooGame.custom({ crates: [{ x: 300, fy: 0 }] }); bibooGame.smash(0); n += bibooGame.pickups().length; } return n; })()`);
   check('with the health bag full and no meters, crates drop nothing', loot2 === 0, loot2);
   await ev('bibooGame.resetAll()'); await ev("bibooGame.unlock('L1')");
-  await ev('BibooProgress.state.maxes.energy = 150; BibooProgress.state.gems.energy = 99; BibooProgress.state.gems.health = 99');
+  await ev('BibooProgress.state.maxes.energy = 200; BibooProgress.state.gems.energy = 99; BibooProgress.state.gems.health = 99');
   const loot3 = await ev(`(() => { let n = 0; for (let i = 0; i < 60; i++) { bibooGame.custom({ crates: [{ x: 300, fy: 0 }] }); bibooGame.smash(0); n += bibooGame.pickups().length; } return n; })()`);
   check('an energy meter at its cap with a full bag drops nothing redundant', loot3 === 0, loot3);
   await ev('bibooGame.resetAll()');

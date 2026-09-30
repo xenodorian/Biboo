@@ -47,7 +47,7 @@
   });
 
   const P = { UNLOCKS, byId, GEM_KINDS, MAX_GEMS: 99, state: fresh() };
-  P.MAX_START = { energy: 50, empower: 50, super: 100 }; P.MAX_STEP = 25; P.MAX_CAP = 150;
+  P.MAX_START = { energy: 50, empower: 50, super: 100 }; P.MAX_STEP = 25; P.MAX_CAP = 200;
   P.maxOf = k => (P.state.maxes && P.state.maxes[k]) || P.MAX_START[k] || 50;
   P.raiseMax = (k, n) => { const before = P.maxOf(k); P.state.maxes[k] = Math.min(P.MAX_CAP, before + (n == null ? P.MAX_STEP : n)); P.save(); return P.state.maxes[k] - before; };
   P.levelCount = () => (root.BIBOO_LEVELS && root.BIBOO_LEVELS.levels.length) || 5;
@@ -93,7 +93,7 @@
       if (Number.isFinite(s.levelsUnlocked)) f.levelsUnlocked = Math.max(1, s.levelsUnlocked | 0);
       if (Array.isArray(s.cleared)) f.cleared = s.cleared.filter(n => Number.isFinite(n));
       for (const k of GEM_KINDS) if (s.gems && Number.isFinite(s.gems[k])) f.gems[k] = Math.max(0, Math.min(P.MAX_GEMS, s.gems[k] | 0));
-      for (const k of ['energy', 'empower', 'super']) if (s.meters && Number.isFinite(s.meters[k])) f.meters[k] = Math.max(0, Math.min(100, s.meters[k]));
+      for (const k of ['energy', 'empower', 'super']) if (s.meters && Number.isFinite(s.meters[k])) f.meters[k] = Math.max(0, Math.min(200, s.meters[k]));
       for (const k of ['energy', 'empower', 'super']) if (s.maxes && Number.isFinite(s.maxes[k])) f.maxes[k] = Math.max(P.MAX_START[k], Math.min(P.MAX_CAP, s.maxes[k]));
       P.state = f;
     } catch (e) { P.state = fresh(); }
