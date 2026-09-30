@@ -54,10 +54,17 @@ Done in stages, pushed to main after each. Per the request, no test suites were 
 - [x] `web/game.js`: Max is always drawn at `SPRITE_SCALE`; effects at `fxScale`; hit shapes use the same scale (`fxScaleOf`). Change `FX_SCALE` and re-run the export to scale an effect without touching Max.
 - Status: DONE
 
+### Stage 3. Enemy reach against Max and the plow guard, normal-size spawns
+- [x] Found by working the numbers from `data.js` (enemies stopped at 0.65 x reach from her body centre): the orc's swing overlapped her body by 3 px, the goblin's first slash frames (2 and 3) fell short and only frames 6 and 7 could land. Her plow guard is not an obstacle in the code (enemies are not blocked by her blade, only her body `herBox` is hit), so the fix is how close they walk. New `APPROACH = 0.5` in `web/game.js`; the orc now overlaps her body by about 10 px and the goblin slash reaches on every hitting frame.
+- [x] Hurtboxes and enemy hit boxes, and the stop distance, now follow an enemy's `scale`, so an enemy enlarged by the Empowerment Beam is hit where it is drawn and can reach her.
+- [x] Enemies spawn at `scale: 1` (the scaled-down normal size) explicitly. Start, respawn and test spawns all use it; the only thing that ever enlarges one is the Empowerment Beam.
+- Status: DONE. Not run in the browser (per the request); check the look of the closer approach in play.
+
 ## Open questions
 - (none; the old dip/recover2 open question is obsolete: those frames were removed when the animation was restructured to plow/raise/high/impact.)
 
 ## Log
+- 2026-09-30: Stage 3 (enemy reach, scaled hitboxes, normal-size spawns) (Claude).
 - 2026-09-30: Stages 1 and 2 of the wave, meteors, enemies, gems review (Claude).
 - 2026-09-30: Step 39 done: meters on screen, gem pickups and drops, moves gated by meter; game.js consolidated into one plain file (Claude). Old browser test noted as stale.
 - 2026-09-29: Step 28 done (deeper waist bend on the heavy chop; hand spacing and full-extension arms already at the reach limit from steps 25-27). Kinetic upgrade workflow complete; all numbered steps 0-38 are DONE. (Grok)

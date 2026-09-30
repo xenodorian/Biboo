@@ -580,6 +580,11 @@
   const respawns = [];                  // {type, at}
   let kills = 0, respawnOn = true;
   const BODY = 32;                      // her body centre, px ahead of her anchor
+  // An enemy walks in until it is APPROACH x its reach from her body centre. Her plow guard holds the blade
+  // out in front of her body, but only her body (herBox) is hit, so the enemy has to close in far enough
+  // that its swing overlaps the body on the first hitting frames, not just the last ones (0.65 left the
+  // orc 3 px inside and the goblin's first slash frames out of reach).
+  const APPROACH = 0.5;
   const DIE_MS = 900;                   // death: animation or flicker, then fade
 
   function playerX() {
@@ -588,8 +593,8 @@
   }
   function spawn(type, wx) {
     const hp0 = hpOverride || ENEMY_HP[type] || 60;
-    const e = { type, hp: hp0, maxHp: hp0, x: wx, base: wx, face: -1, anim: 'walk', k: 0, t: 0, state: 'walk', rest: 0, dead: 0, dive: Math.random() < 0.5 };
-    enemies.push(e);
+    const e = { type, hp: hp0, maxHp: hp0, x: wx, base: wx, face: -1, anim: 'walk', k: 0, t: 0, state: 'walk', rest: 0, dead: 0, dive: Math.random() < 0.5, scale: 1 };   // scale 1 = the normal (already scaled down) size;
+    enemies.push(e);                                                                   // only the Empowerment Beam makes one larger
     return e;
   }
   function frameOf(e) { const T = EN[e.type]; return T.frames[T.anims[e.anim].frames[e.k]]; }
@@ -602,7 +607,7 @@
   function hurtOf(e) {
     const h = frameOf(e).hurt;
     if (!h || !alive(e)) return null;
-    const s = SPRITE_SCALE;
+    const s = SPRITE_SCALE * (e.scale || 1);
     return e.face < 0
       ? [e.base + h[0] * s, h[1] * s, e.base + h[2] * s, h[3] * s]
       : [e.base - h[2] * s, h[1] * s, e.base - h[0] * s, h[3] * s];
@@ -654,7 +659,8 @@
       if (e.rest > 0) return;
       e.state = 'walk';
     }
-    if (dist <= ai.reach * 0.65) {
+    const stop = ai.reach * APPROACH * (e.scale || 1);
+    if (dist <= stop) {
       e.state = 'attack';
       play(e, ai.attacks[Math.floor(Math.random() * ai.attacks.length)]);
     } else if (ai.dive && e.dive && !blocked && dist >= ai.dive.min && dist <= ai.dive.max) {
@@ -664,7 +670,7 @@
       if (e.anim !== 'idle') play(e, 'idle');
     } else {
       if (e.anim !== 'walk') play(e, 'walk');
-      const mv = e.face * Math.min((ai.speed * (e.speedMul||1)) * dt / 1000, dist - ai.reach * 0.65);
+      const mv = e.face * Math.min((ai.speed * (e.speedMul||1)) * dt / 1000, dist - stop);
       e.x += mv; e.base += mv;
     }
   }
@@ -763,7 +769,7 @@
   }
   function boxOf(e, h) {
     if (!h) return null;
-    const s = SPRITE_SCALE;
+    const s = SPRITE_SCALE * (e.scale || 1);
     return e.face < 0
       ? [e.base + h[0] * s, h[1] * s, e.base + h[2] * s, h[3] * s]
       : [e.base - h[2] * s, h[1] * s, e.base - h[0] * s, h[3] * s];
