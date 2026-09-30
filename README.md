@@ -104,16 +104,17 @@ sequence) with chord, sequence and tap windows. Previews of every move are in `d
 | B hold / tap | block / parry | Upright sword; tap gives a spark parry window |
 | Y | jump | Two body heights (164 px) |
 | X | dash | 92 px, afterimages and speed lines |
-| A | slash | Horizontal slash, flat crescent smear |
+| A | slash | Horizontal slash, flat crescent smear. 25 damage, 25 px pushback over 100 ms |
 | Up-A | heavy | The main chop animation above; tap Up then A, or hold Up and press A |
 | Right+A | thrust | Lunging thrust, 18 px forward |
 | Down+A | upswing | Duck, then rising cut |
 | L | push_kick | One cock-back frame with the sword raised out of the way, then a straight-leg push that slides her 49 px so the boot passes where the blade tip was; recoil |
 | R (hold) | recover | Kneel on the planted sword, green glow, rising + signs |
-| A+B | beam_fire | Fire beam from the blade tip; press A and B together, or hold B and tap A |
-| A+L | beam_laser | Laser beam: a yellow-white bar with cyan lightning |
-| A+R | beam_plasma | Empowerment Beam (was the plasma beam): cyan, pink and white bursts. Enlarges the enemies it hits, which then drop Energy Gems. Costs 5 Empower per tick, no damage, pushes 30 px per tick |
-| Left-Right-A | beam_cloud | Cloud beam: white and cyan wisps |
+| hold B, tap A | heavy_horizontal | Heavy Horizontal: the horizontal slash with 50 damage and 50 px pushback over 100 ms |
+| A+L1 | beam_laser | Laser beam (15 per tick, 3 energy): a yellow-white bar with cyan lightning |
+| A+R1 | beam_plasma | Empowerment Beam (was the plasma beam), 0 damage, 5 empower per tick, 30 px pushback per tick. Enlarges the enemies it hits, which then drop Energy Gems |
+| A+L2 | beam_cloud | Cloud beam (5 per tick, 1 energy): white and cyan wisps |
+| A+R2 | beam_fire | Fire beam (10 per tick, 2 energy, 10 px pushback per tick) from the blade tip |
 | B+L / A+B+L | heavy_kick / energy_kick | Bigger push kick; with blue energy (A, B and L together, or one after another in any order) |
 | L+R | energy_burst | Ring and rays in all directions |
 | X+Y | taunt | Plants the sword and beckons |

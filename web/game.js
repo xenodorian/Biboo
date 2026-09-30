@@ -74,6 +74,16 @@
   if (!D.input.bindings.some(b => b.move === 'energy_wave'))
     D.input.bindings.push({ input: 'R2', type: 'press', move: 'energy_wave' });
   D.input.bindings = D.input.bindings.filter(b => !(b.move === 'energy_wave' && b.input !== 'R2'));
+  // Beams: only A plus a shoulder button fires one. L2 cloud, R2 fire, L1 laser, R1 Empowerment Beam. Every
+  // other beam binding (A+B, the Left-Right-A style sequences, the old A+L and A+R) is deleted.
+  const BEAM_KEYS = { beam_cloud: 'A+L2', beam_fire: 'A+R2', beam_laser: 'A+L1', beam_plasma: 'A+R1' };
+  D.input.bindings = D.input.bindings.filter(b => !b.move.startsWith('beam_') || BEAM_KEYS[b.move] === b.input);
+  for (const [mv, inp] of Object.entries(BEAM_KEYS))
+    if (!D.input.bindings.some(b => b.move === mv && b.input === inp)) D.input.bindings.push({ input: inp, type: 'chord', move: mv });
+  // Heavy Horizontal: hold B, tap A. It plays the horizontal slash animation with its own damage and pushback.
+  if (!D.moves.heavy_horizontal)
+    D.moves.heavy_horizontal = Object.assign({}, D.moves.slash, { title: 'Heavy Horizontal', input: 'A+B', inputType: 'chord' });
+  D.input.bindings.push({ input: 'A+B', type: 'chord', move: 'heavy_horizontal', held: ['B'] });
   const V = D.view;
   const SPRITE_SCALE = 0.5;
   if (D.moves.beam_plasma) D.moves.beam_plasma.title = 'Empowerment Beam';
@@ -490,10 +500,10 @@
   // Tunable numbers. A move hurts each enemy once per use (moves in REHIT_MS again after that many ms);
   // beams hurt on every tick they touch. The heavy chop and the crash do more when full.
   const MAX_HP = 200, ENEMY_HP = { goblin: 60, orc: 200 }, ENEMY_DMG = { goblin: 12, orc: 30 };
-  const DAMAGE = { slash: 25, thrust: 15, upswing: 15, push_kick: 10, heavy_kick: 25, energy_kick: 30, energy_burst: 50,
+  const DAMAGE = { slash: 25, heavy_horizontal: 50, thrust: 15, upswing: 15, push_kick: 10, heavy_kick: 25, energy_kick: 30, energy_burst: 50,
                    dash_thrust: 25, energy_dash_thrust: 50, spin_attack: 20, energy_wave: 0, earthquake: 250, meteor_shower: 200 };
   // knockback of the moves that push an enemy: [distance px, duration ms]
-  const KNOCK = { push_kick: [100, 200], energy_kick: [200, 300], energy_burst: [400, 500] };
+  const KNOCK = { slash: [25, 100], heavy_horizontal: [50, 100], push_kick: [100, 200], energy_kick: [200, 300], energy_burst: [400, 500] };
   const BOTH_SIDES_PUSH = new Set(['energy_burst']);
   const PARRY_KNOCK = [300, 400];                                    // an enemy parried: pushed back this far, stunned this long
   const REHIT_MS = { earthquake: 250, meteor_shower: 300 };

@@ -115,6 +115,12 @@ Done in stages, pushed to main after each. Per the request, no test suites were 
 - Status: DONE
 - Tests: not run, per the no-testing rule above. `web/tests/browser.test.js` and `web/tests/meters.test.js` had their expected numbers edited by hand for the new slash, heavy chop, energy dash and wave cost, and their `settle()` now tops up the meters; `web/tests/combat.test.js` still holds the old wave numbers (map clear). Update or rerun them only when asked.
 
+### Stage 4. Beam inputs, horizontal slash pushback, Heavy Horizontal
+- [x] Beams fire only from A plus a shoulder button: A+L2 cloud, A+R2 fire, A+L1 laser, A+R1 Empowerment Beam. Every other beam binding is deleted at load (`BEAM_KEYS` in `web/game.js`): A+B, the Left-Right-A style sequences, the old A+L and A+R. `game/input_map.json` still lists them (the JS patches drop them), so do not trust that file for beams.
+- [x] Tap A (Horizontal Slash): 25 damage, 25 px pushback (over 100 ms, the duration for the slash was not given so it matches the heavy one).
+- [x] Hold B, tap A (Heavy Horizontal, new move `heavy_horizontal`): 50 damage, 50 px pushback over 100 ms. It reuses the horizontal slash animation for now (no separate art), so it looks the same as the slash. Pushback stuns the enemy for those 100 ms like the kicks do.
+- Status: DONE. Not run (no-testing rule).
+
 ## Open questions
 - (none; the old dip/recover2 open question is obsolete: those frames were removed when the animation was restructured to plow/raise/high/impact.)
 
