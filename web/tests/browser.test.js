@@ -25,6 +25,8 @@ const shots = process.argv[2];
   });
   await page.goto('file://' + path.resolve(__dirname, '../index.html'));
   await page.waitForFunction(() => !document.getElementById('loading'), null, { timeout: 20000 });
+  await page.waitForFunction(() => { const b = document.getElementById('btn-start'); return b && !b.disabled; }, null, { timeout: 20000 });
+  await page.click('#btn-start');                               // the game waits on its start menu
   await page.click('#view');
   const E = () => page.evaluate(() => window.bibooGame.enemies());
   const e0 = await E();
