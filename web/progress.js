@@ -43,7 +43,7 @@
   for (const u of UNLOCKS) byId[u.id] = u;
 
   const fresh = () => ({
-    v: 1,
+    v: 2,                                                // save format: bumped when unlock points move, so an old save cannot carry unlocks or meters from a retired layout
     unlocked: [],                                        // unlock ids owned
     levelsUnlocked: 1,                                   // levels 1..levelsUnlocked can be entered
     cleared: [],                                         // level numbers beaten
@@ -98,6 +98,7 @@
       const raw = root.localStorage && root.localStorage.getItem(KEY);
       if (!raw) return;
       const s = JSON.parse(raw), f = fresh();
+      if (s.v !== f.v) return;                                 // a save from an older layout: start a new game
       if (Array.isArray(s.unlocked)) {
         const OLD = { L1: ['energy_kick', 'laser_beam'], L2: ['energy_burst', 'cloud_beam'], R1: ['recover', 'empower_beam'], R2: ['energy_wave', 'fire_beam'] };   // saves from before the unlocks were split
         const ids = [];

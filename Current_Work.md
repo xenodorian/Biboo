@@ -270,3 +270,6 @@ Added web/tests/unlock_points.test.js (75 checks): every unlock crate sits in it
 
 ## Eighteenth request: Sky Dash on Down then Up
 Sky Dash is Down then Up (Up does not jump right after Down when Sky Dash is owned). Taunt stays X+Y, Y alone is the spin attack. Added web/tests/sky_taunt.test.js. Build st37.
+
+## Nineteenth request: no super meter at start
+Save format bumped to v2: a save from the old layout (for example one holding Earthquake or a 125 super max) is discarded on load, so a new game shows no SUP bar. Covered in unlock_points.test.js. Build st38.
