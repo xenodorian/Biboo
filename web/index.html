@@ -13,10 +13,10 @@
   body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
   main { max-width: 1184px; margin: 0 auto; padding: 16px; }
   h1 { font-size: 18px; margin: 0 0 10px; font-weight: 600; }
-  #stage { position: relative; background: #000; border: 1px solid var(--line); }
+  #stage { position: relative; background: #1a0f18; border: 1px solid var(--line); }
   canvas { display: block; width: 100%; image-rendering: pixelated; image-rendering: crisp-edges; aspect-ratio: 384 / 216; }
   #kills { position: absolute; right: 10px; top: 8px; padding: 4px 8px; background: rgba(0,0,0,.55);
-           border-radius: 4px; font-weight: 600; pointer-events: none; font-variant-numeric: tabular-nums; }
+           border-radius: 4px; font-weight: 600; pointer-events: none; font-variant-numeric: tabular-nums; z-index: 3; }
   #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); z-index: 4; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
   @media (max-width: 760px) { .row { grid-template-columns: 1fr; } }
@@ -44,40 +44,34 @@
   #monitor { font: 12px/1.4 ui-monospace, monospace; color: var(--dim); white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0; }
   p.note { color: var(--dim); margin: 8px 0 0; font-size: 13px; }
 
+  /* Transparent overlay — canvas scene shows through as the menu image */
   #start-menu {
     position: absolute; inset: 0; z-index: 5;
     display: grid; place-items: center;
-    background-color: #1a0f18;
-    background-image:
-      url('assets/layers/sky.png'),
-      url('assets/layers/mountains_far.png'),
-      url('assets/layers/mountains_near.png'),
-      url('assets/layers/ground.png');
-    background-size: cover, cover, cover, cover;
-    background-position: center top, center 40%, center 55%, center bottom;
-    background-repeat: no-repeat;
-    image-rendering: pixelated;
+    background: transparent;
+    pointer-events: none;
   }
   #start-menu[hidden] { display: none !important; }
   #start-menu .veil {
     position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(0,0,0,.35) 0%, rgba(0,0,0,.55) 100%);
+    background: linear-gradient(180deg, rgba(12,8,16,.45) 0%, rgba(12,8,16,.62) 100%);
     pointer-events: none;
   }
   #start-menu .panel {
     position: relative; z-index: 1;
-    text-align: center; padding: 28px 32px;
-    background: rgba(31,31,40,.88);
-    border: 1px solid var(--line); border-radius: 10px; min-width: 260px;
-    backdrop-filter: blur(2px);
+    pointer-events: auto;
+    text-align: center; padding: 24px 28px;
+    background: rgba(31,31,40,.9);
+    border: 1px solid var(--line); border-radius: 10px; min-width: 240px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.45);
   }
   #start-menu .hero {
-    width: 120px; height: 120px; margin: 0 auto 12px;
-    background: url('assets/moves/charge.png') 0 0 / auto 120px no-repeat;
+    width: 132px; height: 93px; margin: 0 auto 12px;
+    background: url('assets/moves/charge.png') 0 0 / auto 93px no-repeat;
     image-rendering: pixelated;
   }
   #start-menu h2 { margin: 0 0 6px; font-size: 22px; letter-spacing: .04em; }
-  #start-menu p { margin: 0 0 18px; color: var(--dim); font-size: 13px; }
+  #start-menu p { margin: 0 0 16px; color: var(--dim); font-size: 13px; }
   #start-menu .actions { display: flex; flex-direction: column; gap: 10px; }
   #start-menu button {
     font: 600 15px system-ui, sans-serif; padding: 10px 16px; border-radius: 6px;
