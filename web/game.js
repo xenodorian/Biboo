@@ -894,7 +894,7 @@
     level.idx = idx;
     const md = level.def.maps[idx];
     curMap = { idx, id: md.id, def: md, solids: md.solids, plats: md.plats,
-               crates: md.crates.map((c, i) => ({ key: idx + ':' + i, x: c.x, fy: c.fy, item: c.item || null, broken: (level.n === 1 && !c.item) ? false : level.broken.has(idx + ':' + i) })),   // level 1's plain crates come back each visit, so the key can always drop
+               crates: md.crates.map((c, i) => ({ key: idx + ':' + i, x: c.x, fy: c.fy, item: c.item || null, broken: (level.def.door === 'key' && !c.item) ? false : level.broken.has(idx + ':' + i) })),   // a key level's plain crates come back each visit, so the key can always drop
                pits: (md.pits || []).map(p => ({ x0: p.x0, x1: p.x1 })),
                bombs: (md.bombs || []).map((b, i) => ({ key: idx + ':b' + i, x: b.x, fy: b.fy || 0, gone: level.popped.has(idx + ':b' + i), fuse: 0 })) };
     shots.length = 0; pitFall = null;
@@ -2070,7 +2070,7 @@
       const held = b.release_into || HOLD_FIRE[b.move];                       // hold-and-release moves
       rows.push({ move: b.move, note: held ? 'hold, then let go' : '', name: b.release_into && D.moves[b.release_into] ? D.moves[b.release_into].title : null,
                   section: BASE_MOVES.has(b.move) ? 'Controls' : 'Unlocked combos',
-                  pad: (sb.input === 'none' ? '(nothing)' : sb.input) + (b.type === 'air' ? ' (air)' : ''),
+                  pad: (b.move === 'recover' ? 'R1' : sb.input === 'none' ? '(nothing)' : sb.input) + (b.type === 'air' ? ' (air)' : ''),
                   keys: keysOf(sb.input), title: m ? m.title : b.move, how: how(sb) });
     }
     if (P.has('double_jump')) rows.push({ move: 'double_jump', note: '', section: 'Unlocked combos', pad: 'Up, Up (air)', keys: 'Up then Up', title: 'Double jump', how: 'press jump again in the air: a spinning second jump' });

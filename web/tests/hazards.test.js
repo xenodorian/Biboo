@@ -32,9 +32,9 @@ const { chromium } = require('playwright');
   // ---- meters start at 50 max
   await ev('bibooGame.resetAll()');
   check('energy and empower maximums start at 50 and the super meter at 100', JSON.stringify(await ev('bibooGame.maxes()')) === JSON.stringify({ energy: 50, empower: 50, super: 100 }), await ev('bibooGame.maxes()'));
-  await ev("bibooGame.unlock('L1')");
+  await ev("bibooGame.unlock('energy_kick')");
   let m = await ev('bibooGame.meters()');
-  check('unlocking L1 gives an energy meter that starts at 50', m.energy === 50 && m.empower === 0, m);
+  check('unlocking the energy kick gives an energy meter that starts at 50', m.energy === 50 && m.empower === 0, m);
 
   await ev("bibooGame.unlock('earthquake')");
   m = await ev('bibooGame.meters()');
@@ -52,7 +52,7 @@ const { chromium } = require('playwright');
   s = await S();
   check('all 10 plain crates dropped something', s.fx.gems === 10, s.fx.gems);
   await custom({});
-  await ev('bibooGame.resetAll()'); await ev("bibooGame.unlock('L1')");
+  await ev('bibooGame.resetAll()'); await ev("bibooGame.unlock('energy_kick')");
   await custom({ crates: [{ x: 200, fy: 0 }] });
   let ups = 0, tries = 0, got = null;
   for (; tries < 60 && !got; tries++) {
@@ -142,7 +142,7 @@ const { chromium } = require('playwright');
   await ev('BibooProgress.state.gems.health = 99');
   const loot2 = await ev(`(() => { let n = 0; for (let i = 0; i < 60; i++) { bibooGame.custom({ crates: [{ x: 300, fy: 0 }] }); bibooGame.smash(0); n += bibooGame.pickups().length; } return n; })()`);
   check('with the health bag full and no meters, crates drop nothing', loot2 === 0, loot2);
-  await ev('bibooGame.resetAll()'); await ev("bibooGame.unlock('L1')");
+  await ev('bibooGame.resetAll()'); await ev("bibooGame.unlock('energy_kick')");
   await ev('BibooProgress.state.maxes.energy = 200; BibooProgress.state.gems.energy = 99; BibooProgress.state.gems.health = 99');
   const loot3 = await ev(`(() => { let n = 0; for (let i = 0; i < 60; i++) { bibooGame.custom({ crates: [{ x: 300, fy: 0 }] }); bibooGame.smash(0); n += bibooGame.pickups().length; } return n; })()`);
   check('an energy meter at its cap with a full bag drops nothing redundant', loot3 === 0, loot3);
@@ -198,7 +198,7 @@ const { chromium } = require('playwright');
   // outside the radius: untouched
   await custom({ bombs: [{ x: 200, fy: 0 }], enemies: [{ type: 'orc', x: 280, fy: 0, path: [275, 285], sight: 10 }] });
   await ev('bibooGame.setMeters(100,100,100)'); await ev('bibooGame.setHp(200)'); await at(60);
-  await ev('bibooGame.unlock("L1")'); await ev('bibooGame.unlock("R2")'); await wait(200);
+  await ev('bibooGame.unlock("fire_beam")'); await wait(200);
   // hit the bomb from a distance with a reflected-style hook: use the fire beam (A+R2) aimed right
   await page.keyboard.down('KeyZ'); await page.keyboard.down('Digit2'); await wait(700); await page.keyboard.up('KeyZ'); await page.keyboard.up('Digit2'); await wait(400);
   s = await S();

@@ -255,3 +255,6 @@ with 50 and drops of +25 raise the maximum; every crate drops something; remove 
 
 ### Thirteenth request (2026-09-30): level 1 key door
 - [x] Level 1 is 9 maps; the locked door is at the end of 1.9 (`door: 'key'` on the level, `doorLocked`/`keyDue` in game.js, key is a gem kind 'key' that never expires, saved in `P.state.keys`). Level 1 loot is health gems only (`gemUseful`/`lootPool`). Enemies respawn on every `loadMap`; level 1 plain crates respawn each visit so the key can always drop. Test: web/tests/level1_door.test.js (18).
+
+### Fourteenth request (2026-09-30): level 2 layout
+- [x] Level 2 is 9 maps (`COUNT` in levels.js, `door: 'key'`). ITEMS: 2.1 recover, 2.2 taunt, 2.3 empower_beam, 2.4 energy_kick, 2.5 energy_dash, 2.6 energy_burst, 2.7 energy_wave, 2.8 cloud_beam; level 3 temporarily holds crash, heavy_chop, laser_beam, fire_beam, earthquake. Unlocks L1/L2/R1/R2 replaced by single-move ids (progress.js, old saves migrated on load). Key-level plain crates respawn. Test: web/tests/level2.test.js (15).

@@ -182,9 +182,9 @@ const { chromium } = require('playwright');
   await key('Escape'); await wait(100); await key('Escape'); await wait(100);
   await ev("bibooGame.enterLevel(1)"); await wait(400);
   // unlock L1 through the dev console button path
-  await ev("(function(){ const P = BibooProgress; return P.unlock('L1'); })()");
+  await ev("(function(){ const P = BibooProgress; return P.unlock('energy_kick'); })()");
   await ev("bibooGame.enterLevel(1)"); await wait(400);
-  check('L1 unlocks the energy meter (P.meterOn)', await ev("BibooProgress.meterOn('energy') && !BibooProgress.meterOn('empower') && !BibooProgress.meterOn('super')"), null);
+  check('energy_kick unlocks the energy meter (P.meterOn)', await ev("BibooProgress.meterOn('energy') && !BibooProgress.meterOn('empower') && !BibooProgress.meterOn('super')"), null);
 
   // ---- 13. map doors and the level gate
   await ev('bibooGame.enterLevel(1)'); await wait(600);

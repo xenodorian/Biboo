@@ -24,7 +24,7 @@ const { chromium } = require('playwright');
 
   // ---- gems: level 1 drops health gems only, even with every meter unlocked
   await fresh();
-  await ev("for (const id of ['L1', 'L2', 'R1', 'R2']) bibooGame.unlock(id)");
+  await ev("for (const id of ['energy_kick', 'energy_burst', 'energy_wave', 'recover']) bibooGame.unlock(id)");
   await ev('bibooGame.warp(0)'); await wait(300);
   const kinds = await smashAll(8);
   check('crates in level 1 drop only health gems, with every meter owned', kinds.length > 0 && kinds.every(k => k === 'health'), [...new Set(kinds)]);
@@ -91,7 +91,7 @@ const { chromium } = require('playwright');
   check('level 1 plain crates respawn too', s.crates.filter(c => !c.item).every(c => !c.broken), s.crates);
 
   // other levels: enemies respawn as well
-  await ev('bibooGame.resetAll(); bibooGame.enterLevel(2)'); await wait(600);
+  await ev('bibooGame.resetAll(); BibooProgress.completeLevel(1); bibooGame.enterLevel(2)'); await wait(600);
   await ev('bibooGame.warp(1)'); await wait(400);
   const b2 = (await S()).foes.length;
   for (let i = 0; i < b2; i++) await ev('bibooGame.killFoe(0)');

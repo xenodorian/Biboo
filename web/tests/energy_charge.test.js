@@ -5,9 +5,9 @@ const { chromium } = require('playwright');
 
 // unlock id, move id, keys held together (energy dash thrust first needs Right, Right)
 const MOVES = [
-  ['L1', 'energy_kick', ['KeyX', 'KeyQ'], []],
-  ['L2', 'energy_burst', ['Digit1'], []],
-  ['R2', 'energy_wave', ['Digit2'], []],
+  ['energy_kick', 'energy_kick', ['KeyX', 'KeyQ'], []],
+  ['energy_burst', 'energy_burst', ['Digit1'], []],
+  ['energy_wave', 'energy_wave', ['Digit2'], []],
   ['energy_dash', 'energy_dash_thrust', ['KeyA', 'KeyZ'], ['ArrowRight', 'ArrowRight']],
 ];
 
@@ -63,7 +63,7 @@ const MOVES = [
   }
 
   // a partial charge fires weaker than a full one (kick: 30 at full)
-  await fresh('L1');
+  await fresh('energy_kick');
   await ev('bibooGame.setMeters(50, 0, 0)');
   for (const k of ['KeyX', 'KeyQ']) await page.keyboard.down(k);
   await wait(500);
@@ -72,7 +72,7 @@ const MOVES = [
   const part = await ev('bibooGame.charging()');
   check('a half charge fires at reduced power', part.power > 0.5 && part.power < 1, part);
   await wait(1200);
-  await fresh('L1'); await ev('bibooGame.setMeters(50, 0, 0)');
+  await fresh('energy_kick'); await ev('bibooGame.setMeters(50, 0, 0)');
   for (const k of ['KeyX', 'KeyQ']) await page.keyboard.down(k);
   await wait(1500);
   for (const k of ['KeyX', 'KeyQ']) await page.keyboard.up(k);
@@ -82,7 +82,7 @@ const MOVES = [
   await wait(1200);
 
   // no energy: holding does nothing
-  await fresh('L1'); await ev('bibooGame.setMeters(0, 0, 0)');
+  await fresh('energy_kick'); await ev('bibooGame.setMeters(0, 0, 0)');
   let n = await ev('bibooGame.started.length');
   for (const k of ['KeyX', 'KeyQ']) await page.keyboard.down(k);
   await wait(1200);

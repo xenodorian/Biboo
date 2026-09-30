@@ -12,10 +12,10 @@ const CASES = [
   ['taunt', ['taunt'], [['KeyA', 'KeyS']]],
   ['sky_dash', ['sky_dash'], [['ArrowDown'], ['KeyS']]],
   ['push_kick', ['push_kick'], [['KeyQ']]],
-  ['L1', ['beam_laser'], [['KeyZ', 'KeyQ']]],
-  ['L2', ['beam_cloud'], [['KeyZ', 'Digit1']]],
-  ['R2', ['beam_fire'], [['KeyZ', 'Digit2']]],
-  ['R1', ['beam_plasma'], [['KeyZ', 'KeyW']]],
+  ['laser_beam', ['beam_laser'], [['KeyZ', 'KeyQ']]],
+  ['cloud_beam', ['beam_cloud'], [['KeyZ', 'Digit1']]],
+  ['fire_beam', ['beam_fire'], [['KeyZ', 'Digit2']]],
+  ['empower_beam', ['beam_plasma'], [['KeyZ', 'KeyW']]],
 ];
 
 (async () => {
@@ -89,7 +89,7 @@ const CASES = [
   check('a tap of A is still the slash with the chop unlocked', (await played(n0)).includes('slash') && !(await played(n0)).includes('heavy'), await played(n0));
 
   // hold-and-release: the thrust (Right + A) and the energy kick (B + L1) fire on release, not on press
-  for (const [id, mv, keys] of [['thrust', 'thrust', ['ArrowRight', 'KeyZ']], ['L1', 'energy_kick', ['KeyX', 'KeyQ']]]) {
+  for (const [id, mv, keys] of [['thrust', 'thrust', ['ArrowRight', 'KeyZ']], ['energy_kick', 'energy_kick', ['KeyX', 'KeyQ']]]) {
     await fresh(); await ev(`bibooGame.unlock('${id}'); bibooGame.enterLevel(1)`); await wait(500); await ev('bibooGame.setEnemies([]); bibooGame.setMeters(100, 100, 100)'); await wait(800);
     n0 = await ev('bibooGame.started.length');
     for (const k of keys) await page.keyboard.down(k);
@@ -126,7 +126,7 @@ const CASES = [
   check('energy dash thrust plays', (await played(n0)).includes('energy_dash_thrust'), await played(n0));
 
   // recover needs R1 (hold W)
-  await fresh(); await ev("bibooGame.unlock('R1'); bibooGame.enterLevel(1)"); await wait(500); await ev('bibooGame.setEnemies([]); bibooGame.setMeters(0, 100, 0); bibooGame.setHp(100)'); await wait(800);
+  await fresh(); await ev("bibooGame.unlock('recover'); bibooGame.enterLevel(1)"); await wait(500); await ev('bibooGame.setEnemies([]); bibooGame.setMeters(0, 100, 0); bibooGame.setHp(100)'); await wait(800);
   await page.keyboard.down('KeyW'); await wait(1500); await page.keyboard.up('KeyW');
   check('recover (hold W) heals once R1 is unlocked', (await ev('bibooGame.hp()')) > 100, await ev('bibooGame.hp()'));
 

@@ -71,11 +71,12 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
+  const COUNT = { 2: 9 };                                  // level 2 ends at 2.9 (a locked door); the others have MAPS_PER_LEVEL maps
   function genMap(n, i, item) {
     const r = rng(n * 7919 + i * 104729 + 17);
     const pick = (a, b) => a + Math.floor(r() * (b - a + 1));
     const chance = p => r() < p;
-    const final = i === MAPS_PER_LEVEL - 1;
+    const final = i === (COUNT[n] || MAPS_PER_LEVEL) - 1;
     const m = map({});
     // pits: centred on distinct slots 80 px apart, 40 to 70 px wide (none on the first map of a level)
     const slots = [110, 190, 270];
@@ -140,17 +141,18 @@
     return m;
   }
   const ITEMS = {                                          // level number -> map index (0 based) -> unlock id
-    2: { 1: 'R2', 2: 'L2', 3: 'L1', 4: 'crash', 5: 'heavy_chop', 7: 'energy_dash', 8: 'taunt' },
-    3: { 1: 'R1', 6: 'earthquake' },
+    // level 2 (maps 2.1 to 2.8), then the locked door at the end of 2.9
+    2: { 0: 'recover', 1: 'taunt', 2: 'empower_beam', 3: 'energy_kick', 4: 'energy_dash', 5: 'energy_burst', 6: 'energy_wave', 7: 'cloud_beam' },
+    3: { 0: 'crash', 1: 'heavy_chop', 2: 'laser_beam', 3: 'fire_beam', 6: 'earthquake' },
     4: { 2: 'meteor' },
     5: {},
   };
-  const gen = n => Array.from({ length: MAPS_PER_LEVEL }, (_, i) => genMap(n, i, (ITEMS[n] || {})[i]));
+  const gen = n => Array.from({ length: COUNT[n] || MAPS_PER_LEVEL }, (_, i) => genMap(n, i, (ITEMS[n] || {})[i]));
 
   L1[L1.length - 1].final = true;              // level 1 ends at map 1.9, behind the locked door
   const levels = [
     { n: 1, name: 'Green Trail', blurb: 'Goblins in the grass. Find every move to earn the key.', tint: null, door: 'key', maps: L1 },
-    { n: 2, name: 'Mossy Ruins', blurb: 'Old walls and ledges. Orcs join the patrols.', tint: { color: '#7a5a1a', alpha: 0.18 }, maps: gen(2) },
+    { n: 2, name: 'Mossy Ruins', blurb: 'Old walls and ledges. Orcs join the patrols.', tint: { color: '#7a5a1a', alpha: 0.18 }, door: 'key', maps: gen(2) },
     { n: 3, name: 'Dusk Bridge', blurb: 'Night falls. The guards look farther.', tint: { color: '#2a2a80', alpha: 0.25 }, maps: gen(3) },
     { n: 4, name: 'Ember Caves', blurb: 'Hot and crowded.', tint: { color: '#802a10', alpha: 0.22 }, maps: gen(4) },
     { n: 5, name: 'Crimson Keep', blurb: 'The last gate.', tint: { color: '#600020', alpha: 0.28 }, maps: gen(5) },

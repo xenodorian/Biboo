@@ -20,7 +20,7 @@
     { id: 'upswing', kind: 'Combo', name: 'Ducking Upswing', hint: 'Hold Down and press A', moves: ['upswing'] },
     { id: 'heavy_horizontal', kind: 'Combo', name: 'Heavy Horizontal', hint: 'Hold B and tap A', moves: ['heavy_horizontal'] },
     { id: 'dash_thrust', kind: 'Combo', name: 'Dash Thrust', hint: 'Press X and A together', moves: ['dash_thrust'] },
-    { id: 'energy_dash', kind: 'Combo', name: 'Energy Dash Thrust', hint: 'Double tap forward, then hold X and A and let go', moves: ['energy_dash_thrust'] },
+    { id: 'energy_dash', kind: 'Combo', name: 'Energy Dash Thrust', hint: 'Double tap forward, then hold X and A and let go', moves: ['energy_dash_thrust'], meters: ['energy'] },
     { id: 'taunt', kind: 'Combo', name: 'Taunt', hint: 'Press X and Y together', moves: ['taunt'] },
     { id: 'double_jump', kind: 'Combo', name: 'Double Jump', hint: 'Press Up again in the air', moves: ['double_jump'] },
     { id: 'sky_dash', kind: 'Combo', name: 'Sky Dash', hint: 'Press Down, then Y', moves: ['sky_dash'] },
@@ -29,10 +29,14 @@
     { id: 'earthquake', kind: 'Combo', name: 'Earthquake', hint: 'Down four times, then A (full super meter)', moves: ['earthquake'], meters: ['super'] },
     { id: 'meteor', kind: 'Combo', name: 'Meteor Shower', hint: 'Up four times, then A (full super meter)', moves: ['meteor_shower'], meters: ['super'] },
     { id: 'push_kick', kind: 'Button', name: 'L1 button: Push Kick', hint: 'Press L1 for the push kick', moves: ['push_kick'], buttons: ['L1'] },
-    { id: 'L1', kind: 'Combo', name: 'L1 Energy Kick and Laser Beam', hint: 'hold B+L1 then let go for the energy kick, A+L1 laser beam', moves: ['energy_kick', 'beam_laser'], buttons: ['L1'], meters: ['energy'] },
-    { id: 'L2', kind: 'Button', name: 'L2 button', hint: 'hold L2 then let go for the energy burst, A+L2 cloud beam', moves: ['energy_burst', 'beam_cloud'], buttons: ['L2'], meters: ['energy'] },
-    { id: 'R1', kind: 'Button', name: 'R1 button', hint: 'A+R1 Empowerment Beam, hold R1 to kneel and recover', moves: ['beam_plasma', 'recover'], buttons: ['R1', 'R'], meters: ['empower'] },
-    { id: 'R2', kind: 'Button', name: 'R2 button', hint: 'hold R2 then let go for the energy wave, A+R2 fire beam', moves: ['energy_wave', 'beam_fire'], buttons: ['R2'], meters: ['energy'] },
+    { id: 'recover', kind: 'Button', name: 'R1 button: Recover', hint: 'Hold R1 to kneel and heal (uses empower). Empower gems and the EMP meter are now on', moves: ['recover'], buttons: ['R1', 'R'], meters: ['empower'] },
+    { id: 'empower_beam', kind: 'Combo', name: 'Empowerment Beam', hint: 'Press A+R1 (uses empower)', moves: ['beam_plasma'], buttons: ['R1'], meters: ['empower'] },
+    { id: 'energy_kick', kind: 'Combo', name: 'Energy Kick', hint: 'Hold B+L1 to charge, let go to kick. The ENG meter and energy gems are now on', moves: ['energy_kick'], buttons: ['L1'], meters: ['energy'] },
+    { id: 'energy_burst', kind: 'Button', name: 'L2 button: Energy Burst', hint: 'Hold L2 to charge, let go to burst', moves: ['energy_burst'], buttons: ['L2'], meters: ['energy'] },
+    { id: 'energy_wave', kind: 'Button', name: 'R2 button: Energy Wave', hint: 'Hold R2 to charge, let go to fire the wave', moves: ['energy_wave'], buttons: ['R2'], meters: ['energy'] },
+    { id: 'cloud_beam', kind: 'Combo', name: 'Cloud Beam', hint: 'Press A+L2, or Left, Right, A (uses energy)', moves: ['beam_cloud'], buttons: ['L2'], meters: ['energy'] },
+    { id: 'laser_beam', kind: 'Combo', name: 'Laser Beam', hint: 'Press A+L1 (uses energy)', moves: ['beam_laser'], buttons: ['L1'], meters: ['energy'] },
+    { id: 'fire_beam', kind: 'Combo', name: 'Fire Beam', hint: 'Press A+R2 (uses energy)', moves: ['beam_fire'], buttons: ['R2'], meters: ['energy'] },
   ];
   const byId = {};
   for (const u of UNLOCKS) byId[u.id] = u;
@@ -93,14 +97,19 @@
       const raw = root.localStorage && root.localStorage.getItem(KEY);
       if (!raw) return;
       const s = JSON.parse(raw), f = fresh();
-      if (Array.isArray(s.unlocked)) f.unlocked = s.unlocked.filter(id => byId[id]);
+      if (Array.isArray(s.unlocked)) {
+        const OLD = { L1: ['energy_kick', 'laser_beam'], L2: ['energy_burst', 'cloud_beam'], R1: ['recover', 'empower_beam'], R2: ['energy_wave', 'fire_beam'] };   // saves from before the unlocks were split
+        const ids = [];
+        for (const id of s.unlocked) for (const n of (OLD[id] || [id])) if (!ids.includes(n)) ids.push(n);
+        f.unlocked = ids.filter(id => byId[id]);
+      }
       if (Array.isArray(s.keys)) f.keys = s.keys.filter(k => typeof k === 'string');
       if (Number.isFinite(s.levelsUnlocked)) f.levelsUnlocked = Math.max(1, s.levelsUnlocked | 0);
       if (Array.isArray(s.cleared)) f.cleared = s.cleared.filter(n => Number.isFinite(n));
       for (const k of GEM_KINDS) if (s.gems && Number.isFinite(s.gems[k])) f.gems[k] = Math.max(0, Math.min(P.MAX_GEMS, s.gems[k] | 0));
       for (const k of ['energy', 'empower', 'super']) if (s.meters && Number.isFinite(s.meters[k])) f.meters[k] = Math.max(0, Math.min(200, s.meters[k]));
       for (const k of ['energy', 'empower', 'super']) if (s.maxes && Number.isFinite(s.maxes[k])) f.maxes[k] = Math.max(P.MAX_START[k], Math.min(P.MAX_CAP, s.maxes[k]));
-      if (f.unlocked.includes('L1') && !f.unlocked.includes('push_kick')) f.unlocked.push('push_kick');   // older saves: the L1 unlock used to include the push kick
+      if (f.unlocked.includes('energy_kick') && !f.unlocked.includes('push_kick')) f.unlocked.push('push_kick');   // older saves: the L1 unlock used to include the push kick
       P.state = f;
     } catch (e) { P.state = fresh(); }
   };
