@@ -37,7 +37,7 @@ const shots = process.argv[2];
   console.log(`${walkOk ? 'PASS' : 'FAIL'}  the orc walks toward her  ${ox(e0)} -> ${ox(e1)}`);
   const early = [e0.length === 2, walkOk];
   // enemies fight back now: clear the field for the move checks (combat checks place their own)
-  await page.evaluate(() => { window.bibooGame.setRespawn(false); window.bibooGame.setEnemies([]); });
+  await page.evaluate(() => { window.bibooGame.setRespawn(false); window.bibooGame.setEnemyHp(1); window.bibooGame.setEnemies([]); });   // 1 HP: one hit kills, as these checks expect
 
   const wait = ms => page.waitForTimeout(ms);
   const down = b => page.keyboard.down(K[b]);
@@ -240,6 +240,7 @@ const shots = process.argv[2];
     check('orc attack hits her: red, stunned in the raised sword pose',
           stunned.length > 0 && stunned.some(v => v.c.tint === '#ff2b2b') && stunned.every(v => v.cur.id === 'heavy' && v.cur.kind === 'stun'),
           JSON.stringify(seen.filter((v, i) => i % 5 === 0)));
+    check('the orc hit takes 30 HP off Max', (await page.evaluate(() => window.bibooGame.hp())) === 170, `hp ${await page.evaluate(() => window.bibooGame.hp())}`);
     check('the hit knocks her back about 64 px', x0 - x1 > 55 && x0 - x1 < 72, `moved ${x1 - x0}`);
     await settle();
     check('she recovers to idle after the stun', !(await combat()).stun && (await combat()).hits === c0.hits + 1, JSON.stringify(await combat()));
@@ -447,6 +448,46 @@ const shots = process.argv[2];
   await page.evaluate(() => window.bibooGame.setEnemies([]));
   results.push(...early);
   await settle();
+  // HP and damage: real enemy HP from here on
+  await page.evaluate(() => { window.bibooGame.setEnemyHp(null); window.bibooGame.setRespawn(false); });
+  {
+    const hpOf = () => page.evaluate(() => window.bibooGame.enemyHp());
+    const texts = () => page.evaluate(() => window.bibooGame.floaters());
+    await settle();
+    await page.evaluate(() => window.bibooGame.setEnemies([['goblin', 100, 6000], ['orc', 900, 60000]]));
+    check('enemies start with their HP (goblin 60, orc 200)', JSON.stringify(await hpOf()) === '[60,200]', JSON.stringify(await hpOf()));
+    await tap('A'); await wait(300);
+    check('a slash takes 15 HP off a goblin, shown as red -15', (await hpOf())[0] === 45 && (await texts()).includes('-15'), `${await hpOf()} ${await texts()}`);
+    await wait(800);
+    check('one slash hurts an enemy only once', (await hpOf())[0] === 45, `${await hpOf()}`);
+    await settle();
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 100, 6000]]));
+    await down('Up'); await wait(1300); await tap('A'); await up('Up'); await wait(1200);
+    check('a full heavy chop takes 90 HP off an orc', (await hpOf())[0] === 110, `${await hpOf()}`);
+    await settle();
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 100, 6000]]));
+    await down('Up'); await wait(300); await tap('A'); await up('Up'); await wait(1200);
+    check('a short heavy chop takes 35 HP off an orc', (await hpOf())[0] === 165, `${await hpOf()}`);
+    await settle();
+    await page.evaluate(() => window.bibooGame.setEnemies([['orc', 240, 6000]]));
+    await chord(['A', 'L'])(); await wait(700);
+    const lh = (await hpOf())[0];
+    check('the laser beam hurts on several ticks (12 each)', lh <= 176 && (200 - lh) % 12 === 0, `${lh}`);
+    await settle();
+    await page.evaluate(() => { window.bibooGame.setEnemies([]); window.bibooGame.setHp(100); });
+    await down('R'); await wait(1700);
+    const rh = await page.evaluate(() => window.bibooGame.hp()); const rt = await texts(); await up('R');
+    check('kneeling to recover gives HP back with green +6 numbers', rh >= 118 && rt.includes('+6'), `hp ${rh} ${rt}`);
+    await settle();
+    await page.evaluate(() => { window.bibooGame.setEnemies([['orc', 75, 60000]]); window.bibooGame.setHp(20); window.bibooGame.attack(0, 'attack'); });
+    await wait(900);
+    const ko = await page.evaluate(() => window.bibooGame.hp());
+    await wait(1800);
+    const back = await page.evaluate(() => window.bibooGame.hp());
+    check('at 0 HP she is knocked out, then back at full HP', ko === 0 && back === 200, `ko ${ko}, later ${back}`);
+    await page.evaluate(() => { window.bibooGame.setEnemyHp(1); window.bibooGame.setEnemies([]); });
+    await settle();
+  }
   check('no page errors', errors.length === 0, errors.join(' | '));
   await browser.close();
   const fail = results.filter(r => !r).length;

@@ -270,3 +270,7 @@ width and margin rows.
 ### Beams
 
 The four beam textures come from `data/beams_src/` (two source images with a top and a bottom beam each). `swingkit/beams.py` cuts each out on a transparent background at the game's pixel size and writes one seamless tile per beam to `web/assets/beams/`. A beam move holds the lunging thrust stance for about 0.55 s; the game draws the tile strip, scrolling away, from the blade tip in the direction she faces (up to 330 px), and it hits every enemy it touches every 100 ms.
+
+### Health and damage
+
+Max has 200 HP, a goblin 60 and an orc 200. Every attack takes HP off an enemy it touches (numbers are tunable at the top of the health section in `web/game.js`): slash 15, thrust 18, upswing 18, push kick 12, heavy kick 25, energy kick and energy burst 30, dash thrust 22, energy dash thrust 35, spin 20 (each side), energy wave 40, earthquake 30, meteor shower 25. The heavy chop does 35 short and 90 full; the crash 30 short and 100 full. A move hurts an enemy once per use; beams hurt every 100 ms they touch (cloud 7, fire 9, laser 12, plasma 10). An orc hit takes 30 HP off Max and a goblin hit 12; blocking and parrying take none. Damage shows as red numbers rising from the target, each enemy has a bar over its head and Max's bar is at the top left. Kneeling to recover (R held) gives 6 HP every 0.35 s with green numbers. At 0 HP Max is knocked out for 1.5 s and gets back up at full HP.

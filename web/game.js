@@ -9,8 +9,9 @@
  *
  * Beam moves draw a scrolling beam from the blade tip (D.beams) that kills what it touches.
  *
- * Enemies (goblin, orc) walk toward her and attack when close; their attacks do no damage yet.
- * Any of her hit shapes (blade, foot, energy) touching an enemy's hurtbox kills it at once.
+ * Enemies (goblin, orc) walk toward her and attack when close. Max and the enemies have HP: her hit
+ * shapes (blade, foot, energy, beams) take HP off an enemy's hurtbox they touch, red numbers show the
+ * damage, health bars show what is left, and kneeling to recover (R) gives HP back in green numbers.
  * An enemy attack that reaches her: a clean hit turns her red and knocks her back, stunned (raised
  * sword pose) until the push ends; while blocking she flashes white and slides back a little; a
  * parry made while the attack is at most two frames from landing turns the enemy white and knocks
@@ -319,8 +320,48 @@
     const f = D.moves[cur.id].frames[cur.k];
     const r = rootOf(cur);
     if (f.hits) {
-      hitQ.push({ f, px: x + r[0], py: r[1], face: cur.face });
-      if (BOTH_SIDES.has(cur.id)) hitQ.push({ f, px: x + r[0], py: r[1], face: -cur.face });   // the spin also cuts behind her
+      hitQ.push({ f, px: x + r[0], py: r[1], face: cur.face, mv: cur });
+      if (BOTH_SIDES.has(cur.id)) hitQ.push({ f, px: x + r[0], py: r[1], face: -cur.face, mv: cur });   // the spin also cuts behind her
+    }
+  }
+
+  // ------------------------------------------------------------------ health and damage
+  // Tunable numbers. A move hurts each enemy once per use (moves in REHIT_MS again after that many ms);
+  // beams hurt on every tick they touch. The heavy chop and the crash do more when full.
+  const MAX_HP = 200, ENEMY_HP = { goblin: 60, orc: 200 }, ENEMY_DMG = { goblin: 12, orc: 30 };
+  const DAMAGE = { slash: 15, thrust: 18, upswing: 18, push_kick: 12, heavy_kick: 25, energy_kick: 30, energy_burst: 30,
+                   dash_thrust: 22, energy_dash_thrust: 35, spin_attack: 20, energy_wave: 40, earthquake: 30, meteor_shower: 25 };
+  const REHIT_MS = { earthquake: 250, meteor_shower: 300 };
+  const BEAM_DMG = { cloud: 7, fire: 9, laser: 12, plasma: 10 };
+  const HEAVY_DMG = [35, 90], CRASH_DMG = [30, 100];      // [short, full]
+  const HEAL_EVERY = 350, HEAL_AMOUNT = 6, KO_MS = 1500;
+  const dmgOf = c => c.id === 'heavy' ? HEAVY_DMG[c.lite ? 0 : 1] : c.id === 'jump_crash' ? CRASH_DMG[c.lite ? 0 : 1] : (DAMAGE[c.id] || 15);
+  let hp = MAX_HP, hpOverride = null, healAcc = 0;
+  const floaters = [];                  // {wx, wy, text, color, t0}: numbers that rise and fade
+  const FLOAT_MS = 900;
+  const GREEN = '#3dff6e';
+  function floater(wx, wy, text, color) { floaters.push({ wx, wy, text, color, t0: clock }); }
+  function hurtEnemy(e, dmg) {
+    if (!alive(e) || dmg <= 0) return;
+    e.hp = Math.max(0, e.hp - dmg);
+    const b = hurtOf(e);
+    if (b) floater((b[0] + b[2]) / 2, b[3] + 4, '-' + dmg, RED);
+    if (!e.tint || clock >= e.tint.until) e.tint = { color: RED, alpha: 0.55, until: clock + 110 };
+    if (e.hp <= 0) kill(e);
+  }
+  function hurtHer(dmg) {
+    if (dmg <= 0) return;
+    hp = Math.max(0, hp - dmg);
+    floater(bodyX(), herY() + herTop() + 6, '-' + dmg, RED);
+  }
+  function stepHeal(dt) {
+    if (!cur || cur.id !== 'recover' || cur.kind !== 'hold' || stun || hp >= MAX_HP) { healAcc = 0; return; }
+    healAcc += dt;
+    while (healAcc >= HEAL_EVERY && hp < MAX_HP) {
+      healAcc -= HEAL_EVERY;
+      const n = Math.min(HEAL_AMOUNT, MAX_HP - hp);
+      hp += n;
+      floater(bodyX(), herY() + herTop() + 6, '+' + n, GREEN);
     }
   }
 
@@ -351,7 +392,7 @@
     cur.beamT = clock + BEAM_TICK;
     for (const e of enemies) { const box = hurtOf(e); if (box && overlap(box, b.box)) beamHit(e, b); }
   }
-  function beamHit(e) { kill(e); }
+  function beamHit(e, b) { hurtEnemy(e, BEAM_DMG[b.kind] || 8); }
   function drawBeam(sx, sy) {
     const b = beamNow();
     if (!b) return;
@@ -383,7 +424,8 @@
     return x + rootOf(cur)[0];
   }
   function spawn(type, wx) {
-    const e = { type, x: wx, base: wx, face: -1, anim: 'walk', k: 0, t: 0, state: 'walk', rest: 0, dead: 0, dive: Math.random() < 0.5 };
+    const hp0 = hpOverride || ENEMY_HP[type] || 60;
+    const e = { type, hp: hp0, maxHp: hp0, x: wx, base: wx, face: -1, anim: 'walk', k: 0, t: 0, state: 'walk', rest: 0, dead: 0, dive: Math.random() < 0.5 };
     enemies.push(e);
     return e;
   }
@@ -401,7 +443,7 @@
   }
 
   function kill(e) {
-    e.state = 'dying'; e.dead = 0;
+    e.state = 'dying'; e.dead = 0; e.hp = 0;
     const death = EN[e.type].ai.death;
     if (death) play(e, death);
     kills++;
@@ -481,11 +523,16 @@
   }
   function resolveHits() {
     for (const h of hitQ) {
-      for (const s of h.f.hits) {
-        const w = worldShape(s, h);
+      const seen = h.mv.hit || (h.mv.hit = new Map()), gap = REHIT_MS[h.mv.id];
+      for (const sh of h.f.hits) {
+        const w = worldShape(sh, h);
         for (const e of enemies) {
           const box = hurtOf(e);
-          if (box && touches(w, box)) kill(e);
+          if (!box || !touches(w, box)) continue;
+          const last = seen.get(e);
+          if (last !== undefined && !(gap && clock - last >= gap)) continue;
+          seen.set(e, clock);
+          hurtEnemy(e, dmgOf(h.mv));
         }
       }
     }
@@ -542,6 +589,8 @@
     tint = { color: RED, alpha: 0.6, until: clock + ms };
     invuln = clock + ms + 400;
     hits++;
+    hurtHer(ENEMY_DMG[e.type] || 10);
+    if (hp <= 0) { stun.until = clock + KO_MS; floater(bodyX(), herY() + herTop() + 18, 'K.O.', RED); }
   }
   function blocked(e) {                 // white, a small slide back, no stun
     const dir = bodyX() >= e.x ? 1 : -1, p = push(8, 120);
@@ -554,7 +603,10 @@
     const v = stun.v - Math.sign(stun.v) * stun.a * dt;
     stun.v = Math.sign(v) === Math.sign(stun.v) ? v : 0;
     if (stun.y > 0) { stun.vy += 0.0018 * dt; stun.y = Math.max(0, stun.y - stun.vy * dt); }
-    if (stun.v === 0 && stun.y === 0) { stun = null; cur = null; holdState(clock); }
+    if (stun.v === 0 && stun.y === 0 && (!stun.until || clock >= stun.until)) {
+      if (stun.until) { hp = MAX_HP; floater(bodyX(), herY() + herTop() + 6, '+' + MAX_HP, GREEN); }   // back on her feet at full HP
+      stun = null; cur = null; holdState(clock);
+    }
   }
   let hits = 0, blocks = 0, parries = 0;
 
@@ -669,7 +721,46 @@
     g.restore();
     drawBeam(sx, sy);
     drawLayer(img[D.fringe.src].im, -camX + sx, camY + sy);
+    drawBars(sx, sy);
+    drawFloaters(sx, sy);
     if (showBoxes) drawBoxes(sx, sy);
+  }
+
+  // health bars: hers at the top left of the view, each living enemy's over its head
+  function bar(x0, y0, w, h, frac) {
+    g.fillStyle = '#000'; g.fillRect(x0 - 1, y0 - 1, w + 2, h + 2);
+    g.fillStyle = '#4a1414'; g.fillRect(x0, y0, w, h);
+    const fw = Math.round(w * Math.max(0, Math.min(1, frac)));
+    g.fillStyle = frac > 0.5 ? '#3ddc5f' : frac > 0.25 ? '#f0c030' : '#e63b2e';
+    g.fillRect(x0, y0, fw, h);
+    g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(x0, y0, fw, 1);
+  }
+  function drawBars(sx, sy) {
+    const X = wx => V.anchorX + (wx - camX) + sx, Y = wy => V.feetRow + camY + sy - wy;
+    for (const e of enemies) {
+      const b = hurtOf(e);
+      if (!b) continue;
+      bar(Math.round(X((b[0] + b[2]) / 2)) - 15, Math.round(Y(b[3])) - 8, 30, 3, e.hp / e.maxHp);
+    }
+    g.font = 'bold 7px monospace'; g.textBaseline = 'top'; g.lineWidth = 2; g.lineJoin = 'round';
+    g.strokeStyle = '#000'; g.fillStyle = '#fff';
+    g.strokeText('MAX', 8, 14); g.fillText('MAX', 8, 14);
+    bar(28, 15, 100, 6, hp / MAX_HP);
+    const t = `${hp}/${MAX_HP}`;
+    g.strokeText(t, 132, 14); g.fillText(t, 132, 14);
+  }
+  function drawFloaters(sx, sy) {
+    const X = wx => V.anchorX + (wx - camX) + sx, Y = wy => V.feetRow + camY + sy - wy;
+    g.font = 'bold 10px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 3; g.lineJoin = 'round';
+    for (let i = floaters.length - 1; i >= 0; i--) {
+      const f = floaters[i], age = clock - f.t0;
+      if (age > FLOAT_MS) { floaters.splice(i, 1); continue; }
+      g.globalAlpha = age < FLOAT_MS - 300 ? 1 : (FLOAT_MS - age) / 300;
+      const fx = Math.round(X(f.wx)), fy = Math.round(Y(f.wy) - age * 0.035);
+      g.strokeStyle = '#000'; g.strokeText(f.text, fx, fy);
+      g.fillStyle = f.color; g.fillText(f.text, fx, fy);
+    }
+    g.globalAlpha = 1; g.textAlign = 'left';
   }
 
   // one sheet cell, optionally washed with a colour (a red hit, a white block or parry)
@@ -836,6 +927,7 @@
     if (cur && cur.crash && cur.id === 'jump' && rootOf(cur)[1] > 0) airCrash('air');
     blockMove(before);
     beamHits();
+    stepHeal(dt);
     if (cur && cur.kind === 'action' && !hitQ.length) queueHit();   // the frame still on screen
     stepEnemies(dt);
     resolveHits();
@@ -865,6 +957,11 @@
     enemies: () => enemies.map(e => ({ type: e.type, x: e.x, face: e.face, state: e.state, anim: e.anim,
                                        tint: e.tint && clock < e.tint.until ? e.tint.color : null })),
     kills: () => kills,
+    hp: () => hp,
+    enemyHp: () => enemies.map(e => e.hp),
+    floaters: () => floaters.map(f => f.text),
+    setEnemyHp: n => { hpOverride = n; },
+    setHp: n => { hp = n; },
     heavy: () => cur && (cur.id === 'heavy' || cur.id === 'jump_crash') ? { id: cur.id, lite: !!cur.lite, charged: cur.charged, height: cur.height } : null,
     herBox: () => herBox(),
     combat: () => ({ stun: !!stun, hits, blocks, parries, tint: tint && clock < tint.until ? tint.color : null }),
@@ -872,7 +969,7 @@
     attack: (i, anim) => { const e = enemies[i]; e.state = 'attack'; play(e, anim); },
     // test setup: clear the field and place enemies at distances from her anchor
     setEnemies: list => {
-      enemies.length = 0; respawns.length = 0; facing = 1;
+      enemies.length = 0; respawns.length = 0; facing = 1; hp = MAX_HP;
       for (const [type, dx, rest] of list) {                  // rest: stand still this long first (ms)
         const e = spawn(type, playerX() + dx);
         if (rest) { e.state = 'idle'; e.rest = rest; play(e, 'idle'); }

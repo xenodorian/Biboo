@@ -451,16 +451,19 @@ python playwright + Chromium is installed, so a python probe works too).
 
 
 ### Step 38. HP, damage, bars and floating numbers
-- [ ] HP: Max 200, goblin 60, orc 200. Damage per attack in a table in `game.js`; the heavy chop and the crash do less when short (lite). Each move hits an enemy once except beams (ticks). Enemy attacks hurt Max (goblin 12, orc 30); block and parry take none.
-- [ ] Health bars: Max's at the top left of the view, each enemy's above its head.
-- [ ] Red floating text with the damage taken on every hit (enemies and Max); green floating text with the HP gained while Max kneels to recover (R held), a few HP per tick.
-- [ ] Max at 0 HP: knocked down, then back at full HP after 1.5 s. Enemies at 0 HP die as before.
-- Status: TODO
+- [x] HP: Max 200, goblin 60, orc 200. Damage per attack in a table in `game.js`; the heavy chop and the crash do less when short (lite). Each move hits an enemy once except beams (ticks). Enemy attacks hurt Max (goblin 12, orc 30); block and parry take none.
+- [x] Health bars: Max's at the top left of the view, each enemy's above its head.
+- [x] Red floating text with the damage taken on every hit (enemies and Max); green floating text with the HP gained while Max kneels to recover (R held), a few HP per tick.
+- [x] Max at 0 HP: knocked down, then back at full HP after 1.5 s. Enemies at 0 HP die as before.
+- Status: DONE
+- Result: All in `web/game.js` (health and damage section): `hurtEnemy`, `hurtHer`, `stepHeal`, `drawBars`, `drawFloaters`; numbers in `MAX_HP`, `ENEMY_HP`, `ENEMY_DMG`, `DAMAGE`, `BEAM_DMG`. Old browser checks run with 1-HP enemies (`setEnemyHp(1)`); new HP checks use real HP. 123/123 browser, 45/45 input, 13 pytest pass.
+- Signed off: Claude, 2026-09-29
 
 ## Open questions
 - Ready is now Plow (blade 27 degrees up, hands at the hip). The dip (blade -6, hands at chest) and recover2 (blade 0) still match the old ready pose, so they jump. Re-pose them to lead into and out of Plow? (asked 2026-09-28)
 
 ## Log
+- 2026-09-29: Step 38 done (HP, damage, bars, red and green numbers). Steps 35 to 38 complete. (Claude)
 - 2026-09-29: Step 37 done (four beams). Next: step 38 HP, damage, bars, floating numbers; `beamHit(e)` in `web/game.js` is the place for beam damage. (Claude)
 - 2026-09-29: Step 36 done (spin on Left+A, back-hop upswing removed). Next: step 37 beams, then 38 HP. (Claude)
 - 2026-09-29: Step 35 done (facing flip). Next: step 36 (spin on Left+A, remove the back-hop upswing), then 37 beams, 38 HP. (Claude)
