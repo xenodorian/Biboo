@@ -39,11 +39,10 @@
   }
   if (!D.input.bindings.some(b => b.input === 'Down-Right+A'))
     D.input.bindings.push({ input: 'Down-Right+A', type: 'sequence', move: 'energy_wave' });
-  for (const b of D.input.bindings) {
-    if (b.input === 'B-X+A' && b.type === 'sequence') b.input = 'Right-X+A';
-  }
-  if (!D.input.bindings.some(b => b.input === 'Left-X+A'))
-    D.input.bindings.push({ input: 'Left-X+A', type: 'sequence', move: 'energy_dash_thrust' });
+  // energy dash thrust: double tap the forward button (either way), then X and A together
+  D.input.bindings = D.input.bindings.filter(b => b.move !== 'energy_dash_thrust');
+  for (const inp of ['Right-Right-X+A', 'Left-Left-X+A'])
+    D.input.bindings.push({ input: inp, type: 'sequence', move: 'energy_dash_thrust' });
   const LRmap = { L: 'L1', 'A+L': 'A+L1', 'A+R': 'A+R1', 'B+L': 'B+L1', 'A+B+L': 'B+L1', 'L+R': 'L1+R1' };
   for (const b of D.input.bindings) {
     if (LRmap[b.input]) b.input = LRmap[b.input];
@@ -87,7 +86,7 @@
   let energyMeter = METER_START, empowerMeter = METER_START;
   const GEM_VALUE = 25, GEM_CHANCE = 0.35, GEM_LIFE = 20000, GEM_PICKUP = 28;
   const BEAM_TICK_COST = { cloud: 1, fire: 2, laser: 3, plasma: 5 };         // per beam tick (100 ms)
-  const MOVE_COST = { energy_wave: ['energy', 30] };                          // paid once, when the move starts
+  const MOVE_COST = { energy_wave: ['energy', 10] };                          // paid once, when the move starts
   const HEAL_COST = 1;                                                        // empower per recover tick
   const meterOf = k => k === 'energy' ? energyMeter : empowerMeter;
   function spend(k, n) { if (k === 'energy') energyMeter = Math.max(0, energyMeter - n); else empowerMeter = Math.max(0, empowerMeter - n); }
@@ -464,10 +463,9 @@
   function queueHit() {
     const f = D.moves[cur.id].frames[cur.k];
     const r = rootOf(cur);
-    if (cur.id === 'energy_wave' && f.name === 'plow' && !cur.blast) {          // touched nothing: it bursts at the screen edge
+    if (cur.id === 'energy_wave' && f.name === 'plow') {                        // a projectile that touched nothing bursts at the end of its flight
       const px = x + r[0];
-      waveBlast(cur, px + cur.face * 240, 30);
-      explosions.push({ wx: px - cur.face * 240, wy: 30, t0: clock, big: true });
+      for (const side of [cur.face, -cur.face]) waveBlast(cur, side, px + side * WAVE_END, 20);
     }
     if (f.hits) {
       hitQ.push({ f, px: x + r[0], py: r[1], face: cur.face, mv: cur });
@@ -479,8 +477,8 @@
   // Tunable numbers. A move hurts each enemy once per use (moves in REHIT_MS again after that many ms);
   // beams hurt on every tick they touch. The heavy chop and the crash do more when full.
   const MAX_HP = 200, ENEMY_HP = { goblin: 60, orc: 200 }, ENEMY_DMG = { goblin: 12, orc: 30 };
-  const DAMAGE = { slash: 15, thrust: 18, upswing: 18, push_kick: 10, heavy_kick: 25, energy_kick: 30, energy_burst: 50,
-                   dash_thrust: 22, energy_dash_thrust: 35, spin_attack: 20, energy_wave: 40, earthquake: 250, meteor_shower: 200 };
+  const DAMAGE = { slash: 25, thrust: 15, upswing: 15, push_kick: 10, heavy_kick: 25, energy_kick: 30, energy_burst: 50,
+                   dash_thrust: 25, energy_dash_thrust: 50, spin_attack: 20, energy_wave: 0, earthquake: 250, meteor_shower: 200 };
   // knockback of the moves that push an enemy: [distance px, duration ms]
   const KNOCK = { push_kick: [100, 200], energy_kick: [200, 300], energy_burst: [400, 500] };
   const BOTH_SIDES_PUSH = new Set(['energy_burst']);
@@ -490,7 +488,7 @@
   const BEAM_PUSH = { cloud: 0, fire: 10, laser: 20, plasma: 30 };     // px an enemy is shoved back on every tick it is touched
   const HEAVY_DMG = [35, 90], CRASH_DMG = [30, 100];      // [short, full]
   const HEAL_EVERY = 350, HEAL_AMOUNT = 5, KO_MS = 1500;
-  const dmgOf = c => c.id === 'heavy' ? HEAVY_DMG[c.lite ? 0 : 1] : c.id === 'jump_crash' ? CRASH_DMG[c.lite ? 0 : 1] : (DAMAGE[c.id] || 15);
+  const dmgOf = c => c.id === 'heavy' ? HEAVY_DMG[c.lite ? 0 : 1] : c.id === 'jump_crash' ? CRASH_DMG[c.lite ? 0 : 1] : (c.id in DAMAGE ? DAMAGE[c.id] : 15);   // 0 is a real value (the wave hurts only by its blast)
   let hp = MAX_HP, hpOverride = null, healAcc = 0;
   const floaters = [];                  // {wx, wy, text, color, t0}: numbers that rise and fade
   const FLOAT_MS = 900;
@@ -718,6 +716,7 @@
   }
   function resolveHits() {
     for (const h of hitQ) {
+      if (h.mv.id === 'energy_wave' && h.mv.blast && h.mv.blast[h.face]) continue;   // that projectile has burst
       const seen = h.mv.hit || (h.mv.hit = new Map()), gap = REHIT_MS[h.mv.id];
       for (const sh of h.f.hits) {
         const w = worldShape(sh, h);
@@ -735,9 +734,9 @@
             e.state = 'stunned'; play(e, (EN[e.type].ai.stun || 'idle'));
             e.push = { v: p.v * dir, a: p.a };
           }
-          if (h.mv.id === 'energy_wave') {                          // impact: the wave explodes and clears the map
+          if (h.mv.id === 'energy_wave') {                          // impact: the wave explodes on the spot
             const b = hurtOf(e) || box;
-            waveBlast(h.mv, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2);
+            waveBlast(h.mv, h.face, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2);
           }
         }
       }
@@ -746,23 +745,22 @@
   }
   let lastHits = [];
 
-  // The energy wave explodes where it first touches an enemy (or at the edge of the screen if it touches
-  // none) and the blast takes out every enemy on the map. Each one goes down through hurtEnemy, so the
-  // usual numbers, gem drops and death animations apply.
-  const explosions = [];                // {wx, wy, t0, big}
+  // The energy wave does no damage where it touches an enemy: it explodes there (one projectile each side),
+  // and the blast hurts every enemy within WAVE_R px of the centre for WAVE_DMG. A projectile that touches
+  // nothing explodes at the end of its flight.
+  const explosions = [];                // {wx, wy, t0, big, r}
   let flashUntil = 0;
-  const BLAST_MS = 650, FLASH_MS = 380;
-  function waveBlast(mv, wx, wy) {
-    if (mv.blast) return;
-    mv.blast = true;
-    explosions.push({ wx, wy, t0: clock, big: true });
-    flashUntil = clock + FLASH_MS;
-    rumble = { t0: clock, ms: 700, amp: 9 };
+  const BLAST_MS = 650, FLASH_MS = 380, WAVE_R = 75, WAVE_DMG = 50, WAVE_END = 200;
+  function waveBlast(mv, side, wx, wy) {
+    mv.blast = mv.blast || {};
+    if (mv.blast[side]) return;
+    mv.blast[side] = true;
+    explosions.push({ wx, wy, t0: clock, big: true, r: WAVE_R });
+    rumble = { t0: clock, ms: 350, amp: 5 };
     for (const o of enemies) {
       if (!alive(o)) continue;
       const b = hurtOf(o);
-      if (b) explosions.push({ wx: (b[0] + b[2]) / 2, wy: (b[1] + b[3]) / 2, t0: clock + 60, big: false });
-      hurtEnemy(o, o.hp);
+      if (b && distBox(wx, wy, b) <= WAVE_R) hurtEnemy(o, WAVE_DMG);
     }
   }
 
@@ -948,8 +946,9 @@
     if (cur.face < 0) g.scale(-1, 1);
     if (m.fxSheet) {                                             // effects at their own scale, behind Max
       const fs = m.fxScale || SPRITE_SCALE, fim = img[m.fxSheet].im;
-      blit(fim, cur.k * cw, cw, ch, -m.anchor[0] * fs, -m.anchor[1] * fs, null, fs);
-      if (BOTH_SIDES.has(cur.id)) { g.save(); g.scale(-1, 1); blit(fim, cur.k * cw, cw, ch, -m.anchor[0] * fs, -m.anchor[1] * fs, null, fs); g.restore(); }
+      const gone = side => cur.id === 'energy_wave' && cur.blast && cur.blast[side] && cur.k >= 2;   // that projectile burst
+      if (!gone(cur.face)) blit(fim, cur.k * cw, cw, ch, -m.anchor[0] * fs, -m.anchor[1] * fs, null, fs);
+      if (BOTH_SIDES.has(cur.id) && !gone(-cur.face)) { g.save(); g.scale(-1, 1); blit(fim, cur.k * cw, cw, ch, -m.anchor[0] * fs, -m.anchor[1] * fs, null, fs); g.restore(); }
     }
     blit(img[m.sheet].im, cur.k * cw, cw, ch, -m.anchor[0] * SPRITE_SCALE, -m.anchor[1] * SPRITE_SCALE, tc, SPRITE_SCALE);
     g.restore();
@@ -969,7 +968,7 @@
       const ex = explosions[i], age = clock - ex.t0;
       if (age > BLAST_MS) { explosions.splice(i, 1); continue; }
       if (age < 0) continue;
-      const u = age / BLAST_MS, R = (ex.big ? 90 : 34) * (0.25 + 0.75 * Math.sqrt(u));
+      const u = age / BLAST_MS, R = (ex.r || (ex.big ? 90 : 34)) * (0.25 + 0.75 * Math.sqrt(u));
       const X = Math.round(V.anchorX + (ex.wx - camX) + sx), Y = Math.round(V.feetRow + camY + sy - ex.wy);
       g.save();
       g.globalAlpha = Math.max(0, 1 - u);
@@ -977,7 +976,7 @@
       gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.35, '#ffd060'); gr.addColorStop(0.7, '#ff6a20'); gr.addColorStop(1, 'rgba(255,60,0,0)');
       g.fillStyle = gr; g.beginPath(); g.arc(X, Y, R, 0, Math.PI * 2); g.fill();
       g.strokeStyle = '#8fd0ff'; g.lineWidth = ex.big ? 4 : 2;
-      g.beginPath(); g.arc(X, Y, R * 1.25, 0, Math.PI * 2); g.stroke();
+      g.beginPath(); g.arc(X, Y, R, 0, Math.PI * 2); g.stroke();
       g.restore();
     }
     if (clock < flashUntil) {

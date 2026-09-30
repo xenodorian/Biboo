@@ -94,6 +94,14 @@ Done in stages, pushed to main after each. Per the request, no test suites were 
 - [x] Fix: the Options (Start) button on a pad could pause, resume and restart but not start the game, because the frame loop that reads the pad only begins after the first start. A small `menuPoll` loop now reads the pad until the game starts. Checked with a fake PS3 pad: Options hides the menu and starts.
 - Status: DONE
 
+## Workflow: damage, wave, charge, crash, meteors (user request, 2026-09-30)
+
+### Stage 1. Damage numbers, energy dash input, energy wave
+- [x] Slash 25, thrust 15, upswing 15, dash thrust 25, energy dash thrust 50 (`DAMAGE` in `web/game.js`). A damage of 0 is now honoured (it used to fall back to 15).
+- [x] Energy dash thrust: double tap the forward button, then X+A (`Right-Right-X+A` or `Left-Left-X+A`); the old `Right-X+A` is gone. Set in the binding patches at the top of `game.js`.
+- [x] Energy wave: costs 10 energy; the projectile is Max's height (`FX_SCALE` 0.6, was 2.2); it deals no damage on contact but explodes on the spot (one per side) for 50 damage to every enemy within 75 px (`WAVE_R`, `WAVE_DMG`); a projectile that touches nothing explodes at the end of its flight (200 px out). It no longer clears the map.
+- Status: DONE
+
 ## Open questions
 - (none; the old dip/recover2 open question is obsolete: those frames were removed when the animation was restructured to plow/raise/high/impact.)
 

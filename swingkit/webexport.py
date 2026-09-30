@@ -33,7 +33,7 @@ EFFECT_ONLY = {'energy_burst', 'meteor_shower'}
 # moves whose art is exported as two sheets: Max alone, and the effects alone. The game draws Max at
 # her own scale and the effects at FX_SCALE, so an effect can be scaled up without scaling Max up.
 # The hit shapes of these moves use the same FX_SCALE (see worldShape in web/game.js).
-FX_SCALE = {'meteor_shower': 1.4, 'energy_wave': 2.2}
+FX_SCALE = {'meteor_shower': 1.4, 'energy_wave': 0.6}   # 0.6: the wave projectile is about Max's height (67 px x 0.6 = 40 px)
 # dash attacks cover up to 60 px a frame: their dash and lunge frames also hit everything along the
 # stretch of ground she crossed since the last frame, so an enemy in her path is not skipped
 SWEEP = {'dash_thrust', 'energy_dash_thrust'}
