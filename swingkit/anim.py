@@ -240,7 +240,7 @@ for fr in FRAMES:
 def shoulders(fr):
     """Final shoulder points: they ride the torso through the waist bend and the lean."""
     sd = fr.get('shoulders', {})
-    lean, bend, t = fr.get('lean', 0), fr.get('bend', 0), t = fr['torso']
+    lean, bend, t = fr.get('lean', 0), fr.get('bend', 0), fr['torso']
     sn = rig.upper_point(S_NEAR, lean, bend, t) + np.array(sd.get('near', (0, 0)))
     sf = rig.upper_point(S_FAR, lean, bend, t) + np.array(sd.get('far', (0, 0)))
     return sn, sf
