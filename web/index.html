@@ -81,6 +81,15 @@
   #start-menu button:disabled { opacity: .5; cursor: default; }
   #start-menu button:not(:disabled):hover { filter: brightness(1.08); }
 
+  #btn-hud-start {
+    position: absolute; left: 10px; bottom: 10px; z-index: 6;
+    font: 600 13px system-ui, sans-serif; padding: 8px 14px; border-radius: 6px;
+    border: 1px solid var(--line); cursor: pointer;
+    background: var(--lit); color: #1a1206; border-color: var(--lit);
+    pointer-events: auto;
+  }
+  #btn-hud-start:disabled { opacity: .5; cursor: default; }
+  #btn-hud-start:not(:disabled):hover { filter: brightness(1.08); }
   #stage:fullscreen, #stage:-webkit-full-screen {
     width: 100%; height: 100%; background: #000; display: grid; place-items: center;
   }
@@ -95,6 +104,7 @@
   <div id="stage">
     <canvas id="view" width="384" height="216" tabindex="0" aria-label="Game view"></canvas>
     <div id="kills"></div>
+    <button type="button" id="btn-hud-start" disabled>Start</button>
     <div id="loading">Loading...</div>
     <div id="start-menu">
       <div class="veil"></div>
