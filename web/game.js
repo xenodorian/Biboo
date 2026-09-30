@@ -651,9 +651,11 @@
   }
 
   function kill(e) {
-    if (e.dropEnergy) spawnGem(e.x, 'energy');
-    if (e.dropEmpower) spawnGem(e.x, 'empower');
-    if (!e.dropEnergy && !e.dropEmpower && Math.random() < GEM_CHANCE) spawnGem(e.x, Math.random() < 0.5 ? 'energy' : 'empower');
+    // a taunted enemy drops 2 empower gems, one hit by the Empowerment Beam drops 2 energy gems, and every
+    // kill also rolls the ordinary GEM_CHANCE for one more random gem on top of that
+    if (e.dropEnergy) { spawnGem(e.x - 6, 'energy'); spawnGem(e.x + 6, 'energy'); }
+    if (e.dropEmpower) { spawnGem(e.x - 6, 'empower'); spawnGem(e.x + 6, 'empower'); }
+    if (Math.random() < GEM_CHANCE) spawnGem(e.x, Math.random() < 0.5 ? 'energy' : 'empower');
     e.state = 'dying'; e.dead = 0; e.hp = 0;
     const death = EN[e.type].ai.death;
     if (death) play(e, death);

@@ -125,6 +125,7 @@ Done in stages, pushed to main after each. Per the request, no test suites were 
 - (none; the old dip/recover2 open question is obsolete: those frames were removed when the animation was restructured to plow/raise/high/impact.)
 
 ## Log
+- 2026-09-30: Taunted enemies drop 2 empower gems and enemies hit by the Empowerment Beam drop 2 energy gems, on top of the 35% random drop that every kill rolls (Claude). Not run (no-testing rule); `meters.test.js` expects one gem.
 - 2026-09-30: Pages 404 on /Biboo/web/: the Actions deployment published the web folder as the site root while the branch based build published the repo root, and whichever finished last won. The workflow now publishes the same layout (redirect page at /, game at /web/). Use https://xenodorian.github.io/Biboo/ (Claude).
 - 2026-09-30: Live site checked and up to date; browsers were serving cached scripts. Added a version stamp (`?v=` on data.js, input.js, game.js and every image, from `window.BIBOO_VER` in `web/index.html`). Bump `BIBOO_VER` and the three script `?v=` values whenever the game or its assets change (Claude).
 - 2026-09-30: Fixed the pad Options button firing the energy wave: buttons 8 to 11 were read as shoulder buttons on every pad; now only on non-standard, non-Sony pads (Claude).
