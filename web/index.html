@@ -44,6 +44,25 @@
   #monitor { font: 12px/1.4 ui-monospace, monospace; color: var(--dim); white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0; }
   p.note { color: var(--dim); margin: 8px 0 0; font-size: 13px; }
 
+
+  .row.one { grid-template-columns: 1fr; }
+  #start-menu .panel { max-height: 96%; overflow: auto; max-width: 92%; }
+  #start-menu h3 { margin: 10px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); text-align: left; }
+  #start-menu p.note { margin: 6px 0; text-align: left; font-size: 12px; }
+  #start-menu button:focus-visible, #start-menu button:focus { outline: 2px solid var(--lit); outline-offset: 2px; }
+  .menu-scroll { max-height: 38vh; min-width: min(560px, 80vw); overflow: auto; text-align: left; }
+  .moves-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .moves-table td, .moves-table th { padding: 3px 6px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+  .moves-table td.pad { font-family: ui-monospace, monospace; white-space: nowrap; color: var(--lit); }
+  .moves-table td.keys { font-family: ui-monospace, monospace; white-space: nowrap; }
+  .moves-table td.how { color: var(--dim); }
+  .gem-list { display: flex; flex-direction: column; gap: 8px; min-width: min(460px, 80vw); margin-bottom: 12px; }
+  .gem-row { display: grid; grid-template-columns: 16px 1fr auto 1fr auto; gap: 10px; align-items: center; text-align: left; }
+  .gem-swatch { width: 14px; height: 14px; transform: rotate(45deg); border: 1px solid #000; }
+  .gem-count { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .gem-note { color: var(--dim); font-size: 12px; }
+  #start-menu .actions.dev button { text-align: left; }
+
   /* Transparent overlay — canvas scene shows through as the menu image */
   #start-menu {
     position: absolute; inset: 0; z-index: 5;
@@ -104,39 +123,19 @@
   <div id="stage">
     <canvas id="view" width="384" height="216" tabindex="0" aria-label="Game view"></canvas>
     <div id="kills"></div>
-    <button type="button" id="btn-hud-start" disabled>Start</button>
+    <button type="button" id="btn-hud-start" disabled>Menu</button>
     <div id="loading">Loading...</div>
-    <div id="start-menu">
+    <div id="start-menu" hidden>
       <div class="veil"></div>
       <div class="panel">
         <div class="hero" aria-hidden="true"></div>
-        <h2>Parry Perry</h2>
-        <p>Defeat the goblins and orcs</p>
-        <div class="actions">
-          <button type="button" class="primary" id="btn-start" disabled>Start</button>
-          <button type="button" id="btn-fullscreen">Fullscreen</button>
-        </div>
+        <h2 id="menu-title">Parry Perry</h2>
+        <p id="menu-msg">Defeat the goblins and orcs</p>
+        <div id="menu-view"></div>
       </div>
     </div>
   </div>
-  <section id="combos">
-    <h2>Moves and combos</h2>
-    <div class="scroll"><table id="moves">
-      <thead><tr><th>Pad</th><th>Keyboard</th><th>Move</th><th>How</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
-  </section>
-  <div class="row">
-    <section>
-      <h2>Pad</h2>
-      <div id="pad"></div>
-      <p class="note" id="padstatus"></p>
-      <p class="note">Keyboard: arrows = pad, Z = A, X = B, C = X, V = Y, Q = L, W = R. A gamepad works too,
-        wired or Bluetooth, including on an Android phone in Chrome (A = bottom face button, B = right, X = left,
-        Y = top, L/R = shoulders or triggers, d-pad or left stick). Click the view first if keys do nothing.</p>
-      <p class="note">Enemies walk in from the right; any attack that touches one kills it. Press H to show
-        hurtboxes (yellow) and hit shapes (red). Start also pauses and resumes.</p>
-    </section>
+  <div class="row one">
     <section>
       <h2>Last moves</h2>
       <ol id="log"></ol>
@@ -149,9 +148,10 @@
     <pre id="monitor"></pre>
   </section>
 </main>
-<script>window.BIBOO_VER = 'st11';   /* cache buster: change it whenever the game or its assets change */</script>
-<script src="assets/data.js?v=st11"></script>
-<script src="input.js?v=st11"></script>
-<script src="game.js?v=st11"></script>
+<script>window.BIBOO_VER = 'st12';   /* cache buster: change it whenever the game or its assets change */</script>
+<script src="assets/data.js?v=st12"></script>
+<script src="input.js?v=st12"></script>
+<script src="ui.js?v=st12"></script>
+<script src="game.js?v=st12"></script>
 </body>
 </html>

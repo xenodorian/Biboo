@@ -304,6 +304,7 @@
     const charging = metersHeld();
     for (const b of BUTTONS) {
       let now = keyDown.has(b) || padDown.has(b);
+      if (ignoreUntilUp.has(b)) { if (now) now = false; else ignoreUntilUp.delete(b); }   // held when a menu closed
       if (charging && (b === 'L1' || b === 'R1')) now = false;
       else if (charging && b === 'R') now = keyDown.has('R');
       if (now && !isDown.has(b)) {
@@ -1218,24 +1219,14 @@
   }
 
   // ------------------------------------------------------------------ HUD
-  const padEl = document.getElementById('pad');
-  const chips = {};
-  for (const b of BUTTONS) {
-    const d = document.createElement('div');
-    d.className = 'btn';
-    d.innerHTML = `${b}<kbd>${KEY_LABEL[b]}</kbd>`;
-    padEl.appendChild(d);
-    chips[b] = d;
-  }
   const logEl = document.getElementById('log');
   function logMove(id, via) {
+    if (!logEl) return;
     const li = document.createElement('li');
     li.textContent = `${id}  (${D.moves[id].input}${via && via !== 'action' ? ', ' + via : ''})`;
     logEl.prepend(li);
     while (logEl.children.length > 8) logEl.lastChild.remove();
   }
-  const table = document.querySelector('#moves tbody');
-  const rows = {};
   const HOLDABLE = b => BibooInput.DIRS.includes(b) || D.input.bindings.some(x => x.input === b && x.type === 'hold');
   const keysOf = input => input === 'none' ? '' :
     input.split('-').map(step => step.split('+').map(b => KEY_LABEL[b] || b).join('+')).join(' then ');
@@ -1260,46 +1251,62 @@
     }
     return 'one after another' + (b.input.includes('+') ? ' (+ together)' : '');
   }
-  for (const b of D.input.bindings) {
-    const tr = document.createElement('tr');
-    const m = D.moves[b.move];
-    tr.innerHTML = `<td class="pad">${b.input === 'none' ? '(nothing)' : b.input + (b.type === 'air' ? ' (air)' : '')}</td><td class="keys">${keysOf(b.input)}</td>` +
-                   `<td>${m ? m.title : b.move}</td><td class="how">${how(b)}</td>`;
-    table.appendChild(tr);
-    (rows[b.move] = rows[b.move] || []).push(tr);
+  // Rows for the Moves menu: the base controls first, then every combo or button the player has unlocked.
+  const BASE_MOVES = new Set(['idle', 'walk_right', 'walk_left', 'duck', 'block', 'parry', 'jump', 'dash', 'slash']);
+  const moveOpen = move => true;                     // stage 3 replaces this with the unlock check
+  function moveRows() {
+    const rows = [];
+    for (const b of D.input.bindings) {
+      if (b.type === 'idle' || !moveOpen(b.move)) continue;
+      const m = D.moves[b.move];
+      rows.push({ section: BASE_MOVES.has(b.move) ? 'Controls' : 'Unlocked combos',
+                  pad: (b.input === 'none' ? '(nothing)' : b.input) + (b.type === 'air' ? ' (air)' : ''),
+                  keys: keysOf(b.input), title: m ? m.title : b.move, how: how(b) });
+    }
+    return rows.filter(r => r.section === 'Controls').concat(rows.filter(r => r.section !== 'Controls'));
   }
-  const nowEl = document.getElementById('now');
-  let lastShown = '';
+  function lockedCount() {
+    const seen = new Set();
+    for (const b of D.input.bindings) if (b.type !== 'idle' && !moveOpen(b.move)) seen.add(b.move);
+    return seen.size;
+  }
   const killsEl = document.getElementById('kills');
-  const padStatusEl = document.getElementById('padstatus');
-  let padShown = null;
+  const padStatus = () => padName ? `Controller: ${padName}` : 'Controller: none seen yet. Connect it, then press any button on it.';
   function hud() {
-    if (padStatusEl && padShown !== padName) {
-      padShown = padName;
-      padStatusEl.textContent = padName ? `Controller: ${padName}` : 'Controller: none seen yet. Connect it, then press any button on it.';
-    }
     if (killsEl) killsEl.textContent = `Kills ${kills}`;
-    for (const b of BUTTONS) chips[b].classList.toggle('on', isDown.has(b));
-    const id = cur ? cur.id : '';
-    const label = stun ? 'stunned' : fall || (cur && (cur.kind === 'fall' || cur.kind === 'land')) ? 'falling' : id;
-    if (label !== lastShown) {
-      lastShown = label;
-      if (nowEl) nowEl.innerHTML = label === 'stunned' ? 'Stunned' : label === 'falling' ? 'Landing'
-        : `${D.moves[id].title}<small>${D.moves[id].input}</small>`;
-      for (const trs of Object.values(rows)) for (const tr of trs) tr.classList.remove('playing');
-      for (const tr of rows[id] || []) tr.classList.add('playing');
-    }
   }
 
-  // ------------------------------------------------------------------ loop
+  // ------------------------------------------------------------------ menus, screens and the loop
+  const UI = window.BibooUI;
   let last = 0;
+  let startedGame = false, assetsReady = false, paused = false, gameOver = false;
+
+  // Menu navigation: while a menu is open, Up and Down (arrows, d-pad or stick) move the highlight, A activates
+  // and B goes back. Read from the same key and pad state as the game, with edge detection and key repeat.
+  const navPrev = { Up: false, Down: false, A: false, B: false }, navNext = { Up: 0, Down: 0 };
+  function navPoll(t) {
+    const on = k => keyDown.has(k) || padDown.has(k);
+    const now = { Up: on('Up'), Down: on('Down'), A: on('A'), B: on('B') };
+    if (UI && UI.isOpen()) {
+      for (const k of ['Up', 'Down']) {
+        if (now[k] && (!navPrev[k] || t >= navNext[k])) { UI.nav(k === 'Up' ? -1 : 1); navNext[k] = t + (navPrev[k] ? 110 : 320); }
+      }
+      if (now.A && !navPrev.A) UI.activate();
+      if (now.B && !navPrev.B) UI.back();
+    }
+    Object.assign(navPrev, now);
+  }
+  // buttons still held when a menu closes are ignored until they are let go, so pressing A on "Resume" does not slash
+  const ignoreUntilUp = new Set();
+  function ignoreHeldButtons() { for (const b of BUTTONS) if (keyDown.has(b) || padDown.has(b)) ignoreUntilUp.add(b); }
+
   function frame(t) {
-    if (typeof pollPad === 'function') pollPad();
-    if (typeof paused !== 'undefined' && paused) { requestAnimationFrame(frame); return; }
-    if (typeof gameOver !== 'undefined' && gameOver) { requestAnimationFrame(frame); return; }
+    pollPad();
+    navPoll(t);
     const dt = Math.min(100, last ? t - last : 16);
     last = t;
-    clock = t;
+    if (!startedGame || paused || gameOver) { requestAnimationFrame(frame); return; }
+    clock += dt;                                      // game time: it does not run while a menu is open
     readButtons(t);
     for (const e of reader.update(t)) request(e.move, e.via);
     const before = cur && BLOCKED.has(cur.id) ? playerX() : null;
@@ -1319,33 +1326,27 @@
     requestAnimationFrame(frame);
   }
 
-  let startedGame = false, assetsReady = false, paused = false, gameOver = false;
-  // Before the game starts the frame loop is not running, so nothing read the pad and the Options or Start
-  // button could not start it (it worked for pause, resume and restart, which run inside the loop).
-  // Poll the pad from this small loop until the game has started; frame() takes over from there.
-  function menuPoll() {
-    if (startedGame) return;
-    if (typeof pollPad === 'function') pollPad();
-    requestAnimationFrame(menuPoll);
-  }
-  requestAnimationFrame(menuPoll);
   function setStartLabel() {
-    const label = gameOver ? 'Restart' : (!startedGame ? 'Start' : (paused ? 'Resume' : 'Pause'));
-    for (const id of ['btn-start', 'btn-hud-start']) {
-      const b = document.getElementById(id);
-      if (b) b.textContent = label;
-    }
+    const b = document.getElementById('btn-hud-start');
+    if (b) b.textContent = gameOver ? 'Restart' : (!startedGame ? 'Start' : (paused ? 'Resume' : 'Menu'));
   }
-  function showMenu(msg) {
-    const menu = document.getElementById('start-menu');
-    if (!menu) return;
-    menu.hidden = false;
-    const p = menu.querySelector('p');
-    if (p) p.textContent = msg || 'Defeat the goblins and orcs';
+  function showMenu(msg) { if (UI) UI.open('main', { msg: msg != null ? msg : 'Defeat the goblins and orcs' }); }
+  function hideMenu() { if (UI) UI.close(); }
+  function toggleFullscreen() {
+    const stage = document.getElementById('stage') || canvas;
+    if (!document.fullscreenElement) (stage.requestFullscreen && stage.requestFullscreen()) || (canvas.requestFullscreen && canvas.requestFullscreen());
+    else document.exitFullscreen && document.exitFullscreen();
   }
-  function hideMenu() {
-    const menu = document.getElementById('start-menu');
-    if (menu) menu.hidden = true;
+  // B or Escape on the main list: back to the game (not from the title menu or Game Over)
+  function closeMenu() {
+    if (!startedGame || gameOver || !paused) return;
+    togglePause();
+  }
+  function mainItems() {
+    const items = [{ label: gameOver ? 'Restart' : !startedGame ? 'Start' : 'Resume', fn: () => togglePause(), primary: true, id: 'btn-start' }];
+    items.push({ label: 'Moves', fn: () => UI.open('moves', { msg: UI.opts.msg }) });
+    items.push({ label: 'Fullscreen', fn: toggleFullscreen, id: 'btn-fullscreen' });
+    return items;
   }
   function triggerGameOver() {
     if (gameOver) return;
@@ -1370,9 +1371,7 @@
     cur = null;
     tint = null;
     invuln = 0;
-    if (typeof killsEl !== 'undefined' && killsEl) killsEl.textContent = '';
-    const ke = document.getElementById('kills');
-    if (ke) ke.textContent = '';
+    if (killsEl) killsEl.textContent = '';
     if (EN.orc) spawn('orc', 420);
     if (EN.goblin) spawn('goblin', 620);
   }
@@ -1382,53 +1381,53 @@
       resetRun();
       hideMenu();
       startedGame = true;
+      ignoreHeldButtons();
       setStartLabel();
       canvas.focus();
-      requestAnimationFrame(frame);
       return;
     }
     if (!startedGame) {
       startedGame = true; paused = false;
       hideMenu();
+      ignoreHeldButtons();
       if (EN.orc) spawn('orc', 420);
       if (EN.goblin) spawn('goblin', 620);
       canvas.focus();
-      requestAnimationFrame(frame);
     } else {
       paused = !paused;
       if (paused) showMenu('Paused');
-      else hideMenu();
-      if (!paused) canvas.focus();
+      else { hideMenu(); ignoreHeldButtons(); canvas.focus(); }
     }
     setStartLabel();
   }
+  if (UI) UI.init({ mainItems, closeMenu, moveRows, lockedCount, padStatus,
+    moveNotes: () => ['Keyboard: arrows = d-pad, Z = A, X = B, C = X, V = Y. Shoulders: Q = L1, E = L2, T = R1, R = R2, W = hold R (recover). Enter, Space or Escape opens and closes this menu.',
+                      'A gamepad works too, wired or Bluetooth, also on an Android phone in Chrome: A is the bottom face button, B right, X left, Y top. Click the game first if keys do nothing. Press H to show hurtboxes and hit shapes.'] });
   Promise.all(srcs.map(load)).then(() => {
     const loading = document.getElementById('loading');
     if (loading) loading.remove();
     assetsReady = true;
-    for (const id of ['btn-start', 'btn-hud-start']) {
-      const b = document.getElementById(id);
-      if (b) b.disabled = false;
-    }
+    const hb = document.getElementById('btn-hud-start');
+    if (hb) hb.disabled = false;
     setStartLabel();
     try { draw(); } catch (e) {}
+    showMenu();
   }).catch(err => {
     const loading = document.getElementById('loading');
     if (loading) loading.textContent = String(err);
   });
+  requestAnimationFrame(frame);
 
   canvas.addEventListener('pointerdown', () => canvas.focus());
   window.togglePause = togglePause;
-  for (const id of ['btn-start', 'btn-hud-start']) {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('click', (ev) => { ev.preventDefault(); togglePause(); });
-  }
-  document.getElementById('btn-fullscreen') && document.getElementById('btn-fullscreen').addEventListener('click', () => {
-    const stage = document.getElementById('stage') || canvas;
-    if (!document.fullscreenElement) (stage.requestFullscreen && stage.requestFullscreen()) || (canvas.requestFullscreen && canvas.requestFullscreen());
-    else document.exitFullscreen && document.exitFullscreen();
-  });
+  const hudBtn = document.getElementById('btn-hud-start');
+  if (hudBtn) hudBtn.addEventListener('click', ev => { ev.preventDefault(); togglePause(); });
   addEventListener('keydown', e => {
+    if (e.code === 'Escape') {
+      e.preventDefault();
+      if (UI && UI.isOpen()) UI.back(); else if (startedGame && !gameOver) togglePause();
+      return;
+    }
     if (e.code === 'Enter' || e.code === 'Space') {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON')) return;
       e.preventDefault();

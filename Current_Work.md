@@ -149,8 +149,10 @@ no new branches, no em dashes or emoji. Do not add new enemy types (goblin and o
 - The random 35% energy or empower drop only rolls for meters that are unlocked; a separate 35% roll drops a health gem.
 
 ### Stages (update the checkboxes as they land; each stage is pushed on its own)
-- [ ] Stage 1. Plan and handoff notes (this section).
-- [ ] Stage 2. Remove the on-page controls and combo list; menu system with a Moves sub-menu (`ui.js`).
+- [x] Stage 1. Plan and handoff notes (this section).
+- [x] Stage 2. Remove the on-page controls and combo list; menu system with a Moves sub-menu (`ui.js`).
+  - `web/index.html`: the Pad/controls section and the moves table are gone (Last moves and the input monitor stay). The start menu is one panel (`#menu-view`) that `web/ui.js` fills with a view: main, moves, gems, message, dev. The HUD button is now "Menu".
+  - `web/game.js`, section "menus, screens and the loop": `navPoll` (Up/Down/A/B from keyboard or pad move through menu buttons), `ignoreUntilUp` (buttons held when a menu closes are ignored until released), `mainItems`, `closeMenu`, `moveRows` (controls first, then unlocked combos, from `D.input.bindings`), `frame` now runs from page load and only ticks the game when started and not paused, and game time (`clock`) advances by dt so a pause does not expire timers.
 - [ ] Stage 3. Progression: `progress.js`, locked buttons and moves, meters appear on unlock, saved in localStorage.
 - [ ] Stage 4. Level engine: maps, barriers, platforms, air control, crates and powerups, patrolling enemies with sight and hit aggro.
 - [ ] Stage 5. Gem inventory, health gems, Gems sub-menu.
