@@ -137,6 +137,7 @@
   const srcs = [...D.layers.map(l => l.src), D.fringe.src];
   for (const m of Object.values(D.moves)) {
     srcs.push(m.sheet);
+    if (m.fxSheet) srcs.push(m.fxSheet);                       // effects drawn apart from Max (own scale)
     for (const f of m.frames) if (f.bw) srcs.push(f.bw);
   }
   for (const b of Object.values(D.beams || {})) srcs.push(b.src);
@@ -457,6 +458,11 @@
   function queueHit() {
     const f = D.moves[cur.id].frames[cur.k];
     const r = rootOf(cur);
+    if (cur.id === 'energy_wave' && f.name === 'plow' && !cur.blast) {          // touched nothing: it bursts at the screen edge
+      const px = x + r[0];
+      waveBlast(cur, px + cur.face * 240, 30);
+      explosions.push({ wx: px - cur.face * 240, wy: 30, t0: clock, big: true });
+    }
     if (f.hits) {
       hitQ.push({ f, px: x + r[0], py: r[1], face: cur.face, mv: cur });
       if (BOTH_SIDES.has(cur.id)) hitQ.push({ f, px: x + r[0], py: r[1], face: -cur.face, mv: cur });   // the spin also cuts behind her
@@ -668,8 +674,11 @@
     const dx = Math.max(b[0] - px, 0, px - b[2]), dy = Math.max(b[1] - py, 0, py - b[3]);
     return Math.hypot(dx, dy);
   }
+  // effect moves (meteor shower, energy wave) draw Max at SPRITE_SCALE and their effects at fxScale,
+  // and their hit shapes follow the effects
+  function fxScaleOf(id) { const m = id && D.moves[id]; return m && m.fxScale ? m.fxScale : SPRITE_SCALE; }
   function worldShape(s, h) {
-    const sc = (h.mv && h.mv.id === 'meteor_shower') ? 1.4 : (h.mv && h.mv.id === 'energy_wave') ? 2.2 : SPRITE_SCALE;
+    const sc = fxScaleOf(h.mv && h.mv.id);
     const P = p => [h.px + h.face * p[0] * sc, h.py + p[1] * sc];
     if (s.shape === 'capsule') return { shape: 'capsule', a: P(s.a), b: P(s.b), r: s.radius * sc };
     if (s.shape === 'circle') return { shape: 'circle', c: P(s.c), r: s.r * sc };
@@ -703,15 +712,9 @@
             e.state = 'stunned'; play(e, (EN[e.type].ai.stun || 'idle'));
             e.push = { v: p.v * dir, a: p.a };
           }
-          if (h.mv.id === 'energy_wave') {
-            rumble = { t0: clock, ms: 280, amp: 8 };
-            for (const o of enemies) {
-              if (o === e || !alive(o)) continue;
-              hurtEnemy(o, Math.max(dmgOf(h.mv), 80));
-              const p2 = push(120, 400), dir2 = o.x >= bodyX() ? 1 : -1;
-              o.state = 'stunned'; play(o, (EN[o.type].ai.stun || 'idle'));
-              o.push = { v: p2.v * dir2, a: p2.a };
-            }
+          if (h.mv.id === 'energy_wave') {                          // impact: the wave explodes and clears the map
+            const b = hurtOf(e) || box;
+            waveBlast(h.mv, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2);
           }
         }
       }
@@ -719,6 +722,26 @@
     lastHits = hitQ.splice(0);
   }
   let lastHits = [];
+
+  // The energy wave explodes where it first touches an enemy (or at the edge of the screen if it touches
+  // none) and the blast takes out every enemy on the map. Each one goes down through hurtEnemy, so the
+  // usual numbers, gem drops and death animations apply.
+  const explosions = [];                // {wx, wy, t0, big}
+  let flashUntil = 0;
+  const BLAST_MS = 650, FLASH_MS = 380;
+  function waveBlast(mv, wx, wy) {
+    if (mv.blast) return;
+    mv.blast = true;
+    explosions.push({ wx, wy, t0: clock, big: true });
+    flashUntil = clock + FLASH_MS;
+    rumble = { t0: clock, ms: 700, amp: 9 };
+    for (const o of enemies) {
+      if (!alive(o)) continue;
+      const b = hurtOf(o);
+      if (b) explosions.push({ wx: (b[0] + b[2]) / 2, wy: (b[1] + b[3]) / 2, t0: clock + 60, big: false });
+      hurtEnemy(o, o.hp);
+    }
+  }
 
   // ------------------------------------------------------------------ enemy attacks on her
   // her hurtbox: x from her anchor, up to the top of her drawn body on this frame (hair, head and
@@ -900,9 +923,15 @@
     g.save();
     g.translate(Math.round(ax), Math.round(ay));
     if (cur.face < 0) g.scale(-1, 1);
+    if (m.fxSheet) {                                             // effects at their own scale, behind Max
+      const fs = m.fxScale || SPRITE_SCALE, fim = img[m.fxSheet].im;
+      blit(fim, cur.k * cw, cw, ch, -m.anchor[0] * fs, -m.anchor[1] * fs, null, fs);
+      if (BOTH_SIDES.has(cur.id)) { g.save(); g.scale(-1, 1); blit(fim, cur.k * cw, cw, ch, -m.anchor[0] * fs, -m.anchor[1] * fs, null, fs); g.restore(); }
+    }
     blit(img[m.sheet].im, cur.k * cw, cw, ch, -m.anchor[0] * SPRITE_SCALE, -m.anchor[1] * SPRITE_SCALE, tc, SPRITE_SCALE);
     g.restore();
     drawBeam(sx, sy);
+    drawExplosions(sx, sy);
     drawLayer(img[D.fringe.src].im, -camX + sx, camY + sy);
     drawGems(sx, sy);
     drawBars(sx, sy);
@@ -911,6 +940,27 @@
     if (showBoxes) drawBoxes(sx, sy);
   }
 
+  // explosions: an expanding fireball with a shock ring, and a white flash over the view for the big one
+  function drawExplosions(sx, sy) {
+    for (let i = explosions.length - 1; i >= 0; i--) {
+      const ex = explosions[i], age = clock - ex.t0;
+      if (age > BLAST_MS) { explosions.splice(i, 1); continue; }
+      if (age < 0) continue;
+      const u = age / BLAST_MS, R = (ex.big ? 90 : 34) * (0.25 + 0.75 * Math.sqrt(u));
+      const X = Math.round(V.anchorX + (ex.wx - camX) + sx), Y = Math.round(V.feetRow + camY + sy - ex.wy);
+      g.save();
+      g.globalAlpha = Math.max(0, 1 - u);
+      const gr = g.createRadialGradient(X, Y, 0, X, Y, R);
+      gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.35, '#ffd060'); gr.addColorStop(0.7, '#ff6a20'); gr.addColorStop(1, 'rgba(255,60,0,0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(X, Y, R, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#8fd0ff'; g.lineWidth = ex.big ? 4 : 2;
+      g.beginPath(); g.arc(X, Y, R * 1.25, 0, Math.PI * 2); g.stroke();
+      g.restore();
+    }
+    if (clock < flashUntil) {
+      g.save(); g.globalAlpha = 0.75 * (flashUntil - clock) / FLASH_MS; g.fillStyle = '#fff'; g.fillRect(0, 0, V.w, V.h); g.restore();
+    }
+  }
   // gems on the ground: a bobbing diamond with a glow, blinking for the last 4 s
   function drawGems(sx, sy) {
     for (const gm of gems) {

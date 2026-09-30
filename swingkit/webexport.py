@@ -30,6 +30,10 @@ ENTER = {'heavy': dict(default='raise1',
 NO_HIT = {'parry'}
 # moves whose raised sword is only the pose: the energy they call down is what hits
 EFFECT_ONLY = {'energy_burst', 'meteor_shower'}
+# moves whose art is exported as two sheets: Max alone, and the effects alone. The game draws Max at
+# her own scale and the effects at FX_SCALE, so an effect can be scaled up without scaling Max up.
+# The hit shapes of these moves use the same FX_SCALE (see worldShape in web/game.js).
+FX_SCALE = {'meteor_shower': 1.4, 'energy_wave': 2.2}
 # dash attacks cover up to 60 px a frame: their dash and lunge frames also hit everything along the
 # stretch of ground she crossed since the last frame, so an enemy in her path is not skipped
 SWEEP = {'dash_thrust', 'energy_dash_thrust'}
@@ -159,6 +163,9 @@ def move_frame(move, i):
     actor = np.zeros((H, W, 4), np.uint8)
     for L in (ctx.ground.a, back.a, ch, front.a):
         cp.over(actor, L)
+    fxonly = np.zeros((H, W, 4), np.uint8)                  # the effects without Max (split moves)
+    for L in (ctx.ground.a, back.a, front.a):
+        cp.over(fxonly, L)
     bw = None
     if fr.get('bw'):                                        # full screen, as the game camera sees it
         cam = _game_cam((rx, ry))
@@ -169,7 +176,7 @@ def move_frame(move, i):
         bw = fx.impact_frame_bw(movekit.view(ch2, dx, dy, False),
                                 movekit.view(line2[..., None].repeat(4, 2).astype(np.uint8), dx, dy, False)[..., 0] > 0,
                                 movekit._bw_point(fr, sw, root, dx, dy), gy - M + dy)
-    return actor, bw
+    return actor, bw, ch.copy(), fxonly
 
 
 def heavy_frame(i):
@@ -179,19 +186,28 @@ def heavy_frame(i):
     actor = np.zeros((H, W, 4), np.uint8)
     for L in (parts['back'], cp.char_layer(parts['char']), parts['front']):
         cp.over(actor, L)
-    return actor, (view if anim.FRAMES[i].get('bw') else None)
+    return actor, (view if anim.FRAMES[i].get('bw') else None), None, None
 
 
-def _pack(actors):
-    """Crop every frame to one shared box and pack them left to right."""
+def _box(actors):
+    """The one crop box (y0, y1, x0, x1) that holds every frame."""
     alpha = np.any(np.stack([a[..., 3] > 0 for a in actors]), 0)
     ys, xs = np.nonzero(alpha)
-    y0, y1, x0, x1 = int(ys.min()), int(ys.max()), int(xs.min()), int(xs.max())
+    return int(ys.min()), int(ys.max()), int(xs.min()), int(xs.max())
+
+
+def _sheet(actors, box):
+    y0, y1, x0, x1 = box
     cw, chh = x1 - x0 + 1, y1 - y0 + 1
     sheet = Image.new('RGBA', (cw * len(actors), chh))
     for k, a in enumerate(actors):
         sheet.paste(Image.fromarray(a[y0:y1 + 1, x0:x1 + 1]), (k * cw, 0))
     return sheet, [cw, chh], [fx.X0 - x0, fx.GROUND_LY - y0]
+
+
+def _pack(actors):
+    """Crop every frame to one shared box and pack them left to right."""
+    return _sheet(actors, _box(actors))
 
 
 def export(out_dir=WEB, log=print):
@@ -211,10 +227,19 @@ def export(out_dir=WEB, log=print):
 
     def add(mid, title, inp, loop, loop_from, input_type, frames, results):
         actors = [r[0] for r in results]
-        sheet, cell, anchor = _pack(actors)
+        split = mid in FX_SCALE
+        if split:                                       # Max alone and the effects alone, same box and anchor
+            chars, fxs = [r[2] for r in results], [r[3] for r in results]
+            box = _box(chars + fxs)
+            sheet, cell, anchor = _sheet(chars, box)
+            fxsheet = _sheet(fxs, box)[0]
+            fxsheet.save(out / 'assets' / 'moves' / f'{mid}_fx.png', optimize=True)
+        else:
+            sheet, cell, anchor = _pack(actors)
         sheet.save(out / 'assets' / 'moves' / f'{mid}.png', optimize=True)
         fl = []
-        for k, (f, (_, bw)) in enumerate(zip(frames, results)):
+        for k, (f, r) in enumerate(zip(frames, results)):
+            bw = r[1]
             bw_path = None
             if bw is not None:
                 bw_path = f'assets/bw/{mid}_{k + 1:02d}.png'
@@ -228,6 +253,8 @@ def export(out_dir=WEB, log=print):
         entries[mid] = dict(title=title, input=inp, loop=bool(loop), loopFrom=int(loop_from),
                             inputType=input_type, sheet=f'assets/moves/{mid}.png', cell=cell, anchor=anchor, frames=fl,
                             aftershake=AFTERSHAKE.get(mid), enter=ENTER.get(mid))
+        if split:
+            entries[mid].update(fxSheet=f'assets/moves/{mid}_fx.png', fxScale=FX_SCALE[mid])
 
     hf = [dict(f, root=(0.0, 0.0), shake=cp.SHAKE.get(i, (0, 0))) for i, f in enumerate(anim.FRAMES)]
     add('heavy', 'Heavy overhead chop', 'Up-A', False, 0, 'sequence', hf, [heavy_frame(i) for i in range(len(anim.FRAMES))])

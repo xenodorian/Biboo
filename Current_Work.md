@@ -39,10 +39,26 @@ Steps 29-38 DONE. See git history and README.
 ### Open: `web/tests/browser.test.js` is stale
 It now clicks Start, but many checks still expect the old game: the pre-Grok remaps (Left+A is thrust now, Down-Down-A spins, R2 is the energy wave, beams moved to shoulder buttons), the 0.5 sprite scale, closer spawns and enemy reach, and meters that gate the beams. About 40 of them fail for those reasons, not because of the meter work. Bring the expectations up to date.
 
+## Workflow: wave, meteors, enemies, gems review (user request, 2026-09-30)
+
+Done in stages, pushed to main after each. Per the request, no test suites were run; changes were checked by reading the code.
+
+### Stage 1. Energy wave: R2, both directions, clears the map, explodes on impact
+- [x] Already in place from earlier steps: R2 press is the only binding for `energy_wave` (keyboard R, pad button 7), the wave hits both sides (`BOTH_SIDES`), it costs 30 energy and is refused without it.
+- [x] New: `waveBlast()` in `web/game.js`. The wave explodes where it first touches an enemy, or at the screen edge on both sides if it touches nothing (on its last frame). The blast kills every living enemy on the map through `hurtEnemy`, so numbers, gem drops and death animations still apply. Fireball, shock ring, white screen flash and a longer rumble.
+- [x] The wave art is now drawn on both sides of Max (mirrored copy behind her).
+- Status: DONE
+
+### Stage 2. Max separate from the meteor shower and wave effects
+- [x] `swingkit/webexport.py`: `FX_SCALE = {meteor_shower: 1.4, energy_wave: 2.2}`. These two moves export two sheets with the same crop box and anchor: Max alone (`<move>.png`) and effects alone (`<move>_fx.png`). `data.js` carries `fxSheet` and `fxScale` for them. Only these two moves changed in `data.js`.
+- [x] `web/game.js`: Max is always drawn at `SPRITE_SCALE`; effects at `fxScale`; hit shapes use the same scale (`fxScaleOf`). Change `FX_SCALE` and re-run the export to scale an effect without touching Max.
+- Status: DONE
+
 ## Open questions
 - (none; the old dip/recover2 open question is obsolete: those frames were removed when the animation was restructured to plow/raise/high/impact.)
 
 ## Log
+- 2026-09-30: Stages 1 and 2 of the wave, meteors, enemies, gems review (Claude).
 - 2026-09-30: Step 39 done: meters on screen, gem pickups and drops, moves gated by meter; game.js consolidated into one plain file (Claude). Old browser test noted as stale.
 - 2026-09-29: Step 28 done (deeper waist bend on the heavy chop; hand spacing and full-extension arms already at the reach limit from steps 25-27). Kinetic upgrade workflow complete; all numbered steps 0-38 are DONE. (Grok)
 - 2026-09-29: Step 38 done (HP, damage, bars, red and green numbers). Steps 35 to 38 complete. (Claude)
