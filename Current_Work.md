@@ -261,3 +261,6 @@ with 50 and drops of +25 raise the maximum; every crate drops something; remove 
 
 ### Fifteenth request (2026-09-30): level 3 layout
 - [x] COUNT 3: 9, `door: 'key'`, `keyMap: 7` (keyDue only in that map). ITEMS level 3: 0 heavy_chop, 2 crash, 4 fire_beam, 6 laser_beam; earthquake moved to 4.1, LATE earthquake 4. Laser beam cost 5, damage 15 (BEAM_TICK_COST/BEAM_DMG). Energy gems already drop once energy_kick turns the ENG meter on (tested). Test: web/tests/level3.test.js (18).
+
+### Sixteenth request (2026-09-30): key chests, level 4, meter charge
+- [x] New unlock `meter_charge` (pseudo move row in moveRows; `metersHeld` needs it). Level 4: COUNT 9, door key, ITEMS 0 meter_charge, 3 earthquake, 6 meteor. Super gems now drop from plain crates and kills when the super meter is on. Key chest: `md.chest` set in levels.js for every key level (map index 7, x from the scan, usually 360); loadMap adds a crate entry with `chest: true` until the key is owned; breakCrate refuses while `!allMovesHere()`, else spawns the key gem; drawChest draws chains. Old crate-drop key code (`keyDue`, plain crate respawn, `keyMap`) removed. Tests: chest.test.js (50), level4.test.js (14); level 1/2/3 tests trimmed.

@@ -33,17 +33,6 @@ const { chromium } = require('playwright');
   await ev("bibooGame.unlock('energy_kick')");
   check('Energy Kick turns on the energy meter', await ev("BibooProgress.meterOn('energy') && BibooProgress.hasMove('energy_kick')"), null);
 
-  // the key: only a crate drop, only with all eight
-  await ev('bibooGame.resetAll(); BibooProgress.completeLevel(1); bibooGame.enterLevel(2)'); await wait(600);
-  for (const id of ORDER.slice(0, 7)) await ev(`bibooGame.unlock('${id}')`);
-  check('with seven of eight level 2 moves the key is not due', (await ev('bibooGame.keyDue()')) === false, null);
-  await ev("bibooGame.unlock('cloud_beam')");
-  check('with all eight the key is due', (await ev('bibooGame.keyDue()')) === true, null);
-  await ev('bibooGame.warp(0)'); await wait(300); await ev('bibooGame.setEnemies([])');
-  const cr = (await S()).crates; const plain = cr.findIndex(c => !c.item);
-  await ev(`bibooGame.smash(${plain})`);
-  check('a plain crate drops the key', (await ev('bibooGame.gems()')).some(g => g.kind === 'key'), await ev('bibooGame.gems()'));
-
   // the door at the end of 2.9
   await ev('bibooGame.warp(8)'); await wait(400); await ev('bibooGame.setEnemies([])'); await wait(200);
   await ev('bibooGame.setX(376)'); await wait(700);

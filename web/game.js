@@ -132,7 +132,7 @@
     if (gemUseful('health')) pool.push('health', 'health', 'health');
     for (const m of ['energy', 'empower', 'super']) {
       if (!P.meterOn(m) || (level && level.n === 1)) continue;          // level 1 drops only health gems
-      if (m !== 'super' && gemUseful(m)) pool.push(m);
+      if (gemUseful(m)) pool.push(m);
       if (P.maxOf(m) < P.MAX_CAP) pool.push('up_' + m, 'up_' + m);
     }
     return pool;
@@ -140,7 +140,7 @@
   // A locked door level (door: 'key'): the key exists only as a crate drop, and only once every unlock in the level is owned.
   const doorLocked = () => !!level && level.def.door === 'key' && !P.hasKey(level.n);
   const allMovesHere = () => !!level && level.def.maps.every(m => m.crates.every(c => !c.item || P.has(c.item)));
-  const keyDue = () => doorLocked() && allMovesHere() && (level.def.keyMap == null || level.idx === level.def.keyMap) && !gems.some(gm => gm.kind === 'key');
+  const chestOpen = () => doorLocked() && allMovesHere();              // the key chest in map .8 is unchained
   function spawnGem(wx, kind, fy) { gems.push({ x: wx, y: (fy || 0) + 14 + Math.random() * 8, fy: fy || 0, kind, bob: Math.random() * 6.28, t0: clock }); }
   // Progress is kept in progress.js; the meters live here while playing and are copied over when it is saved.
   function syncProgress() { P.state.meters = { energy: energyMeter, empower: empowerMeter, super: superMeter }; P.save(); }
@@ -403,7 +403,7 @@
   // L1 and R1 held together charge all three meters (+METER_CHARGE_STEP each METER_CHARGE_TICK ms). While they are
   // held the reader is not shown L1, R1 or the pad's R1-as-R, so no push kick or recover starts.
   const METER_CHARGE_STEP = 1, METER_CHARGE_TICK = 500;
-  const metersHeld = () => P.buttonOn('L1') && P.buttonOn('R1') && (keyDown.has('L1') || padDown.has('L1')) && (keyDown.has('R1') || padDown.has('R1'));
+  const metersHeld = () => P.has('meter_charge') && P.buttonOn('L1') && P.buttonOn('R1') && (keyDown.has('L1') || padDown.has('L1')) && (keyDown.has('R1') || padDown.has('R1'));
   function readButtons(t) {
     pollPad();
     lastT = t;
@@ -894,7 +894,8 @@
     level.idx = idx;
     const md = level.def.maps[idx];
     curMap = { idx, id: md.id, def: md, solids: md.solids, plats: md.plats,
-               crates: md.crates.map((c, i) => ({ key: idx + ':' + i, x: c.x, fy: c.fy, item: c.item || null, broken: (level.def.door === 'key' && !c.item) ? false : level.broken.has(idx + ':' + i) })),   // a key level's plain crates come back each visit, so the key can always drop
+               crates: md.crates.map((c, i) => ({ key: idx + ':' + i, x: c.x, fy: c.fy, item: c.item || null, broken: level.broken.has(idx + ':' + i) }))
+                 .concat(md.chest && !P.hasKey(level.n) ? [{ key: idx + ':chest', x: md.chest.x, fy: md.chest.fy, item: null, chest: true, broken: false }] : []),   // the key chest is there until the key is taken
                pits: (md.pits || []).map(p => ({ x0: p.x0, x1: p.x1 })),
                bombs: (md.bombs || []).map((b, i) => ({ key: idx + ':b' + i, x: b.x, fy: b.fy || 0, gone: level.popped.has(idx + ':b' + i), fuse: 0 })) };
     shots.length = 0; pitFall = null;
@@ -921,7 +922,7 @@
     const last = level.def.maps.length - 1;
     if (dir > 0) {
       if (level.idx < last) { loadMap(level.idx + 1, 'left'); banners.push({ title: `Level ${level.n}.${level.idx + 1}`, t0: clock, ms: 1300 }); return true; }
-      if (doorLocked()) { hint(allMovesHere() ? 'The door is locked. Smash a crate for the key.' : 'The door is locked. Unlock every move first.'); return false; }
+      if (doorLocked()) { hint(allMovesHere() ? 'The door is locked. Smash the chest in map 8.' : 'The door is locked. Unlock every move first.'); return false; }
       if (level.def.door !== 'key' && enemies.some(alive)) { hint('Defeat every enemy to open the gate'); return false; }
       levelComplete();
       return true;
@@ -990,12 +991,19 @@
   }
 
   // crates: any of her attacks that touches one smashes it. A golden crate holds an unlock; a plain one may drop a gem.
-  const crateBox = c => [c.x - 9, c.fy, c.x + 9, c.fy + 18];
+  const crateBox = c => c.chest ? [c.x - 15, c.fy, c.x + 15, c.fy + 22] : [c.x - 9, c.fy, c.x + 9, c.fy + 18];
   function burst(wx, wy, n, colors) {
     for (let i = 0; i < n; i++) particles.push({ wx, wy, vx: (Math.random() - 0.5) * 0.22, vy: 0.04 + Math.random() * 0.16, t0: clock, life: 500 + Math.random() * 300, c: colors[i % colors.length] });
   }
   function breakCrate(c) {
     if (c.broken) return;
+    if (c.chest) {                                                   // the red key chest: chained until every unlock in the level is owned
+      if (!allMovesHere()) { if (clock - (c.msgAt || -1e9) > 900) { c.msgAt = clock; floater(c.x, c.fy + 34, 'Locked: find every move', '#ff6a6a'); burst(c.x, c.fy + 10, 4, ['#ffffff', '#9a9aa8']); } return; }
+      c.broken = true;
+      burst(c.x, c.fy + 10, 14, ['#c0392b', '#ffd24a', '#ffffff']);
+      spawnGem(c.x, 'key', c.fy);
+      return;
+    }
     c.broken = true; level.broken.add(c.key);
     burst(c.x, c.fy + 9, 9, c.item ? ['#e8c050', '#c9962a', '#fff2a0'] : ['#8a5a2b', '#6b4420', '#b07a3c']);
     if (c.item) {
@@ -1012,8 +1020,6 @@
         if (pool.length) spawnGem(c.x, pool[Math.floor(Math.random() * pool.length)], c.fy);
         floater(c.x, c.fy + 30, 'Everything unlocked', '#ffd24a');
       }
-    } else if (keyDue()) {                       // the key: only from a crate, only once every move in the level is unlocked
-      spawnGem(c.x, 'key', c.fy);
     } else {                                     // every plain crate drops something useful: a health gem, a meter gem, or a +25 meter upgrade
       const pool = lootPool();
       if (pool.length) spawnGem(c.x, pool[Math.floor(Math.random() * pool.length)], c.fy);
@@ -1288,6 +1294,7 @@
     const pool = [];
     if (P.meterOn('energy')) pool.push('energy');
     if (P.meterOn('empower')) pool.push('empower');
+    if (P.meterOn('super')) pool.push('super');
     if (pool.length && Math.random() < GEM_CHANCE) lootGem(e.x + 3, pool[Math.floor(Math.random() * pool.length)], fy);
     }
     if (level && e.key) level.killed.add(e.key);
@@ -1782,10 +1789,35 @@
       else { g.save(); g.globalAlpha = pulse; g.fillStyle = '#7dff9a'; g.beginPath(); g.moveTo(gx - 4, Y(28) - 7); g.lineTo(gx + 5, Y(28)); g.lineTo(gx - 4, Y(28) + 7); g.closePath(); g.fill(); g.restore(); }
     }
   }
+  // the red key chest: chains and a padlock while the level still has unlocks to find, a golden glow once it is open to smash
+  function drawChest(X, Y, locked) {
+    g.save();
+    if (!locked) { g.globalAlpha = 0.25 + 0.12 * Math.sin(clock / 200); g.fillStyle = '#ffd24a'; g.beginPath(); g.arc(X, Y - 11, 20, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; }
+    g.fillStyle = '#000'; g.fillRect(X - 15, Y - 23, 30, 23);
+    g.fillStyle = '#9b1c1c'; g.fillRect(X - 14, Y - 22, 28, 21);                 // red body
+    g.fillStyle = '#c0392b'; g.fillRect(X - 14, Y - 22, 28, 8);                  // lid
+    g.fillStyle = '#5e0f0f'; g.fillRect(X - 14, Y - 14, 28, 1);
+    g.fillStyle = '#ffd24a'; g.fillRect(X - 14, Y - 22, 28, 1); g.fillRect(X - 14, Y - 2, 28, 1); g.fillRect(X - 14, Y - 22, 2, 21); g.fillRect(X + 12, Y - 22, 2, 21);
+    if (locked) {
+      g.strokeStyle = '#000'; g.lineWidth = 4;
+      g.beginPath(); g.moveTo(X - 15, Y - 23); g.lineTo(X + 15, Y); g.moveTo(X + 15, Y - 23); g.lineTo(X - 15, Y); g.stroke();
+      g.strokeStyle = '#b8b8c8'; g.lineWidth = 2; g.setLineDash([3, 2]);          // chain links
+      g.beginPath(); g.moveTo(X - 15, Y - 23); g.lineTo(X + 15, Y); g.moveTo(X + 15, Y - 23); g.lineTo(X - 15, Y); g.stroke();
+      g.setLineDash([]);
+      g.fillStyle = '#000'; g.fillRect(X - 5, Y - 16, 10, 10); g.fillStyle = '#ffd24a'; g.fillRect(X - 4, Y - 15, 8, 8);   // padlock
+      g.fillStyle = '#000'; g.fillRect(X - 1, Y - 13, 2, 3);
+      g.strokeStyle = '#000'; g.lineWidth = 3; g.beginPath(); g.arc(X, Y - 16, 3.5, Math.PI, 0); g.stroke();
+      g.strokeStyle = '#c9c9d6'; g.lineWidth = 1; g.beginPath(); g.arc(X, Y - 16, 3.5, Math.PI, 0); g.stroke();
+    } else {
+      g.fillStyle = '#ffd24a'; g.fillRect(X - 3, Y - 16, 6, 6); g.fillStyle = '#000'; g.fillRect(X - 1, Y - 14, 2, 3);
+    }
+    g.restore();
+  }
   function drawCrates(sx, sy) {
     for (const c of curMap.crates) {
       if (c.broken) continue;
       const X = Math.round(c.x + sx), Y = Math.round(groundY(sy) - c.fy), gold = !!c.item;
+      if (c.chest) { drawChest(X, Y, !allMovesHere()); continue; }
       if (gold) {                                                 // a soft pulsing glow so golden crates stand out
         g.save(); g.globalAlpha = 0.22 + 0.12 * Math.sin(clock / 220);
         g.fillStyle = '#ffd24a'; g.beginPath(); g.arc(X, Y - 9, 16, 0, Math.PI * 2); g.fill(); g.restore();
@@ -2073,6 +2105,7 @@
                   pad: (b.move === 'recover' ? 'R1' : sb.input === 'none' ? '(nothing)' : sb.input) + (b.type === 'air' ? ' (air)' : ''),
                   keys: keysOf(sb.input), title: m ? m.title : b.move, how: how(sb) });
     }
+    if (P.has('meter_charge')) rows.push({ move: 'meter_charge', note: 'hold', section: 'Unlocked combos', pad: 'L1+R1', keys: 'Q+W', title: 'Meter charge', how: 'hold both: every meter you own slowly fills' });
     if (P.has('double_jump')) rows.push({ move: 'double_jump', note: '', section: 'Unlocked combos', pad: 'Up, Up (air)', keys: 'Up then Up', title: 'Double jump', how: 'press jump again in the air: a spinning second jump' });
     return rows.filter(r => r.section === 'Controls').concat(rows.filter(r => r.section !== 'Controls'));
   }
@@ -2080,6 +2113,7 @@
     const seen = new Set();
     for (const b of D.input.bindings) if (b.type !== 'idle' && !moveOpen(b.move)) seen.add(b.move);
     if (!P.has('double_jump')) seen.add('double_jump');
+    if (!P.has('meter_charge')) seen.add('meter_charge');
     return seen.size;
   }
   const killsEl = document.getElementById('kills');
@@ -2395,7 +2429,7 @@
     // state and controls for the browser tests of levels, unlocks, menus and the dev console
     state: () => ({ screen, paused, gameOver, levelDone, devOpen, hp, floorY, feet: herY(), px: playerX(), cheats: { ...cheats },
                     level: level ? { n: level.n, idx: level.idx, id: curMap && curMap.id } : null,
-                    crates: curMap ? curMap.crates.map(c => ({ x: c.x, fy: c.fy, item: c.item, broken: c.broken })) : [],
+                    crates: curMap ? curMap.crates.map(c => ({ x: c.x, fy: c.fy, item: c.item, broken: c.broken, chest: !!c.chest })) : [],
                     powerups: powerups.map(u => ({ item: u.item, x: u.x, y: u.y })),
                     foes: enemies.map(e => ({ type: e.type, x: e.x, fy: e.fy, hp: e.hp, state: e.state, alive: alive(e), path: e.path, dir: e.dir })),
                     solids: curMap ? curMap.solids : [], plats: curMap ? curMap.plats : [], pits: curMap ? curMap.pits : [], bombs: curMap ? curMap.bombs.map(b => ({ x: b.x, fy: b.fy, gone: b.gone })) : [], shots: shots.map(q => ({ x: q.x, y: q.y, vx: q.vx, vy: q.vy, from: q.from })), pitFall: !!pitFall, feetNow: herY(), fx: { gems: gems.length } }),
@@ -2403,7 +2437,7 @@
     menuOpen: () => !!(UI && UI.isOpen()),
     charging: () => ({ cur: cur && cur.id, kind: cur && cur.kind, chargeMs: Math.round(chargeMs), full: isCharged(), energy: Math.round(energyMeter * 10) / 10, power: cur && cur.power, hold: hold && hold.move }),
     beamStats: () => ({ cost: { ...BEAM_TICK_COST }, dmg: { ...BEAM_DMG } }),
-    keyDue: () => keyDue(), hasKey: () => P.hasKey(level ? level.n : 1), doorLocked: () => doorLocked(),
+    chestOpen: () => chestOpen(), keyDue: () => chestOpen(), hasKey: () => P.hasKey(level ? level.n : 1), doorLocked: () => doorLocked(),
     unlockLines: id => unlockLines(P.byId[id]), unlockPool: () => unlockPool(null), banners: () => banners.map(b => ({ title: b.title, sub: b.sub })),
     unlock: id => unlockItem(id), resetAll: () => { P.reset(); energyMeter = empowerMeter = superMeter = 0; refreshUnlocks(); },
     // the old combat tests: everything unlocked, one closed map with no scenery, enemies as the test places them

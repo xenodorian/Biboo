@@ -29,6 +29,7 @@
     { id: 'earthquake', kind: 'Combo', name: 'Earthquake', hint: 'Down four times, then A (full super meter)', moves: ['earthquake'], meters: ['super'] },
     { id: 'meteor', kind: 'Combo', name: 'Meteor Shower', hint: 'Up four times, then A (full super meter)', moves: ['meteor_shower'], meters: ['super'] },
     { id: 'push_kick', kind: 'Button', name: 'L1 button: Push Kick', hint: 'Press L1 for the push kick', moves: ['push_kick'], buttons: ['L1'] },
+    { id: 'meter_charge', kind: 'Combo', name: 'Meter Charge', hint: 'Hold L1+R1: every meter you own slowly fills', moves: ['meter_charge'], buttons: ['L1', 'R1'] },
     { id: 'recover', kind: 'Button', name: 'R1 button: Recover', hint: 'Hold R1 to kneel and heal (uses empower). Empower gems and the EMP meter are now on', moves: ['recover'], buttons: ['R1', 'R'], meters: ['empower'] },
     { id: 'empower_beam', kind: 'Combo', name: 'Empowerment Beam', hint: 'Press A+R1 (uses empower)', moves: ['beam_plasma'], buttons: ['R1'], meters: ['empower'] },
     { id: 'energy_kick', kind: 'Combo', name: 'Energy Kick', hint: 'Hold B+L1 to charge, let go to kick. The ENG meter and energy gems are now on', moves: ['energy_kick'], buttons: ['L1'], meters: ['energy'] },

@@ -1,4 +1,4 @@
-/* Level 1: health gems only, a locked end door whose key is a crate drop once every move is unlocked, and enemies that respawn.
+/* Level 1: health gems only and enemies that respawn (the key chest and door are in chest.test.js).
  * Run: NODE_PATH=$(npm root -g) node web/tests/level1_door.test.js */
 const path = require('path');
 const { chromium } = require('playwright');
@@ -37,45 +37,6 @@ const { chromium } = require('playwright');
   }
   check('enemy drops in level 1 are health gems too (and never a key)', enemyKinds.every(k => k === 'health'), [...new Set(enemyKinds)]);
 
-  // ---- the key: a crate drop, only after every move is unlocked
-  await fresh();
-  for (const id of STARTERS.slice(0, 6)) await ev(`bibooGame.unlock('${id}')`);
-  check('with six of seven moves the key is not due', (await ev('bibooGame.keyDue()')) === false, null);
-  let k6 = await smashAll(6);
-  check('no key from any crate while a move is still locked', !k6.includes('key'), [...new Set(k6)]);
-  await ev("bibooGame.unlock('push_kick')");
-  check('with all seven moves the key is due', (await ev('bibooGame.keyDue()')) === true, null);
-  await ev('bibooGame.warp(0)'); await wait(300);
-  await ev('bibooGame.warp(0)');
-  const crates = (await S()).crates;
-  const plain = crates.map((c, i) => [c, i]).filter(([c]) => !c.item).map(([, i]) => i);
-  await ev(`bibooGame.smash(${plain[0]})`);
-  let g1 = (await ev('bibooGame.gems()')).map(g => g.kind);
-  check('the next crate drops the key', g1.includes('key'), g1);
-  await ev(`bibooGame.smash(${plain[1]})`);
-  g1 = (await ev('bibooGame.gems()')).map(g => g.kind);
-  check('only one key exists at a time', g1.filter(k => k === 'key').length === 1, g1);
-  check('the door is locked before the key is picked up', (await ev('bibooGame.doorLocked()')) === true, null);
-
-  // ---- the door: locked without the key, opens with it
-  await ev('bibooGame.warp(8)'); await wait(400); await ev('bibooGame.setEnemies([])'); await wait(200);
-  await ev('bibooGame.setX(376)'); await wait(700);
-  let s = await S();
-  check('walking into the locked door does not finish the level', s.screen === 'level' && !s.levelDone && s.level.idx === 8, { screen: s.screen, done: s.levelDone, idx: s.level && s.level.idx });
-  await ev('bibooGame.setX(120)');
-  await ev('bibooGame.warp(0)'); await wait(300); await ev('bibooGame.setEnemies([])');
-  const crates2 = (await S()).crates; const pl = crates2.map((c, i) => [c, i]).filter(([c]) => !c.item).map(([, i]) => i);
-  await ev(`bibooGame.smash(${pl[0]})`); await wait(100);
-  const kx = (await ev('bibooGame.gems()')).find(g => g.kind === 'key');
-  await ev(`bibooGame.setX(${kx.x - 32})`); await wait(500);
-  check('touching the key picks it up', (await ev('bibooGame.hasKey()')) === true && (await ev('bibooGame.doorLocked()')) === false, await ev('bibooGame.gems()'));
-  await ev('bibooGame.warp(8)'); await wait(400); await ev('bibooGame.setEnemies([])'); await wait(200);
-  await ev('bibooGame.setX(376)'); await wait(900);
-  s = await S();
-  check('with the key the door ends the level', s.levelDone === true || s.screen !== 'level', { screen: s.screen, done: s.levelDone });
-  await ev('bibooGame.goOverworld()'); await wait(300);
-  check('the key is remembered after leaving the level', (await ev("BibooProgress.hasKey(1)")) === true, null);
-
   // ---- respawns: enemies and level 1's plain crates come back when she leaves and returns
   await fresh();
   await ev('bibooGame.warp(1)'); await wait(500);
@@ -83,12 +44,9 @@ const { chromium } = require('playwright');
   for (let i = 0; i < before; i++) await ev('bibooGame.killFoe(0)');
   await wait(300);
   check('the enemies are gone once killed', (await S()).foes.filter(f => f.alive).length === 0, (await S()).foes);
-  const cb = (await S()).crates; await ev(`bibooGame.smash(${cb.findIndex(c => !c.item)})`);
-  check('a plain crate is broken', (await S()).crates.some(c => c.broken && !c.item), null);
   await ev('bibooGame.warp(2)'); await wait(400); await ev('bibooGame.warp(1)'); await wait(500);
   s = await S();
   check('enemies respawn after leaving and coming back', s.foes.filter(f => f.alive).length === before, { before, now: s.foes.length });
-  check('level 1 plain crates respawn too', s.crates.filter(c => !c.item).every(c => !c.broken), s.crates);
 
   // other levels: enemies respawn as well
   await ev('bibooGame.resetAll(); BibooProgress.completeLevel(1); bibooGame.enterLevel(2)'); await wait(600);

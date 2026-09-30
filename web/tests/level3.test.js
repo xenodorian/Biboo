@@ -1,4 +1,4 @@
-/* Level 3: nine maps, four unlocks, the key in map 3.8, the locked door at the end of 3.9; laser beam numbers; energy gem drops.
+/* Level 3: nine maps, four unlocks, the locked door at the end of 3.9; laser beam numbers; energy gem drops.
  * Run: NODE_PATH=$(npm root -g) node web/tests/level3.test.js */
 const path = require('path');
 const { chromium } = require('playwright');
@@ -24,7 +24,6 @@ const { chromium } = require('playwright');
   check('3.1 Heavy Overhead Chop, 3.3 Jumping Crash, 3.5 Fire Beam, 3.7 Laser Beam',
     JSON.stringify([L.items[0], L.items[2], L.items[4], L.items[6]]) === JSON.stringify([['heavy_chop'], ['crash'], ['fire_beam'], ['laser_beam']]), L.items);
   check('no other level 3 map has an unlock crate', [1, 3, 5, 7, 8].every(i => L.items[i].length === 0), L.items);
-  check('the key map is 3.8 and has a plain crate to drop it', L.keyMap === 7 && L.plain[7] >= 1, { keyMap: L.keyMap, plain: L.plain });
   const late = await ev(`(() => { const w = BIBOO_LEVELS.whereIs; return { eq: w.earthquake, mt: w.meteor }; })()`);
   check('Earthquake and Meteor Shower are still late-game (level 4)', parseInt(late.eq) === 4 && parseInt(late.mt) === 4, late);
 
@@ -40,20 +39,6 @@ const { chromium } = require('playwright');
   const bs = await ev('bibooGame.beamStats()');
   check('the laser beam is set to 5 energy and 15 damage per tick', bs.cost.laser === 5 && bs.dmg.laser === 15, bs);
   check('the orc in its path took at least 15 per tick', dealt >= 15 * ticks, { dealt, ticks });
-
-  // the key: only in 3.8, only with all four
-  await into3();
-  for (const id of L3.slice(0, 3)) await ev(`bibooGame.unlock('${id}')`);
-  await ev('bibooGame.warp(7)'); await wait(300);
-  check('three of four unlocks: no key in 3.8', (await ev('bibooGame.keyDue()')) === false, null);
-  await ev("bibooGame.unlock('laser_beam')"); 
-  await ev('bibooGame.warp(0)'); await wait(300);
-  check('all four unlocked but not in 3.8: the key is not due', (await ev('bibooGame.keyDue()')) === false, null);
-  await ev('bibooGame.warp(7)'); await wait(300); await ev('bibooGame.setEnemies([])');
-  check('all four unlocked in 3.8: the key is due', (await ev('bibooGame.keyDue()')) === true, null);
-  const pi = (await S()).crates.findIndex(c => !c.item);
-  await ev(`bibooGame.smash(${pi})`);
-  check('a plain crate in 3.8 drops the key', (await ev('bibooGame.gems()')).some(g => g.kind === 'key'), await ev('bibooGame.gems()'));
 
   // the door at the end of 3.9
   await ev('bibooGame.warp(8)'); await wait(400); await ev('bibooGame.setEnemies([])'); await wait(200);
