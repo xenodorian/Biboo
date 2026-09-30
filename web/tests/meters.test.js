@@ -54,7 +54,7 @@ const { chromium } = require('playwright');
   const m1 = await meters();
   check('the beam spent energy, not empower', m1.energy < 100 && m1.energy >= 40 && m1.empower === 100, JSON.stringify(m1));
   await reset(100, 100);
-  check('energy wave plays and costs 30', (await tryMove(['KeyR'], 150)).includes('energy_wave') && (await meters()).energy === 70, JSON.stringify(await meters()));
+  check('energy wave plays and costs 10', (await tryMove(['KeyR'], 150)).includes('energy_wave') && (await meters()).energy === 90, JSON.stringify(await meters()));
   await reset(0, 100);
   check('Empowerment Beam plays and spends empower', (await tryMove(['KeyZ', 'KeyT'], 500)).includes('beam_plasma') && (await meters()).empower < 100, JSON.stringify(await meters()));
 

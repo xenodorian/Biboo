@@ -49,7 +49,8 @@ const shots = process.argv[2];
   const cur = () => page.evaluate(() => window.bibooGame.current());
   const startedCount = () => page.evaluate(() => window.bibooGame.started.length);
   const startedSince = n => page.evaluate(n => window.bibooGame.started.slice(n).map(s => s.id), n);
-  const settle = async () => {                      // back to idle before the next case
+  const settle = async () => {                      // back to idle before the next case (with full meters: moves cost energy now)
+    await page.evaluate(() => window.bibooGame.setMeters(100, 100));
     for (let i = 0; i < 80; i++) { const c = await cur(); if (c && c.id === 'idle') return; await wait(100); }
     throw new Error('never returned to idle');
   };
@@ -108,7 +109,7 @@ const shots = process.argv[2];
     ['X+A -> dash_thrust', 'dash_thrust', chord(['X', 'A'])],
     ['Down-Y -> sky_dash', 'sky_dash', seq(['Down', 'Y'])],
     ['hold Down + Y -> sky_dash', 'sky_dash', async () => { await down('Down'); await wait(800); await tap('Y'); await up('Down'); }],
-    ['tap Right, then X+A -> energy_dash_thrust', 'energy_dash_thrust', async () => { await tap('Right', 50); await wait(80); await chord(['X', 'A'])(); }],
+    ['double tap Right, then X+A -> energy_dash_thrust', 'energy_dash_thrust', async () => { await tap('Right', 40); await wait(80); await tap('Right', 40); await wait(80); await chord(['X', 'A'])(); }],
     ['R2 -> energy_wave', 'energy_wave', async () => tap('R2')],
     ['Down x4, A -> earthquake', 'earthquake', seq(['Down', 'Down', 'Down', 'Down', 'A'])],
     ['Up x4, A -> meteor_shower', 'meteor_shower', seq(['Up', 'Up', 'Up', 'Up', 'A'])],
@@ -186,8 +187,8 @@ const shots = process.argv[2];
   await fight('parry kills nothing', [['orc', 95, 3000]], async () => tap('B', 60), 0);
   // dash attacks hit an enemy right in her path; the plain dash stops at an enemy instead of passing it
   for (const dx of [70, 110, 150]) await fight(`X+A dash thrust kills an orc ${dx} px ahead`, [['orc', dx, 3000]], chord(['X', 'A']), 1);
-  await fight('B-X+A energy dash thrust kills a goblin 90 px ahead', [['goblin', 90, 3000]],
-              async () => { await tap('B', 50); await wait(80); await chord(['X', 'A'])(); }, 1);
+  await fight('double tap Right, X+A energy dash thrust kills a goblin 90 px ahead', [['goblin', 90, 3000]],
+              async () => { await tap('Right', 40); await wait(80); await tap('Right', 40); await wait(80); await chord(['X', 'A'])(); }, 1);
   {
     await settle();
     await page.evaluate(() => window.bibooGame.setEnemies([['orc', 90, 5000]]));      // its front edge is inside the 92 px dash
@@ -463,17 +464,17 @@ const shots = process.argv[2];
     await page.evaluate(() => window.bibooGame.setEnemies([['goblin', 60, 6000], ['orc', 900, 60000]]));
     check('enemies start with their HP (goblin 60, orc 200)', JSON.stringify(await hpOf()) === '[60,200]', JSON.stringify(await hpOf()));
     await tap('A'); await wait(300);
-    check('a slash takes 15 HP off a goblin, shown as red -15', (await hpOf())[0] === 45 && (await texts()).includes('-15'), `${await hpOf()} ${await texts()}`);
+    check('a slash takes 25 HP off a goblin, shown as red -25', (await hpOf())[0] === 35 && (await texts()).includes('-25'), `${await hpOf()} ${await texts()}`);
     await wait(800);
-    check('one slash hurts an enemy only once', (await hpOf())[0] === 45, `${await hpOf()}`);
+    check('one slash hurts an enemy only once', (await hpOf())[0] === 35, `${await hpOf()}`);
     await settle();
     await page.evaluate(() => window.bibooGame.setEnemies([['orc', 55, 6000]]));
     await down('Up'); await wait(1300); await tap('A'); await up('Up'); await wait(1200);
-    check('a full heavy chop takes 90 HP off an orc', (await hpOf())[0] === 110, `${await hpOf()}`);
+    check('a full heavy chop takes 100 HP off an orc', (await hpOf())[0] === 100, `${await hpOf()}`);
     await settle();
     await page.evaluate(() => window.bibooGame.setEnemies([['orc', 55, 6000]]));
     await down('Up'); await wait(300); await tap('A'); await up('Up'); await wait(1200);
-    check('a short heavy chop takes 35 HP off an orc', (await hpOf())[0] === 165, `${await hpOf()}`);
+    check('a short heavy chop (0.3 s charge) takes about 47 HP off an orc: 25 grows to 100', (await hpOf())[0] >= 145 && (await hpOf())[0] <= 160, `${await hpOf()}`);
     await settle();
     await page.evaluate(() => { window.bibooGame.setMeters(100, 100); window.bibooGame.setEnemies([['orc', 240, 6000]]); });
     await chord(['A', 'L'])(); await wait(700);

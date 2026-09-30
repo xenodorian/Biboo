@@ -84,16 +84,61 @@ const { chromium } = require('playwright');
   await press(['KeyZ', 'KeyT'], 90); await wait(500);
   check('Empowerment Beam enlarges the enemy it hits', (await en())[0].scale > 1, await en());
 
-  // ---- the energy wave: R2, both directions, explodes and clears the map
-  await setup([['orc', 220, 9000], ['goblin', -180, 9000], ['goblin', 320, 9000]]);
-  const k0 = await ev('bibooGame.kills()');
-  await press(['KeyR'], 90); await wait(1200);
-  const after = await en();
-  check('energy wave: kills every enemy on the map, in front and behind', (await ev('bibooGame.kills()')) - k0 === 3 && after.every(e => e.state === 'dying'), after);
+  // ---- the energy wave: R2, costs 10, no damage on contact, explodes for 50 in a 75 px radius, both sides
+  await setup([['orc', 130, 9000], ['goblin', 170, 9000], ['goblin', 300, 9000], ['orc', -110, 9000]]);
+  await press(['KeyR'], 90); await wait(1400);
+  const wh = await hps(), wm = await M();
+  check('energy wave: costs 10 energy', wm.energy === 90, wm);
+  check('energy wave: 50 damage to enemies within 75 px of the blast, in front and behind, none farther out', JSON.stringify(wh) === JSON.stringify([950, 950, 1000, 950]), wh);
   await setup([['orc', 700, 9000]]);
-  const k1 = await ev('bibooGame.kills()');
-  await press(['KeyR'], 90); await wait(1200);
-  check('energy wave: bursts at the screen edge even when it touches nothing, and takes out a far enemy', (await ev('bibooGame.kills()')) - k1 === 1, await en());
+  await press(['KeyR'], 90); await wait(1400);
+  check('energy wave: touches nothing, bursts at the end of its flight and hurts nothing far away', (await hps())[0] === 1000, await hps());
+
+  // ---- damage numbers and the new energy dash input
+  for (const [name, keys, dmg, dx] of [['slash', ['KeyZ'], 25, 55]]) {
+    await setup([['orc', dx, 9000]]);
+    await press(keys, 60); await wait(900);
+    check(`${name}: ${dmg} damage`, 1000 - (await hps())[0] === dmg, await hps());
+  }
+  for (const [name, hold, dmg, dx] of [['thrust', 'ArrowRight', 15, 60], ['upswing', 'ArrowDown', 15, 55]]) {
+    await setup([['orc', dx, 9000]]);
+    await page.keyboard.down(hold); await wait(120); await press(['KeyZ'], 80); await page.keyboard.up(hold); await wait(900);
+    check(`${name}: ${dmg} damage`, 1000 - (await hps())[0] === dmg, await hps());
+  }
+  await setup([['orc', 80, 9000]]);
+  await press(['KeyC', 'KeyZ'], 90); await wait(1000);
+  check('dash thrust: 25 damage', 1000 - (await hps())[0] === 25, await hps());
+  await setup([['orc', 80, 9000]]);
+  await page.keyboard.down('ArrowRight'); await wait(40); await page.keyboard.up('ArrowRight'); await wait(80);
+  await page.keyboard.down('ArrowRight'); await wait(40); await page.keyboard.up('ArrowRight'); await wait(80);
+  await press(['KeyC', 'KeyZ'], 90); await wait(1000);
+  check('energy dash thrust: double tap forward, then X+A, 50 damage', 1000 - (await hps())[0] === 50, await hps());
+  await setup([['orc', 80, 9000]]);
+  const nd = await ev('bibooGame.started.length');
+  await page.keyboard.down('ArrowRight'); await wait(40); await page.keyboard.up('ArrowRight'); await wait(80);
+  await press(['KeyC', 'KeyZ'], 90); await wait(600);
+  check('a single tap forward then X+A is only the plain dash thrust', JSON.stringify(await ev(`bibooGame.started.slice(${nd}).map(s => s.id)`)).includes('dash_thrust') && !JSON.stringify(await ev(`bibooGame.started.slice(${nd}).map(s => s.id)`)).includes('energy_dash_thrust'), await ev(`bibooGame.started.slice(${nd}).map(s => s.id)`));
+
+  // ---- heavy chop 25 to 100 with the charge, charging costs 20 energy for a full charge, jump crash 30 energy and 150 damage
+  for (const [ms, lo, hi] of [[0, 25, 25], [500, 55, 75], [1000, 100, 100]]) {
+    await setup([['orc', 55, 9000]]);
+    if (ms === 0) { await press(['ArrowUp'], 40); await wait(110); await press(['KeyZ'], 50); }
+    else { await page.keyboard.down('ArrowUp'); await wait(ms); await press(['KeyZ'], 50); await page.keyboard.up('ArrowUp'); }
+    await wait(1300);
+    const d = 1000 - (await hps())[0], en = (await M()).energy;
+    check(`heavy chop after a ${ms} ms charge: ${lo === hi ? lo : lo + ' to ' + hi} damage`, d >= lo && d <= hi, { d });
+    if (ms === 1000) check('a full charge cost about 20 energy', near(100 - en, 20, 3), { en });
+  }
+  await setup([['orc', 55, 9000]]); await ev('bibooGame.setMeters(0, 100)');
+  await page.keyboard.down('ArrowUp'); await wait(1200); await press(['KeyZ'], 50); await page.keyboard.up('ArrowUp'); await wait(1300);
+  check('no energy: the charge does not grow (25 damage)', 1000 - (await hps())[0] === 25, await hps());
+  await setup([['orc', 60, 9000]]);
+  await press(['KeyV'], 50); await wait(300); await press(['KeyZ'], 50); await wait(1500);
+  check('jump crash: 150 damage and 30 energy', 1000 - (await hps())[0] === 150 && (await M()).energy === 70, { hp: await hps(), m: await M() });
+  await setup([['orc', 60, 9000]]); await ev('bibooGame.setMeters(20, 100)');
+  const nc = await ev('bibooGame.started.length');
+  await press(['KeyV'], 50); await wait(300); await press(['KeyZ'], 50); await wait(700);
+  check('jump crash does not play below 30 energy', !(await ev(`bibooGame.started.slice(${nc}).map(s => s.id)`)).includes('jump_crash'), await ev(`bibooGame.started.slice(${nc}).map(s => s.id)`));
 
   // ---- taunt: red, 2x speed, 2x damage
   await setup([['goblin', 330, 0]], 1000);
