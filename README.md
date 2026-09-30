@@ -111,7 +111,7 @@ sequence) with chord, sequence and tap windows. Previews of every move are in `d
 | L | push_kick | One cock-back frame with the sword raised out of the way, then a straight-leg push that slides her 49 px so the boot passes where the blade tip was; recoil |
 | R (hold) | recover | Kneel on the planted sword, green glow, rising + signs |
 | hold B, tap A | heavy_horizontal | Heavy Horizontal: the horizontal slash with 50 damage and 50 px pushback over 100 ms |
-| A+L1 | beam_laser | Laser beam (10 per tick, 3 energy): a yellow-white bar with cyan lightning |
+| A+L1 | beam_laser | Laser beam (15 per tick, 5 energy): a yellow-white bar with cyan lightning |
 | A+R1 | beam_plasma | Empowerment Beam (was the plasma beam), 0 damage, 5 empower per tick, 30 px pushback per tick. Enlarges the enemies it hits, which then drop Energy Gems |
 | A+L2 | beam_cloud | Cloud beam (5 per tick, 1 energy): white and cyan wisps |
 | A+R2 | beam_fire | Fire beam (15 per tick, 3 energy, 5 px pushback per tick) from the blade tip |
@@ -312,3 +312,5 @@ Three meters sit under the health bar: ENG (blue) and EMP (orange), each startin
 Energy attacks (energy kick, energy burst, energy wave, energy dash thrust): press and hold their buttons to charge (the charge pose plays and drains energy, 20 for a full second; Max turns blue when full) and let go to fire. Letting go before 250 ms fires nothing; a partial charge fires at 50 to 100 percent power. Ground only. They no longer have a flat energy cost.
 
 Level 2 has nine maps (2.10 was removed) and ends at a locked door at the right edge of 2.9, like level 1. Unlocks by map: 2.1 Recover (R1, the Empowerment meter and empower gems), 2.2 Taunt, 2.3 Empowerment Beam, 2.4 Energy Kick (ENG meter and energy gems), 2.5 Energy Dash Thrust, 2.6 Energy Burst (L2), 2.7 Energy Wave (R2), 2.8 Cloud Beam. The key drops from a crate only once all eight are owned. Jumping Crash, Heavy Overhead Chop, Laser Beam and Fire Beam moved to level 3 for now. The old L1, L2, R1 and R2 unlocks were split into single-move unlocks (old saves are converted on load).
+
+Level 3 has nine maps (3.10 was removed): 3.1 Heavy Overhead Chop, 3.3 Jumping Crash, 3.5 Fire Beam, 3.7 Laser Beam (now 5 energy and 15 damage per tick), the key drop only in 3.8 (plain crates there, once all four are owned), and the locked door at the end of 3.9. Earthquake moved to 4.1 (Meteor Shower stays in 4.3), so both stay late-game.

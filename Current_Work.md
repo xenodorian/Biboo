@@ -258,3 +258,6 @@ with 50 and drops of +25 raise the maximum; every crate drops something; remove 
 
 ### Fourteenth request (2026-09-30): level 2 layout
 - [x] Level 2 is 9 maps (`COUNT` in levels.js, `door: 'key'`). ITEMS: 2.1 recover, 2.2 taunt, 2.3 empower_beam, 2.4 energy_kick, 2.5 energy_dash, 2.6 energy_burst, 2.7 energy_wave, 2.8 cloud_beam; level 3 temporarily holds crash, heavy_chop, laser_beam, fire_beam, earthquake. Unlocks L1/L2/R1/R2 replaced by single-move ids (progress.js, old saves migrated on load). Key-level plain crates respawn. Test: web/tests/level2.test.js (15).
+
+### Fifteenth request (2026-09-30): level 3 layout
+- [x] COUNT 3: 9, `door: 'key'`, `keyMap: 7` (keyDue only in that map). ITEMS level 3: 0 heavy_chop, 2 crash, 4 fire_beam, 6 laser_beam; earthquake moved to 4.1, LATE earthquake 4. Laser beam cost 5, damage 15 (BEAM_TICK_COST/BEAM_DMG). Energy gems already drop once energy_kick turns the ENG meter on (tested). Test: web/tests/level3.test.js (18).

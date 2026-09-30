@@ -115,7 +115,7 @@
   // killed by a beam. A full meter pays for the earthquake and the meteor shower.
   let energyMeter = P.state.meters.energy, empowerMeter = P.state.meters.empower, superMeter = P.state.meters.super;   // saved with the progress
   const GEM_VALUE = 25, GEM_CHANCE = 0.35, GEM_LIFE = 20000, GEM_PICKUP = 28;
-  const BEAM_TICK_COST = { cloud: 1, fire: 3, laser: 3, plasma: 5 };         // per beam tick (100 ms)
+  const BEAM_TICK_COST = { cloud: 1, fire: 3, laser: 5, plasma: 5 };         // per beam tick (100 ms)
   const MOVE_COST = { jump_crash: ['energy', 30], earthquake: ['super', 'full'], meteor_shower: ['super', 'full'] };   // earthquake and meteor shower need a full super meter and use all of it                          // paid once, when the move starts
   const HEAL_COST = 1;                                                        // empower per recover tick
   const meterOf = k => k === 'energy' ? energyMeter : k === 'super' ? superMeter : empowerMeter;
@@ -140,7 +140,7 @@
   // A locked door level (door: 'key'): the key exists only as a crate drop, and only once every unlock in the level is owned.
   const doorLocked = () => !!level && level.def.door === 'key' && !P.hasKey(level.n);
   const allMovesHere = () => !!level && level.def.maps.every(m => m.crates.every(c => !c.item || P.has(c.item)));
-  const keyDue = () => doorLocked() && allMovesHere() && !gems.some(gm => gm.kind === 'key');
+  const keyDue = () => doorLocked() && allMovesHere() && (level.def.keyMap == null || level.idx === level.def.keyMap) && !gems.some(gm => gm.kind === 'key');
   function spawnGem(wx, kind, fy) { gems.push({ x: wx, y: (fy || 0) + 14 + Math.random() * 8, fy: fy || 0, kind, bob: Math.random() * 6.28, t0: clock }); }
   // Progress is kept in progress.js; the meters live here while playing and are copied over when it is saved.
   function syncProgress() { P.state.meters = { energy: energyMeter, empower: empowerMeter, super: superMeter }; P.save(); }
@@ -738,7 +738,7 @@
   const BOTH_SIDES_PUSH = new Set(['energy_burst']);
   const PARRY_KNOCK = [100, 400];                                    // an enemy parried: pushed back this far, stunned this long
   const REHIT_MS = { earthquake: 250, meteor_shower: 300 };
-  const BEAM_DMG = { cloud: 5, fire: 15, laser: 10, plasma: 0 };
+  const BEAM_DMG = { cloud: 5, fire: 15, laser: 15, plasma: 0 };
   const BEAM_PUSH = { cloud: 0, fire: 5, laser: 20, plasma: 30 };     // px an enemy is shoved back on every tick it is touched
   // the heavy overhead chop: 200 on a direct hit; where the blade lands it also blasts every other enemy within
   // HEAVY_AOE_R px for HEAVY_AOE_DMG and pushes it back (KNOCK.heavy). The charge no longer scales the damage.
@@ -1039,7 +1039,7 @@
   // the unlocks a golden crate may give: only ones the player does not own yet, and not already floating as an item
   function unlockPool(forItem) {
     const float = new Set(powerups.map(u => u.item)), placed = new Set(Object.keys(LV.whereIs));
-    const LATE = { earthquake: 3, meteor: 4 };                               // late-game unlocks: only handed out as substitutes from their level on
+    const LATE = { earthquake: 4, meteor: 4 };                               // late-game unlocks: only handed out as substitutes from their level on
     const open = P.UNLOCKS.map(u => u.id).filter(id => !P.has(id) && !float.has(id) && !(LATE[id] && level && level.n < LATE[id]));
     const free = open.filter(id => !placed.has(id) || id === forItem);      // not promised to another crate
     return free.length ? free : open;
@@ -2402,6 +2402,7 @@
     enterLevel: n => enterLevel(n), warp: idx => { loadMap(idx, 'left'); }, setX: v => { x = v; }, goOverworld: () => goOverworld(),
     menuOpen: () => !!(UI && UI.isOpen()),
     charging: () => ({ cur: cur && cur.id, kind: cur && cur.kind, chargeMs: Math.round(chargeMs), full: isCharged(), energy: Math.round(energyMeter * 10) / 10, power: cur && cur.power, hold: hold && hold.move }),
+    beamStats: () => ({ cost: { ...BEAM_TICK_COST }, dmg: { ...BEAM_DMG } }),
     keyDue: () => keyDue(), hasKey: () => P.hasKey(level ? level.n : 1), doorLocked: () => doorLocked(),
     unlockLines: id => unlockLines(P.byId[id]), unlockPool: () => unlockPool(null), banners: () => banners.map(b => ({ title: b.title, sub: b.sub })),
     unlock: id => unlockItem(id), resetAll: () => { P.reset(); energyMeter = empowerMeter = superMeter = 0; refreshUnlocks(); },
