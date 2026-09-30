@@ -1,7 +1,7 @@
 /* Progress for Parry Perry: what the player has unlocked, the gems in the bag, the meters, and which levels are open.
  * Saved in localStorage (every read and write is wrapped, so a browser that blocks storage just plays without saving).
  *
- * A new game starts with only the d-pad and A, B, X, Y (walk, duck, slash, block and parry, dash, jump).
+ * A new game starts with only the d-pad and A, B, X, Y (A jumps, Y slashes, B blocks and parries, X dashes).
  * Everything else is an "unlock": a golden crate holds one, and smashing the crate then touching the item unlocks it.
  * An unlock can give buttons (L1, L2, R1, R2), moves (ids from data.js) and meters. A meter is drawn only once
  * some unlock that uses it is owned. The health bar is always drawn.
@@ -16,22 +16,23 @@
 
   // id, what the player sees, which button or combo it is, the moves it switches on, the buttons and meters it brings
   const UNLOCKS = [
-    { id: 'thrust', kind: 'Combo', name: 'Lunging Thrust', hint: 'Hold Right (or Left) and press A', moves: ['thrust'] },
-    { id: 'upswing', kind: 'Combo', name: 'Ducking Upswing', hint: 'Hold Down and press A', moves: ['upswing'] },
-    { id: 'spin', kind: 'Combo', name: 'Spin Attack', hint: 'Press Down, Down, then A', moves: ['spin_attack'] },
-    { id: 'heavy_horizontal', kind: 'Combo', name: 'Heavy Horizontal', hint: 'Hold B and tap A', moves: ['heavy_horizontal'] },
-    { id: 'dash_thrust', kind: 'Combo', name: 'Dash Thrust', hint: 'Press X and A together', moves: ['dash_thrust'] },
-    { id: 'energy_dash', kind: 'Combo', name: 'Energy Dash Thrust', hint: 'Double tap forward, then X and A', moves: ['energy_dash_thrust'] },
-    { id: 'taunt', kind: 'Combo', name: 'Taunt', hint: 'Press X and Y together', moves: ['taunt'] },
-    { id: 'sky_dash', kind: 'Combo', name: 'Sky Dash', hint: 'Press Down, then Y', moves: ['sky_dash'] },
-    { id: 'crash', kind: 'Combo', name: 'Jumping Crash', hint: 'Press A in the air (30 energy)', moves: ['jump_crash'], meters: ['energy'] },
-    { id: 'heavy_chop', kind: 'Combo', name: 'Heavy Overhead Chop', hint: 'Hold Up to charge, then press A', moves: ['heavy', 'charge'], meters: ['energy'] },
-    { id: 'earthquake', kind: 'Combo', name: 'Earthquake', hint: 'Down four times, then A (full super meter)', moves: ['earthquake'], meters: ['super'] },
-    { id: 'meteor', kind: 'Combo', name: 'Meteor Shower', hint: 'Up four times, then A (full super meter)', moves: ['meteor_shower'], meters: ['super'] },
-    { id: 'L1', kind: 'Button', name: 'L1 button', hint: 'L1 push kick, B+L1 energy kick, A+L1 laser beam', moves: ['push_kick', 'energy_kick', 'beam_laser'], buttons: ['L1'], meters: ['energy'] },
-    { id: 'L2', kind: 'Button', name: 'L2 button', hint: 'L2 energy burst, A+L2 cloud beam', moves: ['energy_burst', 'beam_cloud'], buttons: ['L2'], meters: ['energy'] },
-    { id: 'R1', kind: 'Button', name: 'R1 button', hint: 'A+R1 Empowerment Beam, hold R1 to kneel and recover', moves: ['beam_plasma', 'recover'], buttons: ['R1', 'R'], meters: ['empower'] },
-    { id: 'R2', kind: 'Button', name: 'R2 button', hint: 'R2 energy wave, A+R2 fire beam', moves: ['energy_wave', 'beam_fire'], buttons: ['R2'], meters: ['energy'] },
+    { id: 'thrust', kind: 'Combo', name: 'Lunging Thrust', hint: 'Hold Right (or Left) and press Y', moves: ['thrust'] },
+    { id: 'upswing', kind: 'Combo', name: 'Ducking Upswing', hint: 'Hold Down and press Y', moves: ['upswing'] },
+    { id: 'spin', kind: 'Combo', name: 'Spin Attack', hint: 'Press Down, Down, then Y', moves: ['spin_attack'] },
+    { id: 'heavy_horizontal', kind: 'Combo', name: 'Heavy Horizontal', hint: 'Hold B and tap Y', moves: ['heavy_horizontal'] },
+    { id: 'dash_thrust', kind: 'Combo', name: 'Dash Thrust', hint: 'Press X and Y together', moves: ['dash_thrust'] },
+    { id: 'energy_dash', kind: 'Combo', name: 'Energy Dash Thrust', hint: 'Double tap forward, then X and Y', moves: ['energy_dash_thrust'] },
+    { id: 'taunt', kind: 'Combo', name: 'Taunt', hint: 'Press X and A together', moves: ['taunt'] },
+    { id: 'double_jump', kind: 'Combo', name: 'Double Jump', hint: 'Press A again in the air', moves: ['double_jump'] },
+    { id: 'sky_dash', kind: 'Combo', name: 'Sky Dash', hint: 'Press Down, then A', moves: ['sky_dash'] },
+    { id: 'crash', kind: 'Combo', name: 'Jumping Crash', hint: 'Press Y in the air (30 energy)', moves: ['jump_crash'], meters: ['energy'] },
+    { id: 'heavy_chop', kind: 'Combo', name: 'Heavy Overhead Chop', hint: 'Hold Up to charge, then press Y', moves: ['heavy', 'charge'], meters: ['energy'] },
+    { id: 'earthquake', kind: 'Combo', name: 'Earthquake', hint: 'Down four times, then Y (full super meter)', moves: ['earthquake'], meters: ['super'] },
+    { id: 'meteor', kind: 'Combo', name: 'Meteor Shower', hint: 'Up four times, then Y (full super meter)', moves: ['meteor_shower'], meters: ['super'] },
+    { id: 'L1', kind: 'Button', name: 'L1 button', hint: 'L1 push kick, B+L1 energy kick, Y+L1 laser beam', moves: ['push_kick', 'energy_kick', 'beam_laser'], buttons: ['L1'], meters: ['energy'] },
+    { id: 'L2', kind: 'Button', name: 'L2 button', hint: 'L2 energy burst, Y+L2 cloud beam', moves: ['energy_burst', 'beam_cloud'], buttons: ['L2'], meters: ['energy'] },
+    { id: 'R1', kind: 'Button', name: 'R1 button', hint: 'Y+R1 Empowerment Beam, hold R1 to kneel and recover', moves: ['beam_plasma', 'recover'], buttons: ['R1', 'R'], meters: ['empower'] },
+    { id: 'R2', kind: 'Button', name: 'R2 button', hint: 'R2 energy wave, Y+R2 fire beam', moves: ['energy_wave', 'beam_fire'], buttons: ['R2'], meters: ['energy'] },
   ];
   const byId = {};
   for (const u of UNLOCKS) byId[u.id] = u;

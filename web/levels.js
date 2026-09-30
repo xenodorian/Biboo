@@ -143,7 +143,7 @@
     return m;
   }
   const ITEMS = {                                          // level number -> map index (0 based) -> unlock id
-    2: { 1: 'R2', 2: 'L2', 4: 'crash', 5: 'heavy_chop', 7: 'energy_dash', 8: 'taunt' },
+    2: { 1: 'R2', 2: 'L2', 3: 'double_jump', 4: 'crash', 5: 'heavy_chop', 7: 'energy_dash', 8: 'taunt' },
     3: { 1: 'R1', 3: 'sky_dash', 6: 'earthquake' },
     4: { 2: 'meteor' },
     5: {},

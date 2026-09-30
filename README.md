@@ -148,6 +148,9 @@ Controls (the in-game Moves menu lists them and the combos you have unlocked):
 |---|---|---|
 | Up / Down / Left / Right | arrow keys | d-pad or left stick |
 | A / B / X / Y | Z / X / C / V | bottom / right / left / top face button |
+
+A (bottom, key Z) jumps and Y (top, key V) attacks: the two are swapped from the move table, so every combo that used A now uses Y and Sky Dash
+is Down then A. A is still the accept button in menus.
 | L1 L2 R1 R2 | Q E T (or W) R | shoulders or triggers |
 
 Unlocks: a new game has only the d-pad and A, B, X, Y. Golden crates (marked "?") hold unlocks: combos and the
@@ -155,15 +158,17 @@ L1, L2, R1, R2 buttons. Smash the crate and touch the item. Energy, Empowerment 
 uses them is unlocked; the health bar is always shown. Unlock definitions: `web/progress.js` (UNLOCKS); where each
 crate sits: `web/levels.js` (`whereIs`).
 
-Jumping: Y is a floaty physics jump (about 135 px high, about 670 ms in the air, about 107 px sideways with Left or Right held). Down then Y
+Jumping: A is a floaty physics jump (about 135 px high, about 670 ms in the air, about 107 px sideways with Left or Right held). Down then A
 (the sky dash) is unchanged. Double tap Down on a platform to drop through it (no unlock needed).
 
-Meters: Energy, Empowerment and Super each start with a maximum of 50 (a new meter starts full). Every plain crate drops something: a health gem,
+Double Jump (an unlock, Level 2.4): tap A again in the air for a spinning second jump that rises about two more of her heights (81 px). One per trip through the air.
+
+Meters: Energy, Empowerment and Super each start with a maximum of 50 (a new meter starts full). Every plain crate drops something useful (never a gem for a meter she has not unlocked, a full bag, or an upgrade at the cap): a health gem,
 a meter gem, or a +25 meter upgrade (raises that meter's maximum by 25 and fills it by 25, up to 150; saved). Earthquake and Meteor Shower need a
 full Super meter, whatever its maximum is.
 
 Hazards (Level data in `web/levels.js`, code in the "hazards" section of `web/game.js`):
-- Pits: gaps in the ground. Her feet on the ground inside one mean instant death and Game Over. Ground enemies stop at the edge; one pushed in
+- Pits: gaps in the ground. Her feet on the ground inside one start a fall; she drops visibly and dies only once she has fallen off the bottom of the screen. Ground enemies stop at the edge; one pushed in
   by a hit, beam or blast falls and is gone (no drops). There are no barriers any more.
 - Bombs: only she sets them off (touch, or any damage she does, including a reflected shard). 50 damage within 50 px to her and to enemies; they chain.
 - Goblin shards: the goblin's backflip throws two real shards at her. 20 damage each. Hold B to block for no damage, or tap B as one arrives

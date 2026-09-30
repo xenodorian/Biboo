@@ -186,6 +186,13 @@ with 50 and drops of +25 raise the maximum; every crate drops something; remove 
 - [x] Level data rewritten: Level 1 by hand (pits, bombs, chasms over platform rows); generated levels use `X()` pits and `B()` bombs.
 - Tests: `web/tests/hazards.test.js` (37 checks). Test hooks added: custom, smash, shove, maxes, addShot.
 
+### Third request (2026-09-30): pit fall, loot, double jump, A/Y swap
+- [x] Pit fall is visible: pits are drawn before the entities, the fringe grass is clipped out over them, `pitClip` hides the faller below the ground line outside the hole; she dies (`hp = 0`, Game Over) only when `pitOffScreen()`.
+- [x] No redundant drops: `gemUseful`, `lootGem`, `lootPool` (game.js). A golden crate whose unlock is owned drops ordinary loot.
+- [x] Double jump: unlock id `double_jump` (progress.js), golden crate in Level 2 map 4. `tryDoubleJump`, spin drawn by rotating the sprite (`SPIN_MS` 420), adds about 81 px (2 of her standing heights; "head heights" was read as her standing height). Resets on landing.
+- [x] A/Y swap: the physical A (key Z) feeds the logical 'Y' (jump) and physical Y (key V) feeds the logical 'A' (attack) via `phys()` in `readButtons`; the move data is unchanged. Menus still use the physical A to accept. The Moves menu and unlock hints show the swapped letters (`swapAY`).
+- Tests: all test files had Z and V swapped; hazards 50, progression 68, unlocks 35 pass.
+
 ### Handoff status (keep this current)
 - Tested in headless Chromium on 2026-09-30 after the user asked for tests: `web/tests/progression.test.js` (69 checks: menus, moves/gems menus, levels, barriers, platforms, crates, unlocks, patrol/sight/aggro, gem drops and bag, doors, level gate, overworld unlock, game over/retry, dev console, save reload) and `web/tests/unlocks.test.js` (35 checks: every unlockable move fires only once unlocked). Both pass. Run with `NODE_PATH=$(npm root -g) node web/tests/<name>.test.js`. Bugs found and fixed: A (slash) did nothing on the ground; hp 0 without an enemy hit never showed Game Over. Test hooks added to `bibooGame`: state, enterLevel, warp, setX, unlock, resetAll, arena, hurtFoe, killFoe, hurtHer, gemBag.
 - Old suites `input.test.js` 45/45 pass. `combat.test.js` (28/45), `meters.test.js` (16/19) and `browser.test.js` are stale (old key bindings, old numbers, wide arena: enemies placed more than 384 px away get clamped to the map). They call `bibooGame.arena()` (everything unlocked, one closed map) after Start. Rewrite their expectations before trusting them.

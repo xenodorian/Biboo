@@ -118,6 +118,19 @@
     if (k === 'energy') energyMeter = v; else if (k === 'super') superMeter = v; else empowerMeter = v;
   }
   let gems = [], meterFlash = { energy: 0, empower: 0, super: 0 }, lastDeny = 0;
+  // A drop is never redundant: no gem for a meter she has not unlocked, none of a kind whose bag is full, no upgrade for a meter at its cap.
+  const gemUseful = k => k === 'health' ? (P.state.gems.health || 0) < P.MAX_GEMS : P.meterOn(k) && (P.state.gems[k] || 0) < P.MAX_GEMS;
+  function lootGem(wx, kind, fy) { if (gemUseful(kind)) spawnGem(wx, kind, fy); }
+  function lootPool() {
+    const pool = [];
+    if (gemUseful('health')) pool.push('health', 'health', 'health');
+    for (const m of ['energy', 'empower', 'super']) {
+      if (!P.meterOn(m)) continue;
+      if (m !== 'super' && gemUseful(m)) pool.push(m);
+      if (P.maxOf(m) < P.MAX_CAP) pool.push('up_' + m, 'up_' + m);
+    }
+    return pool;
+  }
   function spawnGem(wx, kind, fy) { gems.push({ x: wx, y: (fy || 0) + 14 + Math.random() * 8, fy: fy || 0, kind, bob: Math.random() * 6.28, t0: clock }); }
   // Progress is kept in progress.js; the meters live here while playing and are copied over when it is saved.
   function syncProgress() { P.state.meters = { energy: energyMeter, empower: empowerMeter, super: superMeter }; P.save(); }
@@ -232,6 +245,12 @@
   const KEY_LABEL = { Up: '↑', Down: '↓', Left: '←', Right: '→', A: 'Z', B: 'X', X: 'C', Y: 'V', L1: 'Q', L2: 'E', R1: 'T', R2: 'R', R: 'W' };
   const PAD = { 0: 'A', 1: 'B', 2: 'X', 3: 'Y', 4: 'L1', 5: 'R1', 6: 'L2', 7: 'R2', 12: 'Up', 13: 'Down', 14: 'Left', 15: 'Right' };
   const keyDown = new Set(), padDown = new Set(), isDown = new Set();
+  // The face buttons A and Y are swapped for the game: the bottom button (A, key Z) jumps and the top button (Y, key V) attacks. The move
+  // data still calls the attack button 'A' and the jump button 'Y', so the reader is fed the other physical button. Menus keep the
+  // physical A as accept (navPoll reads keyDown and padDown directly).
+  const phys = b => b === 'A' ? 'Y' : b === 'Y' ? 'A' : b;
+  const swapAY = str => str.replace(/[AY]/g, c => c === 'A' ? 'Y' : 'A');   // for what the Moves menu shows
+  const heldPhys = b => keyDown.has(phys(b)) || padDown.has(phys(b));
 
   let reader = null;
   function activeInput() {                       // the bindings whose move is open (air and idle bindings are always kept)
@@ -376,7 +395,7 @@
     lastT = t;
     const charging = metersHeld();
     for (const b of BUTTONS) {
-      let now = keyDown.has(b) || padDown.has(b);
+      let now = heldPhys(b);
       if (ignoreUntilUp.has(b)) { if (now) now = false; else ignoreUntilUp.delete(b); }   // held when a menu closed
       if (!P.buttonOn(b)) now = false;                             // a shoulder button that is not unlocked yet
       if (charging && (b === 'L1' || b === 'R1')) now = false;
@@ -510,6 +529,22 @@
       cur = { id: 'jump', k: LAND_K, t: 0, kind: 'land', face: cur.face };
     }
   }
+  // Double jump (an unlock): tap jump again in the air for a spinning second jump that rises about two more of her heights
+  // (81 px). One per trip through the air; it resets when she touches down.
+  const DJ_H = 2 * 81, SPIN_MS = 420;
+  const DJ_V = Math.sqrt(2 * JUMP_G * 0.75 * DJ_H);            // the top of the arc is slower (halved gravity), so a little less than 2 g H
+  let dblUsed = false;
+  function tryDoubleJump() {
+    if (!P.has('double_jump') || dblUsed || stun) return false;
+    if (cur && cur.id === 'jump' && cur.kind === 'action' && cur.phys) { /* in the flight */ }
+    else if (fall || (cur && cur.id === 'jump' && cur.kind === 'fall')) {           // dropped off a ledge or from a drop-through
+      cur = { id: 'jump', k: 3, t: 0, kind: 'action', face: cur ? cur.face : facing, phys: { y: fall ? fall.y : 0, v: 0 } };
+      fall = null;
+    } else return false;
+    cur.phys.v = Math.max(cur.phys.v, DJ_V);
+    cur.spin = clock; dblUsed = true; queued = null;
+    return true;
+  }
   // double tap Down on a platform: drop through it to whatever is below
   const DROP_TAP_MS = 300;
   let lastDownT = -1e9;
@@ -551,6 +586,7 @@
 
   function request(move, via) {
     if (!D.moves[move] || stun || !moveOpen(move)) return;
+    if (move === 'jump' && tryDoubleJump()) return;
     if (!canAfford(move)) { deny(move); return; }             // no meter: the move does not play
     const air = AIR.find(b => usesButton(D.moves[move].input, b.input));
     const inAir = airborne() || (cur && cur.id === 'jump' && cur.kind === 'action');
@@ -631,7 +667,7 @@
       cur.k++;
       if (cur.k < m.frames.length) { if (cur.kind === 'action') { queueHit(); impactQuake(); } continue; }
       if (cur.kind === 'land') { cur.k = m.frames.length - 1; finishAction(t); return; }
-      if (cur.kind === 'action') { if (cur.id === 'beam_cloud' && (keyDown.has('A') || padDown.has('A')) && energyMeter >= BEAM_TICK_COST.cloud) { cur.beamCut = false;  const bi = D.moves.beam_cloud.frames.findIndex(f => f.beam); cur.k = bi >= 0 ? bi : 2; continue; } cur.k = m.frames.length - 1; finishAction(t); return; }
+      if (cur.kind === 'action') { if (cur.id === 'beam_cloud' && heldPhys('A') && energyMeter >= BEAM_TICK_COST.cloud) { cur.beamCut = false;  const bi = D.moves.beam_cloud.frames.findIndex(f => f.beam); cur.k = bi >= 0 ? bi : 2; continue; } cur.k = m.frames.length - 1; finishAction(t); return; }
       if (m.loop) {                                              // next cycle carries on from here
         const r = m.frames.map(f => f.root[0]);
         const n = r.length;
@@ -766,7 +802,7 @@
     }
     const was = alive(e);
     hurtEnemy(e, BEAM_DMG[b.kind] || 0);
-    if (was && !alive(e)) spawnGem(e.x, 'super', e.fy);                 // killed by a beam: a Super Gem
+    if (was && !alive(e)) lootGem(e.x, 'super', e.fy);                 // killed by a beam: a Super Gem
     const push = BEAM_PUSH[b.kind] || 0;
     if (push && alive(e)) { e.x += b.face * push; e.base += b.face * push; e.shoved = clock; }   // shoved away along the beam
   }
@@ -925,21 +961,17 @@
     c.broken = true; level.broken.add(c.key);
     burst(c.x, c.fy + 9, 9, c.item ? ['#e8c050', '#c9962a', '#fff2a0'] : ['#8a5a2b', '#6b4420', '#b07a3c']);
     if (c.item) {
-      if (P.has(c.item)) {                       // already owned: a small reward instead
-        spawnGem(c.x - 6, 'health', c.fy); spawnGem(c.x + 6, 'health', c.fy);
+      if (P.has(c.item)) {                       // already owned: it drops ordinary loot instead, never the same unlock again
+        const pool = lootPool();
+        if (pool.length) spawnGem(c.x, pool[Math.floor(Math.random() * pool.length)], c.fy);
         floater(c.x, c.fy + 30, 'Already unlocked', '#ffd24a');
       } else {
         level.pending.set(c.key, c.item);
         powerups.push({ key: c.key, item: c.item, x: c.x, y: c.fy + 16, t0: clock });
       }
-    } else {                                     // every plain crate drops something: a health gem, a meter gem, or a +25 meter upgrade
-      const pool = ['health', 'health', 'health'];
-      for (const m of ['energy', 'empower', 'super']) {
-        if (!P.meterOn(m)) continue;
-        if (m !== 'super') pool.push(m);
-        if (P.maxOf(m) < P.MAX_CAP) pool.push('up_' + m, 'up_' + m);
-      }
-      spawnGem(c.x, pool[Math.floor(Math.random() * pool.length)], c.fy);
+    } else {                                     // every plain crate drops something useful: a health gem, a meter gem, or a +25 meter upgrade
+      const pool = lootPool();
+      if (pool.length) spawnGem(c.x, pool[Math.floor(Math.random() * pool.length)], c.fy);
     }
   }
   function crateHitsFrom(w) { if (curMap) for (const c of curMap.crates) if (!c.broken && touches(w, crateBox(c))) breakCrate(c); }
@@ -1083,8 +1115,9 @@
   // Enemies stop at the edge instead of walking in; only a push (a hit, a beam, a blast) can send one over, and then it falls.
   const inPit = px => (curMap && curMap.pits.find(p => px > p.x0 + 2 && px < p.x1 - 2)) || null;
   let pitFall = null;                    // {t0}: she is falling
-  const PIT_GRAV = 0.0008, PIT_OVER_MS = 900;
+  const PIT_GRAV = 0.0006;                // px/ms^2: she drops out of the bottom of the view; only then does the run end
   const pitSink = () => pitFall ? PIT_GRAV * (clock - pitFall.t0) * (clock - pitFall.t0) : 0;
+  const pitOffScreen = () => pitSink() > V.h - V.feetRow + herTop() * SPRITE_SCALE + 8;   // her head has left the bottom of the view
   function checkPit() {
     if (pitFall || !curMap || !curMap.pits.length || floorY !== 0 || herY() > 1.5) return;
     const p = inPit(playerX());
@@ -1096,9 +1129,16 @@
       return;
     }
     pitFall = { t0: clock };
-    hp = 0; stun = null; slide = null; fall = null; queued = null;
+    invuln = clock + 1e9; stun = null; slide = null; fall = null; queued = null;
     cur = { id: 'jump', k: FALL_K, t: 0, kind: 'fall', face: hf() };
     floater(bodyX(), 40, 'FELL', RED);
+  }
+  // while something falls into a pit it is drawn only above the ground line or inside the pit, so the edges of the hole hide it
+  function pitClip(sx, sy) {
+    const gl = Math.round(groundY(sy));
+    g.beginPath(); g.rect(0, 0, V.w, gl);
+    for (const p of curMap.pits) g.rect(Math.round(p.x0 + sx), gl, p.x1 - p.x0, V.h - gl);
+    g.clip();
   }
   function drawPits(sx, sy) {
     const top = Math.round(groundY(sy)) - 5;
@@ -1178,13 +1218,13 @@
     // meter the player has unlocked (nothing if none). All of them go to the gem bag when walked over.
     const fy = e.fy || 0;
     if (!quiet) {
-    if (e.dropEnergy) { spawnGem(e.x - 6, 'energy', fy); spawnGem(e.x + 6, 'energy', fy); }
-    if (e.dropEmpower) { spawnGem(e.x - 6, 'empower', fy); spawnGem(e.x + 6, 'empower', fy); }
-    if (Math.random() < GEM_CHANCE) spawnGem(e.x - 3, 'health', fy);
+    if (e.dropEnergy) { lootGem(e.x - 6, 'energy', fy); lootGem(e.x + 6, 'energy', fy); }
+    if (e.dropEmpower) { lootGem(e.x - 6, 'empower', fy); lootGem(e.x + 6, 'empower', fy); }
+    if (Math.random() < GEM_CHANCE) lootGem(e.x - 3, 'health', fy);
     const pool = [];
     if (P.meterOn('energy')) pool.push('energy');
     if (P.meterOn('empower')) pool.push('empower');
-    if (pool.length && Math.random() < GEM_CHANCE) spawnGem(e.x + 3, pool[Math.floor(Math.random() * pool.length)], fy);
+    if (pool.length && Math.random() < GEM_CHANCE) lootGem(e.x + 3, pool[Math.floor(Math.random() * pool.length)], fy);
     }
     if (level && e.key) level.killed.add(e.key);
     e.state = 'dying'; e.dead = 0; e.hp = 0;
@@ -1587,15 +1627,20 @@
     const bgx = camX + (level ? level.idx * MAP_W : 0);          // the scenery carries on from map to map
     for (const l of D.layers) drawLayer(img[l.src].im, -bgx * l.parallax + sx * l.shake, camY * l.parallax + sy * l.shake);
     if (level && level.def.tint) { g.globalAlpha = level.def.tint.alpha; g.fillStyle = level.def.tint.color; g.fillRect(0, 0, V.w, V.h); g.globalAlpha = 1; }
-    if (curMap) { drawGeometry(sx, sy); drawCrates(sx, sy); drawBombs(sx, sy); drawPowerups(sx, sy); }
+    if (curMap) { drawPits(sx, sy); drawGeometry(sx, sy); drawCrates(sx, sy); drawBombs(sx, sy); drawPowerups(sx, sy); }
     drawEnemies(sx, sy);
     const cw = m.cell[0], ch = m.cell[1];
     const ax = V.anchorX + (px - camX) + sx;
     const ay = V.feetRow - (ry - camY) + sy;
     const tc = tint && clock < tint.until ? tint : (isCharged() ? CHARGED_TINT : null);
     g.save();
+    if (pitFall && curMap) pitClip(sx, sy);
     g.translate(Math.round(ax), Math.round(ay));
     if (cur.face < 0) g.scale(-1, 1);
+    if (cur.spin && clock - cur.spin < SPIN_MS && cur.id === 'jump') {       // the double jump's spin: a full turn about her middle
+      const c = -herTop() * SPRITE_SCALE * 0.5;
+      g.translate(0, c); g.rotate(2 * Math.PI * (clock - cur.spin) / SPIN_MS); g.translate(0, -c);
+    }
     if (m.fxSheet) {                                             // effects at their own scale, behind Max
       const fs = m.fxScale || SPRITE_SCALE, fim = img[m.fxSheet].im;
       const fc = FX_CENTER[cur.id];
@@ -1612,8 +1657,10 @@
     drawExplosions(sx, sy);
     drawParticles(sx, sy);
     drawShots(sx, sy);
+    g.save();                                                     // the foreground grass is cut away over the pits
+    if (curMap && curMap.pits.length) { g.beginPath(); g.rect(0, 0, V.w, V.h); for (const p of curMap.pits) g.rect(Math.round(p.x0 + sx), 0, p.x1 - p.x0, V.h); g.clip('evenodd'); }
     drawLayer(img[D.fringe.src].im, -bgx + sx, camY + sy);
-    if (curMap) drawPits(sx, sy);                                 // over the grass and over whoever is falling in
+    g.restore();
     drawGems(sx, sy);
     drawBars(sx, sy);
     drawMeters();
@@ -1850,6 +1897,7 @@
       const [cw, ch] = T.cell, [ax, ay] = T.anchor;
       const vx = Math.round(V.anchorX + (e.base - camX) + sx);
       g.save();
+      if (e.sinkAt && curMap) pitClip(sx, sy);
       g.globalAlpha = alpha;
       g.translate(vx, Math.round(gy - (e.fy || 0) + (e.sinkAt ? PIT_GRAV * (clock - e.sinkAt) * (clock - e.sinkAt) : 0)));
       if (e.face > 0) g.scale(-1, 1);
@@ -1902,7 +1950,7 @@
   function logMove(id, via) {
     if (!logEl) return;
     const li = document.createElement('li');
-    li.textContent = `${id}  (${D.moves[id].input}${via && via !== 'action' ? ', ' + via : ''})`;
+    li.textContent = `${id}  (${swapAY(D.moves[id].input)}${via && via !== 'action' ? ', ' + via : ''})`;
     logEl.prepend(li);
     while (logEl.children.length > 8) logEl.lastChild.remove();
   }
@@ -1936,15 +1984,18 @@
     for (const b of D.input.bindings) {
       if (b.type === 'idle' || !moveOpen(b.move)) continue;
       const m = D.moves[b.move];
+      const sb = Object.assign({}, b, { input: swapAY(b.input), held: b.held && b.held.map(swapAY) });   // shown with the swapped face buttons
       rows.push({ section: BASE_MOVES.has(b.move) ? 'Controls' : 'Unlocked combos',
-                  pad: (b.input === 'none' ? '(nothing)' : b.input) + (b.type === 'air' ? ' (air)' : ''),
-                  keys: keysOf(b.input), title: m ? m.title : b.move, how: how(b) });
+                  pad: (sb.input === 'none' ? '(nothing)' : sb.input) + (b.type === 'air' ? ' (air)' : ''),
+                  keys: keysOf(sb.input), title: m ? m.title : b.move, how: how(sb) });
     }
+    if (P.has('double_jump')) rows.push({ section: 'Unlocked combos', pad: 'A, A (air)', keys: 'Z then Z', title: 'Double jump', how: 'press jump again in the air: a spinning second jump' });
     return rows.filter(r => r.section === 'Controls').concat(rows.filter(r => r.section !== 'Controls'));
   }
   function lockedCount() {
     const seen = new Set();
     for (const b of D.input.bindings) if (b.type !== 'idle' && !moveOpen(b.move)) seen.add(b.move);
+    if (!P.has('double_jump')) seen.add('double_jump');
     return seen.size;
   }
   const killsEl = document.getElementById('kills');
@@ -1986,12 +2037,12 @@
   }
   // buttons still held when a menu closes are ignored until they are let go, so pressing A on "Resume" does not slash
   const ignoreUntilUp = new Set();
-  function ignoreHeldButtons() { for (const b of BUTTONS) if (keyDown.has(b) || padDown.has(b)) ignoreUntilUp.add(b); }
+  function ignoreHeldButtons() { for (const b of BUTTONS) if (heldPhys(b)) ignoreUntilUp.add(b); }
 
   function tickLevel(t, dt) {
     clock += dt;                                      // game time: it does not run while a menu is open
     if (pitFall) {                                    // she fell into a pit: the rest of the world goes on while she drops out of sight
-      if (clock - pitFall.t0 > PIT_OVER_MS) triggerGameOver();
+      if (pitOffScreen() && !gameOver) { hp = 0; triggerGameOver(); }
       stepEffects(dt); stepEnemies(dt); follow(dt); draw(); hud(); drawMonitor();
       return;
     }
@@ -2005,6 +2056,7 @@
     physics();
     if (screen !== 'level' || !curMap) return;        // the level just ended
     checkPit();
+    if (!fall && (!cur || cur.kind === 'hold' || cur.kind === 'land' || (cur.id === 'jump' && cur.kind === 'action' && !cur.phys))) dblUsed = false;   // back on her feet
     if (hp <= 0 && !gameOver) triggerGameOver();     // any source of damage ends the run, not only an enemy hit
     beamHits();
     stepHeal(dt);
@@ -2188,8 +2240,8 @@
     setStartLabel();
   }
   if (UI) UI.init({ mainItems, closeMenu, moveRows, lockedCount, padStatus, gemRows, useGem, devItems,
-    moveNotes: () => ['Keyboard: arrows = d-pad, Z = A, X = B, C = X, V = Y. Shoulders: Q = L1, E = L2, T = R1, R = R2, W = hold R (recover). Enter, Space or Escape opens and closes this menu. Hold Left or Right while jumping to steer. Double tap Down on a platform to drop through it.',
-                      'A gamepad works too, wired or Bluetooth, also on an Android phone in Chrome: A is the bottom face button, B right, X left, Y top. Click the game first if keys do nothing. Press H to show hurtboxes and hit shapes.'] });
+    moveNotes: () => ['Keyboard: arrows = d-pad, Z = A (jump), X = B, C = X, V = Y (attack). Shoulders: Q = L1, E = L2, T = R1, R = R2, W = hold R (recover). Enter, Space or Escape opens and closes this menu. Hold Left or Right while jumping to steer. Double tap Down on a platform to drop through it.',
+                      'A gamepad works too, wired or Bluetooth, also on an Android phone in Chrome: A (bottom) jumps, Y (top) attacks, B is right, X is left. Click the game first if keys do nothing. Press H to show hurtboxes and hit shapes.'] });
   Promise.all(srcs.map(load)).then(() => {
     const loading = document.getElementById('loading');
     if (loading) loading.remove();
@@ -2273,6 +2325,7 @@
       respawnOn = false; paused = false; hideMenu();
     },
     addShot: (sx, sy, vx, vy) => shots.push({ x: sx, y: sy, vx, vy, from: 'foe', t0: clock }),
+    doubleUsed: () => dblUsed, spinning: () => !!(cur && cur.spin && clock - cur.spin < SPIN_MS),
     smash: i => { if (curMap && curMap.crates[i]) breakCrate(curMap.crates[i]); },
     shove: (i, dx) => { const e = enemies[i]; if (e) { e.x += dx; e.base += dx; e.shoved = clock; } },
     maxes: () => ({ energy: maxOf('energy'), empower: maxOf('empower'), super: maxOf('super') }),
