@@ -43,9 +43,13 @@
     cleared: [],                                         // level numbers beaten
     gems: { health: 0, energy: 0, empower: 0, super: 0 },
     meters: { energy: 0, empower: 0, super: 0 },
+    maxes: { energy: 50, empower: 50, super: 50 },       // meter capacity: starts at 50, +25 per upgrade pickup
   });
 
   const P = { UNLOCKS, byId, GEM_KINDS, MAX_GEMS: 99, state: fresh() };
+  P.MAX_START = 50; P.MAX_STEP = 25; P.MAX_CAP = 150;
+  P.maxOf = k => (P.state.maxes && P.state.maxes[k]) || P.MAX_START;
+  P.raiseMax = (k, n) => { const before = P.maxOf(k); P.state.maxes[k] = Math.min(P.MAX_CAP, before + (n == null ? P.MAX_STEP : n)); P.save(); return P.state.maxes[k] - before; };
   P.levelCount = () => (root.BIBOO_LEVELS && root.BIBOO_LEVELS.levels.length) || 5;
 
   P.has = id => P.state.unlocked.includes(id);
@@ -90,6 +94,7 @@
       if (Array.isArray(s.cleared)) f.cleared = s.cleared.filter(n => Number.isFinite(n));
       for (const k of GEM_KINDS) if (s.gems && Number.isFinite(s.gems[k])) f.gems[k] = Math.max(0, Math.min(P.MAX_GEMS, s.gems[k] | 0));
       for (const k of ['energy', 'empower', 'super']) if (s.meters && Number.isFinite(s.meters[k])) f.meters[k] = Math.max(0, Math.min(100, s.meters[k]));
+      for (const k of ['energy', 'empower', 'super']) if (s.maxes && Number.isFinite(s.maxes[k])) f.maxes[k] = Math.max(P.MAX_START, Math.min(P.MAX_CAP, s.maxes[k]));
       P.state = f;
     } catch (e) { P.state = fresh(); }
   };

@@ -97,33 +97,34 @@
   const moveOpen = move => BASE_MOVES.has(move) || P.hasMove(move);
   const SPRITE_SCALE = 0.5;
   if (D.moves.beam_plasma) D.moves.beam_plasma.title = 'Empowerment Beam';
+  if (D.moves.jump) D.moves.jump.title = 'Jump (floaty; hold Left or Right to steer)';
   // Energy (blue) and empower (orange) meters. Gems dropped by defeated enemies fill them: taunted enemies
   // always drop an empower gem, enemies hit by the Empowerment Beam always drop an energy gem, and any
   // other kill drops a random gem GEM_CHANCE of the time. Energy pays for the beams and the energy wave,
   // empower for the Empowerment Beam and for kneeling to recover. A move whose meter cannot pay does not
   // play at all, and a beam or recovery stops the moment the meter runs dry.
-  const ENERGY_MAX = 100, EMPOWER_MAX = 100, METER_START = 50;
+  // Each meter has its own capacity: 50 at first, +25 for every upgrade pickup (P.maxOf, saved with the progress).
+  const maxOf = k => P.maxOf(k);
   // The super meter (purple, SUP) starts empty and is filled only by Super Gems: one drops when an enemy is
-  // killed by a beam. A full meter (100) pays for the earthquake and the meteor shower.
-  const SUPER_MAX = 100;
+  // killed by a beam. A full meter pays for the earthquake and the meteor shower.
   let energyMeter = P.state.meters.energy, empowerMeter = P.state.meters.empower, superMeter = P.state.meters.super;   // saved with the progress
   const GEM_VALUE = 25, GEM_CHANCE = 0.35, GEM_LIFE = 20000, GEM_PICKUP = 28;
   const BEAM_TICK_COST = { cloud: 1, fire: 3, laser: 3, plasma: 5 };         // per beam tick (100 ms)
-  const MOVE_COST = { energy_wave: ['energy', 10], jump_crash: ['energy', 30], earthquake: ['super', 100], meteor_shower: ['super', 100] };   // earthquake and meteor shower need a full super meter and use all of it                          // paid once, when the move starts
+  const MOVE_COST = { energy_wave: ['energy', 10], jump_crash: ['energy', 30], earthquake: ['super', 'full'], meteor_shower: ['super', 'full'] };   // earthquake and meteor shower need a full super meter and use all of it                          // paid once, when the move starts
   const HEAL_COST = 1;                                                        // empower per recover tick
   const meterOf = k => k === 'energy' ? energyMeter : k === 'super' ? superMeter : empowerMeter;
-  function spend(k, n) {
-    if (k === 'energy') energyMeter = Math.max(0, energyMeter - n);
-    else if (k === 'super') superMeter = Math.max(0, superMeter - n);
-    else empowerMeter = Math.max(0, empowerMeter - n);
+  function spend(k, n) {                               // n < 0 adds (capped at the meter's maximum)
+    const v = Math.max(0, Math.min(maxOf(k), meterOf(k) - n));
+    if (k === 'energy') energyMeter = v; else if (k === 'super') superMeter = v; else empowerMeter = v;
   }
   let gems = [], meterFlash = { energy: 0, empower: 0, super: 0 }, lastDeny = 0;
   function spawnGem(wx, kind, fy) { gems.push({ x: wx, y: (fy || 0) + 14 + Math.random() * 8, fy: fy || 0, kind, bob: Math.random() * 6.28, t0: clock }); }
   // Progress is kept in progress.js; the meters live here while playing and are copied over when it is saved.
   function syncProgress() { P.state.meters = { energy: energyMeter, empower: empowerMeter, super: superMeter }; P.save(); }
-  function meterStarts(had) {                        // a meter that has just become available starts at METER_START
-    if (!had.energy && P.meterOn('energy')) energyMeter = Math.max(energyMeter, METER_START);
-    if (!had.empower && P.meterOn('empower')) empowerMeter = Math.max(empowerMeter, METER_START);
+  function meterStarts(had) {                        // a meter that has just become available starts full (50)
+    if (!had.energy && P.meterOn('energy')) energyMeter = Math.max(energyMeter, maxOf('energy'));
+    if (!had.empower && P.meterOn('empower')) empowerMeter = Math.max(empowerMeter, maxOf('empower'));
+    if (!had.super && P.meterOn('super')) superMeter = Math.max(superMeter, maxOf('super'));
   }
   const meterState = () => ({ energy: P.meterOn('energy'), empower: P.meterOn('empower'), super: P.meterOn('super') });
   function unlockItem(id) {                          // from a golden crate or the dev console
@@ -138,7 +139,7 @@
   }
   // what a move needs before it may start: [meter, amount] or null
   function needOf(move) {
-    if (MOVE_COST[move]) return MOVE_COST[move];
+    if (MOVE_COST[move]) { const c = MOVE_COST[move]; return c[1] === 'full' ? [c[0], maxOf(c[0])] : c; }
     const b = D.moves[move] && D.moves[move].frames.find(f => f.beam);
     if (b) return [b.beam.kind === 'plasma' ? 'empower' : 'energy', BEAM_TICK_COST[b.beam.kind] || 5];
     if (move === 'recover') return ['empower', HEAL_COST];
@@ -153,15 +154,24 @@
   // Walking over a gem puts it in the gem bag (the Gems menu); nothing is applied until the player uses it there.
   const GEM_LABEL = { health: 'Health Gem', energy: 'Energy Gem', empower: 'Empower Gem', super: 'Super Gem' };
   const GEM_COLOR = { health: '#3ddc5f', energy: '#4af', empower: '#fa4', super: '#c6f' };
+  const UP_LABEL = { energy: 'ENG', empower: 'EMP', super: 'SUP' };
   const GEM_HEAL = 50;                                                         // a health gem: +25 percent of MAX_HP (200)
   function stepGems(dt) {
     for (const gm of gems) gm.bob += dt * 0.006;
     gems = gems.filter(gm => {
       if (clock - gm.t0 > GEM_LIFE) return false;
       const hy = herY();
-      if (Math.abs(gm.x - bodyX()) < GEM_PICKUP && hy < gm.fy + 50 && hy > gm.fy - 20 && P.addGem(gm.kind, 1) > 0) {
-        floater(gm.x, gm.y + 24, '+' + GEM_LABEL[gm.kind], GEM_COLOR[gm.kind]);
-        return false;
+      if (Math.abs(gm.x - bodyX()) < GEM_PICKUP && hy < gm.fy + 50 && hy > gm.fy - 20) {
+        if (gm.kind.startsWith('up_')) {                   // a meter upgrade: applied at once, the meter grows by 25 and fills by 25
+          const m = gm.kind.slice(3);
+          if (P.raiseMax(m) > 0) { spend(m, -P.MAX_STEP); meterFlash[m] = clock + 600; syncProgress(); floater(gm.x, gm.y + 24, '+25 MAX ' + UP_LABEL[m], GEM_COLOR[m]); }
+          else floater(gm.x, gm.y + 24, UP_LABEL[m] + ' at its limit', GEM_COLOR[m]);
+          return false;
+        }
+        if (P.addGem(gm.kind, 1) > 0) {
+          floater(gm.x, gm.y + 24, '+' + GEM_LABEL[gm.kind], GEM_COLOR[gm.kind]);
+          return false;
+        }
       }
       return true;
     });
@@ -170,15 +180,15 @@
     if ((P.state.gems[kind] || 0) < 1) return false;
     if (kind === 'health') return !!level && hp < MAX_HP;                      // health only matters inside a level
     if (!P.meterOn(kind)) return false;
-    return meterOf(kind) < (kind === 'energy' ? ENERGY_MAX : kind === 'empower' ? EMPOWER_MAX : SUPER_MAX);
+    return meterOf(kind) < maxOf(kind);
   }
   function useGem(kind) {
     if (!canUseGem(kind)) return;
     P.takeGem(kind);
     if (kind === 'health') hp = Math.min(MAX_HP, hp + GEM_HEAL);
-    else if (kind === 'energy') { energyMeter = Math.min(ENERGY_MAX, energyMeter + GEM_VALUE); meterFlash.energy = clock + 400; }
-    else if (kind === 'empower') { empowerMeter = Math.min(EMPOWER_MAX, empowerMeter + GEM_VALUE); meterFlash.empower = clock + 400; }
-    else { superMeter = Math.min(SUPER_MAX, superMeter + GEM_VALUE); meterFlash.super = clock + 400; }
+    else if (kind === 'energy') { energyMeter = Math.min(maxOf('energy'), energyMeter + GEM_VALUE); meterFlash.energy = clock + 400; }
+    else if (kind === 'empower') { empowerMeter = Math.min(maxOf('empower'), empowerMeter + GEM_VALUE); meterFlash.empower = clock + 400; }
+    else { superMeter = Math.min(maxOf('super'), superMeter + GEM_VALUE); meterFlash.super = clock + 400; }
     syncProgress();
   }
   function gemRows() {
@@ -186,7 +196,7 @@
       let note = '';
       if (kind === 'health') note = level ? `+${GEM_HEAL} HP  (${hp}/${MAX_HP})` : `+${GEM_HEAL} HP, use it inside a level`;
       else if (!P.meterOn(kind)) note = 'meter not unlocked yet';
-      else note = `+${GEM_VALUE}  (${Math.round(meterOf(kind))}/${kind === 'energy' ? ENERGY_MAX : kind === 'empower' ? EMPOWER_MAX : SUPER_MAX})`;
+      else note = `+${GEM_VALUE}  (${Math.round(meterOf(kind))}/${maxOf(kind)})`;
       return { kind, label: GEM_LABEL[kind], color: GEM_COLOR[kind], count: P.state.gems[kind] || 0, canUse: canUseGem(kind), note };
     });
   }
@@ -373,6 +383,7 @@
       else if (charging && b === 'R') now = keyDown.has('R');
       if (now && !isDown.has(b)) {
         isDown.add(b); reader.down(b, t);
+        if (b === 'Down') { if (t - lastDownT < DROP_TAP_MS && dropThrough()) lastDownT = -1e9; else lastDownT = t; }
         if (b === 'Left') facing = -1; else if (b === 'Right') facing = 1;
       } else if (!now && isDown.has(b)) {
         isDown.delete(b); reader.up(b, t);
@@ -411,6 +422,7 @@
 
   // root motion of frame k; the crash started in the air is scaled to begin at her height
   function rootOf(c, k = c.k) {
+    if (c.phys) return [0, c.phys.y];                            // the plain jump is driven by physics, not by frame root motion
     const r = D.moves[c.id].frames[k].root, s = c.face || 1;
     return c.air ? [s * (r[0] - c.air.x0), r[1] * c.air.s] : [s * r[0], r[1]];
   }
@@ -474,6 +486,46 @@
     if (!cur || cur.kind !== 'action' || cur.lite) return;
     if (QUAKE_AT[cur.id] === D.moves[cur.id].frames[cur.k].name) rumble = { t0: clock, ms: QUAKE_MS, amp: QUAKE_AMP };
   }
+  // The plain jump (Y) is a physics jump: a short crouch, then launch at JUMP_V0 (px/ms) under gravity JUMP_G. Gravity is
+  // halved near the top so she hangs a moment, which makes it slower, smoother and floatier than the old frame by frame hop.
+  // It rises about 135 px in 280 ms and stays up about 670 ms (the old hop was about 410 ms); with Left or Right held she covers about 107 px sideways. Steering in the air is
+  // in step(). The sky dash (Down then Y) is a separate move and is unchanged.
+  const JUMP_H = 130, JUMP_UP = 280, JUMP_G = 2 * JUMP_H / (JUMP_UP * JUMP_UP), JUMP_V0 = JUMP_G * JUMP_UP;
+  const JUMP_HANG_V = 0.2 * JUMP_V0, JUMP_HANG_G = 0.5;
+  function stepJump(dt) {
+    const j = cur.phys;
+    j.v -= JUMP_G * (Math.abs(j.v) < JUMP_HANG_V ? JUMP_HANG_G : 1) * dt;
+    j.y += j.v * dt;
+    cur.k = j.v > 0.6 * JUMP_V0 ? 1 : j.v > 0.2 * JUMP_V0 ? 2 : j.v > -0.2 * JUMP_V0 ? 3 : 4;   // takeoff, rise, apex, fall frames
+    if (j.y <= 0 && j.v < 0) {                                   // back down to the height she left from
+      const y = j.y, vv = -j.v;
+      if (floorY > 0) {                                          // she left a platform and walked off it in the air: keep falling
+        const S = supportUnder(playerX(), floorY + 0.5);
+        if (S < floorY - 0.5) {
+          fall = { y: (floorY - S) + y, v: vv }; floorY = S;
+          cur = { id: 'jump', k: FALL_K, t: 0, kind: 'fall', face: cur.face };
+          return;
+        }
+      }
+      cur = { id: 'jump', k: LAND_K, t: 0, kind: 'land', face: cur.face };
+    }
+  }
+  // double tap Down on a platform: drop through it to whatever is below
+  const DROP_TAP_MS = 300;
+  let lastDownT = -1e9;
+  function dropThrough() {
+    if (!curMap || floorY <= 0 || fall || stun) return false;
+    if (cur && cur.kind !== 'hold' && cur.kind !== 'land') return false;
+    const px = playerX();
+    if (curMap.solids.some(sd => sd.top === floorY && px >= sd.x0 - 3 && px <= sd.x1 + 3)) return false;   // a block is not a plank
+    const S = supportUnder(px, floorY);
+    if (S >= floorY - 0.5) return false;
+    if (cur) x += rootOf(cur)[0];
+    fall = { y: floorY - S, v: 0.05 }; floorY = S;
+    cur = { id: 'jump', k: FALL_K, t: 0, kind: 'fall', face: cur ? cur.face : facing };
+    prevFeet = herY();
+    return true;
+  }
   function start(id, kind, via) {
     const k0 = entryFrame(id);
     const charged = cur && cur.id === 'charge' ? chargeMs : 0;
@@ -481,7 +533,7 @@
     if (cur) x += rootOf(cur)[0];       // keep the ground covered so far; height resets
     cur = { id, k: k0, t: 0, kind, from: x, face: facing };
     if (id === 'heavy') { cur.lite = charged < FULL_CHARGE; cur.charged = charged; }
-    if (kind === 'action' && MOVE_COST[id]) spend(MOVE_COST[id][0], MOVE_COST[id][1]);
+    if (kind === 'action' && MOVE_COST[id]) { const n = needOf(id); spend(n[0], n[1]); }
     if (kind === 'action') queueHit();
     if (id === 'taunt') {
       for (const en of enemies) {
@@ -562,6 +614,12 @@
       return;
     }
     if (!cur) holdState(t);
+    if (cur.id === 'jump' && cur.kind === 'action') {            // the plain jump: crouch, then physics until she lands
+      if (cur.phys) { stepJump(dt); return; }
+      cur.t += dt;
+      if (cur.t >= msOf(cur, 0)) { cur.phys = { y: 0, v: JUMP_V0 }; cur.k = 1; cur.t = 0; }
+      return;
+    }
     if (cur.kind === 'hold') {
       const want = holdWant(t);
       if (want !== cur.id || cur.face !== facing) { start(want, 'hold'); }
@@ -644,9 +702,9 @@
         meterAcc += dt;
         while (meterAcc >= METER_CHARGE_TICK) {
           meterAcc -= METER_CHARGE_TICK;
-          energyMeter = Math.min(ENERGY_MAX, energyMeter + METER_CHARGE_STEP);
-          empowerMeter = Math.min(EMPOWER_MAX, empowerMeter + METER_CHARGE_STEP);
-          superMeter = Math.min(SUPER_MAX, superMeter + METER_CHARGE_STEP);
+          energyMeter = Math.min(maxOf('energy'), energyMeter + METER_CHARGE_STEP);
+          empowerMeter = Math.min(maxOf('empower'), empowerMeter + METER_CHARGE_STEP);
+          superMeter = Math.min(maxOf('super'), superMeter + METER_CHARGE_STEP);
         }
       } else stepCharge(dt);
     } else meterAcc = 0;
@@ -698,6 +756,7 @@
     spend(k, cost);                                              // every tick costs, whether or not it hits
     for (const e of enemies) { const box = hurtOf(e); if (box && overlap(box, b.box)) beamHit(e, b); }
     if (curMap) for (const c of curMap.crates) if (!c.broken && overlap(crateBox(c), b.box)) breakCrate(c);
+    bombsInBox(b.box);
   }
   function beamHit(e, b) {
     if (b.kind === 'plasma') {
@@ -709,7 +768,7 @@
     hurtEnemy(e, BEAM_DMG[b.kind] || 0);
     if (was && !alive(e)) spawnGem(e.x, 'super', e.fy);                 // killed by a beam: a Super Gem
     const push = BEAM_PUSH[b.kind] || 0;
-    if (push && alive(e)) { e.x += b.face * push; e.base += b.face * push; }   // shoved away along the beam
+    if (push && alive(e)) { e.x += b.face * push; e.base += b.face * push; e.shoved = clock; }   // shoved away along the beam
   }
   function drawBeam(sx, sy) {
     const b = beamNow();
@@ -738,6 +797,11 @@
     for (const s of surfaces(curMap)) if (bx >= s.x0 - 3 && bx <= s.x1 + 3 && s.top <= y + 0.5 && s.top > best) best = s.top;
     return best;
   }
+  function supportUnder(bx, y) {                 // the highest surface strictly below height y under x (the ground is 0)
+    let best = 0;
+    for (const s of surfaces(curMap)) if (bx >= s.x0 - 3 && bx <= s.x1 + 3 && s.top < y - 1 && s.top > best) best = s.top;
+    return best;
+  }
   function surfaceAt(m, bx, top) { return surfaces(m).find(s => s.top === top && bx >= s.x0 - 3 && bx <= s.x1 + 3) || null; }
   let lastHint = -1e9;
   function hint(text) { if (clock - lastHint > 2500) { lastHint = clock; banners.push({ title: text, t0: clock, ms: 2200 }); } }
@@ -745,7 +809,7 @@
   function startLevel(n, custom) {
     const def = custom || LV.levels[n - 1];
     if (!def) return;
-    level = { n, def, idx: 0, killed: new Set(), broken: new Set(), pending: new Map() };
+    level = { n, def, idx: 0, killed: new Set(), broken: new Set(), popped: new Set(), pending: new Map() };
     kills = 0; hp = MAX_HP; gameOver = false; paused = false; respawnOn = false;
     screen = 'level';
     hideMenu(); ignoreHeldButtons();
@@ -758,14 +822,20 @@
     level.idx = idx;
     const md = level.def.maps[idx];
     curMap = { idx, id: md.id, def: md, solids: md.solids, plats: md.plats,
-               crates: md.crates.map((c, i) => ({ key: idx + ':' + i, x: c.x, fy: c.fy, item: c.item || null, broken: level.broken.has(idx + ':' + i) })) };
+               crates: md.crates.map((c, i) => ({ key: idx + ':' + i, x: c.x, fy: c.fy, item: c.item || null, broken: level.broken.has(idx + ':' + i) })),
+               pits: (md.pits || []).map(p => ({ x0: p.x0, x1: p.x1 })),
+               bombs: (md.bombs || []).map((b, i) => ({ key: idx + ':b' + i, x: b.x, fy: b.fy || 0, gone: level.popped.has(idx + ':b' + i), fuse: 0 })) };
+    shots.length = 0; pitFall = null;
     enemies.length = 0; respawns.length = 0; gems.length = 0; explosions.length = 0; floaters.length = 0;
     powerups.length = 0; particles.length = 0; hitQ.length = 0;
     md.enemies.forEach((d, i) => {
       const key = idx + ':' + i;
       if (level.killed.has(key)) return;
       const sf = d.fy > 0 ? surfaceAt(curMap, d.x, d.fy) : null;    // an enemy on a platform never leaves it
-      spawn(d.type, d.x, { fy: d.fy, path: d.path, sight: d.sight, key, lo: sf ? sf.x0 + 8 : 8, hi: sf ? sf.x1 - 8 : MAP_W - 8 });
+      let lo = sf ? sf.x0 + 8 : 8, hi = sf ? sf.x1 - 8 : MAP_W - 8;
+      const lo0 = lo, hi0 = hi;
+      if (!sf) for (const p of curMap.pits) { if (p.x1 <= d.x) lo = Math.max(lo, p.x1 + 8); else if (p.x0 >= d.x) hi = Math.min(hi, p.x0 - 8); }   // a ground enemy stays between the pits
+      spawn(d.type, d.x, { fy: d.fy, path: d.path, sight: d.sight, key, lo, hi, lo0, hi0 });
     });
     for (const c of curMap.crates)                                   // a golden crate smashed earlier whose item was not picked up
       if (c.broken && c.item && level.pending.has(c.key)) powerups.push({ key: c.key, item: c.item, x: c.x, y: c.fy + 16, t0: clock });
@@ -862,15 +932,22 @@
         level.pending.set(c.key, c.item);
         powerups.push({ key: c.key, item: c.item, x: c.x, y: c.fy + 16, t0: clock });
       }
-    } else if (Math.random() < 0.55) {
+    } else {                                     // every plain crate drops something: a health gem, a meter gem, or a +25 meter upgrade
       const pool = ['health', 'health', 'health'];
-      if (P.meterOn('energy')) pool.push('energy');
-      if (P.meterOn('empower')) pool.push('empower');
+      for (const m of ['energy', 'empower', 'super']) {
+        if (!P.meterOn(m)) continue;
+        if (m !== 'super') pool.push(m);
+        if (P.maxOf(m) < P.MAX_CAP) pool.push('up_' + m, 'up_' + m);
+      }
       spawnGem(c.x, pool[Math.floor(Math.random() * pool.length)], c.fy);
     }
   }
   function crateHitsFrom(w) { if (curMap) for (const c of curMap.crates) if (!c.broken && touches(w, crateBox(c))) breakCrate(c); }
-  function crateBlast(wx, wy, r) { if (curMap) for (const c of curMap.crates) if (!c.broken && distBox(wx, wy, crateBox(c)) <= r) breakCrate(c); }
+  function crateBlast(wx, wy, r) {
+    if (!curMap) return;
+    for (const c of curMap.crates) if (!c.broken && distBox(wx, wy, crateBox(c)) <= r) breakCrate(c);
+    for (const b of curMap.bombs) if (!b.gone && distBox(wx, wy, bombBox(b)) <= r) detonate(b);
+  }
 
   // the floating item a golden crate leaves: touch it to unlock the button or combo
   function stepPowerups() {
@@ -893,6 +970,152 @@
       q.wx += q.vx * dt; q.wy += q.vy * dt; q.vy -= 0.0007 * dt;
     }
     for (let i = banners.length - 1; i >= 0; i--) if (clock - banners[i].t0 > banners[i].ms) banners.splice(i, 1);
+  }
+
+
+  // ------------------------------------------------------------------ hazards: goblin shots, bombs, pitfalls
+  // Shots: the goblin's backflip (its "dive" animation) throws two blue shards at frames SHOT_AT. Each flies in a straight line
+  // at where she was when it was thrown and does SHOT_DMG. Holding B blocks one for no damage; a parry reflects it straight
+  // forward (the way she faces) and the reflected shard hurts enemies and sets off bombs.
+  const SHOT_SPEED = 0.24, SHOT_DMG = 20, SHOT_R = 5, SHOT_AT = [1, 3];
+  const shots = [];                      // {x, y, vx, vy, from: 'foe' | 'her', t0}
+  function fireShot(e) {
+    const ox = e.x + e.face * 14, oy = (e.fy || 0) + 40;
+    const dx = bodyX() - ox, dy = herY() + herTop() * SPRITE_SCALE * 0.5 - oy, L = Math.hypot(dx, dy) || 1;
+    shots.push({ x: ox, y: oy, vx: SHOT_SPEED * dx / L, vy: SHOT_SPEED * dy / L, from: 'foe', t0: clock });
+  }
+  function stepShots(dt) {
+    for (let i = shots.length - 1; i >= 0; i--) {
+      const sh = shots[i];
+      sh.x += sh.vx * dt; sh.y += sh.vy * dt;
+      if (clock - sh.t0 > 4000 || sh.x < -30 || sh.x > MAP_W + 30 || sh.y < -4 || sh.y > 400) { shots.splice(i, 1); continue; }
+      const box = [sh.x - SHOT_R, sh.y - SHOT_R, sh.x + SHOT_R, sh.y + SHOT_R];
+      if (sh.from === 'foe') {
+        if (!overlap(box, herBox())) continue;
+        const dir = sh.vx >= 0 ? 1 : -1;
+        if (parrying()) {                                          // reflected: straight forward, a little faster
+          sh.from = 'her'; sh.vx = hf() * SHOT_SPEED * 1.5; sh.vy = 0; sh.x = playerX() + hf() * 22; sh.t0 = clock;
+          tint = { color: WHITE, alpha: 0.75, until: clock + 150 }; parries++;
+          floater(bodyX(), herY() + herTop() * SPRITE_SCALE + 10, 'Reflect', '#8fd0ff');
+          burst(sh.x, sh.y, 8, ['#ffffff', '#8fd0ff']);
+        } else if (blocking()) {                                   // blocked: no damage
+          const p = push(8, 120); slide = { v: p.v * dir, a: p.a };
+          tint = { color: WHITE, alpha: 0.75, until: clock + 150 }; blocks++;
+          burst(sh.x, sh.y, 6, ['#ffffff', '#8fd0ff']);
+          shots.splice(i, 1);
+        } else if (clock >= invuln && !stun) {                     // a hit: damage, a short red flash and a small flinch
+          hurtHer(SHOT_DMG);
+          const p = push(14, 180); slide = { v: p.v * dir, a: p.a };
+          tint = { color: RED, alpha: 0.6, until: clock + 220 }; invuln = clock + 500; hits++;
+          burst(sh.x, sh.y, 8, ['#ff2b2b', '#8fd0ff']);
+          shots.splice(i, 1);
+        }
+      } else {
+        let hit = false;
+        for (const e of enemies) { const hb = hurtOf(e); if (hb && overlap(box, hb)) { hurtEnemy(e, SHOT_DMG); hit = true; break; } }
+        if (!hit && curMap) {
+          for (const c of curMap.crates) if (!c.broken && overlap(box, crateBox(c))) { breakCrate(c); hit = true; break; }
+          for (const b of curMap.bombs) if (!b.gone && overlap(box, bombBox(b))) { detonate(b); hit = true; break; }
+        }
+        if (hit) { burst(sh.x, sh.y, 8, ['#ffffff', '#8fd0ff']); shots.splice(i, 1); }
+      }
+    }
+  }
+  function drawShots(sx, sy) {
+    for (const sh of shots) {
+      const X = V.anchorX + (sh.x - camX) + sx, Y = V.feetRow + camY + sy - sh.y, a = Math.atan2(-sh.vy, sh.vx), mine = sh.from === 'her';
+      g.save();
+      g.translate(Math.round(X), Math.round(Y)); g.rotate(a);
+      g.globalAlpha = 0.35; g.fillStyle = mine ? '#ffe14d' : '#4da6ff'; g.beginPath(); g.ellipse(0, 0, 11, 6, 0, 0, Math.PI * 2); g.fill();
+      g.globalAlpha = 1; g.fillStyle = '#000'; g.beginPath(); g.moveTo(9, 0); g.lineTo(0, 4); g.lineTo(-8, 0); g.lineTo(0, -4); g.closePath(); g.fill();
+      g.fillStyle = mine ? '#ffe680' : '#9fd0ff'; g.beginPath(); g.moveTo(8, 0); g.lineTo(0, 3); g.lineTo(-6, 0); g.lineTo(0, -3); g.closePath(); g.fill();
+      g.fillStyle = '#fff'; g.fillRect(-2, -1, 7, 2);
+      g.restore();
+    }
+  }
+
+  // Bombs sit on the ground or a platform. Only she sets one off: by touching it, or with anything of hers that does damage
+  // (a blade, a kick, a beam, a blast, a reflected shard). The blast does BOMB_DMG to her and to every enemy within BOMB_R px,
+  // breaks crates and sets off other bombs in range a moment later. Enemies walk over bombs without harm.
+  const BOMB_DMG = 50, BOMB_R = 50, BOMB_CHAIN_MS = 180;
+  const bombBox = b => [b.x - 8, b.fy, b.x + 8, b.fy + 22];   // a little taller than it is drawn, so chest-high shards and blades can set it off
+  function detonate(b) {
+    if (b.gone) return;
+    b.gone = true; if (level) level.popped.add(b.key);
+    const cx = b.x, cy = b.fy + 7;
+    explosions.push({ wx: cx, wy: cy, t0: clock, big: true, r: BOMB_R });
+    burst(cx, cy, 14, ['#ffd060', '#ff6a20', '#444444']);
+    rumble = { t0: clock, ms: 300, amp: 4 };
+    for (const e of enemies) { const hb = alive(e) && hurtOf(e); if (hb && distBox(cx, cy, hb) <= BOMB_R) { e.shoved = clock; hurtEnemy(e, BOMB_DMG); } }
+    if (distBox(cx, cy, herBox()) <= BOMB_R) {
+      hurtHer(BOMB_DMG);
+      tint = { color: RED, alpha: 0.6, until: clock + 300 }; invuln = Math.max(invuln, clock + 500); hits++;
+    }
+    crateBlast(cx, cy, BOMB_R);
+    if (curMap) for (const o of curMap.bombs) if (!o.gone && !o.fuse && Math.hypot(o.x - cx, o.fy - b.fy) <= BOMB_R) o.fuse = clock + BOMB_CHAIN_MS;
+  }
+  function stepBombs() {
+    if (!curMap) return;
+    const me = herBox();
+    for (const b of curMap.bombs) {
+      if (b.gone) continue;
+      if (b.fuse && clock >= b.fuse) { detonate(b); continue; }
+      if (overlap(me, bombBox(b))) detonate(b);
+    }
+  }
+  function bombHitsFrom(w) { if (curMap) for (const b of curMap.bombs) if (!b.gone && touches(w, bombBox(b))) detonate(b); }
+  function bombsInBox(box) { if (curMap) for (const b of curMap.bombs) if (!b.gone && overlap(box, bombBox(b))) detonate(b); }
+  function drawBombs(sx, sy) {
+    for (const b of curMap.bombs) {
+      if (b.gone) continue;
+      const X = Math.round(b.x + sx), Y = Math.round(groundY(sy) - b.fy), lit = !!b.fuse;
+      g.fillStyle = '#000'; g.beginPath(); g.arc(X, Y - 6, 7, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#2b2b33'; g.beginPath(); g.arc(X, Y - 6, 6, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#5a5a68'; g.fillRect(X - 3, Y - 10, 2, 2);
+      g.strokeStyle = '#8a6a3a'; g.lineWidth = 1; g.beginPath(); g.moveTo(X + 2, Y - 12); g.lineTo(X + 5, Y - 16); g.stroke();
+      const on = lit ? Math.floor(clock / 50) % 2 : Math.floor(clock / 240) % 2;   // the fuse spark blinks
+      g.fillStyle = on ? '#ffe14d' : '#ff6a20'; g.fillRect(X + 4, Y - 18, 3, 3);
+      if (lit) { g.globalAlpha = 0.4; g.fillStyle = '#ff2b2b'; g.beginPath(); g.arc(X, Y - 6, 9, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; }
+    }
+  }
+
+  // Pitfalls: gaps in the ground. Her feet on the ground inside one mean instant death (she falls out of sight, then Game Over).
+  // Enemies stop at the edge instead of walking in; only a push (a hit, a beam, a blast) can send one over, and then it falls.
+  const inPit = px => (curMap && curMap.pits.find(p => px > p.x0 + 2 && px < p.x1 - 2)) || null;
+  let pitFall = null;                    // {t0}: she is falling
+  const PIT_GRAV = 0.0008, PIT_OVER_MS = 900;
+  const pitSink = () => pitFall ? PIT_GRAV * (clock - pitFall.t0) * (clock - pitFall.t0) : 0;
+  function checkPit() {
+    if (pitFall || !curMap || !curMap.pits.length || floorY !== 0 || herY() > 1.5) return;
+    const p = inPit(playerX());
+    if (!p) return;
+    if (cheats.invincible) {                                       // the cheat keeps her out of the hole: back to the nearer edge
+      const px = playerX();
+      x += (px - p.x0 < p.x1 - px) ? p.x0 - 4 - px : p.x1 + 4 - px;
+      floater(bodyX(), 40, 'Saved', '#ffd24a');
+      return;
+    }
+    pitFall = { t0: clock };
+    hp = 0; stun = null; slide = null; fall = null; queued = null;
+    cur = { id: 'jump', k: FALL_K, t: 0, kind: 'fall', face: hf() };
+    floater(bodyX(), 40, 'FELL', RED);
+  }
+  function drawPits(sx, sy) {
+    const top = Math.round(groundY(sy)) - 5;
+    for (const p of curMap.pits) {
+      const x0 = Math.round(p.x0 + sx), w = p.x1 - p.x0;
+      g.fillStyle = '#05030a'; g.fillRect(x0, top, w, V.h - top + 40);
+      g.fillStyle = '#1b1024'; for (let yy = top + 10; yy < V.h; yy += 14) g.fillRect(x0, yy, w, 3);   // dark bands: a deep shaft
+      g.fillStyle = '#6b4a2a'; g.fillRect(x0 - 2, top, 2, 10); g.fillRect(x0 + w, top, 2, 10);        // the dirt rim
+      g.fillStyle = '#3f8f3a'; g.fillRect(x0 - 3, top - 1, 3, 2); g.fillRect(x0 + w, top - 1, 3, 2);
+      g.fillStyle = '#c8b4e0'; for (let k = 0; k < w; k += 8) g.fillRect(x0 + k + 2, top + 1, 3, 2);       // teeth of the hole
+    }
+  }
+  // an enemy sent over a pit by a push falls in and is gone (no drops)
+  function plunge(e) {
+    if (e.state === 'dying') return;
+    kill(e, true);
+    e.sink = 0; e.sinkAt = clock;
   }
 
   // ------------------------------------------------------------------ enemies
@@ -922,7 +1145,7 @@
     o = o || {};
     const hp0 = hpOverride || ENEMY_HP[type] || 60;
     const e = { type, hp: hp0, maxHp: hp0, x: wx, base: wx, face: -1, anim: 'walk', k: 0, t: 0, state: 'walk', rest: 0, dead: 0, dive: Math.random() < 0.5, scale: 1,   // scale 1 = the normal (already scaled down) size; only the Empowerment Beam makes one larger
-                fy: o.fy || 0, lo: o.lo != null ? o.lo : 8, hi: o.hi != null ? o.hi : MAP_W - 8, key: o.key || null,
+                fy: o.fy || 0, lo: o.lo != null ? o.lo : 8, hi: o.hi != null ? o.hi : MAP_W - 8, lo0: o.lo0 != null ? o.lo0 : 8, hi0: o.hi0 != null ? o.hi0 : MAP_W - 8, shotK: 0, key: o.key || null,
                 path: o.path || null, sight: o.sight || 100, pause: 0, far: 0, prevX: wx, dir: 1 };
     enemies.push(e);
     if (e.path) {                                    // patrol: walk between the two ends until hit or until she comes into view
@@ -935,7 +1158,7 @@
   }
   function frameOf(e) { const T = EN[e.type]; return T.frames[T.anims[e.anim].frames[e.k]]; }
   function groundOff(e) { const gx = frameOf(e).ground || 0; return e.face < 0 ? gx : -gx; }
-  function play(e, anim) { e.anim = anim; e.k = 0; e.t = 0; e.hitDone = false; e.landAt = 0; e.base = e.x - groundOff(e); }
+  function play(e, anim) { e.anim = anim; e.k = 0; e.t = 0; e.hitDone = false; e.landAt = 0; e.shotK = 0; e.base = e.x - groundOff(e); }
   function turn(e, face) { if (face !== e.face) { e.face = face; e.base = e.x - groundOff(e); } }
   function alive(e) { return e.state !== 'dying'; }
 
@@ -949,11 +1172,12 @@
       : [e.base - h[2] * s, h[1] * s + fy, e.base - h[0] * s, h[3] * s + fy];
   }
 
-  function kill(e) {
+  function kill(e, quiet) {
     // Drops: a taunted enemy 2 empower gems, one hit by the Empowerment Beam 2 energy gems. Every kill also rolls
     // GEM_CHANCE for a health gem (+25 percent health) and, separately, GEM_CHANCE for one energy or empower gem of a
     // meter the player has unlocked (nothing if none). All of them go to the gem bag when walked over.
     const fy = e.fy || 0;
+    if (!quiet) {
     if (e.dropEnergy) { spawnGem(e.x - 6, 'energy', fy); spawnGem(e.x + 6, 'energy', fy); }
     if (e.dropEmpower) { spawnGem(e.x - 6, 'empower', fy); spawnGem(e.x + 6, 'empower', fy); }
     if (Math.random() < GEM_CHANCE) spawnGem(e.x - 3, 'health', fy);
@@ -961,6 +1185,7 @@
     if (P.meterOn('energy')) pool.push('energy');
     if (P.meterOn('empower')) pool.push('empower');
     if (pool.length && Math.random() < GEM_CHANCE) spawnGem(e.x + 3, pool[Math.floor(Math.random() * pool.length)], fy);
+    }
     if (level && e.key) level.killed.add(e.key);
     e.state = 'dying'; e.dead = 0; e.hp = 0;
     const death = EN[e.type].ai.death;
@@ -1005,8 +1230,8 @@
     else { const mv = Math.sign(dist) * step; e.x += mv; e.base += mv; }
   }
   // keep an enemy inside its range and out of barriers taller than the surface it stands on
-  function clampEnemy(e) {
-    let nx = Math.max(e.lo, Math.min(e.hi, e.x));
+  function clampEnemy(e, free) {                 // free: it was pushed, so only the walls of the map hold it (pits can take it)
+    let nx = Math.max(free ? e.lo0 : e.lo, Math.min(free ? e.hi0 : e.hi, e.x));
     if (curMap) for (const s of curMap.solids) {
       if (s.top <= e.fy + 1) continue;
       const pad = 10;
@@ -1017,7 +1242,16 @@
   }
   function stepEnemy(e, dt) {
     stepEnemyCore(e, dt);
-    if (e.state !== 'dying') clampEnemy(e);
+    if (e.anim === 'dive' && e.state === 'attack') {          // the backflip throws its shards
+      while (e.shotK < e.k) { e.shotK++; if (SHOT_AT.includes(e.shotK)) fireShot(e); }
+    }
+    if (e.state === 'dying') return;
+    let free = false;
+    if ((e.fy || 0) === 0 && curMap && curMap.pits.length) {
+      free = e.state === 'stunned' || clock - (e.shoved || 0) < 150;
+      if (free && curMap.pits.some(p => e.x > p.x0 + 6 && e.x < p.x1 - 6)) { plunge(e); return; }
+    }
+    clampEnemy(e, free);
   }
   function stepEnemyCore(e, dt) {
     const T = EN[e.type], ai = T.ai;
@@ -1130,6 +1364,7 @@
           }
         }
         crateHitsFrom(w);                                          // and any crate the shape touches
+        bombHitsFrom(w);                                           // and any bomb
       }
       if (h.mv.id === 'heavy' && h.f.name === 'impact' && !h.mv.aoeDone) {   // the chop lands: a small blast where the blade meets the ground
         h.mv.aoeDone = true;
@@ -1186,7 +1421,7 @@
   }
   const RED = '#ff2b2b', WHITE = '#ffffff';
   const heightAbove = () => stun ? stun.y : fall ? fall.y : (cur && cur.kind !== 'fall' ? rootOf(cur)[1] : 0);   // above the surface she stands on
-  function herY() { return floorY + heightAbove(); }                                                              // world height of her feet
+  function herY() { return floorY + heightAbove() - pitSink(); }                                                              // world height of her feet
   const hf = () => cur ? cur.face : facing;
   const bodyX = () => playerX() + hf() * BODY;         // her body centre
   function herBox() {
@@ -1326,7 +1561,7 @@
     const m = D.moves[cur.id];
     const f = m.frames[cur.k];
     const rel = stun ? [0, stun.y] : fall ? [0, fall.y] : (cur.kind === 'fall' ? [0, 0] : rootOf(cur));
-    const rx = rel[0], ry = rel[1] + floorY;                     // ry: world height of her feet
+    const rx = rel[0], ry = rel[1] + floorY - pitSink();                     // ry: world height of her feet
     let [sx, sy] = cur.kind === 'fall' || cur.kind === 'land' || cur.lite ? [0, 0] : f.shake;
     if (rumble) {                                                // fading aftershock
       const e = clock - rumble.t0;
@@ -1352,7 +1587,7 @@
     const bgx = camX + (level ? level.idx * MAP_W : 0);          // the scenery carries on from map to map
     for (const l of D.layers) drawLayer(img[l.src].im, -bgx * l.parallax + sx * l.shake, camY * l.parallax + sy * l.shake);
     if (level && level.def.tint) { g.globalAlpha = level.def.tint.alpha; g.fillStyle = level.def.tint.color; g.fillRect(0, 0, V.w, V.h); g.globalAlpha = 1; }
-    if (curMap) { drawGeometry(sx, sy); drawCrates(sx, sy); drawPowerups(sx, sy); }
+    if (curMap) { drawGeometry(sx, sy); drawCrates(sx, sy); drawBombs(sx, sy); drawPowerups(sx, sy); }
     drawEnemies(sx, sy);
     const cw = m.cell[0], ch = m.cell[1];
     const ax = V.anchorX + (px - camX) + sx;
@@ -1376,7 +1611,9 @@
     drawBeam(sx, sy);
     drawExplosions(sx, sy);
     drawParticles(sx, sy);
+    drawShots(sx, sy);
     drawLayer(img[D.fringe.src].im, -bgx + sx, camY + sy);
+    if (curMap) drawPits(sx, sy);                                 // over the grass and over whoever is falling in
     drawGems(sx, sy);
     drawBars(sx, sy);
     drawMeters();
@@ -1510,7 +1747,8 @@
       const left = GEM_LIFE - (clock - gm.t0);
       if (left < 4000 && Math.floor(clock / 120) % 2) continue;
       const X = Math.round(V.anchorX + (gm.x - camX) + sx), Y = Math.round(V.feetRow + camY + sy - gm.y - Math.sin(gm.bob) * 3);
-      const c = gm.kind === 'energy' ? ['#bfe6ff', '#4af', '#1d5fb0'] : gm.kind === 'super' ? ['#f0d6ff', '#c6f', '#6a2a9a'] : ['#ffe3b0', '#fa4', '#b25a10'];
+      const up = gm.kind.startsWith('up_'), base = up ? gm.kind.slice(3) : gm.kind;
+      const c = base === 'energy' ? ['#bfe6ff', '#4af', '#1d5fb0'] : base === 'super' ? ['#f0d6ff', '#c6f', '#6a2a9a'] : base === 'health' ? ['#c9ffd6', '#3ddc5f', '#15803d'] : ['#ffe3b0', '#fa4', '#b25a10'];
       g.save();
       g.globalAlpha = 0.25 + 0.1 * Math.sin(gm.bob * 2); g.fillStyle = c[1];
       g.beginPath(); g.arc(X, Y, 9, 0, Math.PI * 2); g.fill();
@@ -1519,6 +1757,10 @@
       g.fillStyle = c[1]; g.beginPath(); g.moveTo(X, Y - 6); g.lineTo(X + 4, Y); g.lineTo(X, Y + 6); g.lineTo(X - 4, Y); g.closePath(); g.fill();
       g.fillStyle = c[0]; g.beginPath(); g.moveTo(X, Y - 6); g.lineTo(X - 4, Y); g.lineTo(X, Y - 1); g.closePath(); g.fill();
       g.fillStyle = c[2]; g.beginPath(); g.moveTo(X, Y + 6); g.lineTo(X + 4, Y); g.lineTo(X, Y + 1); g.closePath(); g.fill();
+      if (up) {                                                   // a meter upgrade: a ring and a plus sign
+        g.strokeStyle = '#fff'; g.lineWidth = 1; g.beginPath(); g.arc(X, Y, 11, 0, Math.PI * 2); g.stroke();
+        g.fillStyle = '#fff'; g.fillRect(X - 3, Y - 1, 7, 2); g.fillRect(X, Y - 4, 1, 8);
+      }
       g.restore();
     }
   }
@@ -1526,18 +1768,18 @@
   function drawMeters() {
     g.font = 'bold 7px monospace'; g.textBaseline = 'top'; g.textAlign = 'left'; g.lineWidth = 2; g.lineJoin = 'round';
     let y = 24;                                                    // only the meters the player has unlocked are drawn
-    for (const [lab, k, v, max, col] of [['ENG', 'energy', energyMeter, ENERGY_MAX, '#4af'], ['EMP', 'empower', empowerMeter, EMPOWER_MAX, '#fa4'], ['SUP', 'super', superMeter, SUPER_MAX, '#c6f']]) {
+    for (const [lab, k, v, max, col] of [['ENG', 'energy', energyMeter, maxOf('energy'), '#4af'], ['EMP', 'empower', empowerMeter, maxOf('empower'), '#fa4'], ['SUP', 'super', superMeter, maxOf('super'), '#c6f']]) {
       if (!P.meterOn(k)) continue;
       g.strokeStyle = '#000'; g.fillStyle = '#fff';
       g.strokeText(lab, 8, y - 1); g.fillText(lab, 8, y - 1);
       const flash = clock < meterFlash[k];
-      g.fillStyle = '#000'; g.fillRect(27, y - 1, 102, 8);
-      g.fillStyle = '#16202e'; g.fillRect(28, y, 100, 6);
-      const fw = Math.round(100 * v / max);
+      g.fillStyle = '#000'; g.fillRect(27, y - 1, max + 2, 8);          // the bar is as long as the meter's maximum: upgrades make it longer
+      g.fillStyle = '#16202e'; g.fillRect(28, y, max, 6);
+      const fw = Math.max(0, Math.min(max, Math.round(v)));
       g.fillStyle = flash && Math.floor(clock / 70) % 2 ? '#fff' : col; g.fillRect(28, y, fw, 6);
       g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(28, y, fw, 1);
       const t = `${Math.round(v)}/${max}`;
-      g.strokeStyle = '#000'; g.fillStyle = '#fff'; g.strokeText(t, 132, y - 1); g.fillText(t, 132, y - 1);
+      g.strokeStyle = '#000'; g.fillStyle = '#fff'; g.strokeText(t, 32 + max, y - 1); g.fillText(t, 32 + max, y - 1);
       y += 9;
     }
   }
@@ -1601,7 +1843,7 @@
       let alpha = 1;
       if (e.state === 'dying') {
         const fade = T.ai.death ? 500 : 400;
-        if (!T.ai.death && e.dead < DIE_MS - fade && Math.floor(e.dead / 60) % 2) continue;   // no death art: flicker
+        if (!T.ai.death && !e.sinkAt && e.dead < DIE_MS - fade && Math.floor(e.dead / 60) % 2) continue;   // no death art: flicker
         alpha = Math.max(0, Math.min(1, (DIE_MS - e.dead) / fade));
       }
       const cell = T.anims[e.anim].frames[e.k];
@@ -1609,7 +1851,7 @@
       const vx = Math.round(V.anchorX + (e.base - camX) + sx);
       g.save();
       g.globalAlpha = alpha;
-      g.translate(vx, Math.round(gy - (e.fy || 0)));
+      g.translate(vx, Math.round(gy - (e.fy || 0) + (e.sinkAt ? PIT_GRAV * (clock - e.sinkAt) * (clock - e.sinkAt) : 0)));
       if (e.face > 0) g.scale(-1, 1);
       blit(img[T.sheet].im, cell * cw, cw, ch, -ax * SPRITE_SCALE * (e.scale||1), -ay * SPRITE_SCALE * (e.scale||1), e.tint && clock < e.tint.until ? e.tint : null, SPRITE_SCALE * (e.scale||1));
       g.restore();
@@ -1748,7 +1990,12 @@
 
   function tickLevel(t, dt) {
     clock += dt;                                      // game time: it does not run while a menu is open
-    if (cheats.infinite) { energyMeter = ENERGY_MAX; empowerMeter = EMPOWER_MAX; superMeter = SUPER_MAX; }
+    if (pitFall) {                                    // she fell into a pit: the rest of the world goes on while she drops out of sight
+      if (clock - pitFall.t0 > PIT_OVER_MS) triggerGameOver();
+      stepEffects(dt); stepEnemies(dt); follow(dt); draw(); hud(); drawMonitor();
+      return;
+    }
+    if (cheats.infinite) { energyMeter = maxOf('energy'); empowerMeter = maxOf('empower'); superMeter = maxOf('super'); }
     readButtons(t);
     for (const e of reader.update(t)) request(e.move, e.via);
     const before = cur && BLOCKED.has(cur.id) ? playerX() : null;
@@ -1757,11 +2004,14 @@
     blockMove(before);
     physics();
     if (screen !== 'level' || !curMap) return;        // the level just ended
+    checkPit();
     if (hp <= 0 && !gameOver) triggerGameOver();     // any source of damage ends the run, not only an enemy hit
     beamHits();
     stepHeal(dt);
     stepPowerups();
     stepEffects(dt);
+    stepShots(dt);
+    stepBombs();
     if (cur && cur.kind === 'action' && !hitQ.length) queueHit();   // the frame still on screen
     stepEnemies(dt);
     resolveHits();
@@ -1873,7 +2123,8 @@
       { label: 'Unlock all levels', fn: act(() => { P.unlockAllLevels(); }) },
       { label: 'Unlock all moves and buttons', fn: act(() => unlockEverything()) },
       { label: 'Give 5 of every gem', fn: act(() => { for (const k of P.GEM_KINDS) P.addGem(k, 5); P.save(); }) },
-      { label: 'Full health and full meters', fn: act(() => { hp = MAX_HP; energyMeter = ENERGY_MAX; empowerMeter = EMPOWER_MAX; superMeter = SUPER_MAX; syncProgress(); }) },
+      { label: 'Full health and full meters', fn: act(() => { hp = MAX_HP; energyMeter = maxOf('energy'); empowerMeter = maxOf('empower'); superMeter = maxOf('super'); syncProgress(); }) },
+      { label: 'Raise every meter maximum by 25', fn: act(() => { for (const k of ['energy', 'empower', 'super']) P.raiseMax(k); }) },
     ];
     if (level) {
       items.push({ label: 'Kill every enemy on this map', fn: act(() => { for (const e of enemies) if (alive(e)) kill(e); }) });
@@ -1937,7 +2188,7 @@
     setStartLabel();
   }
   if (UI) UI.init({ mainItems, closeMenu, moveRows, lockedCount, padStatus, gemRows, useGem, devItems,
-    moveNotes: () => ['Keyboard: arrows = d-pad, Z = A, X = B, C = X, V = Y. Shoulders: Q = L1, E = L2, T = R1, R = R2, W = hold R (recover). Enter, Space or Escape opens and closes this menu. Hold Left or Right while jumping to steer.',
+    moveNotes: () => ['Keyboard: arrows = d-pad, Z = A, X = B, C = X, V = Y. Shoulders: Q = L1, E = L2, T = R1, R = R2, W = hold R (recover). Enter, Space or Escape opens and closes this menu. Hold Left or Right while jumping to steer. Double tap Down on a platform to drop through it.',
                       'A gamepad works too, wired or Bluetooth, also on an Android phone in Chrome: A is the bottom face button, B right, X left, Y top. Click the game first if keys do nothing. Press H to show hurtboxes and hit shapes.'] });
   Promise.all(srcs.map(load)).then(() => {
     const loading = document.getElementById('loading');
@@ -2011,11 +2262,20 @@
                     crates: curMap ? curMap.crates.map(c => ({ x: c.x, fy: c.fy, item: c.item, broken: c.broken })) : [],
                     powerups: powerups.map(u => ({ item: u.item, x: u.x, y: u.y })),
                     foes: enemies.map(e => ({ type: e.type, x: e.x, fy: e.fy, hp: e.hp, state: e.state, alive: alive(e), path: e.path, dir: e.dir })),
-                    solids: curMap ? curMap.solids : [], plats: curMap ? curMap.plats : [], fx: { gems: gems.length } }),
+                    solids: curMap ? curMap.solids : [], plats: curMap ? curMap.plats : [], pits: curMap ? curMap.pits : [], bombs: curMap ? curMap.bombs.map(b => ({ x: b.x, fy: b.fy, gone: b.gone })) : [], shots: shots.map(q => ({ x: q.x, y: q.y, vx: q.vx, vy: q.vy, from: q.from })), pitFall: !!pitFall, feetNow: herY(), fx: { gems: gems.length } }),
     enterLevel: n => enterLevel(n), warp: idx => { loadMap(idx, 'left'); }, setX: v => { x = v; }, goOverworld: () => goOverworld(),
     menuOpen: () => !!(UI && UI.isOpen()),
     unlock: id => unlockItem(id), resetAll: () => { P.reset(); energyMeter = empowerMeter = superMeter = 0; refreshUnlocks(); },
     // the old combat tests: everything unlocked, one closed map with no scenery, enemies as the test places them
+    // a one-map level built from the given data (plats, pits, bombs, crates, enemies), doors closed, for the hazard tests
+    custom: md => {
+      startLevel(0, { n: 0, name: 'Test', blurb: '', tint: null, maps: [Object.assign({ id: 'test', solids: [], plats: [], pits: [], bombs: [], crates: [], enemies: [], arena: true }, md)] });
+      respawnOn = false; paused = false; hideMenu();
+    },
+    addShot: (sx, sy, vx, vy) => shots.push({ x: sx, y: sy, vx, vy, from: 'foe', t0: clock }),
+    smash: i => { if (curMap && curMap.crates[i]) breakCrate(curMap.crates[i]); },
+    shove: (i, dx) => { const e = enemies[i]; if (e) { e.x += dx; e.base += dx; e.shoved = clock; } },
+    maxes: () => ({ energy: maxOf('energy'), empower: maxOf('empower'), super: maxOf('super') }),
     arena: () => {
       unlockEverything();
       startLevel(0, { n: 0, name: 'Arena', blurb: '', tint: null, maps: [{ id: 'arena', solids: [], plats: [], crates: [], enemies: [], arena: true }] });

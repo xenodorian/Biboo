@@ -155,6 +155,20 @@ L1, L2, R1, R2 buttons. Smash the crate and touch the item. Energy, Empowerment 
 uses them is unlocked; the health bar is always shown. Unlock definitions: `web/progress.js` (UNLOCKS); where each
 crate sits: `web/levels.js` (`whereIs`).
 
+Jumping: Y is a floaty physics jump (about 135 px high, about 670 ms in the air, about 107 px sideways with Left or Right held). Down then Y
+(the sky dash) is unchanged. Double tap Down on a platform to drop through it (no unlock needed).
+
+Meters: Energy, Empowerment and Super each start with a maximum of 50 (a new meter starts full). Every plain crate drops something: a health gem,
+a meter gem, or a +25 meter upgrade (raises that meter's maximum by 25 and fills it by 25, up to 150; saved). Earthquake and Meteor Shower need a
+full Super meter, whatever its maximum is.
+
+Hazards (Level data in `web/levels.js`, code in the "hazards" section of `web/game.js`):
+- Pits: gaps in the ground. Her feet on the ground inside one mean instant death and Game Over. Ground enemies stop at the edge; one pushed in
+  by a hit, beam or blast falls and is gone (no drops). There are no barriers any more.
+- Bombs: only she sets them off (touch, or any damage she does, including a reflected shard). 50 damage within 50 px to her and to enemies; they chain.
+- Goblin shards: the goblin's backflip throws two real shards at her. 20 damage each. Hold B to block for no damage, or tap B as one arrives
+  to reflect it straight forward (it hurts enemies and sets off bombs).
+
 Enemies patrol a set path and chase only when hit or when she is inside their sight range in front of them.
 35% of kills drop a health gem (+25% of max health, 50 of 200 HP, `GEM_HEAL` in game.js). Gems go
 to a bag and are used from the Gems menu. Air control was added because the jump has no sideways motion.

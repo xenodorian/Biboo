@@ -5,55 +5,62 @@
  * generated from a fixed seed by genMap(), so they are the same every time.
  *
  * Coordinates: x is px from the left of the screen, heights are px above the ground line (0).
- *   solids   {x0, x1, top}   barriers: block walking below their top; the top can be landed on and stood on.
+ *   solids   {x0, x1, top}   barriers. None are used any more (a block she could stand on let her hit enemies in safety), but the
+ *                            engine still supports them.
+ *   pits     {x0, x1}        a gap in the ground: her feet on the ground inside it mean instant death. Keep them 40 to 75 px
+ *                            wide (a jump with Left or Right held covers about 107 px) and away from the first and last 40 px.
+ *   bombs    {x, fy}         sits on the ground or a platform; only she sets it off (touch or damage): 50 damage within 50 px to
+ *                            her and to enemies.
  *   plats    {x0, x1, top}   platforms: land on them from above, jump up through them from below.
  *   crates   {x, fy, item?}  fy is the surface it sits on. With an item it is a golden crate holding that unlock
  *                            (an id from progress.js); without one it is a plain crate that may drop a gem.
  *   enemies  {type, x, fy, path:[a, b], sight}  walks between a and b, chases only when hit or when the player is
  *                            within `sight` px in front of it (see stepEnemy / patrol in game.js).
- * The player's jump is 164 px high and reaches about 65 px sideways, so barriers stay at or under 64 px and platforms
- * at or under 110 px. Keep the first and last 40 px of the ground free of barriers so the doors stay open.
+ * The player's jump is about 135 px high and reaches about 107 px sideways, so platforms stay at or under 110 px. Ground enemies
+ * stay inside the stretch of ground between pits, so their paths must not cross a pit.
  */
 (function (root) {
   'use strict';
   const MAP_W = 384, MAPS_PER_LEVEL = 10;
   const S = (x0, x1, top) => ({ x0, x1, top });
   const P = (x0, x1, top) => ({ x0, x1, top });
+  const X = (x0, x1) => ({ x0, x1 });                     // a pit in the ground
+  const B = (x, fy) => ({ x, fy: fy || 0 });              // a bomb
   const C = (x, fy, item) => (item ? { x, fy: fy || 0, item } : { x, fy: fy || 0 });
   const E = (type, x, a, b, sight, fy) => ({ type, x, fy: fy || 0, path: [a, b], sight: sight || 100 });
   const G = (x, a, b, sight, fy) => E('goblin', x, a, b, sight, fy);
   const O = (x, a, b, sight, fy) => E('orc', x, a, b, sight, fy);
-  const map = o => Object.assign({ solids: [], plats: [], crates: [], enemies: [] }, o);
+  const map = o => Object.assign({ solids: [], plats: [], pits: [], bombs: [], crates: [], enemies: [] }, o);
 
   // ------------------------------------------------------------------ Level 1: Green Trail (hand built)
   const L1 = [
     // 1.1 a first jump and one goblin
     map({ plats: [P(150, 214, 44)], crates: [C(110), C(182, 44)], enemies: [G(270, 230, 330, 90)] }),
-    // 1.2 a log to jump over; the golden crate is on the far side
-    map({ solids: [S(150, 166, 34)], crates: [C(60), C(300, 0, 'thrust')], enemies: [G(260, 200, 330, 100)] }),
-    // 1.3 stepping stones up to a golden crate
-    map({ plats: [P(90, 150, 50), P(170, 230, 80), P(250, 310, 50)], crates: [C(60), C(200, 80, 'L1'), C(350)],
-          enemies: [G(220, 110, 330, 90)] }),
-    // 1.4 two logs, a goblin in each gap
-    map({ solids: [S(120, 136, 30), S(240, 256, 44)], crates: [C(190, 0, 'upswing'), C(340)],
-          enemies: [G(180, 150, 230, 100), G(310, 270, 350, 100)] }),
+    // 1.2 the first pit; the golden crate is on the far side
+    map({ pits: [X(150, 200)], crates: [C(60), C(300, 0, 'thrust')], enemies: [G(265, 215, 330, 100)] }),
+    // 1.3 stepping stones over a chasm up to a golden crate
+    map({ pits: [X(120, 300)], plats: [P(90, 150, 50), P(170, 230, 80), P(250, 310, 50)], crates: [C(60), C(200, 80, 'L1'), C(350)],
+          enemies: [G(280, 255, 305, 80, 50), G(345, 318, 370, 90)] }),
+    // 1.4 two pits with a goblin on the island between them
+    map({ pits: [X(120, 170), X(240, 290)], crates: [C(190, 0, 'upswing'), C(340)], bombs: [B(90)],
+          enemies: [G(205, 182, 228, 100), G(335, 305, 365, 100)] }),
     // 1.5 a high ledge with a goblin guarding the crate
-    map({ plats: [P(60, 140, 60), P(160, 200, 90), P(220, 320, 110)], crates: [C(100, 60), C(270, 110, 'heavy_horizontal')],
-          enemies: [G(270, 235, 305, 80, 110), G(300, 130, 340, 100)] }),
-    // 1.6 the first orc, behind a barrier
-    map({ solids: [S(180, 196, 56)], crates: [C(100), C(140)], enemies: [O(280, 230, 340, 110), G(120, 90, 160, 90)] }),
-    // 1.7 a row of platforms and a golden crate at the far end
-    map({ plats: [P(40, 110, 40), P(120, 190, 70), P(200, 270, 40)], crates: [C(155, 70), C(320, 0, 'dash_thrust')],
-          enemies: [G(150, 100, 300, 100), G(240, 130, 330, 100)] }),
-    // 1.8 three barriers of rising height
-    map({ solids: [S(100, 116, 40), S(190, 206, 52), S(280, 296, 64)], crates: [C(150), C(240), C(340)],
-          enemies: [G(150, 125, 180, 90), O(240, 215, 270, 100), G(335, 305, 350, 90)] }),
+    map({ plats: [P(60, 140, 60), P(160, 200, 90), P(220, 320, 110)], crates: [C(100, 60), C(270, 110, 'heavy_horizontal')], bombs: [B(185)],
+          enemies: [G(270, 235, 305, 80, 110), G(300, 215, 340, 100)] }),
+    // 1.6 the first orc, across a pit, with a bomb on its patrol
+    map({ pits: [X(170, 225)], crates: [C(100), C(140)], bombs: [B(300)], enemies: [O(285, 245, 345, 110), G(120, 90, 160, 90)] }),
+    // 1.7 a row of platforms over a chasm and a golden crate at the far end
+    map({ pits: [X(120, 285)], plats: [P(40, 110, 40), P(120, 190, 70), P(200, 270, 40)], crates: [C(155, 70), C(330, 0, 'dash_thrust')],
+          enemies: [G(75, 50, 100, 90), G(235, 210, 260, 80, 40)] }),
+    // 1.8 two pits, bombs and three enemies
+    map({ pits: [X(100, 150), X(205, 260)], crates: [C(178), C(320), C(60)], bombs: [B(178, 0), B(300)],
+          enemies: [G(60, 30, 90, 90), G(178, 165, 192, 90), O(320, 275, 355, 100)] }),
     // 1.9 the ridge: an orc below, a goblin above, the spin attack up top
-    map({ plats: [P(50, 120, 60), P(140, 210, 90), P(230, 300, 60)], crates: [C(85, 60), C(265, 60, 'spin')],
-          enemies: [O(150, 110, 330, 110), G(175, 150, 200, 80, 90)] }),
+    map({ pits: [X(140, 215)], plats: [P(50, 120, 60), P(140, 210, 90), P(230, 300, 60)], crates: [C(85, 60), C(265, 60, 'spin')], bombs: [B(300)],
+          enemies: [O(270, 230, 345, 110), G(175, 150, 200, 80, 90)] }),
     // 1.10 gate guard: clear the map to finish the level
-    map({ solids: [S(180, 196, 36)], crates: [C(80), C(300)],
-          enemies: [O(120, 90, 165, 110), G(150, 100, 170, 100), O(260, 215, 330, 110), G(320, 230, 350, 100)] }),
+    map({ pits: [X(180, 235)], crates: [C(80), C(300)], bombs: [B(110), B(280)],
+          enemies: [O(120, 90, 165, 110), G(150, 100, 170, 100), O(290, 250, 340, 110), G(330, 300, 360, 100)] }),
   ];
 
   // ------------------------------------------------------------------ Levels 2 to 5: generated
@@ -73,11 +80,11 @@
     const chance = p => r() < p;
     const final = i === MAPS_PER_LEVEL - 1;
     const m = map({});
-    // barriers: distinct slots, 80 px apart, 16 px wide, 30 to 64 px high
-    const slots = [96, 176, 256, 336];
+    // pits: centred on distinct slots 80 px apart, 40 to 70 px wide (none on the first map of a level)
+    const slots = [110, 190, 270];
     for (let k = slots.length - 1; k > 0; k--) { const j = pick(0, k); [slots[k], slots[j]] = [slots[j], slots[k]]; }
-    const nb = final ? 1 : pick(0, 2 + (n > 2 ? 1 : 0));
-    for (const c of slots.slice(0, nb).sort((a, b) => a - b)) m.solids.push(S(c - 8, c + 8, pick(15, 32) * 2));
+    const nb = i === 0 ? 0 : final ? 1 : pick(0, n > 2 ? 2 : 1);
+    for (const c of slots.slice(0, nb).sort((a, b) => a - b)) { const w = pick(4, 7) * 10; m.pits.push(X(c - w / 2, c + w / 2)); }
     // platforms: 60 to 100 px wide, 40 to 100 px high, not overlapping each other
     const np = final ? 1 : pick(0, 2);
     for (let k = 0; k < np; k++) {
@@ -89,12 +96,12 @@
         break;
       }
     }
-    // ground segments between the barriers
+    // ground segments between the pits
     const segs = [];
     let from = 12;
-    for (const s of m.solids) { segs.push([from, s.x0 - 4]); from = s.x1 + 4; }
+    for (const s of m.pits) { segs.push([from, s.x0 - 4]); from = s.x1 + 4; }
     segs.push([from, MAP_W - 12]);
-    const wide = segs.filter(s => s[1] - s[0] >= 90);
+    const wide = segs.filter(s => Math.min(s[1] - 14, 300) - Math.max(s[0] + 14, 90) >= 40);
     // enemies
     const count = final ? Math.min(6, n + 2) : Math.min(5, 1 + (n >= 2 ? 1 : 0) + (n >= 4 ? 1 : 0) + (i >= 4 ? 1 : 0) + (i >= 7 ? 1 : 0));
     const orcP = Math.min(0.6, 0.12 * (n - 1) + 0.05 * i + (final ? 0.15 : 0));
@@ -108,13 +115,12 @@
       } else if (wide.length) {
         const s = wide[pick(0, wide.length - 1)];
         const a0 = Math.max(s[0] + 14, 90), b0 = Math.min(s[1] - 14, 300);
-        if (b0 - a0 < 50) { const q = wide[0]; m.enemies.push(E(type, (q[0] + q[1]) / 2, q[0] + 20, q[1] - 20, sight)); continue; }
         const w = Math.min(b0 - a0, pick(6, 14) * 10), a = pick(a0, b0 - w);
         m.enemies.push(E(type, a + w / 2, a, a + w, sight));
       }
     }
     // crates: plain ones on the ground or a platform, and the unlock (if this map holds one) on a platform when there is one
-    const free = x => !m.solids.some(s => x > s.x0 - 14 && x < s.x1 + 14);
+    const free = x => !m.pits.some(s => x > s.x0 - 14 && x < s.x1 + 14);
     for (let k = pick(1, 2); k > 0; k--) {
       if (m.plats.length && chance(0.4)) { const p = m.plats[pick(0, m.plats.length - 1)]; m.crates.push(C(pick(p.x0 + 12, p.x1 - 12), p.top)); }
       else { let x = pick(30, 350); for (let t = 0; t < 8 && !free(x); t++) x = pick(30, 350); if (free(x)) m.crates.push(C(x, 0)); }
@@ -122,6 +128,16 @@
     if (item) {
       if (m.plats.length) { const p = m.plats[pick(0, m.plats.length - 1)]; m.crates.push(C(Math.round((p.x0 + p.x1) / 2), p.top, item)); }
       else { let x = pick(60, 330); for (let t = 0; t < 12 && !free(x); t++) x = pick(60, 330); m.crates.push(C(x, 0, item)); }
+    }
+    // bombs on open ground, away from pits and crates
+    const nbomb = final ? 1 : pick(0, 1) + (n >= 3 ? 1 : 0);
+    for (let k = 0; k < nbomb; k++) {
+      for (let t = 0; t < 12; t++) {
+        const x = pick(90, 300);
+        if (!free(x) || m.crates.some(c => c.fy === 0 && Math.abs(c.x - x) < 26) || m.bombs.some(b => Math.abs(b.x - x) < 40)) continue;
+        m.bombs.push(B(x, 0));
+        break;
+      }
     }
     m.final = final;
     return m;

@@ -75,13 +75,11 @@ const { chromium } = require('playwright');
   await ev('bibooGame.setEnemies([])'); await wait(100);
   s = await S();
   check('warp to 1.2', s.level.id === '1.2', s.level);
-  await page.keyboard.down('ArrowRight'); await wait(2200); await page.keyboard.up('ArrowRight');
-  s = await S();
-  check('a barrier stops her walking (px about 141)', s.level.id === '1.2' && s.px > 130 && s.px < 146, { px: s.px, id: s.level.id });
+  await ev('bibooGame.setX(120)'); await wait(100);
   await page.keyboard.down('ArrowRight'); await key('KeyV', 60);
-  await wait(1500); await page.keyboard.up('ArrowRight'); await wait(400);
+  await wait(1100); await page.keyboard.up('ArrowRight'); await wait(500);
   s = await S();
-  check('jump with Right held clears the barrier', s.px > 170 && s.floorY === 0, { px: s.px, fy: s.floorY });
+  check('jump with Right held clears the 1.2 pit and she survives', !s.pitFall && s.hp === 200 && s.px > 205 && s.floorY === 0, { px: s.px, hp: s.hp, pf: s.pitFall });
 
   // platform: 1.1 has a plank x 150-214 top 44; jump onto it from x 120
   await ev('bibooGame.warp(0)'); await wait(700); await ev('bibooGame.setEnemies([])');
@@ -200,8 +198,7 @@ const { chromium } = require('playwright');
   await ev('bibooGame.warp(9)'); await wait(700);
   s = await S();
   check('1.10 has 4 enemies', s.foes.length === 4 && s.level.id === '1.10', s.foes.length);
-  await ev('bibooGame.hurtHer(0)');
-  await ev('BibooProgress.state.levelsUnlocked'); 
+  await ev('bibooGame.setX(290)');
   await page.keyboard.down('ArrowRight'); await wait(3500); await page.keyboard.up('ArrowRight');
   s = await S();
   check('the last map is gated while enemies live', s.screen === 'level' && !s.levelDone && s.level.id === '1.10', s);
