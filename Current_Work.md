@@ -246,3 +246,6 @@ with 50 and drops of +25 raise the maximum; every crate drops something; remove 
 
 ### Tenth request (2026-09-30): meter cap 200
 - [x] `P.MAX_CAP` is 200 for every meter; saved meter values clamp to 200.
+
+### Eleventh request (2026-09-30): charged energy attacks
+- [x] `ENERGY_HOLD` / `HOLD_FIRE` in game.js: request() turns a press, chord or sequence of an energy move into `hold`; readButtons fires it on release (request via 'release' checks `chargeMs >= MIN_FIRE`, start() sets `cur.power`). Energy wave's flat 10 cost was removed; the charge drain (stepCharge) is the cost. The thrust charge pose no longer drains energy. Tests: web/tests/energy_charge.test.js (29).

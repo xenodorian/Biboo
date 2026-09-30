@@ -20,7 +20,7 @@
     { id: 'upswing', kind: 'Combo', name: 'Ducking Upswing', hint: 'Hold Down and press A', moves: ['upswing'] },
     { id: 'heavy_horizontal', kind: 'Combo', name: 'Heavy Horizontal', hint: 'Hold B and tap A', moves: ['heavy_horizontal'] },
     { id: 'dash_thrust', kind: 'Combo', name: 'Dash Thrust', hint: 'Press X and A together', moves: ['dash_thrust'] },
-    { id: 'energy_dash', kind: 'Combo', name: 'Energy Dash Thrust', hint: 'Double tap forward, then X and A', moves: ['energy_dash_thrust'] },
+    { id: 'energy_dash', kind: 'Combo', name: 'Energy Dash Thrust', hint: 'Double tap forward, then hold X and A and let go', moves: ['energy_dash_thrust'] },
     { id: 'taunt', kind: 'Combo', name: 'Taunt', hint: 'Press X and Y together', moves: ['taunt'] },
     { id: 'double_jump', kind: 'Combo', name: 'Double Jump', hint: 'Press Up again in the air', moves: ['double_jump'] },
     { id: 'sky_dash', kind: 'Combo', name: 'Sky Dash', hint: 'Press Down, then Y', moves: ['sky_dash'] },
@@ -29,9 +29,9 @@
     { id: 'earthquake', kind: 'Combo', name: 'Earthquake', hint: 'Down four times, then A (full super meter)', moves: ['earthquake'], meters: ['super'] },
     { id: 'meteor', kind: 'Combo', name: 'Meteor Shower', hint: 'Up four times, then A (full super meter)', moves: ['meteor_shower'], meters: ['super'] },
     { id: 'L1', kind: 'Button', name: 'L1 button', hint: 'L1 push kick, hold B+L1 then let go for the energy kick, A+L1 laser beam', moves: ['push_kick', 'energy_kick', 'beam_laser'], buttons: ['L1'], meters: ['energy'] },
-    { id: 'L2', kind: 'Button', name: 'L2 button', hint: 'L2 energy burst, A+L2 cloud beam', moves: ['energy_burst', 'beam_cloud'], buttons: ['L2'], meters: ['energy'] },
+    { id: 'L2', kind: 'Button', name: 'L2 button', hint: 'hold L2 then let go for the energy burst, A+L2 cloud beam', moves: ['energy_burst', 'beam_cloud'], buttons: ['L2'], meters: ['energy'] },
     { id: 'R1', kind: 'Button', name: 'R1 button', hint: 'A+R1 Empowerment Beam, hold R1 to kneel and recover', moves: ['beam_plasma', 'recover'], buttons: ['R1', 'R'], meters: ['empower'] },
-    { id: 'R2', kind: 'Button', name: 'R2 button', hint: 'R2 energy wave, A+R2 fire beam', moves: ['energy_wave', 'beam_fire'], buttons: ['R2'], meters: ['energy'] },
+    { id: 'R2', kind: 'Button', name: 'R2 button', hint: 'hold R2 then let go for the energy wave, A+R2 fire beam', moves: ['energy_wave', 'beam_fire'], buttons: ['R2'], meters: ['energy'] },
   ];
   const byId = {};
   for (const u of UNLOCKS) byId[u.id] = u;

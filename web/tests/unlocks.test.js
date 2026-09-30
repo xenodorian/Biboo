@@ -13,9 +13,7 @@ const CASES = [
   ['sky_dash', ['sky_dash'], [['ArrowDown'], ['KeyS']]],
   ['L1', ['push_kick'], [['KeyQ']]],
   ['L1', ['beam_laser'], [['KeyZ', 'KeyQ']]],
-  ['L2', ['energy_burst'], [['Digit1']]],
   ['L2', ['beam_cloud'], [['KeyZ', 'Digit1']]],
-  ['R2', ['energy_wave'], [['Digit2']]],
   ['R2', ['beam_fire'], [['KeyZ', 'Digit2']]],
   ['R1', ['beam_plasma'], [['KeyZ', 'KeyW']]],
 ];
@@ -124,7 +122,7 @@ const CASES = [
   // energy dash thrust: B then X+A (double tap forward variant is the old one)
   await fresh(); await ev("bibooGame.unlock('energy_dash'); bibooGame.enterLevel(1)"); await wait(500); await ev('bibooGame.setEnemies([]); bibooGame.setMeters(100, 100, 100)'); await wait(800);
   n0 = await ev('bibooGame.started.length');
-  await play([['ArrowRight'], ['ArrowRight'], ['KeyA', 'KeyZ']]);
+  for (let i = 0; i < 2; i++) { await page.keyboard.down('ArrowRight'); await wait(60); await page.keyboard.up('ArrowRight'); await wait(60); } await page.keyboard.down('KeyA'); await page.keyboard.down('KeyZ'); await wait(800); await page.keyboard.up('KeyA'); await page.keyboard.up('KeyZ'); await wait(900);
   check('energy dash thrust plays', (await played(n0)).includes('energy_dash_thrust'), await played(n0));
 
   // recover needs R1 (hold W)

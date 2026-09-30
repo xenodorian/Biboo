@@ -116,7 +116,7 @@
   let energyMeter = P.state.meters.energy, empowerMeter = P.state.meters.empower, superMeter = P.state.meters.super;   // saved with the progress
   const GEM_VALUE = 25, GEM_CHANCE = 0.35, GEM_LIFE = 20000, GEM_PICKUP = 28;
   const BEAM_TICK_COST = { cloud: 1, fire: 3, laser: 3, plasma: 5 };         // per beam tick (100 ms)
-  const MOVE_COST = { energy_wave: ['energy', 10], jump_crash: ['energy', 30], earthquake: ['super', 'full'], meteor_shower: ['super', 'full'] };   // earthquake and meteor shower need a full super meter and use all of it                          // paid once, when the move starts
+  const MOVE_COST = { jump_crash: ['energy', 30], earthquake: ['super', 'full'], meteor_shower: ['super', 'full'] };   // earthquake and meteor shower need a full super meter and use all of it                          // paid once, when the move starts
   const HEAL_COST = 1;                                                        // empower per recover tick
   const meterOf = k => k === 'energy' ? energyMeter : k === 'super' ? superMeter : empowerMeter;
   function spend(k, n) {                               // n < 0 adds (capped at the meter's maximum)
@@ -412,7 +412,7 @@
         if (b === 'Left') facing = -1; else if (b === 'Right') facing = 1;
       } else if (!now && isDown.has(b)) {
         isDown.delete(b); reader.up(b, t);
-        if (hold && hold.keys.includes(b)) { const m = hold.move; hold = null; request(m, 'release'); }   // let go: the charged attack fires
+        if (hold && hold.keys.includes(b)) { const m = hold.move; hold = null; request(m, 'release'); }   // (energy moves: see request)   // let go: the charged attack fires
         if (b === 'Left' && isDown.has('Right')) facing = 1;        // let go of the newer one: the other still held
         else if (b === 'Right' && isDown.has('Left')) facing = -1;
       }
@@ -423,7 +423,11 @@
   // cur: {id, k: frame index, t: ms into the frame, base: [x, y] where the move started, kind}
   let cur = null, queued = null, x = 0, camX = 0, camY = 0;
   // Hold-and-release attacks: the chord (B+L1 energy kick, direction+A lunging thrust) starts a charge; letting go of a button fires the move.
-  const HOLD_FIRE = { energy_kick: ['B', 'L1'], thrust: ['A'] };
+  // Every attack named "energy" is charged: press and hold its buttons (the charge pose plays, energy drains, Max turns blue
+  // when full) and let go to fire. A release before MIN_FIRE ms does nothing; a partial charge fires at 50% to 100% power.
+  const HOLD_FIRE = { energy_kick: ['B', 'L1'], energy_burst: ['L2'], energy_wave: ['R2'], energy_dash_thrust: ['X', 'A'], thrust: ['A'] };
+  const ENERGY_HOLD = new Set(['energy_kick', 'energy_burst', 'energy_wave', 'energy_dash_thrust']);
+  const MIN_FIRE = 250;
   let hold = null;                      // {move, keys}: the charge in progress
   let facing = 1, camLead = 0;          // facing: 1 right, -1 left (each move keeps the one it started with)
   let fall = null;                      // {y, v}: coming back down after a move that ends in the air
@@ -578,6 +582,7 @@
     if (cur) x += rootOf(cur)[0];       // keep the ground covered so far; height resets
     cur = { id, k: k0, t: 0, kind, from: x, face: facing };
     if (id === 'heavy') { cur.lite = charged < FULL_CHARGE; cur.charged = charged; }
+    if (ENERGY_HOLD.has(id) && via === 'release') cur.power = 0.5 + 0.5 * Math.min(1, charged / FULL_CHARGE);   // the charge sets the power
     if (kind === 'action' && MOVE_COST[id]) { const n = needOf(id); spend(n[0], n[1]); }
     if (kind === 'action') queueHit();
     if (id === 'taunt') {
@@ -601,8 +606,14 @@
     const air = via === 'sequence' && /^Up-/.test(D.moves[move].input) ? null     // Up then A (heavy, meteor shower) is not the air A
               : AIR.find(b => usesButton(D.moves[move].input, b.input));
     const inAir = airborne() || (cur && cur.id === 'jump' && cur.kind === 'action');
-    if (via === 'chord' && HOLD_FIRE[move] && !inAir && !fall) {      // hold to charge, fire on release
-      if (!canAfford(move)) { deny(move); return; }
+    if (ENERGY_HOLD.has(move) && via === 'release') {                   // let go of an energy charge: fire it if it was held long enough
+      if (!(cur && cur.id === 'charge' && chargeMs >= MIN_FIRE)) return;
+    } else if (ENERGY_HOLD.has(move)) {                                 // press and hold to charge (on the ground only)
+      if (inAir || fall || (cur && cur.kind === 'action' && cur.id !== 'charge')) return;
+      if (energyMeter < 1) { meterFlash.energy = clock + 500; return; }
+      hold = { move, keys: HOLD_FIRE[move] }; queued = null;
+      return;
+    } else if (via === 'chord' && HOLD_FIRE[move] && !inAir && !fall) {  // the lunging thrust: hold, fire on release
       hold = { move, keys: HOLD_FIRE[move] }; queued = null;
       return;
     }
@@ -725,7 +736,7 @@
   const HEAVY_DMG = 200, HEAVY_AOE_DMG = 150, HEAVY_AOE_R = 25
   const CRASH_DMG = 300, CRASH_COST = 30;      // the jump crash: flat damage, energy paid when it starts
   const HEAL_EVERY = 350, HEAL_AMOUNT = 5, KO_MS = 1500;
-  const dmgOf = c => c.id === 'heavy' ? HEAVY_DMG : c.id === 'jump_crash' ? CRASH_DMG : (c.id in DAMAGE ? DAMAGE[c.id] : 15);   // 0 is a real value (the wave hurts only by its blast)
+  const dmgOf = c => c.id === 'heavy' ? HEAVY_DMG : c.id === 'jump_crash' ? CRASH_DMG : (c.id in DAMAGE ? Math.round(DAMAGE[c.id] * (c.power || 1)) : 15);   // 0 is a real value (the wave hurts only by its blast)
   let hp = MAX_HP, hpOverride = null, healAcc = 0;
   const floaters = [];                  // {wx, wy, text, color, t0}: numbers that rise and fade
   const FLOAT_MS = 900;
@@ -758,7 +769,7 @@
           empowerMeter = Math.min(maxOf('empower'), empowerMeter + METER_CHARGE_STEP);
           superMeter = Math.min(maxOf('super'), superMeter + METER_CHARGE_STEP);
         }
-      } else stepCharge(dt);
+      } else if (!hold || ENERGY_HOLD.has(hold.move)) stepCharge(dt);   // the thrust's charge pose costs nothing
     } else meterAcc = 0;
     if (!cur || cur.id !== 'recover' || cur.kind !== 'hold' || stun || hp >= MAX_HP) { healAcc = 0; return; }
     healAcc += dt;
@@ -1487,7 +1498,7 @@
     for (const o of enemies) {
       if (!alive(o)) continue;
       const b = hurtOf(o);
-      if (b && distBox(wx, wy, b) <= WAVE_R) hurtEnemy(o, WAVE_DMG);
+      if (b && distBox(wx, wy, b) <= WAVE_R) hurtEnemy(o, Math.round(WAVE_DMG * (mv.power || 1)));
     }
   }
 
@@ -2003,6 +2014,7 @@
   function how(b) {
     const steps = b.input.split('-');
     if (b.type === 'idle') return 'nothing pressed';
+    if (HOLD_FIRE[b.move] && ENERGY_HOLD.has(b.move)) return 'press and hold to charge (uses energy, Max glows blue when full), let go to fire';
     if (b.type === 'hold') return b.release_into ? 'hold to charge, let go to swing the chop' : 'hold';
     if (b.type === 'tap') return 'tap';
     if (b.type === 'press') return 'press';
@@ -2363,6 +2375,7 @@
                     solids: curMap ? curMap.solids : [], plats: curMap ? curMap.plats : [], pits: curMap ? curMap.pits : [], bombs: curMap ? curMap.bombs.map(b => ({ x: b.x, fy: b.fy, gone: b.gone })) : [], shots: shots.map(q => ({ x: q.x, y: q.y, vx: q.vx, vy: q.vy, from: q.from })), pitFall: !!pitFall, feetNow: herY(), fx: { gems: gems.length } }),
     enterLevel: n => enterLevel(n), warp: idx => { loadMap(idx, 'left'); }, setX: v => { x = v; }, goOverworld: () => goOverworld(),
     menuOpen: () => !!(UI && UI.isOpen()),
+    charging: () => ({ cur: cur && cur.id, kind: cur && cur.kind, chargeMs: Math.round(chargeMs), full: isCharged(), energy: Math.round(energyMeter * 10) / 10, power: cur && cur.power, hold: hold && hold.move }),
     unlockLines: id => unlockLines(P.byId[id]), unlockPool: () => unlockPool(null), banners: () => banners.map(b => ({ title: b.title, sub: b.sub })),
     unlock: id => unlockItem(id), resetAll: () => { P.reset(); energyMeter = empowerMeter = superMeter = 0; refreshUnlocks(); },
     // the old combat tests: everything unlocked, one closed map with no scenery, enemies as the test places them
