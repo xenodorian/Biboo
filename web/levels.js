@@ -39,7 +39,7 @@
     // 1.2 the first pit; the golden crate is on the far side
     map({ pits: [X(150, 200)], crates: [C(60), C(300, 0, 'thrust')], enemies: [G(265, 215, 330, 100)] }),
     // 1.3 stepping stones over a chasm up to a golden crate
-    map({ pits: [X(120, 300)], plats: [P(90, 150, 50), P(170, 230, 80), P(250, 310, 50)], crates: [C(60), C(200, 80, 'L1'), C(350)],
+    map({ pits: [X(120, 300)], plats: [P(90, 150, 50), P(170, 230, 80), P(250, 310, 50)], crates: [C(60), C(200, 80, 'push_kick'), C(350)],
           enemies: [G(280, 255, 305, 80, 50), G(345, 318, 370, 90)] }),
     // 1.4 two pits with a goblin on the island between them
     map({ pits: [X(120, 170), X(240, 290)], crates: [C(190, 0, 'upswing'), C(340)], bombs: [B(90)],
@@ -48,15 +48,15 @@
     map({ plats: [P(60, 140, 60), P(160, 200, 90), P(220, 320, 110)], crates: [C(100, 60), C(270, 110, 'heavy_horizontal')], bombs: [B(185)],
           enemies: [G(270, 235, 305, 80, 110), G(300, 215, 340, 100)] }),
     // 1.6 the first orc, across a pit, with a bomb on its patrol
-    map({ pits: [X(170, 225)], crates: [C(100), C(140)], bombs: [B(300)], enemies: [O(285, 245, 345, 110), G(120, 90, 160, 90)] }),
+    map({ pits: [X(170, 225)], crates: [C(100), C(140, 0, 'double_jump')], bombs: [B(300)], enemies: [O(285, 245, 345, 110), G(120, 90, 160, 90)] }),
     // 1.7 a row of platforms over a chasm and a golden crate at the far end
     map({ pits: [X(120, 285)], plats: [P(40, 110, 40), P(120, 190, 70), P(200, 270, 40)], crates: [C(155, 70), C(330, 0, 'dash_thrust')],
           enemies: [G(75, 50, 100, 90), G(235, 210, 260, 80, 40)] }),
     // 1.8 two pits, bombs and three enemies
     map({ pits: [X(100, 150), X(205, 260)], crates: [C(178), C(320), C(60)], bombs: [B(178, 0), B(300)],
           enemies: [G(60, 30, 90, 90), G(178, 165, 192, 90), O(320, 275, 355, 100)] }),
-    // 1.9 the ridge: an orc below, a goblin above, the spin attack up top
-    map({ pits: [X(140, 215)], plats: [P(50, 120, 60), P(140, 210, 90), P(230, 300, 60)], crates: [C(85, 60), C(265, 60)], bombs: [B(300)],
+    // 1.9 the ridge: an orc below, a goblin above, the sky dash up top
+    map({ pits: [X(140, 215)], plats: [P(50, 120, 60), P(140, 210, 90), P(230, 300, 60)], crates: [C(85, 60), C(265, 60, 'sky_dash')], bombs: [B(300)],
           enemies: [O(270, 230, 345, 110), G(175, 150, 200, 80, 90)] }),
     // 1.10 gate guard: clear the map to finish the level
     map({ pits: [X(180, 235)], crates: [C(80), C(300)], bombs: [B(110), B(280)],
@@ -143,8 +143,8 @@
     return m;
   }
   const ITEMS = {                                          // level number -> map index (0 based) -> unlock id
-    2: { 1: 'R2', 2: 'L2', 3: 'double_jump', 4: 'crash', 5: 'heavy_chop', 7: 'energy_dash', 8: 'taunt' },
-    3: { 1: 'R1', 3: 'sky_dash', 6: 'earthquake' },
+    2: { 1: 'R2', 2: 'L2', 3: 'L1', 4: 'crash', 5: 'heavy_chop', 7: 'energy_dash', 8: 'taunt' },
+    3: { 1: 'R1', 6: 'earthquake' },
     4: { 2: 'meteor' },
     5: {},
   };

@@ -24,6 +24,18 @@ const { chromium } = require('playwright');
   check('every unlock is in some golden crate', data.missing.length === 0, data.missing);
   check('the unlock list has no repeated ids', new Set(data.ids).size === data.ids.length, data.ids);
 
+  // ---- level 1 holds exactly the seven no-meter starter unlocks, each reachable
+  const lv1 = await ev(`(() => { const out = []; BIBOO_LEVELS.levels[0].maps.forEach((m, i) => m.crates.forEach(c => { if (c.item) {
+      const inPit = c.fy === 0 && m.pits.some(p => c.x >= p.x0 && c.x <= p.x1);
+      const onPlat = c.fy === 0 || m.plats.some(p => c.fy === p.top && c.x >= p.x0 && c.x <= p.x1);
+      const wide = m.pits.some(p => p.x1 - p.x0 > 75) && m.plats.length === 0;
+      out.push({ map: i + 1, item: c.item, fy: c.fy, ok: !inPit && onPlat && c.fy <= 110 && !wide }); } })); return out; })()`);
+  const want = ['thrust', 'upswing', 'heavy_horizontal', 'dash_thrust', 'double_jump', 'sky_dash', 'push_kick'];
+  check('level 1 has exactly the seven starter unlocks', JSON.stringify(lv1.map(x => x.item).sort()) === JSON.stringify(want.slice().sort()), lv1);
+  check('every level 1 unlock crate is standing on something reachable by a plain jump', lv1.every(x => x.ok), lv1.filter(x => !x.ok));
+  check('none of them need a meter', await ev(`${JSON.stringify(want)}.every(id => !(BibooProgress.byId[id].meters || []).length)`), null);
+  check('no later level holds a starter unlock', await ev(`BIBOO_LEVELS.levels.slice(1).every(L => L.maps.every(m => m.crates.every(c => !c.item || !${JSON.stringify(want)}.includes(c.item))))`), null);
+
   // ---- a golden crate only pulls from what is still locked
   await ev('bibooGame.resetAll(); bibooGame.enterLevel(1)'); await wait(600);
   let bad = 0, trials = 0, none = 0;
@@ -72,7 +84,7 @@ const { chromium } = require('playwright');
 
   // ---- every unlock's banner text: a name and an input for each move it gives
   const lines = await ev(`(() => { const out = {}; for (const u of BibooProgress.UNLOCKS) { bibooGame.resetAll(); bibooGame.unlock(u.id); out[u.id] = bibooGame.unlockLines(u.id); } return out; })()`);
-  const expectIn = { thrust: 'Right+A', upswing: 'Down+A', heavy_horizontal: 'A+B', dash_thrust: 'X+A', energy_dash: 'X+A', taunt: 'X+Y', double_jump: 'Up', sky_dash: 'Down-Y',
+  const expectIn = { thrust: 'Right+A', upswing: 'Down+A', heavy_horizontal: 'A+B', dash_thrust: 'X+A', energy_dash: 'X+A', taunt: 'X+Y', push_kick: 'L1', double_jump: 'Up', sky_dash: 'Down-Y',
     crash: 'A', heavy_chop: 'A', earthquake: 'Down-Down-Down-Down-A', meteor: 'Up-Up-Up-Up-A', L1: 'L1', L2: 'L2', R1: 'R1', R2: 'R2' };
   for (const u of Object.keys(expectIn)) {
     const ls = lines[u] || [];

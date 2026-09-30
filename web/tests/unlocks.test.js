@@ -11,7 +11,7 @@ const CASES = [
   ['dash_thrust', ['dash_thrust'], [['KeyA', 'KeyZ']]],
   ['taunt', ['taunt'], [['KeyA', 'KeyS']]],
   ['sky_dash', ['sky_dash'], [['ArrowDown'], ['KeyS']]],
-  ['L1', ['push_kick'], [['KeyQ']]],
+  ['push_kick', ['push_kick'], [['KeyQ']]],
   ['L1', ['beam_laser'], [['KeyZ', 'KeyQ']]],
   ['L2', ['beam_cloud'], [['KeyZ', 'Digit1']]],
   ['R2', ['beam_fire'], [['KeyZ', 'Digit2']]],

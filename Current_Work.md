@@ -249,3 +249,6 @@ with 50 and drops of +25 raise the maximum; every crate drops something; remove 
 
 ### Eleventh request (2026-09-30): charged energy attacks
 - [x] `ENERGY_HOLD` / `HOLD_FIRE` in game.js: request() turns a press, chord or sequence of an energy move into `hold`; readButtons fires it on release (request via 'release' checks `chargeMs >= MIN_FIRE`, start() sets `cur.power`). Energy wave's flat 10 cost was removed; the charge drain (stepCharge) is the cost. The thrust charge pose no longer drains energy. Tests: web/tests/energy_charge.test.js (29).
+
+### Twelfth request (2026-09-30): level 1 starter unlocks
+- [x] Level 1 golden crates: 1.2 thrust, 1.3 push_kick (new unlock: L1 button + push kick only), 1.4 upswing, 1.5 heavy_horizontal, 1.6 double_jump, 1.7 dash_thrust, 1.9 sky_dash. The `L1` unlock is now the energy kick + laser beam + energy meter, in level 2 map 1. Older saves with L1 get push_kick added on load. Test: unlock_items.test.js (34).

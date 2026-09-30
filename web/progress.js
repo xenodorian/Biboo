@@ -28,7 +28,8 @@
     { id: 'heavy_chop', kind: 'Combo', name: 'Heavy Overhead Chop', hint: 'Hold A to charge, release to chop', moves: ['heavy', 'charge'], meters: ['energy'] },
     { id: 'earthquake', kind: 'Combo', name: 'Earthquake', hint: 'Down four times, then A (full super meter)', moves: ['earthquake'], meters: ['super'] },
     { id: 'meteor', kind: 'Combo', name: 'Meteor Shower', hint: 'Up four times, then A (full super meter)', moves: ['meteor_shower'], meters: ['super'] },
-    { id: 'L1', kind: 'Button', name: 'L1 button', hint: 'L1 push kick, hold B+L1 then let go for the energy kick, A+L1 laser beam', moves: ['push_kick', 'energy_kick', 'beam_laser'], buttons: ['L1'], meters: ['energy'] },
+    { id: 'push_kick', kind: 'Button', name: 'L1 button: Push Kick', hint: 'Press L1 for the push kick', moves: ['push_kick'], buttons: ['L1'] },
+    { id: 'L1', kind: 'Combo', name: 'L1 Energy Kick and Laser Beam', hint: 'hold B+L1 then let go for the energy kick, A+L1 laser beam', moves: ['energy_kick', 'beam_laser'], buttons: ['L1'], meters: ['energy'] },
     { id: 'L2', kind: 'Button', name: 'L2 button', hint: 'hold L2 then let go for the energy burst, A+L2 cloud beam', moves: ['energy_burst', 'beam_cloud'], buttons: ['L2'], meters: ['energy'] },
     { id: 'R1', kind: 'Button', name: 'R1 button', hint: 'A+R1 Empowerment Beam, hold R1 to kneel and recover', moves: ['beam_plasma', 'recover'], buttons: ['R1', 'R'], meters: ['empower'] },
     { id: 'R2', kind: 'Button', name: 'R2 button', hint: 'hold R2 then let go for the energy wave, A+R2 fire beam', moves: ['energy_wave', 'beam_fire'], buttons: ['R2'], meters: ['energy'] },
@@ -95,6 +96,7 @@
       for (const k of GEM_KINDS) if (s.gems && Number.isFinite(s.gems[k])) f.gems[k] = Math.max(0, Math.min(P.MAX_GEMS, s.gems[k] | 0));
       for (const k of ['energy', 'empower', 'super']) if (s.meters && Number.isFinite(s.meters[k])) f.meters[k] = Math.max(0, Math.min(200, s.meters[k]));
       for (const k of ['energy', 'empower', 'super']) if (s.maxes && Number.isFinite(s.maxes[k])) f.maxes[k] = Math.max(P.MAX_START[k], Math.min(P.MAX_CAP, s.maxes[k]));
+      if (f.unlocked.includes('L1') && !f.unlocked.includes('push_kick')) f.unlocked.push('push_kick');   // older saves: the L1 unlock used to include the push kick
       P.state = f;
     } catch (e) { P.state = fresh(); }
   };
