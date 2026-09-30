@@ -264,3 +264,6 @@ with 50 and drops of +25 raise the maximum; every crate drops something; remove 
 
 ### Sixteenth request (2026-09-30): key chests, level 4, meter charge
 - [x] New unlock `meter_charge` (pseudo move row in moveRows; `metersHeld` needs it). Level 4: COUNT 9, door key, ITEMS 0 meter_charge, 3 earthquake, 6 meteor. Super gems now drop from plain crates and kills when the super meter is on. Key chest: `md.chest` set in levels.js for every key level (map index 7, x from the scan, usually 360); loadMap adds a crate entry with `chest: true` until the key is owned; breakCrate refuses while `!allMovesHere()`, else spawns the key gem; drawChest draws chains. Old crate-drop key code (`keyDue`, plain crate respawn, `keyMap`) removed. Tests: chest.test.js (50), level4.test.js (14); level 1/2/3 tests trimmed.
+
+## Seventeenth request: unlock point audit
+Added web/tests/unlock_points.test.js (75 checks): every unlock crate sits in its assigned map only, and meters (EMP at 2.1, ENG at 2.4, SUP at 4.4), shoulder buttons and gem kinds switch on only at their unlock point. No leak found. A SUP bar in Level 1.1 comes from the dev menu "Unlock all moves and buttons" or an old save, not from the build.
