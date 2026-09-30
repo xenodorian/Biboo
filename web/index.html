@@ -85,6 +85,15 @@
 </main>
 <script src="assets/data.js"></script>
 <script src="input.js"></script>
-<script src="game.js"></script>
+<script>
+  // Hidden stub so game.js can write the old move label without covering the health bar.
+  (function () {
+    var d = document.createElement('div');
+    d.id = 'now';
+    d.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;';
+    document.body.appendChild(d);
+  })();
+</script>
+<script src="https://cdn.jsdelivr.net/gh/xenodorian/Biboo@4b0432e5c13bb7f13f627f8064409f230484b72a/web/game.js"></script>
 </body>
 </html>
