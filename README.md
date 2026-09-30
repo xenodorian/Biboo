@@ -111,10 +111,10 @@ sequence) with chord, sequence and tap windows. Previews of every move are in `d
 | L | push_kick | One cock-back frame with the sword raised out of the way, then a straight-leg push that slides her 49 px so the boot passes where the blade tip was; recoil |
 | R (hold) | recover | Kneel on the planted sword, green glow, rising + signs |
 | hold B, tap A | heavy_horizontal | Heavy Horizontal: the horizontal slash with 50 damage and 50 px pushback over 100 ms |
-| A+L1 | beam_laser | Laser beam (15 per tick, 3 energy): a yellow-white bar with cyan lightning |
+| A+L1 | beam_laser | Laser beam (10 per tick, 3 energy): a yellow-white bar with cyan lightning |
 | A+R1 | beam_plasma | Empowerment Beam (was the plasma beam), 0 damage, 5 empower per tick, 30 px pushback per tick. Enlarges the enemies it hits, which then drop Energy Gems |
 | A+L2 | beam_cloud | Cloud beam (5 per tick, 1 energy): white and cyan wisps |
-| A+R2 | beam_fire | Fire beam (10 per tick, 2 energy, 10 px pushback per tick) from the blade tip |
+| A+R2 | beam_fire | Fire beam (15 per tick, 3 energy, 5 px pushback per tick) from the blade tip |
 | B+L / A+B+L | heavy_kick / energy_kick | Bigger push kick; with blue energy (A, B and L together, or one after another in any order) |
 | L2 | energy_burst | Ring and rays in all directions: 50 damage, twice the old radius (up to 92 px), 100 px knockback over 500 ms |
 | hold L1+R1 | (meter charge) | Charges the ENG, EMP and SUP meters by 1 each every 500 ms while both are held; Max kneels in the charge pose. Not a move: no push kick or recover starts |
@@ -275,7 +275,7 @@ The four beam textures come from `data/beams_src/` (two source images with a top
 
 ### Health and damage
 
-Max has 200 HP, a goblin 60 and an orc 200. Every attack takes HP off an enemy it touches (numbers are tunable at the top of the health section in `web/game.js`): slash 15, thrust 18, upswing 18, push kick 10, heavy kick 25, energy kick 30, energy burst 50, dash thrust 22, energy dash thrust 35, spin 20 (each side), energy wave 40, earthquake 30, meteor shower 25. The heavy overhead chop does 200 on a direct hit and, where the blade lands, 150 plus a 25 px push (100 ms) to every other enemy within 25 px; the jump crash does 300. A move hurts an enemy once per use; beams hurt every 100 ms they touch (cloud 5, fire 10, laser 15, Empowerment Beam 0) and shove the enemy back per tick (cloud 0, fire 10 px, laser 20 px, Empowerment Beam 30 px). An orc hit takes 30 HP off Max and a goblin hit 12; blocking and parrying take none. Damage shows as red numbers rising from the target, each enemy has a bar over its head and Max's bar is at the top left. Kneeling to recover (R held) gives 5 HP every 0.35 s with green numbers. At 0 HP Max is knocked out for 1.5 s and gets back up at full HP.
+Max has 200 HP, a goblin 60 and an orc 200. Every attack takes HP off an enemy it touches (numbers are tunable at the top of the health section in `web/game.js`): slash 15, thrust 18, upswing 18, push kick 10, heavy kick 25, energy kick 30, energy burst 50, dash thrust 22, energy dash thrust 35, spin 20 (each side), energy wave 40, earthquake 30, meteor shower 25. The heavy overhead chop does 200 on a direct hit and, where the blade lands, 150 plus a 25 px push (100 ms) to every other enemy within 25 px; the jump crash does 300. A move hurts an enemy once per use; beams hurt every 100 ms they touch (cloud 5, fire 15, laser 10, Empowerment Beam 0) and shove the enemy back per tick (cloud 0, fire 5 px, laser 20 px, Empowerment Beam 30 px). An orc hit takes 30 HP off Max and a goblin hit 12; blocking and parrying take none. Damage shows as red numbers rising from the target, each enemy has a bar over its head and Max's bar is at the top left. Kneeling to recover (R held) gives 5 HP every 0.35 s with green numbers. At 0 HP Max is knocked out for 1.5 s and gets back up at full HP.
 
 Knockback (distance, stun time): push kick 100 px, 200 ms; energy kick 200 px, 300 ms; energy burst 100 px, 500 ms; a parry 100 px, 400 ms (no damage). An enemy that dies is not pushed.
 

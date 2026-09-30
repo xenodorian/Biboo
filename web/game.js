@@ -101,7 +101,7 @@
   const SUPER_MAX = 100;
   let energyMeter = METER_START, empowerMeter = METER_START, superMeter = 0;
   const GEM_VALUE = 25, GEM_CHANCE = 0.35, GEM_LIFE = 20000, GEM_PICKUP = 28;
-  const BEAM_TICK_COST = { cloud: 1, fire: 2, laser: 3, plasma: 5 };         // per beam tick (100 ms)
+  const BEAM_TICK_COST = { cloud: 1, fire: 3, laser: 3, plasma: 5 };         // per beam tick (100 ms)
   const MOVE_COST = { energy_wave: ['energy', 10], jump_crash: ['energy', 30], earthquake: ['super', 100], meteor_shower: ['super', 100] };   // earthquake and meteor shower need a full super meter and use all of it                          // paid once, when the move starts
   const HEAL_COST = 1;                                                        // empower per recover tick
   const meterOf = k => k === 'energy' ? energyMeter : k === 'super' ? superMeter : empowerMeter;
@@ -526,8 +526,8 @@
   const BOTH_SIDES_PUSH = new Set(['energy_burst']);
   const PARRY_KNOCK = [100, 400];                                    // an enemy parried: pushed back this far, stunned this long
   const REHIT_MS = { earthquake: 250, meteor_shower: 300 };
-  const BEAM_DMG = { cloud: 5, fire: 10, laser: 15, plasma: 0 };
-  const BEAM_PUSH = { cloud: 0, fire: 10, laser: 20, plasma: 30 };     // px an enemy is shoved back on every tick it is touched
+  const BEAM_DMG = { cloud: 5, fire: 15, laser: 10, plasma: 0 };
+  const BEAM_PUSH = { cloud: 0, fire: 5, laser: 20, plasma: 30 };     // px an enemy is shoved back on every tick it is touched
   // the heavy overhead chop: 200 on a direct hit; where the blade lands it also blasts every other enemy within
   // HEAVY_AOE_R px for HEAVY_AOE_DMG and pushes it back (KNOCK.heavy). The charge no longer scales the damage.
   const HEAVY_DMG = 200, HEAVY_AOE_DMG = 150, HEAVY_AOE_R = 25
