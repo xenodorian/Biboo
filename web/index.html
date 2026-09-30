@@ -43,6 +43,23 @@
   #inputmon { margin-top: 16px; }
   #monitor { font: 12px/1.4 ui-monospace, monospace; color: var(--dim); white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0; }
   p.note { color: var(--dim); margin: 8px 0 0; font-size: 13px; }
+  #start-menu { position: absolute; inset: 0; display: grid; place-items: center;
+                 background: rgba(0,0,0,.72); z-index: 5; }
+  #start-menu[hidden] { display: none; }
+  #start-menu .panel { text-align: center; padding: 28px 32px; background: var(--panel);
+                       border: 1px solid var(--line); border-radius: 10px; min-width: 240px; }
+  #start-menu h2 { margin: 0 0 6px; font-size: 22px; }
+  #start-menu p { margin: 0 0 18px; color: var(--dim); font-size: 13px; }
+  #start-menu .actions { display: flex; flex-direction: column; gap: 10px; }
+  #start-menu button { font: 600 15px system-ui, sans-serif; padding: 10px 16px; border-radius: 6px;
+                       border: 1px solid var(--line); cursor: pointer; background: var(--key); color: var(--text); }
+  #start-menu button.primary { background: var(--lit); color: #1a1206; border-color: var(--lit); }
+  #start-menu button:disabled { opacity: .5; cursor: default; }
+  #start-menu button:not(:disabled):hover { filter: brightness(1.08); }
+  #stage:fullscreen, #stage:-webkit-full-screen { width: 100%; height: 100%; background: #000;
+    display: grid; place-items: center; }
+  #stage:fullscreen canvas, #stage:-webkit-full-screen canvas { width: min(100vw, 100vh * 384 / 216);
+    height: auto; max-height: 100vh; }
 </style>
 </head>
 <body>
@@ -52,6 +69,16 @@
     <canvas id="view" width="384" height="216" tabindex="0" aria-label="Game view"></canvas>
     <div id="kills"></div>
     <div id="loading">Loading...</div>
+    <div id="start-menu">
+      <div class="panel">
+        <h2>Parry Perry</h2>
+        <p>Defeat the goblins and orcs</p>
+        <div class="actions">
+          <button type="button" class="primary" id="btn-start" disabled>Start</button>
+          <button type="button" id="btn-fullscreen">Fullscreen</button>
+        </div>
+      </div>
+    </div>
   </div>
   <section id="combos">
     <h2>Moves and combos</h2>
@@ -85,15 +112,6 @@
 </main>
 <script src="assets/data.js"></script>
 <script src="input.js"></script>
-<script>
-  // Hidden stub so game.js can write the old move label without covering the health bar.
-  (function () {
-    var d = document.createElement('div');
-    d.id = 'now';
-    d.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;';
-    document.body.appendChild(d);
-  })();
-</script>
-<script src="https://cdn.jsdelivr.net/gh/xenodorian/Biboo@4b0432e5c13bb7f13f627f8064409f230484b72a/web/game.js"></script>
+<script src="game.js"></script>
 </body>
 </html>
