@@ -889,8 +889,10 @@
       if (!sf) for (const p of curMap.pits) { if (p.x1 <= d.x) lo = Math.max(lo, p.x1 + 8); else if (p.x0 >= d.x) hi = Math.min(hi, p.x0 - 8); }   // a ground enemy stays between the pits
       spawn(d.type, d.x, { fy: d.fy, path: d.path, sight: d.sight, key, lo, hi, lo0, hi0 });
     });
-    for (const c of curMap.crates)                                   // a golden crate smashed earlier whose item was not picked up
-      if (c.broken && c.item && level.pending.has(c.key)) powerups.push({ key: c.key, item: c.item, x: c.x, y: c.fy + 16, t0: clock });
+    for (const c of curMap.crates) {                                 // a golden crate smashed earlier whose item was not picked up
+      const pend = level.pending.get(c.key);
+      if (c.broken && c.item && pend && !P.has(pend)) powerups.push({ key: c.key, item: pend, x: c.x, y: c.fy + 16, t0: clock });
+    }
     x = side === 'left' ? 26 : MAP_W - 26; facing = side === 'left' ? 1 : -1;
     floorY = 0; fall = null; stun = null; slide = null; cur = null; queued = null; hold = null; rumble = null; tint = null;
     invuln = clock + 600; prevFeet = null; lastCx = null; camX = V.anchorX; camY = 0; fadeUntil = clock + FADE_MS;
@@ -977,13 +979,18 @@
     c.broken = true; level.broken.add(c.key);
     burst(c.x, c.fy + 9, 9, c.item ? ['#e8c050', '#c9962a', '#fff2a0'] : ['#8a5a2b', '#6b4420', '#b07a3c']);
     if (c.item) {
-      if (P.has(c.item)) {                       // already owned: it drops ordinary loot instead, never the same unlock again
+      let item = c.item;
+      if (P.has(item) || powerups.some(u => u.item === item)) {   // already owned: a golden crate only ever gives something still locked
+        const pool = unlockPool(null);
+        item = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+      }
+      if (item) {
+        level.pending.set(c.key, item);
+        powerups.push({ key: c.key, item, x: c.x, y: c.fy + 16, t0: clock });
+      } else {                                   // every unlock is owned: ordinary loot
         const pool = lootPool();
         if (pool.length) spawnGem(c.x, pool[Math.floor(Math.random() * pool.length)], c.fy);
-        floater(c.x, c.fy + 30, 'Already unlocked', '#ffd24a');
-      } else {
-        level.pending.set(c.key, c.item);
-        powerups.push({ key: c.key, item: c.item, x: c.x, y: c.fy + 16, t0: clock });
+        floater(c.x, c.fy + 30, 'Everything unlocked', '#ffd24a');
       }
     } else {                                     // every plain crate drops something useful: a health gem, a meter gem, or a +25 meter upgrade
       const pool = lootPool();
@@ -997,6 +1004,23 @@
     for (const b of curMap.bombs) if (!b.gone && distBox(wx, wy, bombBox(b)) <= r) detonate(b);
   }
 
+  // the banner shown for a new unlock: the name, then each move it gives with its controller input
+  function unlockLines(it) {
+    const seen = new Set(), out = [];
+    for (const r of moveRows()) {
+      if (!it.moves.includes(r.move)) continue;
+      const line = `${r.name || r.title}: ${r.pad}${r.note ? ' (' + r.note + ')' : ''}`;
+      if (!seen.has(line)) { seen.add(line); out.push(line); }
+    }
+    return out.length ? out : [it.hint];
+  }
+  // the unlocks a golden crate may give: only ones the player does not own yet, and not already floating as an item
+  function unlockPool(forItem) {
+    const float = new Set(powerups.map(u => u.item)), placed = new Set(Object.keys(LV.whereIs));
+    const open = P.UNLOCKS.map(u => u.id).filter(id => !P.has(id) && !float.has(id));
+    const free = open.filter(id => !placed.has(id) || id === forItem);      // not promised to another crate
+    return free.length ? free : open;
+  }
   // the floating item a golden crate leaves: touch it to unlock the button or combo
   function stepPowerups() {
     for (let i = powerups.length - 1; i >= 0; i--) {
@@ -1005,8 +1029,9 @@
         powerups.splice(i, 1);
         if (level) level.pending.delete(u.key);
         const it = P.byId[u.item];
+        if (P.has(u.item)) continue;                                  // never a second copy
         unlockItem(u.item);
-        banners.push({ title: `NEW ${it.kind === 'Button' ? 'BUTTON' : 'MOVE'}: ${it.name}`, sub: it.hint, t0: clock, ms: 5200 });
+        banners.push({ title: `NEW ${it.kind === 'Button' ? 'BUTTON' : 'MOVE'}: ${it.name}`, sub: unlockLines(it), t0: clock, ms: 5200 });
         burst(u.x, u.y, 18, ['#fff2a0', '#ffd24a', '#ffffff']);
       }
     }
@@ -1769,14 +1794,15 @@
     let y = 62;
     for (const b of banners) {
       const age = clock - b.t0, a = Math.max(0, Math.min(1, age / 200, (b.ms - age) / 350));
-      const h = b.sub ? 30 : 20;
+      const lines = Array.isArray(b.sub) ? b.sub : b.sub ? [b.sub] : [], h = lines.length ? 21 + 9 * lines.length : 20;
       g.save();
       g.globalAlpha = a * 0.82; g.fillStyle = '#0c0a12'; g.fillRect(52, y, V.w - 104, h);
       g.globalAlpha = a; g.strokeStyle = '#ffd24a'; g.lineWidth = 1; g.strokeRect(52.5, y + 0.5, V.w - 105, h - 1);
       g.textAlign = 'center'; g.textBaseline = 'top'; g.lineWidth = 2; g.lineJoin = 'round';
       g.font = 'bold 9px monospace'; g.strokeStyle = '#000'; g.fillStyle = '#ffe14d';
       g.strokeText(b.title, V.w / 2, y + 5); g.fillText(b.title, V.w / 2, y + 5);
-      if (b.sub) { g.font = '7px monospace'; g.fillStyle = '#e6e6ec'; g.strokeText(b.sub, V.w / 2, y + 18); g.fillText(b.sub, V.w / 2, y + 18); }
+      g.font = '7px monospace'; g.fillStyle = '#e6e6ec';
+      lines.forEach((ln, i) => { g.strokeText(ln, V.w / 2, y + 18 + 9 * i); g.fillText(ln, V.w / 2, y + 18 + 9 * i); });
       g.restore();
       y += h + 4;
     }
@@ -2002,11 +2028,13 @@
       if (b.type === 'idle' || !moveOpen(b.move)) continue;
       const m = D.moves[b.move];
       const sb = b.move === 'jump' ? Object.assign({}, b, { input: 'Up' }) : b;
-      rows.push({ section: BASE_MOVES.has(b.move) ? 'Controls' : 'Unlocked combos',
+      const held = b.release_into || HOLD_FIRE[b.move];                       // hold-and-release moves
+      rows.push({ move: b.move, note: held ? 'hold, then let go' : '', name: b.release_into && D.moves[b.release_into] ? D.moves[b.release_into].title : null,
+                  section: BASE_MOVES.has(b.move) ? 'Controls' : 'Unlocked combos',
                   pad: (sb.input === 'none' ? '(nothing)' : sb.input) + (b.type === 'air' ? ' (air)' : ''),
                   keys: keysOf(sb.input), title: m ? m.title : b.move, how: how(sb) });
     }
-    if (P.has('double_jump')) rows.push({ section: 'Unlocked combos', pad: 'Up, Up (air)', keys: 'Up then Up', title: 'Double jump', how: 'press jump again in the air: a spinning second jump' });
+    if (P.has('double_jump')) rows.push({ move: 'double_jump', note: '', section: 'Unlocked combos', pad: 'Up, Up (air)', keys: 'Up then Up', title: 'Double jump', how: 'press jump again in the air: a spinning second jump' });
     return rows.filter(r => r.section === 'Controls').concat(rows.filter(r => r.section !== 'Controls'));
   }
   function lockedCount() {
@@ -2334,6 +2362,7 @@
                     solids: curMap ? curMap.solids : [], plats: curMap ? curMap.plats : [], pits: curMap ? curMap.pits : [], bombs: curMap ? curMap.bombs.map(b => ({ x: b.x, fy: b.fy, gone: b.gone })) : [], shots: shots.map(q => ({ x: q.x, y: q.y, vx: q.vx, vy: q.vy, from: q.from })), pitFall: !!pitFall, feetNow: herY(), fx: { gems: gems.length } }),
     enterLevel: n => enterLevel(n), warp: idx => { loadMap(idx, 'left'); }, setX: v => { x = v; }, goOverworld: () => goOverworld(),
     menuOpen: () => !!(UI && UI.isOpen()),
+    unlockLines: id => unlockLines(P.byId[id]), unlockPool: () => unlockPool(null), banners: () => banners.map(b => ({ title: b.title, sub: b.sub })),
     unlock: id => unlockItem(id), resetAll: () => { P.reset(); energyMeter = empowerMeter = superMeter = 0; refreshUnlocks(); },
     // the old combat tests: everything unlocked, one closed map with no scenery, enemies as the test places them
     // a one-map level built from the given data (plats, pits, bombs, crates, enemies), doors closed, for the hazard tests

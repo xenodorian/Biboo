@@ -237,3 +237,6 @@ with 50 and drops of +25 raise the maximum; every crate drops something; remove 
 
 ### Seventh request (2026-09-30): keyboard remap
 - [x] Keys: Z=A, X=B, A=X, S=Y, Q=L1, W=R1 (also the recover hold, like the pad), 1=L2, 2=R2. Pad unchanged. Tests updated.
+
+### Eighth request (2026-09-30): no redundant unlocks, banner with input
+- [x] `unlockPool`: an owned (or already floating) golden crate item is replaced by a random still-locked unlock, preferring ones not promised to another crate; nothing left gives ordinary loot. Pickup banner lists each move with its pad input (`unlockLines`, multi-line banners). New test web/tests/unlock_items.test.js (27 checks).
