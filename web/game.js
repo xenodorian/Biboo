@@ -522,9 +522,9 @@
   const DAMAGE = { slash: 25, heavy_horizontal: 50, thrust: 15, upswing: 15, push_kick: 10, heavy_kick: 25, energy_kick: 30, energy_burst: 50,
                    dash_thrust: 25, energy_dash_thrust: 50, spin_attack: 20, energy_wave: 0, earthquake: 250, meteor_shower: 200 };
   // knockback of the moves that push an enemy: [distance px, duration ms]
-  const KNOCK = { heavy: [25, 100], slash: [25, 100], heavy_horizontal: [50, 100], push_kick: [100, 200], energy_kick: [200, 300], energy_burst: [200, 500] };
+  const KNOCK = { heavy: [25, 100], slash: [25, 100], heavy_horizontal: [50, 100], push_kick: [100, 200], energy_kick: [200, 300], energy_burst: [100, 500] };
   const BOTH_SIDES_PUSH = new Set(['energy_burst']);
-  const PARRY_KNOCK = [300, 400];                                    // an enemy parried: pushed back this far, stunned this long
+  const PARRY_KNOCK = [100, 400];                                    // an enemy parried: pushed back this far, stunned this long
   const REHIT_MS = { earthquake: 250, meteor_shower: 300 };
   const BEAM_DMG = { cloud: 5, fire: 10, laser: 15, plasma: 0 };
   const BEAM_PUSH = { cloud: 0, fire: 10, laser: 20, plasma: 30 };     // px an enemy is shoved back on every tick it is touched
