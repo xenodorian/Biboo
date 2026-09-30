@@ -121,6 +121,46 @@ Done in stages, pushed to main after each. Per the request, no test suites were 
 - [x] Hold B, tap A (Heavy Horizontal, new move `heavy_horizontal`): 50 damage, 50 px pushback over 100 ms. It reuses the horizontal slash animation for now (no separate art), so it looks the same as the slash. Pushback stuns the enemy for those 100 ms like the kicks do.
 - Status: DONE. Not run (no-testing rule).
 
+## Workflow: levels, unlocks, menus, overworld (user request, 2026-09-30 overnight)
+
+The user went to bed and asked for this to run unattended, pushed to main after every stage, so any agent can take over.
+Rules from the user that still apply: no testing or verification runs unless asked (only `node --check` and static reads),
+no new branches, no em dashes or emoji. Do not add new enemy types (goblin and orc only; the user will add more later).
+
+### The request, in the user's words (kept so nothing is lost)
+- Delete the controls and combo list from the page; the start menu lists the controls and the unlocked combos in a "Moves" sub-menu.
+- Turn the basic arena into a detailed level: barriers to jump over, platforms to stand on.
+- Enemies walk a set path and only move toward the player when hit, or when the player comes within a number of pixels in their line of sight.
+- Attacks: only A, B, X, Y at first. L1, L2, R1, R2 and the various combos are unlocked as powerups from smashing crates.
+- Only the health bar at first; the other meters appear when a relevant move or combo is unlocked.
+- 35% chance for a monster to drop a +25% health gem on death.
+- Gems are not applied automatically: they are collected into a Gems sub-menu where they can be stored and used.
+- Levels are made of 10 single-screen maps each, shown as Level 1.1, 1.2 and so on.
+- An overworld lists the levels; new levels unlock as others are beaten.
+- L1+L2+R1+R2 together opens a Dev Console with cheats: invincibility, infinite meters, unlock all levels, and so on.
+
+### Design decisions (mine; change them if the user says otherwise)
+- One map is one screen wide (384 px, the whole view). The camera does not scroll sideways; walking off the right edge loads the next map, off the left edge goes back one. Vertical camera still rises for jumps and platforms.
+- New files: `web/progress.js` (unlock catalog, save in localStorage, meters/gems/level progress), `web/levels.js` (level data: Level 1 hand-built, Levels 2 to 5 generated from a seed), `web/ui.js` (DOM menus: main, Moves, Gems, Game Over, Level Complete, Dev Console). `web/game.js` stays the engine.
+- Jumping now has air control (hold Left or Right in the air) so barriers can be cleared; before this the jump went straight up.
+- Barriers are solid (block walking below their top, can be landed on). Platforms are one-way (land from above, jump up through them).
+- Each level ends when the player leaves the right edge of map 10 after every enemy in it is dead.
+- "Store and use" gems: pickups go to an inventory (max 99 each); the Gems menu has a Use button per kind (+25 to that meter, or +25 percent health).
+- The random 35% energy or empower drop only rolls for meters that are unlocked; a separate 35% roll drops a health gem.
+
+### Stages (update the checkboxes as they land; each stage is pushed on its own)
+- [ ] Stage 1. Plan and handoff notes (this section).
+- [ ] Stage 2. Remove the on-page controls and combo list; menu system with a Moves sub-menu (`ui.js`).
+- [ ] Stage 3. Progression: `progress.js`, locked buttons and moves, meters appear on unlock, saved in localStorage.
+- [ ] Stage 4. Level engine: maps, barriers, platforms, air control, crates and powerups, patrolling enemies with sight and hit aggro.
+- [ ] Stage 5. Gem inventory, health gems, Gems sub-menu.
+- [ ] Stage 6. Overworld, level flow, level unlocking, Game Over and Level Complete.
+- [ ] Stage 7. Dev Console (L1+L2+R1+R2).
+- [ ] Stage 8. Docs, handoff, static checks.
+
+### Handoff status (keep this current)
+- Nothing below has been run in a browser (user's rule). If you are picking this up and the user has asked for testing, start with: page loads without console errors, Start reaches the overworld, Level 1.1 loads, jump over a barrier, land on a platform, smash a crate.
+
 ## Open questions
 - (none; the old dip/recover2 open question is obsolete: those frames were removed when the animation was restructured to plow/raise/high/impact.)
 
