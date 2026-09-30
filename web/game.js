@@ -247,8 +247,8 @@
   // ------------------------------------------------------------------ input
   const BUTTONS = ['Up', 'Down', 'Left', 'Right', 'A', 'B', 'X', 'Y', 'L1', 'L2', 'R1', 'R2', 'R'];
   const KEYS = { ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right',
-                 KeyZ: 'A', KeyX: 'B', KeyC: 'X', KeyV: 'Y', KeyQ: 'L1', KeyW: 'R', KeyE: 'L2', KeyR: 'R2', KeyT: 'R1' };
-  const KEY_LABEL = { Up: '↑', Down: '↓', Left: '←', Right: '→', A: 'Z', B: 'X', X: 'C', Y: 'V', L1: 'Q', L2: 'E', R1: 'T', R2: 'R', R: 'W' };
+                 KeyZ: 'A', KeyX: 'B', KeyA: 'X', KeyS: 'Y', KeyQ: 'L1', KeyW: 'R1', Digit1: 'L2', Digit2: 'R2' };   // W is R1 and also the recover hold, like the pad's R1
+  const KEY_LABEL = { Up: '↑', Down: '↓', Left: '←', Right: '→', A: 'Z', B: 'X', X: 'A', Y: 'S', L1: 'Q', L2: '1', R1: 'W', R2: '2', R: 'W' };
   const PAD = { 0: 'A', 1: 'B', 2: 'X', 3: 'Y', 4: 'L1', 5: 'R1', 6: 'L2', 7: 'R2', 12: 'Up', 13: 'Down', 14: 'Left', 15: 'Right' };
   const keyDown = new Set(), padDown = new Set(), isDown = new Set();
   // A attacks, Up jumps (tap Up; a second tap in the air is the double jump). Y is only used in combos (Down then Y, X+Y).
@@ -277,7 +277,7 @@
   // Some controllers reach the page as key events (Android can send a pad's d-pad as arrow keys),
   // and those can come with an empty e.code, so the key name and legacy keyCode are checked too.
   const KEY_NAMES = { ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right',
-                      z: 'A', x: 'B', c: 'X', v: 'Y', q: 'L1', w: 'R', e: 'L2', r: 'R2', Z: 'A', X: 'B', C: 'X', V: 'Y', Q: 'L1', W: 'R', E: 'L2', R: 'R2' };
+                      z: 'A', x: 'B', a: 'X', s: 'Y', q: 'L1', w: 'R1', 1: 'L2', 2: 'R2', Z: 'A', X: 'B', A: 'X', S: 'Y', Q: 'L1', W: 'R1' };
   const KEY_CODES = { 37: 'Left', 38: 'Up', 39: 'Right', 40: 'Down' };
   const keyButton = e => KEYS[e.code] || KEY_NAMES[e.key] || KEY_CODES[e.keyCode];
   addEventListener('keydown', e => {
@@ -286,12 +286,12 @@
     if (!e.repeat) monitor(`key down  key "${e.key}"  code "${e.code}"  keyCode ${e.keyCode}  -> ${b || 'not used'}`);
     if (!b) return;
     e.preventDefault();
-    keyDown.add(b);
+    keyDown.add(b); if (b === 'R1') keyDown.add('R');
   });
   addEventListener('keyup', e => {
     const b = keyButton(e);
     monitor(`key up    key "${e.key}"  code "${e.code}"  keyCode ${e.keyCode}  -> ${b || 'not used'}`);
-    if (b) { e.preventDefault(); keyDown.delete(b); }
+    if (b) { e.preventDefault(); keyDown.delete(b); if (b === 'R1') keyDown.delete('R'); }
   });
   addEventListener('blur', () => { if (keyDown.size) monitor('page lost focus: held keys released'); keyDown.clear(); });
 
@@ -404,7 +404,7 @@
       if (ignoreUntilUp.has(b)) { if (now) now = false; else ignoreUntilUp.delete(b); }   // held when a menu closed
       if (!P.buttonOn(b)) now = false;                             // a shoulder button that is not unlocked yet
       if (charging && (b === 'L1' || b === 'R1')) now = false;
-      else if (charging && b === 'R') now = keyDown.has('R');
+      else if (charging && b === 'R') now = false;
       if (now && !isDown.has(b)) {
         isDown.add(b); reader.down(b, t);
         if (b === 'Up' && !charging) request('jump', 'press');   // Up jumps (and double jumps in the air)
@@ -2257,7 +2257,7 @@
     setStartLabel();
   }
   if (UI) UI.init({ mainItems, closeMenu, moveRows, lockedCount, padStatus, gemRows, useGem, devItems,
-    moveNotes: () => ['Keyboard: arrows = d-pad, Z = A (attack), X = B, C = X, V = Y, Up = jump. Shoulders: Q = L1, E = L2, T = R1, R = R2, W = hold R (recover). Enter, Space or Escape opens and closes this menu. Hold Left or Right while jumping to steer. Double tap Down on a platform to drop through it.',
+    moveNotes: () => ['Keyboard: arrows = d-pad, Z = A (attack), X = B, A = X, S = Y, Up = jump. Shoulders: Q = L1, W = R1 (hold to recover), 1 = L2, 2 = R2. Enter, Space or Escape opens and closes this menu. Hold Left or Right while jumping to steer. Double tap Down on a platform to drop through it.',
                       'A gamepad works too, wired or Bluetooth, also on an Android phone in Chrome: A (bottom) jumps, Y (top) attacks, B is right, X is left. Click the game first if keys do nothing. Press H to show hurtboxes and hit shapes.'] });
   Promise.all(srcs.map(load)).then(() => {
     const loading = document.getElementById('loading');

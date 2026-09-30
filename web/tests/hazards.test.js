@@ -152,8 +152,8 @@ const { chromium } = require('playwright');
   await ev('bibooGame.unlock("taunt")');
   await wait(400);
   const n2 = await ev('bibooGame.started.length');
-  await page.keyboard.down('KeyC'); await page.keyboard.down('KeyV'); await wait(100); await page.keyboard.up('KeyC'); await page.keyboard.up('KeyV'); await wait(800);
-  check('taunt is X + Y (keys C + V)', (await ev('bibooGame.started.slice(' + n2 + ').map(m => m.id)')).includes('taunt'), await ev('bibooGame.started.slice(' + n2 + ').map(m => m.id)'));
+  await page.keyboard.down('KeyA'); await page.keyboard.down('KeyS'); await wait(100); await page.keyboard.up('KeyA'); await page.keyboard.up('KeyS'); await wait(800);
+  check('taunt is X + Y (keys A + S)', (await ev('bibooGame.started.slice(' + n2 + ').map(m => m.id)')).includes('taunt'), await ev('bibooGame.started.slice(' + n2 + ').map(m => m.id)'));
 
   // ---- double jump
   await custom({}); await at(100);
@@ -190,7 +190,7 @@ const { chromium } = require('playwright');
   await ev('bibooGame.setMeters(100,100,100)'); await ev('bibooGame.setHp(200)'); await at(60);
   await ev('bibooGame.unlock("L1")'); await ev('bibooGame.unlock("R2")'); await wait(200);
   // hit the bomb from a distance with a reflected-style hook: use the fire beam (A+R2) aimed right
-  await page.keyboard.down('KeyZ'); await page.keyboard.down('KeyR'); await wait(700); await page.keyboard.up('KeyZ'); await page.keyboard.up('KeyR'); await wait(400);
+  await page.keyboard.down('KeyZ'); await page.keyboard.down('Digit2'); await wait(700); await page.keyboard.up('KeyZ'); await page.keyboard.up('Digit2'); await wait(400);
   s = await S();
   check('damage from a distance (beam) also sets it off', s.bombs[0].gone, s.bombs);
   check('the orc 80 px away is outside the radius (full hp)', s.foes[0].hp >= 1000 || s.foes[0].hp > 100 || s.foes[0].alive, s.foes[0]);

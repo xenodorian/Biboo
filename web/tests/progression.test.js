@@ -54,7 +54,7 @@ const { chromium } = require('playwright');
   check('starts standing on the ground at the left door', s.floorY === 0 && s.px > 15 && s.px < 60, { fy: s.floorY, px: s.px });
 
   // ---- 5. dev console by the four-shoulder chord and the ` key
-  await hold(['KeyQ', 'KeyE', 'KeyT', 'KeyR'], 250); await wait(200);
+  await hold(['KeyQ', 'Digit1', 'KeyW', 'Digit2'], 250); await wait(200);
   s = await S();
   check('Q+E+T+R opens the Dev Console', s.devOpen && (await ev('bibooGame.menuOpen()')), s.devOpen);
   const dl = await labels();

@@ -7,8 +7,8 @@ const fs = require('fs');
 const { chromium } = require('playwright');
 
 const K = { Up: 'ArrowUp', Down: 'ArrowDown', Left: 'ArrowLeft', Right: 'ArrowRight',
-            A: 'KeyZ', B: 'KeyX', X: 'KeyC', Y: 'KeyV', L: 'KeyQ', R: 'KeyW',
-            L1: 'KeyQ', R1: 'KeyT', L2: 'KeyE', R2: 'KeyR' };   // R (W) is the recover hold; R1 (T) and R2 (R) are the shoulder buttons
+            A: 'KeyZ', B: 'KeyX', X: 'KeyA', Y: 'KeyS', L: 'KeyQ', R: 'KeyW',
+            L1: 'KeyQ', R1: 'KeyW', L2: 'Digit1', R2: 'Digit2' };   // R (W) is the recover hold; R1 (T) and R2 (R) are the shoulder buttons
 const shots = process.argv[2];
 
 (async () => {

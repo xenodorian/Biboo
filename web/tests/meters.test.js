@@ -40,8 +40,8 @@ const { chromium } = require('playwright');
   // moves do not play without their meter
   await reset(0, 0);
   check('laser beam (A+L1) does not play at 0 energy', (await tryMove(['KeyZ', 'KeyQ'])).length === 0, await cur());
-  check('energy wave (R2) does not play at 0 energy', (await tryMove(['KeyR'])).length === 0, await cur());
-  check('Empowerment Beam (A+R1) does not play at 0 empower', (await tryMove(['KeyZ', 'KeyT'])).length === 0, await cur());
+  check('energy wave (R2) does not play at 0 energy', (await tryMove(['Digit2'])).length === 0, await cur());
+  check('Empowerment Beam (A+R1) does not play at 0 empower', (await tryMove(['KeyZ', 'KeyW'])).length === 0, await cur());
   await page.keyboard.down('KeyW'); await wait(300);
   check('kneeling to recover does not start at 0 empower', (await cur()) !== 'recover', await cur());
   await page.keyboard.up('KeyW');
@@ -54,9 +54,9 @@ const { chromium } = require('playwright');
   const m1 = await meters();
   check('the beam spent energy, not empower', m1.energy < 100 && m1.energy >= 40 && m1.empower === 100, JSON.stringify(m1));
   await reset(100, 100);
-  check('energy wave plays and costs 10', (await tryMove(['KeyR'], 150)).includes('energy_wave') && (await meters()).energy === 90, JSON.stringify(await meters()));
+  check('energy wave plays and costs 10', (await tryMove(['Digit2'], 150)).includes('energy_wave') && (await meters()).energy === 90, JSON.stringify(await meters()));
   await reset(0, 100);
-  check('Empowerment Beam plays and spends empower', (await tryMove(['KeyZ', 'KeyT'], 500)).includes('beam_plasma') && (await meters()).empower < 100, JSON.stringify(await meters()));
+  check('Empowerment Beam plays and spends empower', (await tryMove(['KeyZ', 'KeyW'], 500)).includes('beam_plasma') && (await meters()).empower < 100, JSON.stringify(await meters()));
 
   // a beam stops the moment the meter runs dry
   await reset(12, 0);
@@ -81,7 +81,7 @@ const { chromium } = require('playwright');
   check('walking over the gems fills both meters by 25', pk.energy === 25 && pk.empower === 25 && (await ev('bibooGame.gems()')).length === 0, JSON.stringify(pk));
   await reset(0, 0);
   await ev("bibooGame.setEnemyHp(1); bibooGame.setEnemies([['goblin', 90, 60000]])"); await wait(200);
-  await press(['KeyC', 'KeyV']); await wait(800); await press(['KeyZ']); await wait(700);
+  await press(['KeyA', 'KeyS']); await wait(800); await press(['KeyZ']); await wait(700);
   const gd = await ev('bibooGame.gems()');
   check('a taunted enemy always drops an empower gem', gd.length === 1 && gd[0].kind === 'empower', JSON.stringify(gd));
   let drops = 0;

@@ -234,3 +234,6 @@ with 50 and drops of +25 raise the maximum; every crate drops something; remove 
 - 2026-09-29: Step 36 done (spin on Left+A). (Claude)
 - 2026-09-29: Step 35 done (facing flip). (Claude)
 - Prior log entries: see git history for steps 0-34.
+
+### Seventh request (2026-09-30): keyboard remap
+- [x] Keys: Z=A, X=B, A=X, S=Y, Q=L1, W=R1 (also the recover hold, like the pad), 1=L2, 2=R2. Pad unchanged. Tests updated.

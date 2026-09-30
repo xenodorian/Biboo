@@ -8,16 +8,16 @@ const CASES = [
   ['thrust', ['thrust'], [['ArrowRight', 'KeyZ']]],
   ['upswing', ['upswing'], [['ArrowDown', 'KeyZ']]],
   ['heavy_horizontal', ['heavy_horizontal'], null],
-  ['dash_thrust', ['dash_thrust'], [['KeyC', 'KeyZ']]],
-  ['taunt', ['taunt'], [['KeyC', 'KeyV']]],
-  ['sky_dash', ['sky_dash'], [['ArrowDown'], ['KeyV']]],
+  ['dash_thrust', ['dash_thrust'], [['KeyA', 'KeyZ']]],
+  ['taunt', ['taunt'], [['KeyA', 'KeyS']]],
+  ['sky_dash', ['sky_dash'], [['ArrowDown'], ['KeyS']]],
   ['L1', ['push_kick'], [['KeyQ']]],
   ['L1', ['beam_laser'], [['KeyZ', 'KeyQ']]],
-  ['L2', ['energy_burst'], [['KeyE']]],
-  ['L2', ['beam_cloud'], [['KeyZ', 'KeyE']]],
-  ['R2', ['energy_wave'], [['KeyR']]],
-  ['R2', ['beam_fire'], [['KeyZ', 'KeyR']]],
-  ['R1', ['beam_plasma'], [['KeyZ', 'KeyT']]],
+  ['L2', ['energy_burst'], [['Digit1']]],
+  ['L2', ['beam_cloud'], [['KeyZ', 'Digit1']]],
+  ['R2', ['energy_wave'], [['Digit2']]],
+  ['R2', ['beam_fire'], [['KeyZ', 'Digit2']]],
+  ['R1', ['beam_plasma'], [['KeyZ', 'KeyW']]],
 ];
 
 (async () => {
@@ -73,7 +73,7 @@ const CASES = [
 
   // spin attack: a starting move on Y, no unlock needed
   await fresh(); n0 = await ev('bibooGame.started.length');
-  await page.keyboard.down('KeyV'); await wait(60); await page.keyboard.up('KeyV'); await wait(900);
+  await page.keyboard.down('KeyS'); await wait(60); await page.keyboard.up('KeyS'); await wait(900);
   check('spin attack (Y) plays from the start of the game', (await played(n0)).includes('spin_attack'), await played(n0));
 
   // overhead chop: hold A to charge, release to chop; a tap of A is still the slash
@@ -124,7 +124,7 @@ const CASES = [
   // energy dash thrust: B then X+A (double tap forward variant is the old one)
   await fresh(); await ev("bibooGame.unlock('energy_dash'); bibooGame.enterLevel(1)"); await wait(500); await ev('bibooGame.setEnemies([]); bibooGame.setMeters(100, 100, 100)'); await wait(800);
   n0 = await ev('bibooGame.started.length');
-  await play([['ArrowRight'], ['ArrowRight'], ['KeyC', 'KeyZ']]);
+  await play([['ArrowRight'], ['ArrowRight'], ['KeyA', 'KeyZ']]);
   check('energy dash thrust plays', (await played(n0)).includes('energy_dash_thrust'), await played(n0));
 
   // recover needs R1 (hold W)

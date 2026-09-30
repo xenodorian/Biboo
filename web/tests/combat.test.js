@@ -30,7 +30,7 @@ const { chromium } = require('playwright');
   for (const [name, keys, dmg, dist, ms, dx] of [
     ['push kick', ['KeyQ'], 10, 100, 200, 45],
     ['energy kick', ['KeyX', 'KeyQ'], 30, 200, 300, 45],
-    ['energy burst', ['KeyQ', 'KeyT'], 50, 400, 500, 50]]) {
+    ['energy burst', ['KeyQ', 'KeyW'], 50, 400, 500, 50]]) {
     await setup([['orc', dx, 9000]]);
     const x0 = (await en())[0].x, h0 = (await hps())[0];
     await press(keys, 90);
@@ -41,7 +41,7 @@ const { chromium } = require('playwright');
   }
   // the knockback lasts the stated time: time from the first movement to standing still (20 ms samples)
   await setup([['orc', 50, 9000]]);
-  await press(['KeyQ', 'KeyT'], 90);
+  await press(['KeyQ', 'KeyW'], 90);
   const xs = []; for (let i = 0; i < 60; i++) { xs.push((await en())[0].x); await wait(20); }
   const first = xs.findIndex(v => v !== xs[0]);
   let stop = first; while (stop < xs.length - 3 && !(xs[stop + 1] === xs[stop] && xs[stop + 2] === xs[stop] && xs[stop + 3] === xs[stop])) stop++;
@@ -62,10 +62,10 @@ const { chromium } = require('playwright');
 
   // ---- batch 2: beams (A+L2 cloud, A+X fire (hold X), A+L1 laser, A+R1 Empowerment)
   const beams = [
-    ['cloud', ['KeyZ', 'KeyE'], 5, 1, 'energy', 0],
+    ['cloud', ['KeyZ', 'Digit1'], 5, 1, 'energy', 0],
     ['fire', ['KeyX', 'KeyZ'], 10, 2, 'energy', 10],
     ['laser', ['KeyZ', 'KeyQ'], 15, 3, 'energy', 20],
-    ['Empowerment', ['KeyZ', 'KeyT'], 0, 5, 'empower', 30]];
+    ['Empowerment', ['KeyZ', 'KeyW'], 0, 5, 'empower', 30]];
   for (const [name, keys, dmg, cost, meter, push] of beams) {
     await setup([['orc', 150, 30000]]);
     const x0 = (await en())[0].x;
@@ -81,17 +81,17 @@ const { chromium } = require('playwright');
     else check(`${name} beam: no pushback`, moved === 0, { moved });
   }
   await setup([['orc', 150, 9000]]);
-  await press(['KeyZ', 'KeyT'], 90); await wait(500);
+  await press(['KeyZ', 'KeyW'], 90); await wait(500);
   check('Empowerment Beam enlarges the enemy it hits', (await en())[0].scale > 1, await en());
 
   // ---- the energy wave: R2, costs 10, no damage on contact, explodes for 50 in a 75 px radius, both sides
   await setup([['orc', 130, 9000], ['goblin', 170, 9000], ['goblin', 300, 9000], ['orc', -110, 9000]]);
-  await press(['KeyR'], 90); await wait(1400);
+  await press(['Digit2'], 90); await wait(1400);
   const wh = await hps(), wm = await M();
   check('energy wave: costs 10 energy', wm.energy === 90, wm);
   check('energy wave: 50 damage to enemies within 75 px of the blast, in front and behind, none farther out', JSON.stringify(wh) === JSON.stringify([950, 950, 1000, 950]), wh);
   await setup([['orc', 700, 9000]]);
-  await press(['KeyR'], 90); await wait(1400);
+  await press(['Digit2'], 90); await wait(1400);
   check('energy wave: touches nothing, bursts at the end of its flight and hurts nothing far away', (await hps())[0] === 1000, await hps());
 
   // ---- damage numbers and the new energy dash input
@@ -106,17 +106,17 @@ const { chromium } = require('playwright');
     check(`${name}: ${dmg} damage`, 1000 - (await hps())[0] === dmg, await hps());
   }
   await setup([['orc', 80, 9000]]);
-  await press(['KeyC', 'KeyZ'], 90); await wait(1000);
+  await press(['KeyA', 'KeyZ'], 90); await wait(1000);
   check('dash thrust: 25 damage', 1000 - (await hps())[0] === 25, await hps());
   await setup([['orc', 80, 9000]]);
   await page.keyboard.down('ArrowRight'); await wait(40); await page.keyboard.up('ArrowRight'); await wait(80);
   await page.keyboard.down('ArrowRight'); await wait(40); await page.keyboard.up('ArrowRight'); await wait(80);
-  await press(['KeyC', 'KeyZ'], 90); await wait(1000);
+  await press(['KeyA', 'KeyZ'], 90); await wait(1000);
   check('energy dash thrust: double tap forward, then X+A, 50 damage', 1000 - (await hps())[0] === 50, await hps());
   await setup([['orc', 80, 9000]]);
   const nd = await ev('bibooGame.started.length');
   await page.keyboard.down('ArrowRight'); await wait(40); await page.keyboard.up('ArrowRight'); await wait(80);
-  await press(['KeyC', 'KeyZ'], 90); await wait(600);
+  await press(['KeyA', 'KeyZ'], 90); await wait(600);
   check('a single tap forward then X+A is only the plain dash thrust', JSON.stringify(await ev(`bibooGame.started.slice(${nd}).map(s => s.id)`)).includes('dash_thrust') && !JSON.stringify(await ev(`bibooGame.started.slice(${nd}).map(s => s.id)`)).includes('energy_dash_thrust'), await ev(`bibooGame.started.slice(${nd}).map(s => s.id)`));
 
   // ---- heavy chop 25 to 100 with the charge, charging costs 20 energy for a full charge, jump crash 30 energy and 150 damage
@@ -133,11 +133,11 @@ const { chromium } = require('playwright');
   await page.keyboard.down('ArrowUp'); await wait(1200); await press(['KeyZ'], 50); await page.keyboard.up('ArrowUp'); await wait(1300);
   check('no energy: the charge does not grow (25 damage)', 1000 - (await hps())[0] === 25, await hps());
   await setup([['orc', 60, 9000]]);
-  await press(['KeyV'], 50); await wait(300); await press(['KeyZ'], 50); await wait(1500);
+  await press(['KeyS'], 50); await wait(300); await press(['KeyZ'], 50); await wait(1500);
   check('jump crash: 150 damage and 30 energy', 1000 - (await hps())[0] === 150 && (await M()).energy === 70, { hp: await hps(), m: await M() });
   await setup([['orc', 60, 9000]]); await ev('bibooGame.setMeters(20, 100)');
   const nc = await ev('bibooGame.started.length');
-  await press(['KeyV'], 50); await wait(300); await press(['KeyZ'], 50); await wait(700);
+  await press(['KeyS'], 50); await wait(300); await press(['KeyZ'], 50); await wait(700);
   check('jump crash does not play below 30 energy', !(await ev(`bibooGame.started.slice(${nc}).map(s => s.id)`)).includes('jump_crash'), await ev(`bibooGame.started.slice(${nc}).map(s => s.id)`));
 
   // ---- taunt: red, 2x speed, 2x damage
@@ -145,12 +145,12 @@ const { chromium } = require('playwright');
   await ev("bibooGame.setHp(200)");
   const gx0 = (await en())[0].x; await wait(1000); const gx1 = (await en())[0].x;
   await setup([['goblin', 330, 0]], 1000);
-  await press(['KeyC', 'KeyV'], 90); await wait(300);
+  await press(['KeyA', 'KeyS'], 90); await wait(300);
   const tn = await en(); const tx0 = tn[0].x; await wait(1000); const tx1 = (await en())[0].x;
   check('taunt: enemies are red', tn.every(e => e.tint === '#e22'), tn);
   check('taunt: enemies walk about twice as fast', (tx0 - tx1) > 1.7 * (gx0 - gx1), { normal: gx0 - gx1, taunted: tx0 - tx1 });
   await setup([['orc', 40, 0]]); await ev('bibooGame.setHp(200)');
-  await press(['KeyC', 'KeyV'], 90); await wait(2500);
+  await press(['KeyA', 'KeyS'], 90); await wait(2500);
   check('taunt: an orc hit takes 60 HP (2x 30) off Max', [140, 80, 20].includes(await ev('bibooGame.hp()')) || (await ev('bibooGame.hp()')) < 200, await ev('bibooGame.hp()'));
 
   // ---- enemies walk in close enough to hit her, and spawn at normal size
