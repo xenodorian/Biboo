@@ -86,7 +86,7 @@
   const ENERGY_MAX = 100, EMPOWER_MAX = 100, METER_START = 50;
   let energyMeter = METER_START, empowerMeter = METER_START;
   const GEM_VALUE = 25, GEM_CHANCE = 0.35, GEM_LIFE = 20000, GEM_PICKUP = 28;
-  const BEAM_TICK_COST = { cloud: 5, fire: 5, laser: 5, plasma: 10 };         // per beam tick (100 ms)
+  const BEAM_TICK_COST = { cloud: 1, fire: 2, laser: 3, plasma: 5 };         // per beam tick (100 ms)
   const MOVE_COST = { energy_wave: ['energy', 30] };                          // paid once, when the move starts
   const HEAL_COST = 8;                                                        // empower per recover tick
   const meterOf = k => k === 'energy' ? energyMeter : empowerMeter;
@@ -479,7 +479,8 @@
   const KNOCK = { push_kick: [100, 200], energy_kick: [200, 300], energy_burst: [400, 500] };
   const PARRY_KNOCK = [300, 400];                                    // an enemy parried: pushed back this far, stunned this long
   const REHIT_MS = { earthquake: 250, meteor_shower: 300 };
-  const BEAM_DMG = { cloud: 7, fire: 9, laser: 12, plasma: 10 };
+  const BEAM_DMG = { cloud: 5, fire: 10, laser: 15, plasma: 0 };
+  const BEAM_PUSH = { cloud: 0, fire: 10, laser: 20, plasma: 30 };     // px an enemy is shoved back on every tick it is touched
   const HEAVY_DMG = [35, 90], CRASH_DMG = [30, 100];      // [short, full]
   const HEAL_EVERY = 350, HEAL_AMOUNT = 6, KO_MS = 1500;
   const dmgOf = c => c.id === 'heavy' ? HEAVY_DMG[c.lite ? 0 : 1] : c.id === 'jump_crash' ? CRASH_DMG[c.lite ? 0 : 1] : (DAMAGE[c.id] || 15);
@@ -557,7 +558,9 @@
       e.dropEnergy = true;
       e.tint = { color: '#a0f', alpha: 0.4, until: clock + 400 };
     }
-    hurtEnemy(e, BEAM_DMG[b.kind] || 8);
+    hurtEnemy(e, BEAM_DMG[b.kind] || 0);
+    const push = BEAM_PUSH[b.kind] || 0;
+    if (push && alive(e)) { e.x += b.face * push; e.base += b.face * push; }   // shoved away along the beam
   }
   function drawBeam(sx, sy) {
     const b = beamNow();

@@ -75,6 +75,10 @@ Done in stages, pushed to main after each. Per the request, no test suites were 
 - [x] Fix: an enemy killed by a knockback hit was set back to 'stunned' and lost its death state; knockback now only applies to living enemies.
 - Status: DONE
 
+### Batch 2. Beams
+- [x] Cloud 5 damage, 1 energy per tick, no pushback. Fire 10, 2 energy, 10 px per tick. Laser 15, 3 energy, 20 px per tick. Empowerment Beam 0 damage, 5 empower per tick, 30 px per tick (it still enlarges enemies and marks them to drop an Energy Gem, so a gem drops only if something else kills the enemy). `BEAM_DMG`, `BEAM_PUSH`, `BEAM_TICK_COST` in `web/game.js`; the push shifts the enemy along the beam on each tick, whether or not it is stunned. README updated.
+- Status: DONE. Verification pending (last step).
+
 ## Open questions
 - (none; the old dip/recover2 open question is obsolete: those frames were removed when the animation was restructured to plow/raise/high/impact.)
 
