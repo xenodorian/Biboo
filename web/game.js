@@ -80,6 +80,9 @@
   D.input.bindings = D.input.bindings.filter(b => !b.move.startsWith('beam_') || BEAM_KEYS[b.move] === b.input);
   for (const [mv, inp] of Object.entries(BEAM_KEYS))
     if (!D.input.bindings.some(b => b.move === mv && b.input === inp)) D.input.bindings.push({ input: inp, type: 'chord', move: mv });
+  // Energy burst is L2 on its own. L1+R1 is no longer a burst: holding both charges the meters (see metersHeld).
+  D.input.bindings = D.input.bindings.filter(b => b.move !== 'energy_burst');
+  D.input.bindings.push({ input: 'L2', type: 'press', move: 'energy_burst' });
   // Heavy Horizontal: hold B, tap A. It plays the horizontal slash animation with its own damage and pushback.
   if (!D.moves.heavy_horizontal)
     D.moves.heavy_horizontal = Object.assign({}, D.moves.slash, { title: 'Heavy Horizontal', input: 'A+B', inputType: 'chord' });
@@ -284,10 +287,17 @@
   }
   addEventListener('gamepadconnected', () => pollPad());
 
+  // L1 and R1 held together charge both meters (+METER_CHARGE_STEP each METER_CHARGE_TICK ms). While they are
+  // held the reader is not shown L1, R1 or the pad's R1-as-R, so no push kick or recover starts.
+  const METER_CHARGE_STEP = 1, METER_CHARGE_TICK = 100;
+  const metersHeld = () => (keyDown.has('L1') || padDown.has('L1')) && (keyDown.has('R1') || padDown.has('R1'));
   function readButtons(t) {
     pollPad();
+    const charging = metersHeld();
     for (const b of BUTTONS) {
-      const now = keyDown.has(b) || padDown.has(b);
+      let now = keyDown.has(b) || padDown.has(b);
+      if (charging && (b === 'L1' || b === 'R1')) now = false;
+      else if (charging && b === 'R') now = keyDown.has('R');
       if (now && !isDown.has(b)) {
         isDown.add(b); reader.down(b, t);
         if (b === 'Left') facing = -1; else if (b === 'Right') facing = 1;
@@ -368,6 +378,7 @@
   // Charging costs energy: CHARGE_ENERGY for a full charge, drawn evenly while Up is held. The charge only
   // grows while the meter can pay, so with no energy it stops where it is.
   const CHARGE_ENERGY = 20;
+  let meterAcc = 0;                                          // ms toward the next L1+R1 meter tick
   let chargeMs = 0;                                          // charge built up so far, 0 to FULL_CHARGE
   const isCharged = () => !!cur && cur.id === 'charge' && chargeMs >= FULL_CHARGE;
   function stepCharge(dt) {
@@ -438,7 +449,7 @@
 
   // Left and Right both walk with the forward walk; which way she goes and faces is `facing`
   const holdId = id => id === 'walk_left' ? 'walk_right' : id;
-  const holdWant = t => { const w = holdId(reader.holdMove(t)); return w === 'recover' && empowerMeter < HEAL_COST ? 'idle' : w; };
+  const holdWant = t => { if (metersHeld()) return 'charge'; const w = holdId(reader.holdMove(t)); return w === 'recover' && empowerMeter < HEAL_COST ? 'idle' : w; };
   function holdState(t) {
     const want = holdWant(t);
     if (!cur || cur.id !== want || cur.face !== facing) start(want, 'hold');
@@ -503,7 +514,7 @@
   const DAMAGE = { slash: 25, heavy_horizontal: 50, thrust: 15, upswing: 15, push_kick: 10, heavy_kick: 25, energy_kick: 30, energy_burst: 50,
                    dash_thrust: 25, energy_dash_thrust: 50, spin_attack: 20, energy_wave: 0, earthquake: 250, meteor_shower: 200 };
   // knockback of the moves that push an enemy: [distance px, duration ms]
-  const KNOCK = { slash: [25, 100], heavy_horizontal: [50, 100], push_kick: [100, 200], energy_kick: [200, 300], energy_burst: [400, 500] };
+  const KNOCK = { slash: [25, 100], heavy_horizontal: [50, 100], push_kick: [100, 200], energy_kick: [200, 300], energy_burst: [200, 500] };
   const BOTH_SIDES_PUSH = new Set(['energy_burst']);
   const PARRY_KNOCK = [300, 400];                                    // an enemy parried: pushed back this far, stunned this long
   const REHIT_MS = { earthquake: 250, meteor_shower: 300 };
@@ -533,7 +544,16 @@
   }
   function stepHeal(dt) {
     stepGems(dt);
-    if (cur && cur.id === 'charge' && cur.kind === 'hold' && !stun) stepCharge(dt);
+    if (cur && cur.id === 'charge' && cur.kind === 'hold' && !stun) {
+      if (metersHeld()) {                                          // L1+R1: both meters fill, 1 per tick
+        meterAcc += dt;
+        while (meterAcc >= METER_CHARGE_TICK) {
+          meterAcc -= METER_CHARGE_TICK;
+          energyMeter = Math.min(ENERGY_MAX, energyMeter + METER_CHARGE_STEP);
+          empowerMeter = Math.min(EMPOWER_MAX, empowerMeter + METER_CHARGE_STEP);
+        }
+      } else stepCharge(dt);
+    } else meterAcc = 0;
     if (!cur || cur.id !== 'recover' || cur.kind !== 'hold' || stun || hp >= MAX_HP) { healAcc = 0; return; }
     healAcc += dt;
     while (healAcc >= HEAL_EVERY && hp < MAX_HP && empowerMeter >= HEAL_COST) {
@@ -723,12 +743,14 @@
   }
   // effect moves (meteor shower, energy wave) draw Max at SPRITE_SCALE and their effects at fxScale,
   // and their hit shapes follow the effects
+  const BURST_SCALE = 1.0;               // energy burst effect scale: twice Max's, so twice the area of effect
+  const FX_CENTER = { energy_burst: [32, 37] };   // where the burst ring is centred (native px from the anchor): it grows around this point
   function fxScaleOf(id) { const m = id && D.moves[id]; return m && m.fxScale ? m.fxScale : SPRITE_SCALE; }
   function worldShape(s, h) {
     const sc = fxScaleOf(h.mv && h.mv.id);
     const P = p => [h.px + h.face * p[0] * sc, h.py + p[1] * sc];
     if (s.shape === 'capsule') return { shape: 'capsule', a: P(s.a), b: P(s.b), r: s.radius * sc };
-    if (s.shape === 'circle') return { shape: 'circle', c: P(s.c), r: s.r * sc };
+    if (s.shape === 'circle') return { shape: 'circle', c: P(s.c), r: s.r * (h.mv && h.mv.id === 'energy_burst' ? BURST_SCALE : sc) };   // the burst keeps its centre but its radius is doubled
     const a = P(s.a), b = P(s.b);
     return { shape: 'box', box: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])] };
   }
@@ -973,9 +995,13 @@
     if (cur.face < 0) g.scale(-1, 1);
     if (m.fxSheet) {                                             // effects at their own scale, behind Max
       const fs = m.fxScale || SPRITE_SCALE, fim = img[m.fxSheet].im;
+      const fc = FX_CENTER[cur.id];
+      g.save();
+      if (fc) g.translate(fc[0] * (SPRITE_SCALE - fs), fc[1] * (fs - SPRITE_SCALE));   // keep the enlarged ring centred on Max's body
       const gone = side => cur.id === 'energy_wave' && cur.blast && cur.blast[side] && cur.k >= 2;   // that projectile burst
       if (!gone(cur.face)) blit(fim, cur.k * cw, cw, ch, -m.anchor[0] * fs, -m.anchor[1] * fs, null, fs);
       if (BOTH_SIDES.has(cur.id) && !gone(-cur.face)) { g.save(); g.scale(-1, 1); blit(fim, cur.k * cw, cw, ch, -m.anchor[0] * fs, -m.anchor[1] * fs, null, fs); g.restore(); }
+      g.restore();
     }
     blit(img[m.sheet].im, cur.k * cw, cw, ch, -m.anchor[0] * SPRITE_SCALE, -m.anchor[1] * SPRITE_SCALE, tc, SPRITE_SCALE);
     g.restore();
