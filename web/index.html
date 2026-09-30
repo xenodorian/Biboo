@@ -1,1 +1,152 @@
-PLACEHOLDER
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parry Perry</title>
+<style>
+  :root {
+    --bg: #15151b; --panel: #1f1f28; --line: #33333f; --text: #e6e6ec; --dim: #9a9aa8;
+    --lit: #f0b44c; --key: #2b2b36;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+  main { max-width: 1184px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 18px; margin: 0 0 10px; font-weight: 600; }
+  #stage { position: relative; background: #000; border: 1px solid var(--line); }
+  canvas { display: block; width: 100%; image-rendering: pixelated; image-rendering: crisp-edges; aspect-ratio: 384 / 216; }
+  #kills { position: absolute; right: 10px; top: 8px; padding: 4px 8px; background: rgba(0,0,0,.55);
+           border-radius: 4px; font-weight: 600; pointer-events: none; font-variant-numeric: tabular-nums; }
+  #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); z-index: 4; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 760px) { .row { grid-template-columns: 1fr; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); margin: 0 0 8px; }
+  #pad { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btn { min-width: 44px; padding: 4px 8px; border-radius: 4px; background: var(--key); text-align: center;
+         border: 1px solid var(--line); font-weight: 600; }
+  .btn kbd { display: block; font: 11px ui-monospace, monospace; color: var(--dim); font-weight: 400; }
+  .btn.on { background: var(--lit); color: #1a1206; border-color: var(--lit); }
+  .btn.on kbd { color: #3d2c0b; }
+  #log { list-style: none; margin: 0; padding: 0; font: 13px ui-monospace, monospace; min-height: 8.5em; }
+  #log li { padding: 1px 0; color: var(--dim); }
+  #log li:first-child { color: var(--text); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  #combos { margin-top: 16px; }
+  .scroll { overflow-x: auto; }
+  th { text-align: left; font-weight: 600; color: var(--dim); padding: 3px 6px; font-size: 12px; }
+  td { padding: 3px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+  td.pad { font-family: ui-monospace, monospace; white-space: nowrap; color: var(--lit); }
+  td.keys { font-family: ui-monospace, monospace; white-space: nowrap; }
+  td.how { color: var(--dim); }
+  tr.playing td { background: #2c2a22; }
+  #inputmon { margin-top: 16px; }
+  #monitor { font: 12px/1.4 ui-monospace, monospace; color: var(--dim); white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0; }
+  p.note { color: var(--dim); margin: 8px 0 0; font-size: 13px; }
+
+  #start-menu {
+    position: absolute; inset: 0; z-index: 5;
+    display: grid; place-items: center;
+    background-color: #1a0f18;
+    background-image:
+      url('assets/layers/sky.png'),
+      url('assets/layers/mountains_far.png'),
+      url('assets/layers/mountains_near.png'),
+      url('assets/layers/ground.png');
+    background-size: cover, cover, cover, cover;
+    background-position: center top, center 40%, center 55%, center bottom;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+  }
+  #start-menu[hidden] { display: none !important; }
+  #start-menu .veil {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,.35) 0%, rgba(0,0,0,.55) 100%);
+    pointer-events: none;
+  }
+  #start-menu .panel {
+    position: relative; z-index: 1;
+    text-align: center; padding: 28px 32px;
+    background: rgba(31,31,40,.88);
+    border: 1px solid var(--line); border-radius: 10px; min-width: 260px;
+    backdrop-filter: blur(2px);
+  }
+  #start-menu .hero {
+    width: 120px; height: 120px; margin: 0 auto 12px;
+    background: url('assets/moves/charge.png') 0 0 / auto 120px no-repeat;
+    image-rendering: pixelated;
+  }
+  #start-menu h2 { margin: 0 0 6px; font-size: 22px; letter-spacing: .04em; }
+  #start-menu p { margin: 0 0 18px; color: var(--dim); font-size: 13px; }
+  #start-menu .actions { display: flex; flex-direction: column; gap: 10px; }
+  #start-menu button {
+    font: 600 15px system-ui, sans-serif; padding: 10px 16px; border-radius: 6px;
+    border: 1px solid var(--line); cursor: pointer; background: var(--key); color: var(--text);
+  }
+  #start-menu button.primary { background: var(--lit); color: #1a1206; border-color: var(--lit); }
+  #start-menu button:disabled { opacity: .5; cursor: default; }
+  #start-menu button:not(:disabled):hover { filter: brightness(1.08); }
+
+  #stage:fullscreen, #stage:-webkit-full-screen {
+    width: 100%; height: 100%; background: #000; display: grid; place-items: center;
+  }
+  #stage:fullscreen canvas, #stage:-webkit-full-screen canvas {
+    width: min(100vw, 100vh * 384 / 216); height: auto; max-height: 100vh;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Parry Perry</h1>
+  <div id="stage">
+    <canvas id="view" width="384" height="216" tabindex="0" aria-label="Game view"></canvas>
+    <div id="kills"></div>
+    <div id="loading">Loading...</div>
+    <div id="start-menu">
+      <div class="veil"></div>
+      <div class="panel">
+        <div class="hero" aria-hidden="true"></div>
+        <h2>Parry Perry</h2>
+        <p>Defeat the goblins and orcs</p>
+        <div class="actions">
+          <button type="button" class="primary" id="btn-start" disabled>Start</button>
+          <button type="button" id="btn-fullscreen">Fullscreen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <section id="combos">
+    <h2>Moves and combos</h2>
+    <div class="scroll"><table id="moves">
+      <thead><tr><th>Pad</th><th>Keyboard</th><th>Move</th><th>How</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+  <div class="row">
+    <section>
+      <h2>Pad</h2>
+      <div id="pad"></div>
+      <p class="note" id="padstatus"></p>
+      <p class="note">Keyboard: arrows = pad, Z = A, X = B, C = X, V = Y, Q = L, W = R. A gamepad works too,
+        wired or Bluetooth, including on an Android phone in Chrome (A = bottom face button, B = right, X = left,
+        Y = top, L/R = shoulders or triggers, d-pad or left stick). Click the view first if keys do nothing.</p>
+      <p class="note">Enemies walk in from the right; any attack that touches one kills it. Press H to show
+        hurtboxes (yellow) and hit shapes (red). Start also pauses and resumes.</p>
+    </section>
+    <section>
+      <h2>Last moves</h2>
+      <ol id="log"></ol>
+    </section>
+  </div>
+  <section id="inputmon">
+    <h2>Input monitor</h2>
+    <label class="note"><input type="checkbox" id="monitor-on"> Show raw key and controller events
+      (for checking what a controller sends; hold a direction, press a button, and read the list)</label>
+    <pre id="monitor"></pre>
+  </section>
+</main>
+<script src="assets/data.js"></script>
+<script src="input.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
