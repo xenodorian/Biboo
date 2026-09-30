@@ -273,3 +273,6 @@ Sky Dash is Down then Up (Up does not jump right after Down when Sky Dash is own
 
 ## Nineteenth request: no super meter at start
 Save format bumped to v2: a save from the old layout (for example one holding Earthquake or a 125 super max) is discarded on load, so a new game shows no SUP bar. Covered in unlock_points.test.js. Build st38.
+
+## Twentieth request: hard reset button
+Main menu (title and pause) has "Hard reset (erase save)", two presses: erases every parryperry.* localStorage key and reloads into a new game. web/tests/hard_reset.test.js. Build st39.

@@ -2322,7 +2322,7 @@
     const b = document.getElementById('btn-hud-start');
     if (b) b.textContent = screen === 'title' ? 'Start' : gameOver ? 'Retry' : paused ? 'Resume' : 'Menu';
   }
-  function showMenu(msg) { if (UI) UI.open('main', { msg: msg != null ? msg : '' }); }
+  function showMenu(msg) { hardResetArmed = false; if (UI) UI.open('main', { msg: msg != null ? msg : '' }); }
   function hideMenu() { if (UI) UI.close(); }
   function toggleFullscreen() {
     const stage = document.getElementById('stage') || canvas;
@@ -2335,6 +2335,14 @@
     if (screen === 'title' || gameOver || levelDone || !paused) return;
     togglePause();
   }
+  // Hard reset: wipes every saved key for the game (progress, unlocks, meters, maxes, keys) and reloads into a new game.
+  let hardResetArmed = false;
+  function hardReset() {
+    try { P.reset(); } catch (e) {}
+    try { const ls = window.localStorage; for (const k of Object.keys(ls)) if (k.indexOf('parryperry') === 0) ls.removeItem(k); } catch (e) {}
+    energyMeter = empowerMeter = superMeter = 0;
+    location.reload();
+  }
   function mainItems() {
     const items = [];
     if (screen === 'title') items.push({ label: 'Start', fn: () => goOverworld(), primary: true, id: 'btn-start' });
@@ -2344,6 +2352,10 @@
     items.push({ label: 'Gems', fn: () => UI.open('gems', { msg: UI.opts.msg }) });
     if (screen === 'level') items.push({ label: 'Back to the overworld', fn: () => goOverworld() });
     items.push({ label: 'Fullscreen', fn: toggleFullscreen, id: 'btn-fullscreen' });
+    items.push({ label: hardResetArmed ? 'Press again to erase everything' : 'Hard reset (erase save)', id: 'btn-hard-reset', fn: () => {
+      if (!hardResetArmed) { hardResetArmed = true; UI.refresh(); return; }
+      hardReset();
+    } });
     return items;
   }
   function triggerGameOver() {
