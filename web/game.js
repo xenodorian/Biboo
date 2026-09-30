@@ -96,14 +96,21 @@
   // empower for the Empowerment Beam and for kneeling to recover. A move whose meter cannot pay does not
   // play at all, and a beam or recovery stops the moment the meter runs dry.
   const ENERGY_MAX = 100, EMPOWER_MAX = 100, METER_START = 50;
-  let energyMeter = METER_START, empowerMeter = METER_START;
+  // The super meter (purple, SUP) starts empty and is filled only by Super Gems: one drops when an enemy is
+  // killed by a beam. A full meter (100) pays for the earthquake and the meteor shower.
+  const SUPER_MAX = 100;
+  let energyMeter = METER_START, empowerMeter = METER_START, superMeter = 0;
   const GEM_VALUE = 25, GEM_CHANCE = 0.35, GEM_LIFE = 20000, GEM_PICKUP = 28;
   const BEAM_TICK_COST = { cloud: 1, fire: 2, laser: 3, plasma: 5 };         // per beam tick (100 ms)
-  const MOVE_COST = { energy_wave: ['energy', 10], jump_crash: ['energy', 30], earthquake: ['energy', 100], meteor_shower: ['energy', 100] };   // earthquake and meteor shower need a full energy meter and use all of it                          // paid once, when the move starts
+  const MOVE_COST = { energy_wave: ['energy', 10], jump_crash: ['energy', 30], earthquake: ['super', 100], meteor_shower: ['super', 100] };   // earthquake and meteor shower need a full super meter and use all of it                          // paid once, when the move starts
   const HEAL_COST = 1;                                                        // empower per recover tick
-  const meterOf = k => k === 'energy' ? energyMeter : empowerMeter;
-  function spend(k, n) { if (k === 'energy') energyMeter = Math.max(0, energyMeter - n); else empowerMeter = Math.max(0, empowerMeter - n); }
-  let gems = [], meterFlash = { energy: 0, empower: 0 }, lastDeny = 0;
+  const meterOf = k => k === 'energy' ? energyMeter : k === 'super' ? superMeter : empowerMeter;
+  function spend(k, n) {
+    if (k === 'energy') energyMeter = Math.max(0, energyMeter - n);
+    else if (k === 'super') superMeter = Math.max(0, superMeter - n);
+    else empowerMeter = Math.max(0, empowerMeter - n);
+  }
+  let gems = [], meterFlash = { energy: 0, empower: 0, super: 0 }, lastDeny = 0;
   function spawnGem(wx, kind) { gems.push({ x: wx, y: 14 + Math.random() * 8, kind, bob: Math.random() * 6.28, t0: clock }); }
   // what a move needs before it may start: [meter, amount] or null
   function needOf(move) {
@@ -117,7 +124,7 @@
   function deny(move) {
     const n = needOf(move);
     meterFlash[n[0]] = clock + 500;
-    if (clock - lastDeny > 500) { lastDeny = clock; floater(bodyX(), herY() + herTop() + 8, n[0] === 'energy' ? 'No energy' : 'No empower', n[0] === 'energy' ? '#4af' : '#fa4'); }
+    if (clock - lastDeny > 500) { lastDeny = clock; floater(bodyX(), herY() + herTop() + 8, n[0] === 'energy' ? 'No energy' : n[0] === 'super' ? 'No super' : 'No empower', n[0] === 'energy' ? '#4af' : n[0] === 'super' ? '#c6f' : '#fa4'); }
   }
   function stepGems(dt) {
     for (const gm of gems) gm.bob += dt * 0.006;
@@ -125,6 +132,7 @@
       if (clock - gm.t0 > GEM_LIFE) return false;
       if (Math.abs(gm.x - bodyX()) < GEM_PICKUP && herY() < 50) {
         if (gm.kind === 'energy') { energyMeter = Math.min(ENERGY_MAX, energyMeter + GEM_VALUE); meterFlash.energy = clock + 400; floater(gm.x, gm.y + 24, '+Energy', '#4af'); }
+        else if (gm.kind === 'super') { superMeter = Math.min(SUPER_MAX, superMeter + GEM_VALUE); meterFlash.super = clock + 400; floater(gm.x, gm.y + 24, '+Super', '#c6f'); }
         else { empowerMeter = Math.min(EMPOWER_MAX, empowerMeter + GEM_VALUE); meterFlash.empower = clock + 400; floater(gm.x, gm.y + 24, '+Empower', '#fa4'); }
         return false;
       }
@@ -608,7 +616,9 @@
       e.dropEnergy = true;
       e.tint = { color: '#a0f', alpha: 0.4, until: clock + 400 };
     }
+    const was = alive(e);
     hurtEnemy(e, BEAM_DMG[b.kind] || 0);
+    if (was && !alive(e)) spawnGem(e.x, 'super');                 // killed by a beam: a Super Gem
     const push = BEAM_PUSH[b.kind] || 0;
     if (push && alive(e)) { e.x += b.face * push; e.base += b.face * push; }   // shoved away along the beam
   }
@@ -1042,7 +1052,7 @@
       const left = GEM_LIFE - (clock - gm.t0);
       if (left < 4000 && Math.floor(clock / 120) % 2) continue;
       const X = Math.round(V.anchorX + (gm.x - camX) + sx), Y = Math.round(V.feetRow + camY + sy - gm.y - Math.sin(gm.bob) * 3);
-      const c = gm.kind === 'energy' ? ['#bfe6ff', '#4af', '#1d5fb0'] : ['#ffe3b0', '#fa4', '#b25a10'];
+      const c = gm.kind === 'energy' ? ['#bfe6ff', '#4af', '#1d5fb0'] : gm.kind === 'super' ? ['#f0d6ff', '#c6f', '#6a2a9a'] : ['#ffe3b0', '#fa4', '#b25a10'];
       g.save();
       g.globalAlpha = 0.25 + 0.1 * Math.sin(gm.bob * 2); g.fillStyle = c[1];
       g.beginPath(); g.arc(X, Y, 9, 0, Math.PI * 2); g.fill();
@@ -1057,7 +1067,7 @@
   // meters under the health bar: ENG (blue) and EMP (orange); a bar flashes white when a move was refused
   function drawMeters() {
     g.font = 'bold 7px monospace'; g.textBaseline = 'top'; g.textAlign = 'left'; g.lineWidth = 2; g.lineJoin = 'round';
-    [['ENG', 'energy', energyMeter, ENERGY_MAX, '#4af', 24], ['EMP', 'empower', empowerMeter, EMPOWER_MAX, '#fa4', 33]].forEach(([lab, k, v, max, col, y]) => {
+    [['ENG', 'energy', energyMeter, ENERGY_MAX, '#4af', 24], ['EMP', 'empower', empowerMeter, EMPOWER_MAX, '#fa4', 33], ['SUP', 'super', superMeter, SUPER_MAX, '#c6f', 42]].forEach(([lab, k, v, max, col, y]) => {
       g.strokeStyle = '#000'; g.fillStyle = '#fff';
       g.strokeText(lab, 8, y - 1); g.fillText(lab, 8, y - 1);
       const flash = clock < meterFlash[k];
@@ -1332,7 +1342,7 @@
     respawns.length = 0;
     floaters.length = 0;
     gems.length = 0; explosions.length = 0; flashUntil = 0;
-    energyMeter = METER_START; empowerMeter = METER_START;          // a new run starts with the meters at 50
+    energyMeter = METER_START; empowerMeter = METER_START; superMeter = 0;   // a new run: energy and empower at 50, super empty
     kills = 0;
     stun = null;
     slide = null;
@@ -1415,8 +1425,8 @@
                                        scale: e.scale || 1, tint: e.tint && clock < e.tint.until ? e.tint.color : null })),
     kills: () => kills,
     hp: () => hp,
-    meters: () => ({ energy: energyMeter, empower: empowerMeter }),
-    setMeters: (e, m) => { energyMeter = e; empowerMeter = m; },
+    meters: () => ({ energy: energyMeter, empower: empowerMeter, super: superMeter }),
+    setMeters: (e, m, sp) => { energyMeter = e; empowerMeter = m; if (sp !== undefined) superMeter = sp; },
     gems: () => gems.map(gm => ({ x: gm.x, kind: gm.kind })),
     dropGem: (dx, kind) => spawnGem(bodyX() + dx, kind),
     enemyHp: () => enemies.map(e => e.hp),
