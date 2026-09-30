@@ -121,7 +121,7 @@ sequence) with chord, sequence and tap windows. Previews of every move are in `d
 | X+Y | taunt | Plants the sword and beckons |
 | X+A | dash_thrust | Blurred dash into the thrust |
 | A (in the air) | jump_crash | Crash down into the heavy impact from wherever she is in the air (a jump, or falling after the sky dash); no second jump |
-| Down-Y | sky_dash | Rises 6 body lengths (492 px); tap Down then Y, or hold Down and press Y |
+| Down-Up | sky_dash | Rises 6 body lengths (492 px); tap Down then Up, or hold Down and press Up |
 | Y | spin_attack | Two turns with a ring smear; hits enemies in front of her and behind her |
 | B-X+A | energy_dash_thrust | Dash thrust with blue energy; tap or hold B, then press X and A together |
 | Down-Right-A-B | energy_wave | Upswing that launches a large energy crescent |
@@ -151,7 +151,7 @@ Controls (the in-game Moves menu lists them and the combos you have unlocked):
 | A / B / X / Y | Z / X / A / S | bottom / right / left / top face button |
 
 A (key Z) is the attack button again (slash and every combo). Jump is the Up button (tap Up; tap Up again in the air for the double jump).
-Y (key S) is only used in Down then Y (Sky Dash) and X+Y (taunt). A is also the accept button in menus. Holding Up still charges once she has landed.
+Y (key S) is the spin attack, and X+Y is the taunt. Sky Dash is Down then Up. A is also the accept button in menus. Holding Up still charges once she has landed.
 | L1 L2 R1 R2 | Q 1 W 2 | shoulders or triggers |
 
 Unlocks: a new game has only the d-pad and A, B, X, Y. Golden crates (marked "?") hold unlocks: combos and the

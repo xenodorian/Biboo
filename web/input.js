@@ -5,13 +5,13 @@
  *   hold      held button, loops while held       Right, Left, Down, Up, B, R
  *   tap       quick press and release             B (parry)
  *   chord     pressed together                    Right+A, A+B, A+B+L ... ('+')
- *   sequence  pressed one after another           Up-A, Down-Y, Left-Right-A, B-X+A ... ('-')
+ *   sequence  pressed one after another           Up-A, Down-Up, Left-Right-A, B-X+A ... ('-')
  * Directions in a chord only need to be held (hold Right, press A = thrust), and so do buttons a
  * chord lists under "held" (A+B: hold B, tap A); other buttons must go down within
  * chord_window_ms of each other. A press waits chord_window_ms before
  * it resolves, so a chord is not mistaken for its first button. Priority, from the map's note:
  * the longest sequence, then the largest chord, then a single button. In a two-step sequence that
- * starts with a direction (Up-A, Down-Y), holding the direction counts the same as tapping it.
+ * starts with a direction (Up-A, Down-Up), holding the direction counts the same as tapping it.
  *
  * Pure logic, no DOM: the game calls down()/up()/update() with timestamps in ms. Works in the
  * browser (window.BibooInput) and in Node (module.exports) for the tests.
@@ -99,7 +99,7 @@
       if (!g) return;
       // 1. sequences: the earlier steps are the presses just before this group, oldest first, each
       //    within the sequence window of the next; the last step (one button or a chord) is this group.
-      //    In a two-step sequence whose first button is a direction or a hold button (Up-A, Down-Y,
+      //    In a two-step sequence whose first button is a direction or a hold button (Up-A, Down-Up,
       //    B-X+A), holding that button counts the same as tapping it.
       const prior = this.history.filter(e => e.t < g.t);
       for (const s of this.B.sequences) {

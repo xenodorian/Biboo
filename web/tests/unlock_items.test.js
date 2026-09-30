@@ -84,7 +84,7 @@ const { chromium } = require('playwright');
 
   // ---- every unlock's banner text: a name and an input for each move it gives
   const lines = await ev(`(() => { const out = {}; for (const u of BibooProgress.UNLOCKS) { bibooGame.resetAll(); bibooGame.unlock(u.id); out[u.id] = bibooGame.unlockLines(u.id); } return out; })()`);
-  const expectIn = { thrust: 'Right+A', upswing: 'Down+A', heavy_horizontal: 'A+B', dash_thrust: 'X+A', energy_dash: 'X+A', taunt: 'X+Y', push_kick: 'L1', double_jump: 'Up', sky_dash: 'Down-Y',
+  const expectIn = { thrust: 'Right+A', upswing: 'Down+A', heavy_horizontal: 'A+B', dash_thrust: 'X+A', energy_dash: 'X+A', taunt: 'X+Y', push_kick: 'L1', double_jump: 'Up', sky_dash: 'Down-Up',
     crash: 'A', heavy_chop: 'A', earthquake: 'Down-Down-Down-Down-A', meteor: 'Up-Up-Up-Up-A', recover: 'R1', empower_beam: 'A+R1', energy_kick: 'B+L1', energy_burst: 'L2', energy_wave: 'R2', cloud_beam: 'A+L2', laser_beam: 'A+L1', fire_beam: 'A+R2' };
   for (const u of Object.keys(expectIn)) {
     const ls = lines[u] || [];

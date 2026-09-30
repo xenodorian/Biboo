@@ -40,6 +40,10 @@
   D.input.bindings.push({ input: 'Y', type: 'press', move: 'spin_attack' });
   D.moves.spin_attack.input = 'Y'; D.moves.spin_attack.inputType = 'press';
   D.moves.heavy.input = 'A (release)';
+  // sky dash is Down then Up (taunt stays X+Y)
+  D.input.bindings = D.input.bindings.filter(b => b.move !== 'sky_dash');
+  D.input.bindings.push({ input: 'Down-Up', type: 'sequence', move: 'sky_dash' });
+  D.moves.sky_dash.input = 'Down-Up';
   D.input.bindings.push({ input: 'A', type: 'hold', move: 'charge', release_into: 'heavy' });
   for (const b of D.input.bindings) {
     if (b.input === 'Down-Right-A-B' && b.type === 'sequence') b.input = 'Down-Right-A';
@@ -260,7 +264,7 @@
   const KEY_LABEL = { Up: '↑', Down: '↓', Left: '←', Right: '→', A: 'Z', B: 'X', X: 'A', Y: 'S', L1: 'Q', L2: '1', R1: 'W', R2: '2', R: 'W' };
   const PAD = { 0: 'A', 1: 'B', 2: 'X', 3: 'Y', 4: 'L1', 5: 'R1', 6: 'L2', 7: 'R2', 12: 'Up', 13: 'Down', 14: 'Left', 15: 'Right' };
   const keyDown = new Set(), padDown = new Set(), isDown = new Set();
-  // A attacks, Up jumps (tap Up; a second tap in the air is the double jump). Y is only used in combos (Down then Y, X+Y).
+  // A attacks, Up jumps (tap Up; a second tap in the air is the double jump). Y is the spin attack; X+Y is the taunt. Sky dash is Down then Up.
   const btnHeld = b => keyDown.has(b) || padDown.has(b);
 
   let reader = null;
@@ -404,6 +408,9 @@
   // held the reader is not shown L1, R1 or the pad's R1-as-R, so no push kick or recover starts.
   const METER_CHARGE_STEP = 1, METER_CHARGE_TICK = 500;
   const metersHeld = () => P.has('meter_charge') && P.buttonOn('L1') && P.buttonOn('R1') && (keyDown.has('L1') || padDown.has('L1')) && (keyDown.has('R1') || padDown.has('R1'));
+  // Up also finishes the Sky Dash, so it does not jump right after Down when Sky Dash is owned
+  const upIsCombo = t => (P.has('sky_dash') && (isDown.has('Down') || t - lastDownRel < D.input.sequence_window_ms));
+  let lastDownRel = -1e9;
   function readButtons(t) {
     pollPad();
     lastT = t;
@@ -416,11 +423,11 @@
       else if (charging && b === 'R') now = false;
       if (now && !isDown.has(b)) {
         isDown.add(b); reader.down(b, t);
-        if (b === 'Up' && !charging) request('jump', 'press');   // Up jumps (and double jumps in the air)
+        if (b === 'Up' && !charging && !upIsCombo(t)) request('jump', 'press');   // Up jumps (and double jumps in the air)
         if (b === 'Down') { if (t - lastDownT < DROP_TAP_MS && dropThrough()) lastDownT = -1e9; else lastDownT = t; }
         if (b === 'Left') facing = -1; else if (b === 'Right') facing = 1;
       } else if (!now && isDown.has(b)) {
-        isDown.delete(b); reader.up(b, t);
+        isDown.delete(b); reader.up(b, t); if (b === 'Down') lastDownRel = t;
         if (hold && hold.keys.includes(b)) { const m = hold.move; hold = null; request(m, 'release'); }   // (energy moves: see request)   // let go: the charged attack fires
         if (b === 'Left' && isDown.has('Right')) facing = 1;        // let go of the newer one: the other still held
         else if (b === 'Right' && isDown.has('Left')) facing = -1;
@@ -531,7 +538,7 @@
   // The plain jump (Y) is a physics jump: a short crouch, then launch at JUMP_V0 (px/ms) under gravity JUMP_G. Gravity is
   // halved near the top so she hangs a moment, which makes it slower, smoother and floatier than the old frame by frame hop.
   // It rises about 135 px in 280 ms and stays up about 670 ms (the old hop was about 410 ms); with Left or Right held she covers about 107 px sideways. Steering in the air is
-  // in step(). The sky dash (Down then Y) is a separate move and is unchanged.
+  // in step(). The sky dash (Down then Up) is a separate move and is unchanged.
   const JUMP_H = 130, JUMP_UP = 280, JUMP_G = 2 * JUMP_H / (JUMP_UP * JUMP_UP), JUMP_V0 = JUMP_G * JUMP_UP;
   const JUMP_HANG_V = 0.2 * JUMP_V0, JUMP_HANG_G = 0.5;
   function stepJump(dt) {

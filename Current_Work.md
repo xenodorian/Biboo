@@ -267,3 +267,6 @@ with 50 and drops of +25 raise the maximum; every crate drops something; remove 
 
 ## Seventeenth request: unlock point audit
 Added web/tests/unlock_points.test.js (75 checks): every unlock crate sits in its assigned map only, and meters (EMP at 2.1, ENG at 2.4, SUP at 4.4), shoulder buttons and gem kinds switch on only at their unlock point. No leak found. A SUP bar in Level 1.1 comes from the dev menu "Unlock all moves and buttons" or an old save, not from the build.
+
+## Eighteenth request: Sky Dash on Down then Up
+Sky Dash is Down then Up (Up does not jump right after Down when Sky Dash is owned). Taunt stays X+Y, Y alone is the spin attack. Added web/tests/sky_taunt.test.js. Build st37.

@@ -108,7 +108,7 @@ const shots = process.argv[2];
     ['L1+R1 -> energy_burst', 'energy_burst', chord(['L1', 'R1'])],
     ['X+Y -> taunt', 'taunt', chord(['X', 'Y'])],
     ['X+A -> dash_thrust', 'dash_thrust', chord(['X', 'A'])],
-    ['Down-Y -> sky_dash', 'sky_dash', seq(['Down', 'Y'])],
+    ['Down-Up -> sky_dash', 'sky_dash', seq(['Down', 'Up'])],
     ['hold Down + Y -> sky_dash', 'sky_dash', async () => { await down('Down'); await wait(800); await tap('Y'); await up('Down'); }],
     ['double tap Right, then X+A -> energy_dash_thrust', 'energy_dash_thrust', async () => { await tap('Right', 40); await wait(80); await tap('Right', 40); await wait(80); await chord(['X', 'A'])(); }],
     ['R2 -> energy_wave', 'energy_wave', async () => tap('R2')],
@@ -223,7 +223,7 @@ const shots = process.argv[2];
     await tap('Y'); await wait(300); const c = await cur(); await tap('A'); return c.y; }, 60);
   await airCase('jump, then A right away -> crash once off the ground', async () => { await tap('Y'); await wait(20); await tap('A'); return null; }, 1);
   await airCase('sky dash, then A while falling -> crash from the fall', async () => {
-    await seq(['Down', 'Y'])(); await wait(700); const c = await cur(); await tap('A'); return c.y; }, 60);
+    await seq(['Down', 'Up'])(); await wait(700); const c = await cur(); await tap('A'); return c.y; }, 60);
   {
     await settle();
     const n = await startedCount();
@@ -350,7 +350,7 @@ const shots = process.argv[2];
   check('tap Up, A heavy (no charge): no impact frame', r.info && r.info.lite && !r.ks.includes(BW_K), JSON.stringify(r));
   r = await heavyRun(async () => { await tap('Y'); await wait(300); await tap('A'); });
   check('crash from a jump (two body lengths or less): no impact frame or shake', r.info && r.info.id === 'jump_crash' && r.info.lite && r.info.height <= 164, JSON.stringify(r));
-  r = await heavyRun(async () => { await seq(['Down', 'Y'])(); await wait(700); await tap('A'); });
+  r = await heavyRun(async () => { await seq(['Down', 'Up'])(); await wait(700); await tap('A'); });
   check('crash from high after the sky dash: impact frame and shake', r.info && r.info.id === 'jump_crash' && !r.info.lite && r.info.height > 164, JSON.stringify(r));
 
   // walking is blocked by enemies, both ways

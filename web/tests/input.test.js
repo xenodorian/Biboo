@@ -6,6 +6,7 @@ const path = require('path');
 const { Reader } = require('../input.js');
 
 const map = JSON.parse(fs.readFileSync(path.join(__dirname, '../../game/input_map.json'), 'utf8'));
+map.bindings = map.bindings.filter(b => b.move !== 'sky_dash').concat([{ input: 'Down-Up', type: 'sequence', move: 'sky_dash' }]);   // game.js moves Sky Dash from Down-Y to Down-Up
 const CHARGE_READY_MS = 400;
 
 // script: [[t, 'down'|'up', button], ...]; returns resolved moves in order plus hold states sampled at `samples`
@@ -59,8 +60,8 @@ const cases = [
   ['taunt: X+Y', run([[0, 'down', 'X'], [20, 'down', 'Y'], [90, 'up', 'X'], [95, 'up', 'Y']]).moves.join(), 'taunt'],
   ['dash_thrust: X+A', run([[0, 'down', 'X'], [20, 'down', 'A'], [90, 'up', 'X'], [95, 'up', 'A']]).moves.join(), 'dash_thrust'],
   ['Y then A is jump then slash (the game turns A in the air into the crash)', run(seq(['Y', 'A'])).moves.join(), 'jump,slash'],
-  ['sky_dash: Down-Y', run(seq(['Down', 'Y'])).moves.join(), 'sky_dash'],
-  ['sky_dash: hold Down, press Y', run([[0, 'down', 'Down'], [900, 'down', 'Y'], [960, 'up', 'Y'], [1000, 'up', 'Down']]).moves.join(), 'sky_dash'],
+  ['sky_dash: Down-Up', run(seq(['Down', 'Up'])).moves.join(), 'sky_dash'],
+  ['sky_dash: hold Down, press Up', run([[0, 'down', 'Down'], [900, 'down', 'Up'], [960, 'up', 'Up'], [1000, 'up', 'Down']]).moves.join(), 'sky_dash'],
   ['beam_laser: A+L', run([[0, 'down', 'A'], [20, 'down', 'L'], [90, 'up', 'A'], [95, 'up', 'L']]).moves.join(), 'beam_laser'],
   ['beam_plasma: A+R', run([[0, 'down', 'A'], [20, 'down', 'R'], [90, 'up', 'A'], [95, 'up', 'R']]).moves.join(), 'beam_plasma'],
   ['beam_cloud: Left-Right-A', run(seq(['Left', 'Right', 'A'])).moves.join(), 'beam_cloud'],
