@@ -106,7 +106,7 @@ sequence) with chord, sequence and tap windows. Previews of every move are in `d
 | X | dash | 92 px, afterimages and speed lines |
 | A | slash | Horizontal slash, flat crescent smear. 25 damage, 25 px pushback over 100 ms |
 | A (hold, then release) | heavy | The main chop animation above; hold A to charge, let go to swing (tap A is still the slash) |
-| Right+A (hold, release) | thrust | Lunging thrust, 18 px forward |
+| Right+A | thrust | Lunging thrust, 18 px forward; fires on press, no charge |
 | Down+A | upswing | Duck, then rising cut |
 | L | push_kick | One cock-back frame with the sword raised out of the way, then a straight-leg push that slides her 49 px so the boot passes where the blade tip was; recoil |
 | R (hold) | recover | Kneel on the planted sword, green glow, rising + signs |

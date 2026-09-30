@@ -16,7 +16,7 @@
 
   // id, what the player sees, which button or combo it is, the moves it switches on, the buttons and meters it brings
   const UNLOCKS = [
-    { id: 'thrust', kind: 'Combo', name: 'Lunging Thrust', hint: 'Hold Right (or Left) and A, let go to lunge', moves: ['thrust'] },
+    { id: 'thrust', kind: 'Combo', name: 'Lunging Thrust', hint: 'Hold Right (or Left) and press A to lunge', moves: ['thrust'] },
     { id: 'upswing', kind: 'Combo', name: 'Ducking Upswing', hint: 'Hold Down and press A', moves: ['upswing'] },
     { id: 'heavy_horizontal', kind: 'Combo', name: 'Heavy Horizontal', hint: 'Hold B and tap A', moves: ['heavy_horizontal'] },
     { id: 'dash_thrust', kind: 'Combo', name: 'Dash Thrust', hint: 'Press X and A together', moves: ['dash_thrust'] },

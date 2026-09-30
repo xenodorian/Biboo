@@ -22,6 +22,8 @@
   'use strict';
   const D = window.BIBOO;
   D.input.sequence_window_ms = 700;
+  D.enemies.goblin.ai.knock = [10, 120];   // what a landed enemy attack pushes her back: goblin 10 px, orc 25 px
+  D.enemies.orc.ai.knock = [25, 160];
   if (!D.input.bindings.some(b => b.input === 'Left-Right+A'))
     D.input.bindings.push({ input: 'Left-Right+A', type: 'sequence', move: 'beam_cloud' });
   for (const inp of ['Right-Left-A', 'Right-Left+A']) {
@@ -441,7 +443,7 @@
   // Hold-and-release attacks: the chord (B+L1 energy kick, direction+A lunging thrust) starts a charge; letting go of a button fires the move.
   // Every attack named "energy" is charged: press and hold its buttons (the charge pose plays, energy drains, Max turns blue
   // when full) and let go to fire. A release before MIN_FIRE ms does nothing; a partial charge fires at 50% to 100% power.
-  const HOLD_FIRE = { energy_kick: ['B', 'L1'], energy_burst: ['L2'], energy_wave: ['R2'], energy_dash_thrust: ['X', 'A'], thrust: ['A'] };
+  const HOLD_FIRE = { energy_kick: ['B', 'L1'], energy_burst: ['L2'], energy_wave: ['R2'], energy_dash_thrust: ['X', 'A'] };
   const ENERGY_HOLD = new Set(['energy_kick', 'energy_burst', 'energy_wave', 'energy_dash_thrust']);
   const MIN_FIRE = 250;
   let hold = null;                      // {move, keys}: the charge in progress
@@ -629,9 +631,6 @@
       if (energyMeter < 1) { meterFlash.energy = clock + 500; return; }
       hold = { move, keys: HOLD_FIRE[move] }; queued = null;
       return;
-    } else if (via === 'chord' && HOLD_FIRE[move] && !inAir && !fall) {  // the lunging thrust: hold, fire on release
-      hold = { move, keys: HOLD_FIRE[move] }; queued = null;
-      return;
     }
     if (air && inAir && !moveOpen('jump_crash')) return;      // A in the air does nothing until the crash is unlocked
     if (air) {
@@ -785,7 +784,7 @@
           empowerMeter = Math.min(maxOf('empower'), empowerMeter + METER_CHARGE_STEP);
           superMeter = Math.min(maxOf('super'), superMeter + METER_CHARGE_STEP);
         }
-      } else if (!hold || ENERGY_HOLD.has(hold.move)) stepCharge(dt);   // the thrust's charge pose costs nothing
+      } else if (!hold || ENERGY_HOLD.has(hold.move)) stepCharge(dt);
     } else meterAcc = 0;
     if (!cur || cur.id !== 'recover' || cur.kind !== 'hold' || stun || hp >= MAX_HP) { healAcc = 0; return; }
     healAcc += dt;
@@ -1108,13 +1107,13 @@
           floater(bodyX(), herY() + herTop() * SPRITE_SCALE + 10, 'Reflect', '#8fd0ff');
           burst(sh.x, sh.y, 8, ['#ffffff', '#8fd0ff']);
         } else if (blocking()) {                                   // blocked: no damage
-          const p = push(8, 120); slide = { v: p.v * dir, a: p.a };
+          const p = push(8, 120); slide = { v: p.v * dir, a: p.a }; lastPushT = clock;
           tint = { color: WHITE, alpha: 0.75, until: clock + 150 }; blocks++;
           burst(sh.x, sh.y, 6, ['#ffffff', '#8fd0ff']);
           shots.splice(i, 1);
         } else if (clock >= invuln && !stun) {                     // a hit: damage, a short red flash and a small flinch
           hurtHer(SHOT_DMG);
-          const p = push(14, 180); slide = { v: p.v * dir, a: p.a };
+          const p = push(14, 180); slide = { v: p.v * dir, a: p.a }; lastPushT = clock;
           tint = { color: RED, alpha: 0.6, until: clock + 220 }; invuln = clock + 500; hits++;
           burst(sh.x, sh.y, 8, ['#ff2b2b', '#8fd0ff']);
           shots.splice(i, 1);
@@ -1191,6 +1190,7 @@
   // Pitfalls: gaps in the ground. Her feet on the ground inside one mean instant death (she falls out of sight, then Game Over).
   // Enemies stop at the edge instead of walking in; only a push (a hit, a beam, a blast) can send one over, and then it falls.
   const inPit = px => (curMap && curMap.pits.find(p => px > p.x0 + 2 && px < p.x1 - 2)) || null;
+  let lastPushT = -1e9;                  // when she was last pushed by an enemy or shot
   let pitFall = null;                    // {t0}: she is falling
   const PIT_GRAV = 0.0006;                // px/ms^2: she drops out of the bottom of the view; only then does the run end
   const pitSink = () => pitFall ? PIT_GRAV * (clock - pitFall.t0) * (clock - pitFall.t0) : 0;
@@ -1199,6 +1199,17 @@
     if (pitFall || !curMap || !curMap.pits.length || floorY !== 0 || herY() > 1.5) return;
     const p = inPit(playerX());
     if (!p) return;
+    // A push (hit, slide, stun) only drops her when she is carried fully over the edge: her whole body inside the gap.
+    // Otherwise she is set back on the ground at the nearer edge.
+    if (stun || slide || clock - lastPushT < 300) return;                        // still being pushed: wait and see where it ends
+    if (clock - lastPushT < 1200) {
+      const b = herBox();
+      if (!(b[0] > p.x0 && b[2] < p.x1)) {
+        const px = playerX();
+        x += (px - p.x0 < p.x1 - px) ? p.x0 - px : p.x1 - px;
+        return;
+      }
+    }
     if (cheats.invincible) {                                       // the cheat keeps her out of the hole: back to the nearer edge
       const px = playerX();
       x += (px - p.x0 < p.x1 - px) ? p.x0 - 4 - px : p.x1 + 4 - px;
@@ -1575,7 +1586,7 @@
     const y = heightAbove();
     if (cur && !fall && cur.kind !== 'fall') x += rootOf(cur)[0];
     fall = null; queued = null; slide = null;
-    stun = { v: p.v * dir, a: p.a, y, vy: 0 };
+    stun = { v: p.v * dir, a: p.a, y, vy: 0 }; lastPushT = clock;
     cur = { id: 'heavy', k: HIGH_K, t: 0, kind: 'stun', from: x, face: cur ? cur.face : facing };
     tint = { color: RED, alpha: 0.6, until: clock + ms };
     invuln = clock + ms + 400;
@@ -1585,7 +1596,7 @@
   }
   function blocked(e) {                 // white, a small slide back, no stun
     const dir = bodyX() >= e.x ? 1 : -1, p = push(8, 120);
-    slide = { v: p.v * dir, a: p.a };
+    slide = { v: p.v * dir, a: p.a }; lastPushT = clock;
     tint = { color: WHITE, alpha: 0.75, until: clock + 150 };
     blocks++;
   }
@@ -2339,7 +2350,9 @@
   let hardResetArmed = false;
   function hardReset() {
     try { P.reset(); } catch (e) {}
-    try { const ls = window.localStorage; for (const k of Object.keys(ls)) if (k.indexOf('parryperry') === 0) ls.removeItem(k); } catch (e) {}
+    try { for (const st of [window.localStorage, window.sessionStorage]) for (const k of Object.keys(st)) if (k.indexOf('parryperry') === 0) st.removeItem(k); } catch (e) {}
+    try { if (window.caches) caches.keys().then(ks => ks.forEach(k => caches.delete(k))); } catch (e) {}
+    try { window.sessionStorage.setItem('parryperry.fresh', '1'); } catch (e) {}   // the next load starts straight in level 1.1
     energyMeter = empowerMeter = superMeter = 0;
     location.reload();
   }
@@ -2389,6 +2402,7 @@
     ow.sel = 0;
     setStartLabel();
     showMenu('Defeat the goblins and orcs');
+    try { if (window.sessionStorage.getItem('parryperry.fresh')) { window.sessionStorage.removeItem('parryperry.fresh'); hideMenu(); startLevel(1); } } catch (e) {}   // after a hard reset: straight to 1.1
   }).catch(err => {
     const loading = document.getElementById('loading');
     if (loading) loading.textContent = String(err);

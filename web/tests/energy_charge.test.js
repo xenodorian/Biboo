@@ -90,13 +90,16 @@ const MOVES = [
   await wait(600);
   check('with no energy a held charge never fires', !(await played(n)).includes('energy_kick'), await played(n));
 
-  // the lunging thrust is not an energy attack: its charge pose costs no energy
+  // no charge pose or hold before the matching unlock: A, B+L1, L2, R2, X+A held on a fresh save with only the starter moves
   await fresh('thrust'); await ev('bibooGame.setMeters(50, 0, 0)');
-  const before = (await ev('bibooGame.charging()')).energy;
-  await page.keyboard.down('ArrowRight'); await page.keyboard.down('KeyZ'); await wait(1500);
-  const mid = await ev('bibooGame.charging()');
-  await page.keyboard.up('KeyZ'); await page.keyboard.up('ArrowRight'); await wait(600);
-  check('the thrust charge pose does not drain energy', mid.energy === before, { before, mid });
+  for (const keys of [['KeyZ'], ['ArrowRight', 'KeyZ'], ['KeyX', 'KeyQ'], ['Digit1'], ['Digit2'], ['KeyA', 'KeyZ']]) {
+    for (const k of keys) await page.keyboard.down(k);
+    await wait(900);
+    const c = await ev('bibooGame.charging()');
+    check(`holding ${keys.join('+')} before any energy unlock does not charge`, c.cur !== 'charge' && !c.hold, c);
+    for (const k of keys) await page.keyboard.up(k);
+    await wait(500);
+  }
 
   console.log(errors.length ? errors : '');
   check('no page errors', errors.length === 0, errors);

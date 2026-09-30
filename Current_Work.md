@@ -276,3 +276,8 @@ Save format bumped to v2: a save from the old layout (for example one holding Ea
 
 ## Twentieth request: hard reset button
 Main menu (title and pause) has "Hard reset (erase save)", two presses: erases every parryperry.* localStorage key and reloads into a new game. web/tests/hard_reset.test.js. Build st39.
+
+## Twenty-first to twenty-third requests (st40, st41)
+- Lunging Thrust is an ordinary press (no charge pose, no hold). Only the energy attacks charge (kick, burst, wave, dash thrust) plus the Heavy Overhead Chop, and each only once it is unlocked. Tests: unlocks, energy_charge.
+- Enemy hits push her back 10 px (goblin) and 25 px (orc). A push only drops her into a pit when her whole body is carried over the gap; otherwise she is set back at the nearer edge. web/tests/pushback.test.js. Interpretation: the old 40 and 64 px hit pushes were replaced by 10 and 25 (not added to).
+- Hard reset erases every parryperry.* key in localStorage and sessionStorage, clears Cache Storage, reloads, and starts straight in Level 1.1 with nothing unlocked.
