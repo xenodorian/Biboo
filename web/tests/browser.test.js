@@ -483,7 +483,7 @@ const shots = process.argv[2];
     await page.evaluate(() => { window.bibooGame.setEnemies([]); window.bibooGame.setHp(100); window.bibooGame.setMeters(100, 100); });
     await down('R'); await wait(1700);
     const rh = await page.evaluate(() => window.bibooGame.hp()); const rt = await texts(); await up('R');
-    check('kneeling to recover gives HP back with green +6 numbers', rh >= 118 && rt.includes('+6'), `hp ${rh} ${rt}`);
+    check('kneeling to recover gives HP back with green +5 numbers', rh >= 115 && rt.includes('+5'), `hp ${rh} ${rt}`);
     await settle();
     await page.evaluate(() => { window.bibooGame.setEnemies([['orc', 60, 60000]]); window.bibooGame.setHp(20); window.bibooGame.attack(0, 'attack'); });
     await wait(900);

@@ -88,7 +88,7 @@
   const GEM_VALUE = 25, GEM_CHANCE = 0.35, GEM_LIFE = 20000, GEM_PICKUP = 28;
   const BEAM_TICK_COST = { cloud: 1, fire: 2, laser: 3, plasma: 5 };         // per beam tick (100 ms)
   const MOVE_COST = { energy_wave: ['energy', 30] };                          // paid once, when the move starts
-  const HEAL_COST = 8;                                                        // empower per recover tick
+  const HEAL_COST = 1;                                                        // empower per recover tick
   const meterOf = k => k === 'energy' ? energyMeter : empowerMeter;
   function spend(k, n) { if (k === 'energy') energyMeter = Math.max(0, energyMeter - n); else empowerMeter = Math.max(0, empowerMeter - n); }
   let gems = [], meterFlash = { energy: 0, empower: 0 }, lastDeny = 0;
@@ -483,7 +483,7 @@
   const BEAM_DMG = { cloud: 5, fire: 10, laser: 15, plasma: 0 };
   const BEAM_PUSH = { cloud: 0, fire: 10, laser: 20, plasma: 30 };     // px an enemy is shoved back on every tick it is touched
   const HEAVY_DMG = [35, 90], CRASH_DMG = [30, 100];      // [short, full]
-  const HEAL_EVERY = 350, HEAL_AMOUNT = 6, KO_MS = 1500;
+  const HEAL_EVERY = 350, HEAL_AMOUNT = 5, KO_MS = 1500;
   const dmgOf = c => c.id === 'heavy' ? HEAVY_DMG[c.lite ? 0 : 1] : c.id === 'jump_crash' ? CRASH_DMG[c.lite ? 0 : 1] : (DAMAGE[c.id] || 15);
   let hp = MAX_HP, hpOverride = null, healAcc = 0;
   const floaters = [];                  // {wx, wy, text, color, t0}: numbers that rise and fade
