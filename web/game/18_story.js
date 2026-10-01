@@ -75,9 +75,27 @@
     g.imageSmoothingEnabled = false;
     if (im) {                                                       // the picture is 216 px tall and wider than the view: show the part the scene wants
       const range = Math.max(0, im.width - V.w), u = (SC[name] || {}).pan || 0;
-      g.drawImage(im, -Math.round(range * u), 0, im.width, V.h);
+      const x0 = -Math.round(range * u);
+      g.drawImage(im, x0, 0, im.width, V.h);
+      if (STORY_BGS[name] && /sunset_island/.test(STORY_BGS[name])) rippleWater(im, x0);
     }
     else { g.fillStyle = '#100818'; g.fillRect(0, 0, V.w, V.h); }
+  }
+
+  // Ripples on the sea of the sunset picture. The water is the part of the picture below the horizon that is not the cliff, the low headland or the far shore
+  // (measured on the 624x216 view copy). Each row of water slides sideways by a sine wave that grows toward the viewer, the same wave as the boat's reflection.
+  const SEA_TOP = 161;
+  const lerp = (y, y0, y1, a, b) => a + (b - a) * (y - y0) / (y1 - y0);
+  function seaLeft(y) { return y < 172 ? 215 : y < 177 ? lerp(y, 172, 177, 215, 250) : y < 193 ? lerp(y, 177, 192, 250, 293) : 264; }
+  function seaRight(y) { return y < 158 ? 520 : y < 173 ? lerp(y, 158, 173, 520, 443) : y < 195 ? lerp(y, 173, 195, 443, 383) : lerp(y, 195, 216, 383, 363); }
+  function rippleWater(im, x0) {
+    const T = clock;
+    for (let y = SEA_TOP; y < im.height; y++) {
+      const L = Math.round(seaLeft(y)), R = Math.round(seaRight(y)), depth = (y - SEA_TOP) / (im.height - SEA_TOP);
+      const off = Math.round(Math.sin(y * 0.9 + T * 0.004) * (0.5 + depth * 2.1));
+      if (!off) continue;
+      g.drawImage(im, L - off, y, R - L, 1, x0 + L, y, R - L, 1);
+    }
   }
 
   // A silhouette of one sprite frame in one colour, cached.
