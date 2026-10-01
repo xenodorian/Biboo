@@ -395,4 +395,4 @@ Plan and status (each step is pushed on its own; resume from the first unchecked
 - [x] F. (st75) `isBoss(e)`: taunt skips bosses, `beamHit` returns early for plasma on bosses; boss kill drops 9 random usable gems (health weighted), 3 ankhs and an up_hp. Test `web/tests/boss_immunity.test.js`.
 - [x] G1 chain (AAAAA, AAAAB)
 - [x] G2-G5 fly (ABAB-Up), rainbow (ABABAB), ultimate (AAAA + R1+R2+L1+L2), tests in powers.test.js
-- [ ] H. Story: prologue, Mirror Max dialogue, scroll, ending
+- [x] H. (st78) Story: prologue on New game, Mirror Max confession (story.double), ending after level 6 (story.ending), Skip story button; story.test.js. Flags saved in P.state.story.
