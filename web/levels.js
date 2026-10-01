@@ -175,6 +175,25 @@
   levels[3].maps.push(bossMap('ogrechief', 'tide', { plats: [P(40, 110, 60), P(274, 344, 60)], crates: [C(75, 60), C(330)] }));
   levels[4].maps.push(bossMap('boarlord', 'ember', { plats: [P(150, 234, 70)], crates: [C(192, 70)] }));
   levels[5].maps.push(bossMap('mirrormax', 'keep', { plats: [P(150, 234, 70)] }));      // 6.11 the final boss: an enemy Max
+  // Ankhs lying on the maps (like coins): 1 to 3 per ordinary map, on the ground or a platform, away from pits, bombs and crates.
+  // Placed here with their own seeded generator so the terrain and enemies above are unchanged.
+  levels.forEach(L => L.maps.forEach((m, i) => {
+    m.ankhs = [];
+    if (m.boss) return;
+    const r = rng(L.n * 6007 + i * 131 + 5), cnt = 1 + (r() < 0.5 ? 1 : 0) + (r() < 0.15 ? 1 : 0);
+    const onGround = x => !m.pits.some(q => x > q.x0 - 14 && x < q.x1 + 14) && !m.crates.some(c => c.fy === 0 && Math.abs(c.x - x) < 16) && !m.bombs.some(b => b.fy === 0 && Math.abs(b.x - x) < 18);
+    for (let k = 0; k < cnt; k++) {
+      for (let t = 0; t < 20; t++) {
+        const plat = m.plats.length && r() < 0.4 ? m.plats[Math.floor(r() * m.plats.length)] : null;
+        const x = plat ? Math.round(plat.x0 + 10 + r() * (plat.x1 - plat.x0 - 20)) : Math.round(40 + r() * 300), fy = plat ? plat.top : 0;
+        if (!plat && !onGround(x)) continue;
+        if (plat && m.crates.some(c => c.fy === fy && Math.abs(c.x - x) < 16)) continue;
+        if (m.ankhs.some(a => a.fy === fy && Math.abs(a.x - x) < 40)) continue;
+        m.ankhs.push({ x, fy });
+        break;
+      }
+    }
+  }));
   const nameOf = { }; // filled below: unlock id -> 'level.map' where its crate is
   levels.forEach(L => L.maps.forEach((m, i) => m.crates.forEach(c => { if (c.item) nameOf[c.item] = `${L.n}.${i + 1}`; })));
   L1.forEach((m, i) => { m.id = `1.${i + 1}`; });

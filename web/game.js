@@ -192,9 +192,13 @@
   function stepGems(dt) {
     for (const gm of gems) gm.bob += dt * 0.006;
     gems = gems.filter(gm => {
-      if (clock - gm.t0 > GEM_LIFE) return false;
+      if (clock - gm.t0 > GEM_LIFE && !gm.perm && gm.kind !== 'ankh') return false;
       const hy = herY();
       if (Math.abs(gm.x - bodyX()) < GEM_PICKUP && hy < gm.fy + 50 && hy > gm.fy - 20) {
+        if (gm.kind === 'ankh') {
+          if (P.addAnkh(1) > 0) { floater(gm.x, gm.y + 24, '+1 ANKH', '#ffd24a'); if (gm.key && level) level.ankhGot.add(gm.key); return false; }
+          floater(gm.x, gm.y + 24, 'ANKHS FULL', '#ffd24a'); return true;
+        }
         if (gm.kind.startsWith('up_')) {                   // a meter upgrade: applied at once, the meter grows by 25 and fills by 25
           const m = gm.kind.slice(3);
           if (m === 'hp') {                                // +25 Max HP: the cap and the current health both grow by 25
@@ -914,7 +918,8 @@
   function startLevel(n, custom) {
     const def = custom || LV.levels[n - 1];
     if (!def) return;
-    level = { n, def, idx: 0, killed: new Set(), broken: new Set(), popped: new Set(), pending: new Map() };
+    level = { n, def, idx: 0, killed: new Set(), broken: new Set(), popped: new Set(), pending: new Map(), ankhGot: new Set() };
+    if (n > 0 && P.state.ankhs < P.ANKH_START) P.state.ankhs = P.ANKH_START;          // every level starts with at least 3 ankhs
     kills = 0; hp = maxHp(); gameOver = false; paused = false; respawnOn = false;
     screen = 'level';
     hideMenu(); ignoreHeldButtons();
@@ -941,6 +946,10 @@
       const lo0 = lo, hi0 = hi;
       if (!sf) for (const p of curMap.pits) { if (p.x1 <= d.x) lo = Math.max(lo, p.x1 + 2); else if (p.x0 >= d.x) hi = Math.min(hi, p.x0 - 2); }   // a ground enemy stays between the pits
       spawn(d.type, d.x, { fy: d.fy, path: d.path, sight: d.sight, key, lo, hi, lo0, hi0 });
+    });
+    (md.ankhs || []).forEach((a, i) => {                             // ankhs lying on the map: gone for good once picked up (until the level restarts)
+      const key = idx + ':a' + i;
+      if (!level.ankhGot.has(key)) gems.push({ x: a.x, y: a.fy + 16, fy: a.fy, kind: 'ankh', perm: true, key, bob: Math.random() * 6.28, t0: clock });
     });
     for (const c of curMap.crates) {                                 // a golden crate smashed earlier whose item was not picked up
       const pend = level.pending.get(c.key);
@@ -1030,7 +1039,10 @@
       items: [{ label: 'Back to the overworld', fn: () => goOverworld(), primary: true, id: 'btn-start' }] });
     setStartLabel();
   }
-  function retryMap() {                          // after a K.O.: the same map again, full health
+  // After a K.O. the same map can be replayed only by spending an ankh. With none left the whole level starts over (and the ankhs go back to 3).
+  function retryMap() {
+    if (level.n > 0 && P.state.ankhs < 1) { P.state.ankhs = P.ANKH_START; gameOver = false; paused = false; startLevel(level.n); return; }
+    if (level.n > 0) P.addAnkh(-1);
     hp = maxHp(); gameOver = false; paused = false;
     hideMenu(); ignoreHeldButtons();
     loadMap(level.idx, 'left');
@@ -2103,11 +2115,24 @@
     }
   }
   // gems on the ground: a bobbing diamond with a glow, blinking for the last 4 s
+  // a golden ankh (the loop on top, a bar across, a stem), the ankh pickup and the counter icon
+  function drawAnkh(X, Y, k) {
+    g.save();
+    g.translate(X, Y); g.scale(k, k);
+    g.fillStyle = '#000';
+    g.fillRect(-2, -9, 5, 1); g.fillRect(-3, -8, 1, 4); g.fillRect(3, -8, 1, 4); g.fillRect(-2, -4, 5, 1); g.fillRect(-5, -3, 11, 4); g.fillRect(-2, 1, 5, 9);
+    g.fillStyle = '#ffd24a';
+    g.fillRect(-1, -8, 3, 1); g.fillRect(-2, -7, 1, 3); g.fillRect(2, -7, 1, 3); g.fillRect(-1, -4, 3, 1); g.fillRect(-4, -2, 9, 2); g.fillRect(-1, 0, 3, 9);
+    g.fillStyle = '#fff2a8'; g.fillRect(-1, -8, 3, 1); g.fillRect(-4, -2, 9, 1);
+    g.fillStyle = '#b8801a'; g.fillRect(-1, 8, 3, 1); g.fillRect(-4, -1, 9, 1);
+    g.restore();
+  }
   function drawGems(sx, sy) {
     for (const gm of gems) {
       const left = GEM_LIFE - (clock - gm.t0);
-      if (left < 4000 && Math.floor(clock / 120) % 2) continue;
+      if (gm.kind !== 'ankh' && left < 4000 && Math.floor(clock / 120) % 2) continue;
       const X = Math.round(V.anchorX + (gm.x - camX) + sx), Y = Math.round(V.feetRow + camY + sy - gm.y - Math.sin(gm.bob) * 3);
+      if (gm.kind === 'ankh') { drawAnkh(X, Y, 1); continue; }
       const up = gm.kind.startsWith('up_'), base = up ? gm.kind.slice(3) : gm.kind;
       const c = base === 'energy' ? ['#bfe6ff', '#4af', '#1d5fb0'] : base === 'super' ? ['#f0d6ff', '#c6f', '#6a2a9a'] : base === 'health' || base === 'hp' ? ['#c9ffd6', '#3ddc5f', '#15803d'] : ['#ffe3b0', '#fa4', '#b25a10'];
       g.save();
@@ -2165,6 +2190,10 @@
     g.strokeStyle = '#000'; g.fillStyle = '#fff';
     g.strokeText('MAX', 8, 14); g.fillText('MAX', 8, 14);
     bar(28, 15, 200, 6, hp / maxHp());
+    if (level && level.n > 0) {                                      // ankh counter
+      drawAnkh(284, 17, 0.8);
+      g.strokeText('x' + P.state.ankhs, 291, 14); g.fillText('x' + P.state.ankhs, 291, 14);
+    }
     const bo = enemies.find(e => EN[e.type].ai.boss && alive(e));
     if (bo) {                                                         // boss bar along the bottom
       g.textAlign = 'center'; g.strokeText(EN[bo.type].ai.bossName || EN[bo.type].title, V.w / 2, 196); g.fillText(EN[bo.type].ai.bossName || EN[bo.type].title, V.w / 2, 196); g.textAlign = 'left';
@@ -2590,7 +2619,7 @@
       items.push({ label: !hasSave ? 'New game' : newGameArmed ? 'Press again to erase the save' : 'New game (erases save)', primary: !hasSave, id: hasSave ? 'btn-new-game' : 'btn-start',
         fn: () => { if (hasSave && !newGameArmed) { newGameArmed = true; UI.refresh(); return; } newGame(); } });
     }
-    else if (gameOver) items.push({ label: 'Retry this map', fn: () => retryMap(), primary: true, id: 'btn-start' });
+    else if (gameOver) items.push({ label: level && level.n > 0 && P.state.ankhs < 1 ? 'Out of ankhs: restart the level' : level && level.n > 0 ? `Retry this map (costs 1 ankh, ${P.state.ankhs} left)` : 'Retry this map', fn: () => retryMap(), primary: true, id: 'btn-start' });
     else items.push({ label: 'Resume', fn: () => togglePause(), primary: true, id: 'btn-start' });
     items.push({ label: 'Moves', fn: () => UI.open('moves', { msg: UI.opts.msg }) });
     if (cheatsShown) items.push({ label: 'Cheats', fn: () => openDev() });
@@ -2695,7 +2724,7 @@
                     powerups: powerups.map(u => ({ item: u.item, x: u.x, y: u.y })),
                     foes: enemies.map(e => ({ type: e.type, x: e.x, fy: e.fy, anim: e.anim, jumping: !!e.jump, hp: e.hp, state: e.state, alive: alive(e), path: e.path, dir: e.dir })),
                     solids: curMap ? curMap.solids : [], plats: curMap ? curMap.plats : [], pits: curMap ? curMap.pits : [], bombs: curMap ? curMap.bombs.map(b => ({ x: b.x, fy: b.fy, gone: b.gone })) : [], shots: shots.map(q => ({ x: q.x, y: q.y, vx: q.vx, vy: q.vy, from: q.from })), pitFall: !!pitFall, feetNow: herY(), fx: { gems: gems.length } }),
-    moveRows: () => moveRows(), enterLevel: n => enterLevel(n), warp: idx => { loadMap(idx, 'left'); }, setX: v => { x = v; }, goOverworld: () => goOverworld(),
+    ankhs: () => P.state.ankhs, setAnkhs: n => { P.state.ankhs = n; }, moveRows: () => moveRows(), enterLevel: n => enterLevel(n), warp: idx => { loadMap(idx, 'left'); }, setX: v => { x = v; }, goOverworld: () => goOverworld(),
     menuOpen: () => !!(UI && UI.isOpen()),
     charging: () => ({ cur: cur && cur.id, kind: cur && cur.kind, chargeMs: Math.round(chargeMs), full: isCharged(), energy: Math.round(energyMeter * 10) / 10, power: cur && cur.power, hold: hold && hold.move }),
     beamStats: () => ({ cost: { ...BEAM_TICK_COST }, dmg: { ...BEAM_DMG } }),
