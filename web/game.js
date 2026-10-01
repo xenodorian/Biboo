@@ -1326,7 +1326,7 @@
     const hp0 = hpOverride || ENEMY_HP[type] || 60;
     const e = { type, hp: hp0, maxHp: hp0, x: wx, base: wx, face: -1, anim: 'walk', k: 0, t: 0, state: 'walk', rest: 0, dead: 0, dive: Math.random() < 0.5, scale: 1,   // scale 1 = the normal (already scaled down) size; only the Empowerment Beam makes one larger
                 fy: o.fy || 0, lo: o.lo != null ? o.lo : 8, hi: o.hi != null ? o.hi : MAP_W - 8, lo0: o.lo0 != null ? o.lo0 : 8, hi0: o.hi0 != null ? o.hi0 : MAP_W - 8, shotK: 0, key: o.key || null,
-                path: o.path || null, sight: o.sight || 100, pause: 0, far: 0, prevX: wx, dir: 1 };
+                path: o.path || null, sight: o.sight || 100, pause: 0, far: 0, prevX: wx, dir: 1, comboReady: true, meleeSeen: false };
     enemies.push(e);
     if (e.path) {                                    // patrol: walk between the two ends until hit or until she comes into view
       e.state = 'patrol';
@@ -1392,7 +1392,7 @@
   }
   function aggro(e, noticed) {
     if (e.state !== 'patrol') return;
-    e.state = 'idle'; e.rest = noticed ? 250 : 0; e.far = 0; play(e, 'idle');
+    e.state = 'idle'; e.rest = noticed ? 250 : 0; e.far = 0; e.comboReady = true; e.meleeSeen = false; play(e, 'idle');
     if (noticed) { const b = hurtOf(e); floater(e.x, (b ? b[3] : e.fy + 40) + 8, '!', '#ffd24a'); }
   }
   function patrol(e, dt) {
@@ -1412,11 +1412,59 @@
     else { const mv = Math.sign(dist) * step; e.x += mv; e.base += mv; }
   }
   // keep an enemy inside its range and out of barriers taller than the surface it stands on
+  // The goblin climbs: it jumps up onto a platform up to HOP_UP px above it, drops off a platform edge toward her, and hops a gap
+  // between two platforms of the same height. planHop picks the launch point and the landing (null when there is nothing to do).
+  const CLIMBERS = new Set(['goblin']), HOP_UP = 70, HOP_X = 130;
+  function planHop(e) {
+    const fy = e.fy || 0, her = floorY, bx = bodyX(), surf = surfaces(curMap);
+    const inPit = x => curMap.pits.some(p => x > p.x0 - 2 && x < p.x1 + 2);
+    if (her > fy + 1) {                                                   // she is higher: jump up
+      let best = null;
+      const mine = fy > 0 ? surfaceAt(curMap, e.x, fy) : null;
+      for (const sf of surf) {
+        if (sf.top <= fy + 1 || sf.top > fy + HOP_UP || sf.top > her + 0.5) continue;
+        const dx = e.x < sf.x0 ? sf.x0 - e.x : e.x > sf.x1 ? e.x - sf.x1 : 0;
+        if (dx > HOP_X) continue;
+        const launch = dx === 0 ? e.x : (e.x < sf.x0 ? sf.x0 - 6 : sf.x1 + 6);
+        if (fy === 0 && inPit(launch)) continue;
+        if (fy > 0 && (!mine || launch < mine.x0 + 6 || launch > mine.x1 - 6)) continue;
+        const land = dx === 0 ? Math.max(sf.x0 + 10, Math.min(sf.x1 - 10, e.x)) : (e.x < sf.x0 ? sf.x0 + 12 : sf.x1 - 12);
+        const cost = dx + (her - sf.top) * 0.6 + Math.abs((sf.x0 + sf.x1) / 2 - bx) * 0.2;
+        if (!best || cost < best.cost) best = { cost, launch, land, fy1: sf.top, kind: 'up' };
+      }
+      return best;
+    }
+    if (her < fy - 1) {                                                   // she is lower: walk to the edge on her side and drop
+      const sf = surfaceAt(curMap, e.x, fy);
+      if (!sf) return null;
+      const d0 = bx >= e.x ? 1 : -1;
+      for (const d of [d0, -d0]) {
+        const land = d > 0 ? sf.x1 + 14 : sf.x0 - 14;
+        let fy1 = 0;
+        for (const o of surf) if (o.top < fy - 1 && land >= o.x0 - 3 && land <= o.x1 + 3 && o.top > fy1) fy1 = o.top;
+        if (land < 8 || land > MAP_W - 8 || (fy1 === 0 && inPit(land))) continue;
+        return { launch: d > 0 ? sf.x1 - 8 : sf.x0 + 8, land, fy1, kind: 'drop' };
+      }
+      return null;
+    }
+    if (fy > 0) {                                                         // same height, another platform: hop the gap
+      const a = surfaceAt(curMap, e.x, fy), b = surfaceAt(curMap, bx, her);
+      if (a && b && a !== b) {
+        const d = bx >= e.x ? 1 : -1, gapw = d > 0 ? b.x0 - a.x1 : a.x0 - b.x1;
+        if (gapw <= HOP_X) return { kind: 'gap', launch: d > 0 ? a.x1 - 8 : a.x0 + 8, land: d > 0 ? b.x0 + 12 : b.x1 - 12, fy1: fy };
+      }
+    }
+    return null;
+  }
   const ENEMY_JUMP_H = 22, ENEMY_JUMP_MAX = 140;     // arc height, widest gap an enemy will leap
-  function setRange(e) {                          // the ground between the pits that holds the enemy where it stands
+  function setRange(e) {                          // the stretch of surface that holds the enemy where it stands: a platform, or the ground between pits
+    if ((e.fy || 0) > 0) {
+      const sf = surfaceAt(curMap, e.x, e.fy);
+      if (sf) { e.lo = e.lo0 = sf.x0 + 8; e.hi = e.hi0 = sf.x1 - 8; return; }
+    }
     let lo = 8, hi = MAP_W - 8;
     for (const p of curMap.pits) { if (p.x1 <= e.x) lo = Math.max(lo, p.x1 + 8); else if (p.x0 >= e.x) hi = Math.min(hi, p.x0 - 8); }
-    e.lo = lo; e.hi = hi;
+    e.lo = lo; e.hi = hi; e.lo0 = 8; e.hi0 = MAP_W - 8;
   }
   function clampEnemy(e, free) {                 // free: it was pushed, so only the walls of the map hold it (pits can take it)
     let nx = Math.max(free ? e.lo0 : e.lo, Math.min(free ? e.hi0 : e.hi, e.x));
@@ -1461,9 +1509,13 @@
       if (e.state === 'stunned') { e.jump = null; e.jy = 0; }
       else {
         const j = e.jump; j.t += dt;
-        const u = Math.min(1, j.t / j.dur), nx = j.x0 + (j.x1 - j.x0) * u;
-        e.base += nx - e.x; e.x = nx; e.jy = 4 * ENEMY_JUMP_H * u * (1 - u);
-        if (u >= 1) { e.jump = null; e.jy = 0; setRange(e); e.prevX = e.x; }
+        const u = Math.min(1, j.t / j.dur), nx = j.x0 + (j.x1 - j.x0) * u, dy = j.fy1 - j.fy0;
+        e.base += nx - e.x; e.x = nx;
+        e.jy = j.fall ? dy * u * u : dy * u + 4 * j.H * u * (1 - u);          // a jump arcs, a drop falls
+        if (u >= 1) {
+          e.jump = null; e.jy = 0; e.fy = j.fy1; setRange(e); e.prevX = e.x;
+          if (e.path && j.fy1 !== j.fy0) e.path = [e.lo + 6, Math.max(e.lo + 6, e.hi - 6)];   // a patrol resumes on the surface it landed on
+        }
         return;
       }
     }
@@ -1495,15 +1547,43 @@
       if (e.rest > 0) return;
       e.state = 'walk';
     }
+    const goblinLike = EN[e.type].ai.attacks.includes('combo');
+    const sameLevel = Math.abs(floorY - (e.fy || 0)) <= 1;
     const me = herBox(), edge = d < 0 ? me[2] : me[0];              // the near edge of her hitbox
     const gap = d < 0 ? e.x - edge : edge - e.x;                     // from its ground point to her hitbox
     const lo = Math.min(e.x, edge), hi = Math.max(e.x, edge);
     const pitBetween = (e.fy || 0) === 0 && curMap && curMap.pits.some(q => q.x1 > lo && q.x0 < hi);
     const reach = ENEMY_REACH[e.type] * (e.scale || 1);
-    if (gap <= reach - 1 && !pitBetween) {
-      e.state = 'attack';
-      play(e, ai.attacks[Math.floor(Math.random() * ai.attacks.length)]);
-    } else if (ai.dive && e.dive && !blocked && dist >= ai.dive.min && dist <= ai.dive.max) {
+    if (goblinLike) {
+      // Goblin pattern: a combo the moment it detects her, then only forward and melee. Another combo only if she leaves melee
+      // range after melee range was reached; each combo resets it to forward and melee only.
+      if (e.comboReady || (e.meleeSeen && sameLevel && gap > reach + 2)) {
+        e.comboReady = false; e.meleeSeen = false; e.state = 'attack'; play(e, 'combo');
+        return;
+      }
+      if (CLIMBERS.has(e.type) && curMap && (!sameLevel || (e.fy || 0) > 0)) {
+        const plan = planHop(e);
+        if (plan) {
+          const dir = plan.launch >= e.x ? 1 : -1;
+          const at = Math.abs(e.x - plan.launch) <= 3 || (dir > 0 && e.x >= e.hi - 1 && plan.launch >= e.hi - 1) || (dir < 0 && e.x <= e.lo + 1 && plan.launch <= e.lo + 1);
+          if (at) {
+            const dy = plan.fy1 - (e.fy || 0), fall = plan.kind === 'drop';
+            e.jump = { x0: e.x, x1: plan.land, fy0: e.fy || 0, fy1: plan.fy1, fall, H: plan.kind === 'up' ? 16 : ENEMY_JUMP_H,
+                       t: 0, dur: fall ? Math.sqrt(2 * Math.abs(dy) / 0.0018) + 80 : 420 + Math.abs(plan.land - e.x) * 3 + Math.max(0, dy) * 2 };
+            return;
+          }
+          turn(e, dir); if (e.anim !== 'walk') play(e, 'walk');
+          const mv = dir * Math.min(ai.speed * dt / 1000, Math.abs(plan.launch - e.x));
+          e.x += mv; e.base += mv;
+          return;
+        }
+      }
+    }
+    if (gap <= reach - 1 && !pitBetween && sameLevel) {
+      e.state = 'attack'; e.meleeSeen = true;
+      const melee = ai.attacks.filter(a => a !== 'combo');
+      play(e, (melee.length ? melee : ai.attacks)[Math.floor(Math.random() * (melee.length ? melee : ai.attacks).length)]);
+    } else if (ai.dive && e.dive && !blocked && sameLevel && dist >= ai.dive.min && dist <= ai.dive.max) {
       e.state = 'attack'; e.dive = false;
       play(e, ai.dive.anim);
     } else if (blocked) {
@@ -1516,7 +1596,7 @@
         if (q && q.x1 - q.x0 <= ENEMY_JUMP_MAX && Math.abs(herY() - e.fy) < 40) {
           const tx = e.face > 0 ? q.x1 + 10 : q.x0 - 10;
           if (!curMap.pits.some(o => tx > o.x0 - 4 && tx < o.x1 + 4)) {
-            e.jump = { x0: e.x, x1: tx, t: 0, dur: 420 + Math.abs(tx - e.x) * 4 };
+            e.jump = { x0: e.x, x1: tx, fy0: e.fy || 0, fy1: e.fy || 0, H: ENEMY_JUMP_H, t: 0, dur: 420 + Math.abs(tx - e.x) * 4 };
             return;
           }
         }
@@ -2560,7 +2640,7 @@
                     level: level ? { n: level.n, idx: level.idx, id: curMap && curMap.id } : null,
                     crates: curMap ? curMap.crates.map(c => ({ x: c.x, fy: c.fy, item: c.item, broken: c.broken })) : [],
                     powerups: powerups.map(u => ({ item: u.item, x: u.x, y: u.y })),
-                    foes: enemies.map(e => ({ type: e.type, x: e.x, fy: e.fy, hp: e.hp, state: e.state, alive: alive(e), path: e.path, dir: e.dir })),
+                    foes: enemies.map(e => ({ type: e.type, x: e.x, fy: e.fy, anim: e.anim, jumping: !!e.jump, hp: e.hp, state: e.state, alive: alive(e), path: e.path, dir: e.dir })),
                     solids: curMap ? curMap.solids : [], plats: curMap ? curMap.plats : [], pits: curMap ? curMap.pits : [], bombs: curMap ? curMap.bombs.map(b => ({ x: b.x, fy: b.fy, gone: b.gone })) : [], shots: shots.map(q => ({ x: q.x, y: q.y, vx: q.vx, vy: q.vy, from: q.from })), pitFall: !!pitFall, feetNow: herY(), fx: { gems: gems.length } }),
     enterLevel: n => enterLevel(n), warp: idx => { loadMap(idx, 'left'); }, setX: v => { x = v; }, goOverworld: () => goOverworld(),
     menuOpen: () => !!(UI && UI.isOpen()),

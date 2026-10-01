@@ -351,3 +351,8 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 
 ## st60
 - Enemy approach and attack range now use hitboxes. `ENEMY_REACH` (computed from each enemy attack animation hurtbox: goblin 63.5, orc 39) sets when an attack starts: once the gap from the enemy ground point to the near edge of her hitbox is at most reach minus 1 (goblin 62, orc 38) and no pit lies between. Before that it walks on until its own hitbox touches hers (`room`), unless a pit, solid or knockback stops it. The goblin roll still starts at 110 to 170 px. The old APPROACH x ai.reach rule is no longer used for stopping. Test: enemy_reach.test.js.
+
+## st61
+- Goblin pattern (`goblinLike` branch in stepEnemyCore): a combo the moment it detects her (`comboReady`, set at spawn and in `aggro`), then it walks forward and uses melee only (slash, plus the roll gap-closer). Another combo only if she leaves melee range (gap > reach + 2) after a melee swing started in range (`meleeSeen`); each combo clears both flags. Her being knocked out of range by a hit counts as leaving range.
+- Goblin climbing (`planHop`, `CLIMBERS`): jumps up to a platform up to 70 px above it (from the ground or another platform, from beside or underneath), walks to the platform edge on her side and drops, hops a gap between two platforms of the same height, and still jumps pits. `setRange` now follows the surface it lands on, and a patrol path is reset to that surface.
+- Enemies only attack when on her level (`floorY` within 1 px of their surface). Orc unchanged apart from that. Test: goblin_pattern.test.js (5 checks).
