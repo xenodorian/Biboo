@@ -66,3 +66,4 @@ See repository history for full rules. Work on main, claim steps.
 - st97: title screen disc shadow replaced with a real cast shadow.
 - st98: title screen logo reads PARRYING over PERRY (menu title Parrying Perry); subtitle still A PERRY RIPOSTE ADVENTURE; page title, h1 and final card text still say Perry Riposte.
 - st99: the sea in the sunset picture ripples (rippleWater in 18_story.js): rows of the water slide sideways with the same sine wave as the boat reflection, growing toward the viewer. The water area is a hand-measured polygon (seaLeft, seaRight, SEA_TOP 161) that skips the cliff, the headland and the far shore. Applies to every scene that uses the sunset picture (sea, rewind, meditate, sunrise).
+- st100: boss arena pictures no longer slide with Perry. One fixed centred crop, locked to the screen like the arena (camX is fixed in a map), so the background and characters never move at different speeds. No parallax for single pictures.

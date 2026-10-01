@@ -42,10 +42,10 @@
     const bgx = camX + (level ? level.idx * MAP_W : 0);          // the scenery carries on from map to map
     const TH = curMap ? THEMES[curMap.def.theme || (level && level.def.bg)] || null : null;       // boss arenas set def.theme; levels 2 to 6 set def.bg
     const stillKey = curMap && curMap.def.boss ? curMap.def.theme : null, still = stillKey && STILLS[stillKey] && img['story:arena_' + stillKey] && img['story:arena_' + stillKey].im;
-    if (still) {                                                  // a boss arena picture: wider than the view, slid sideways a little as she moves
-      const range = Math.max(0, still.width - V.w), u = Math.max(0, Math.min(1, playerX() / MAP_W));
+    if (still) {                                                  // a boss arena picture: one fixed crop of a wider picture, locked to the screen like the arena itself (no scrolling, no parallax)
+      const range = Math.max(0, still.width - V.w);
       g.imageSmoothingEnabled = false;
-      g.drawImage(still, -Math.round(range * u) + Math.round(sx * 0.3), Math.round(sy * 0.3) - Math.max(0, still.height - V.h), still.width, still.height);
+      g.drawImage(still, -Math.round(range * 0.5) + Math.round(sx * 0.3), Math.round(sy * 0.3) - Math.max(0, still.height - V.h), still.width, still.height);
     } else for (const l of TH ? TH.layers : D.layers) drawLayer(img[l.src].im, -bgx * l.parallax + sx * l.shake, camY * l.parallax + sy * l.shake);
     if (level && level.def.tint && !TH) { g.globalAlpha = level.def.tint.alpha; g.fillStyle = level.def.tint.color; g.fillRect(0, 0, V.w, V.h); g.globalAlpha = 1; }
     if (curMap) { drawPits(sx, sy); drawGeometry(sx, sy); drawCrates(sx, sy); drawBombs(sx, sy); }
