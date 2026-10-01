@@ -365,3 +365,20 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 
 ## st64
 - Her health bar is 200 px wide (was 100) and the HP text sits after it (x 232). Display only, it does not grow with Max HP.
+
+## Creature and boss project handoff (st65 onward)
+User request (asleep, autonomous): clean the 10 supplied images, cut them into in-game animations, assign HP/damage/knockback, spread the enemies over levels by difficulty, four bosses (largest craftpix sprites) at the end of levels 1 to 4 in unique arenas (own ground, background, sky), and a mirror-Max final boss at the end of level 5 (max HP and meters, all her attacks).
+
+Decisions:
+- The supplied "animated" images were single-frame stills (webp, 1 frame each), so animations are PROCEDURAL (squash, stretch, lean, lunge, collapse) from the cleaned sprite. Tool: `tools/creatures/clean.py` (background and banner removal, source/ -> clean/) and `tools/creatures/build.py` (clean/ -> `web/assets/enemies/<name>.png` + `web/assets/creatures.js`, merged into `BIBOO.enemies`). Re-run `python3 build.py` after changing stats or recipes; stats live in the `C` table at the top of build.py.
+- Image 1 (tiny goblin, 12x17 after cleaning) is unusable and unused. Right-facing sources (2, 4, 6) are flipped so art faces left.
+- Engine: `ai.hp`, `ai.dmg`, and per-attack `ai.atk[name] = {dmg, knock:[px, ms]}` are read by `spawn` and `knocked`. ENEMY_HP/ENEMY_DMG tables still win for goblin and orc.
+- Creatures (hp / first attack dmg): hobgoblin 80/14, skullraider 110/18, dusksaur 140/22, darkknight 170/26, ogre 320/40; goblin 60/12 and orc 200/30 unchanged. Difficulty order low to high: goblin, hobgoblin, skullraider, dusksaur, darkknight, orc, ogre.
+- Bosses (largest craftpix sprites): wyrmslug (image 3, hp 700), oozewraith (9, 900), horneddread (0, 1100), boarlord (8, 1400). Boss order: L1 wyrmslug, L2 oozewraith, L3 horneddread, L4 boarlord. Level 5 final: mirror Max.
+
+Status:
+- [x] Step 1 clean images
+- [x] Step 2 sheets, enemy data, engine hooks, test `web/tests/creatures.test.js` (passes)
+- [ ] Step 3 spread enemies across levels by difficulty (levels.js: L1 hand maps, L2 to 5 via gen/ITEMS)
+- [ ] Step 4 boss arenas for levels 1 to 4 (unique ground/background/sky), boss fights end the level
+- [ ] Step 5 level 5 mirror-Max boss

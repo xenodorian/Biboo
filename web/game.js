@@ -1323,7 +1323,7 @@
   // lo and hi the x range it may not leave. With no path it walks straight at her (the old arena behaviour, used by tests).
   function spawn(type, wx, o) {
     o = o || {};
-    const hp0 = hpOverride || ENEMY_HP[type] || 60;
+    const hp0 = hpOverride || ENEMY_HP[type] || (EN[type] && EN[type].ai.hp) || 60;
     const e = { type, hp: hp0, maxHp: hp0, x: wx, base: wx, face: -1, anim: 'walk', k: 0, t: 0, state: 'walk', rest: 0, dead: 0, dive: Math.random() < 0.5, scale: 1,   // scale 1 = the normal (already scaled down) size; only the Empowerment Beam makes one larger
                 fy: o.fy || 0, lo: o.lo != null ? o.lo : 8, hi: o.hi != null ? o.hi : MAP_W - 8, lo0: o.lo0 != null ? o.lo0 : 8, hi0: o.hi0 != null ? o.hi0 : MAP_W - 8, shotK: 0, key: o.key || null,
                 path: o.path || null, sight: o.sight || 100, pause: 0, far: 0, prevX: wx, dir: 1, comboReady: true, meleeSeen: false };
@@ -1767,7 +1767,8 @@
   const KNOCK_UP = 5;
   const newSlide = (p, dir) => ({ v: p.v * dir, a: p.a, y: 0, vy: -Math.sqrt(2 * 0.0018 * KNOCK_UP) });   // a block or a shot hit: slid back and up KNOCK_UP px
   function knocked(e) {                 // a clean hit: red, pushed away from the enemy, stunned
-    const [d, ms] = EN[e.type].ai.knock, p = push(d, ms);
+    const AT = (EN[e.type].ai.atk || {})[e.anim];                      // per-attack damage and knockback (new creatures)
+    const [d, ms] = (AT && AT.knock) || EN[e.type].ai.knock, p = push(d, ms);
     const dir = bodyX() >= e.x ? 1 : -1;
     const y = heightAbove();
     if (cur && !fall && cur.kind !== 'fall') x += rootOf(cur)[0];
@@ -1777,7 +1778,7 @@
     tint = { color: RED, alpha: 0.6, until: clock + ms };
     invuln = clock + ms + 400;
     hits++;
-    hurtHer((ENEMY_DMG[e.type] || 10) * (e.dmgMul || 1));
+    hurtHer(((AT && AT.dmg) || ENEMY_DMG[e.type] || EN[e.type].ai.dmg || 10) * (e.dmgMul || 1));
     if (hp <= 0) { stun.until = clock + KO_MS; floater(bodyX(), herY() + herTop() + 18, 'K.O.', RED); if (typeof triggerGameOver === 'function') triggerGameOver(); }
   }
   function blocked(e) {                 // white, a small slide back, no stun
