@@ -102,7 +102,7 @@
   // still works, so the window covers the frames just before the swing and the start of its first
   // hitting frame. 90 ms is about one enemy frame: long enough to react to the swing appearing,
   // short enough that the hit does not feel late. Raised to 300 ms so a late parry still works.
-  const HIT_DELAY = 300;
+  const HIT_DELAY = 200;
   function enemyAttacks() {
     const me = herBox();
     for (const e of enemies) {

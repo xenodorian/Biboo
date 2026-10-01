@@ -9,7 +9,7 @@
   // (turning at most HOME_TURN rad/ms) until it hits, is blocked, or is reflected. Parry is generous: a parry pressed up to
   // PARRY_EARLY ms before a shard arrives counts, and a shard that has reached her waits PARRY_LATE ms for a parry before it hurts.
   const COMBO_SHOT_AT = [3, 4, 6], COMBO_ANGLES = [28, 48, 72], COMBO_SHOT_DMG = 10;
-  const COMBO_SPEED = 0.2, HOME_SPEED = 0.17, HOME_DELAY = 500, HOME_TURN = 0.0035, PARRY_EARLY = 450, PARRY_LATE = 300;
+  const COMBO_SPEED = 0.2, HOME_SPEED = 0.17, HOME_DELAY = 500, HOME_TURN = 0.0035, PARRY_EARLY = 450, PARRY_LATE = 200;
   let lastParryT = -1e9;
   function fireComboShard(e, n) {
     const a = COMBO_ANGLES[n] * Math.PI / 180, ox = e.x + e.face * 10, oy = (e.fy || 0) + 44;
@@ -35,9 +35,9 @@
       if (sh.from === 'foe') {
         if (!overlap(box, herBox())) { sh.contactAt = 0; continue; }
         const dir = sh.vx >= 0 ? 1 : -1;
-        if (sh.home && !sh.contactAt) sh.contactAt = clock;
-        const reflect = parrying() || (sh.home && lastParryT >= sh.contactAt - PARRY_EARLY);
-        if (sh.home && !reflect && !blocking() && clock - sh.contactAt < PARRY_LATE) continue;       // wait out the late-parry window
+        if (!sh.contactAt) sh.contactAt = clock;
+        const reflect = parrying() || lastParryT >= sh.contactAt - PARRY_EARLY;
+        if (!reflect && !blocking() && clock - sh.contactAt < PARRY_LATE) continue;       // wait out the late-parry window
         if (reflect) {                                          // reflected: straight forward, a little faster
           sh.from = 'her'; sh.home = false; sh.contactAt = 0; sh.vx = hf() * SHOT_SPEED * 1.5; sh.vy = 0; sh.x = playerX() + hf() * 22; sh.t0 = clock;
           tint = { color: WHITE, alpha: 0.75, until: clock + 150 }; parries++;
