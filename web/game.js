@@ -103,6 +103,7 @@
   if (!D.moves.heavy_horizontal)
     D.moves.heavy_horizontal = Object.assign({}, D.moves.slash, { title: 'Heavy Horizontal', input: 'A+B', inputType: 'chord' });
   D.input.bindings.push({ input: 'A+B', type: 'chord', move: 'heavy_horizontal', held: ['B'] });
+  D.input.bindings.push({ input: 'A-A-A-A-R1+R2+L1+L2', type: 'sequence', move: 'ultimate' });   // the Ultimate Chain
   const V = D.view;
   const P = window.BibooProgress;
   // The player starts with the d-pad and A, B, X, Y only. Every other move is an unlock found in a golden crate
@@ -426,10 +427,18 @@
   // L1 and R1 held together charge all three meters (+METER_CHARGE_STEP each METER_CHARGE_TICK ms). While they are
   // held the reader is not shown L1, R1 or the pad's R1-as-R, so no push kick or recover starts.
   const METER_CHARGE_STEP = 1, METER_CHARGE_TICK = 500;
-  const metersHeld = () => P.has('meter_charge') && P.buttonOn('L1') && P.buttonOn('R1') && (keyDown.has('L1') || padDown.has('L1')) && (keyDown.has('R1') || padDown.has('R1'));
+  const metersHeld = () => P.has('meter_charge') && P.buttonOn('L1') && P.buttonOn('R1') && (keyDown.has('L1') || padDown.has('L1')) && (keyDown.has('R1') || padDown.has('R1')) && !keyDown.has('L2') && !padDown.has('L2') && !keyDown.has('R2') && !padDown.has('R2');   // L1+R1 with L2 or R2 is the Ultimate Chain's chord, not a charge
   // Up also finishes the Sky Dash, so it does not jump right after Down when Sky Dash is owned
   const upIsCombo = t => (P.has('sky_dash') && (isDown.has('Down') || t - lastDownRel < D.input.sequence_window_ms));
   let lastDownRel = -1e9;
+  // Flight (A, B, A, B, Up) and the Rainbow Guard (A, B, A, B, A, B) are read from the raw button log here, not by the reader
+  const comboLog = []; let lastBClock = -1e9;
+  function comboSeq(list, t, includesLast) {                         // the last presses were exactly `list`, each within the sequence window of the next
+    const w = D.input.sequence_window_ms, n = list.length, tail = comboLog.slice(-n);
+    if (tail.length < n || tail.some((e, i) => e.b !== list[i])) return false;
+    for (let i = 1; i < n; i++) if (tail[i].t - tail[i - 1].t > w) return false;
+    return includesLast || t - tail[n - 1].t <= w;
+  }
   function readButtons(t) {
     pollPad();
     lastT = t;
@@ -442,7 +451,15 @@
       else if (charging && b === 'R') now = false;
       if (now && !isDown.has(b)) {
         isDown.add(b); reader.down(b, t);
-        if (b === 'Up' && !charging && !upIsCombo(t)) request('jump', 'press');   // Up jumps (and double jumps in the air)
+        if (b === 'Up' && !charging) {
+          if (P.has('fly') && comboSeq(['A', 'B', 'A', 'B'], t)) { comboLog.length = 0; startFlight(); }      // A, B, A, B, Up
+          else if (!upIsCombo(t)) request('jump', 'press');   // Up jumps (and double jumps in the air)
+        }
+        if (b === 'A' || b === 'B') {
+          comboLog.push({ b, t }); if (comboLog.length > 8) comboLog.shift();
+          if (b === 'B') lastBClock = clock;
+          if (b === 'B' && P.has('rainbow') && comboSeq(['A', 'B', 'A', 'B', 'A', 'B'], t + 1, true)) { comboLog.length = 0; startRainbow(); }   // A, B, A, B, A, B
+        }
         if (b === 'Down') { if (t - lastDownT < DROP_TAP_MS && dropThrough()) lastDownT = -1e9; else lastDownT = t; }
         if (b === 'Left') facing = -1; else if (b === 'Right') facing = 1;
       } else if (!now && isDown.has(b)) {
@@ -558,10 +575,57 @@
   // halved near the top so she hangs a moment, which makes it slower, smoother and floatier than the old frame by frame hop.
   // It rises about 135 px in 280 ms and stays up about 670 ms (the old hop was about 410 ms); with Left or Right held she covers about 107 px sideways. Steering in the air is
   // in step(). The sky dash (Down then Up) is a separate move and is unchanged.
+  const FLY_MS = 5000, FLY_VY = 0.11, FLY_MIN = 6, FLY_MAX = 150;
+  let flight = null, trailAcc = 0;
+  function startFlight() {
+    if (stun || flight || pitFall) return;
+    const y0 = Math.max(heightAbove(), 0);
+    if (cur && !fall && cur.kind !== 'fall') x += rootOf(cur)[0];
+    fall = null; queued = null; slide = null; hold = null;
+    cur = { id: 'jump', k: 3, t: 0, kind: 'action', face: facing, phys: { y: Math.max(y0, FLY_MIN) + 6, v: 0 } };
+    flight = { until: clock + FLY_MS };
+    floater(bodyX(), herY() + herTop() + 8, 'Flight', '#7fd0ff');
+  }
+  // Rainbow Guard: 5 seconds of complete invulnerability, cycling through the rainbow, and pitfalls count as solid ground
+  const RAINBOW_MS = 5000, RAINBOW_CYCLE = 450;
+  let rainbow = null;
+  const rainbowOn = () => !!rainbow && clock < rainbow.until;
+  function startRainbow() {
+    if (stun || pitFall) return;
+    rainbow = { until: clock + RAINBOW_MS }; invuln = Math.max(invuln, clock + RAINBOW_MS);
+    floater(bodyX(), herY() + herTop() + 8, 'Rainbow', '#ffd24a');
+  }
+  const rainbowTint = () => ({ color: `hsl(${Math.floor(((clock - rainbow.until + RAINBOW_MS) % RAINBOW_CYCLE) / RAINBOW_CYCLE * 360)},100%,50%)`, alpha: 0.6, until: clock + 40 });
+  // Ultimate Chain: after the four chain strikes, L1+R1+L2+R2 together: taunt, then the four beams one after another
+  const ULT_STEPS = ['taunt', 'beam_plasma', 'beam_cloud', 'beam_fire', 'beam_laser'];
+  let ult = null;
+  function startUltimate() { if (!stun && !ult) ult = { steps: ULT_STEPS.slice() }; }
+  function ultTick() {
+    if (!ult) return;
+    if (stun) { ult = null; return; }
+    if (chainQueue.length || (cur && cur.kind === 'action') || fall || (cur && cur.kind === 'land')) return;
+    const id = ult.steps.shift();
+    if (!id) { ult = null; return; }
+    if (D.moves[id] && !canAfford(id)) { deny(id); return; }       // no meter for this beam: on to the next
+    queued = null; start(id, 'action', 'ultimate');
+  }
   const JUMP_H = 130, JUMP_UP = 280, JUMP_G = 2 * JUMP_H / (JUMP_UP * JUMP_UP), JUMP_V0 = JUMP_G * JUMP_UP;
   const JUMP_HANG_V = 0.2 * JUMP_V0, JUMP_HANG_G = 0.5;
   function stepJump(dt) {
     const j = cur.phys;
+    if (flight) {
+      if (clock >= flight.until) flight = null;
+      else {                                                       // flying: no gravity; Up and Down climb and dive
+        const vy = ((isDown.has('Up') ? 1 : 0) - (isDown.has('Down') ? 1 : 0)) * FLY_VY;
+        j.v = 0; j.y = Math.min(FLY_MAX, Math.max(FLY_MIN, j.y + vy * dt)); cur.k = 3;
+        trailAcc += dt;
+        while (trailAcc >= 25) {                                   // a trail of blue particles
+          trailAcc -= 25;
+          particles.push({ wx: legsX() + (Math.random() - 0.5) * 8, wy: herY() + 10 + Math.random() * 12, vx: (Math.random() - 0.5) * 0.04 - hf() * 0.02, vy: (Math.random() - 0.5) * 0.03, t0: clock, life: 450 + Math.random() * 250, c: ['#2f7bff', '#7fd0ff', '#1b46d8', '#bfe8ff'][Math.floor(Math.random() * 4)] });
+        }
+        return;
+      }
+    }
     j.v -= JUMP_G * (Math.abs(j.v) < JUMP_HANG_V ? JUMP_HANG_G : 1) * dt;
     j.y += j.v * dt;
     cur.k = j.v > 0.6 * JUMP_V0 ? 1 : j.v > 0.2 * JUMP_V0 ? 2 : j.v > -0.2 * JUMP_V0 ? 3 : 4;   // takeoff, rise, apex, fall frames
@@ -657,7 +721,7 @@
   }
   function chainPress() {                                            // an A press with the chain unlocked; true when the chain handled it
     if (!P.has('chain') || stun || fall || airborne() || (hold && ENERGY_HOLD.has(hold.move))) { chain.n = 0; return false; }
-    const n = clock - chain.t <= CHAIN_MS ? chain.n + 1 : 1;
+    const n = clock - chain.t <= CHAIN_MS && lastBClock <= chain.t ? chain.n + 1 : 1;   // a B in between starts the count over
     if (n === 1) { chain = { n: 1, t: clock }; return false; }       // the plain slash
     if (n <= 4) { chain = { n, t: clock }; chainGo(CHAIN_MOVES[n - 1]); return true; }
     chain = { n: 0, t: -1e9 };                                       // 5th press: the heavy chop, uncharged
@@ -828,7 +892,7 @@
   const cheats = { invincible: false, infinite: false, nopit: false };   // set from the Cheats menu (L1+R1+L2+R2 in the pause menu reveals it)
   let cheatsShown = false;
   function hurtHer(dmg) {
-    if (dmg <= 0 || cheats.invincible) return;
+    if (dmg <= 0 || cheats.invincible || rainbowOn()) return;
     hp = Math.max(0, hp - dmg);
     floater(bodyX(), herY() + herTop() + 6, '-' + dmg, RED);
   }
@@ -995,7 +1059,7 @@
       if (c.broken && c.item && pend && !P.has(pend)) powerups.push({ key: c.key, item: pend, x: c.x, y: c.fy + 16, t0: clock });
     }
     x = side === 'left' ? 26 : MAP_W - 26; facing = side === 'left' ? 1 : -1;
-    floorY = 0; fall = null; stun = null; slide = null; cur = null; queued = null; hold = null; rumble = null; tint = null;
+    floorY = 0; fall = null; stun = null; slide = null; cur = null; queued = null; hold = null; rumble = null; tint = null; flight = null; rainbow = null; ult = null;
     visFace = facing; invuln = clock + 600; prevFeet = null; lastCx = null; camX = V.anchorX; camY = 0; fadeUntil = clock + FADE_MS;
     if (killsEl) killsEl.textContent = '';
   }
@@ -1257,7 +1321,7 @@
     burst(cx, cy, 14, ['#ffd060', '#ff6a20', '#444444']);
     rumble = { t0: clock, ms: 300, amp: 4 };
     for (const e of enemies) { const hb = alive(e) && hurtOf(e); if (hb && distBox(cx, cy, hb) <= BOMB_R) { e.shoved = clock; hurtEnemy(e, BOMB_DMG); } }
-    if (distBox(cx, cy, herBox()) <= BOMB_R) {
+    if (!rainbowOn() && distBox(cx, cy, herBox()) <= BOMB_R) {
       hurtHer(BOMB_DMG);
       tint = { color: RED, alpha: 0.6, until: clock + 300 }; invuln = Math.max(invuln, clock + 500); hits++;
     }
@@ -1307,7 +1371,7 @@
     for (const p of curMap.pits) if (fs[0] >= p.x0 - 1 && fs[1] <= p.x1 + 1) return p;
     return null;
   }
-  const pitsSolid = () => false;                                  // the rainbow guard turns this on (step G)
+  const pitsSolid = () => rainbowOn();                             // the rainbow guard: pitfalls count as solid ground
   function checkPit() {
     if (pitFall || !curMap || !curMap.pits.length || floorY !== 0 || herY() > 1.5) return;
     if (cheats.nopit || pitsSolid()) return;                          // pitfalls count as solid ground
@@ -2377,7 +2441,7 @@
   function moveRows() {
     const rows = [];
     for (const b of D.input.bindings) {
-      if (b.type === 'idle' || !moveOpen(b.move)) continue;
+      if (b.type === 'idle' || b.move === 'ultimate' || !moveOpen(b.move)) continue;
       const m = D.moves[b.move];
       const sb = b.move === 'jump' ? Object.assign({}, b, { input: 'Up' }) : b;
       const held = b.release_into || HOLD_FIRE[b.move];                       // hold-and-release moves
@@ -2387,6 +2451,12 @@
                   keys: keysOf(sb.input), title: m ? m.title : b.move, how: how(sb) });
     }
     if (P.has('meter_charge')) rows.push({ move: 'meter_charge', note: 'hold', section: 'Unlocked combos', pad: 'L1+R1', keys: 'Q+W', title: 'Meter charge', how: 'hold both: every meter you own slowly fills' });
+    const extra = (uid, pad, keys, title, how) => { if (P.has(uid)) rows.push({ move: uid, uid, note: '', section: 'Unlocked combos', pad, keys, title, how }); };
+    extra('chain', 'A x5', 'Z x5', 'Attack chain', 'mash A: slash, three chain strikes (no knockback), then the heavy chop without charging (uses energy)');
+    extra('chain_burst', 'A x4, B', 'Z x4, X', 'Burst chain', 'after the fourth A, tap B: the chain ends in an energy burst (uses energy)');
+    extra('fly', 'A, B, A, B, Up', 'Z, X, Z, X, Up', 'Flight', 'fly for 5 seconds with a blue particle trail; Up and Down climb and dive, Left and Right steer');
+    extra('rainbow', 'A, B, A, B, A, B', 'Z, X, Z, X, Z, X', 'Rainbow guard', '5 seconds untouchable while cycling the rainbow; pitfalls are solid ground');
+    extra('ultimate', 'A x4, L1+R1+L2+R2', 'Z x4, Q+W+1+2', 'Ultimate chain', 'the chain, then a taunt, then the empowerment, cloud, fire and laser beams in turn');
     if (P.has('double_jump')) rows.push({ move: 'double_jump', note: '', section: 'Unlocked combos', pad: 'Up, Up (air)', keys: 'Up then Up', title: 'Double jump', how: 'press jump again in the air: a spinning second jump' });
     // one line per move: the Left/Right variants of an input (Right+A, Left+A) become a single "Left/Right+A", duplicates go,
     // and the unlocked combos are listed in the order the player unlocked them
@@ -2415,7 +2485,7 @@
       if (/-/.test(r.pad)) r.pad = squash(r.pad.replace(/Left\/Right-Left\/Right/g, 'Left/Right x2'), '-', ', ');
       if (/ then /.test(r.keys)) r.keys = squash(r.keys.replace(/←\/→ then ←\/→/g, '←/→ x2'), ' then ', ', ');
     };
-    const order = r => { const u = P.UNLOCKS.find(x => (x.moves || []).includes(r.move)); const i = u ? P.state.unlocked.indexOf(u.id) : -1; return i < 0 ? 1e6 : i; };
+    const order = r => { const u = P.UNLOCKS.find(x => r.uid ? x.id === r.uid : (x.moves || []).includes(r.move)); const i = u ? P.state.unlocked.indexOf(u.id) : -1; return i < 0 ? 1e6 : i; };
     const ctrl = merge(rows.filter(r => r.section === 'Controls'));
     const combos = merge(rows.filter(r => r.section !== 'Controls'));
     combos.forEach(tidy);
@@ -2491,12 +2561,13 @@
     if (cheats.infinite) { energyMeter = maxOf('energy'); empowerMeter = maxOf('empower'); superMeter = maxOf('super'); }
     readButtons(t);
     for (const e of reader.update(t)) {
+      if (e.move === 'ultimate') { startUltimate(); continue; }
       const via = e.move === 'slash' && e.via === 'tap' ? 'press' : e.via;
       if (e.move === 'slash' && via === 'press' && chainPress()) continue;
       if (e.move === 'parry' && via === 'tap' && chainBurst()) continue;
       request(e.move, via);
     }
-    chainTick();
+    chainTick(); ultTick();
     const before = cur && BLOCKED.has(cur.id) ? playerX() : null;
     step(dt, t);
     { const vf = hf(); if (vf !== visFace) { if (!stun) turnShift(visFace, vf); visFace = vf; } }
@@ -2504,6 +2575,8 @@
     blockMove(before);
     physics();
     if (screen !== 'level' || !curMap) return;        // the level just ended
+    if (flight && (stun || !(cur && cur.id === 'jump' && cur.phys))) flight = null;
+    if (rainbow) { if (rainbowOn() && !stun) tint = rainbowTint(); else if (!rainbowOn()) rainbow = null; }
     checkPit();
     if (!fall && (!cur || cur.kind === 'hold' || cur.kind === 'land' || (cur.id === 'jump' && cur.kind === 'action' && !cur.phys))) dblUsed = false;   // back on her feet
     if (hp <= 0 && !gameOver) triggerGameOver();     // any source of damage ends the run, not only an enemy hit
@@ -2588,7 +2661,7 @@
     level = null; curMap = null; screen = 'overworld'; paused = false; gameOver = false; levelDone = false;
     enemies.length = 0; respawns.length = 0; gems.length = 0; explosions.length = 0; floaters.length = 0;
     powerups.length = 0; particles.length = 0; banners.length = 0; hitQ.length = 0;
-    stun = null; slide = null; fall = null; cur = null; queued = null; hold = null; tint = null; floorY = 0; camY = 0; rumble = null;
+    stun = null; slide = null; fall = null; cur = null; queued = null; hold = null; tint = null; floorY = 0; camY = 0; rumble = null; flight = null; rainbow = null; ult = null;
     ow.sel = Math.max(0, Math.min(LV.levels.length, P.state.levelsUnlocked) - 1);
     hideMenu(); ignoreHeldButtons(); setStartLabel();
     if (killsEl) killsEl.textContent = '';
@@ -2765,6 +2838,7 @@
     setHp: n => { if (n > maxHp()) P.state.maxes.hp = Math.min(P.MAX_CAP, n); hp = n; },      // test hook: asking for more than Max HP raises Max HP to match
     heavy: () => cur && (cur.id === 'heavy' || cur.id === 'jump_crash') ? { id: cur.id, lite: !!cur.lite, charged: cur.charged, height: cur.height } : null,
     herBox: () => herBox(),
+    powers: () => ({ flying: !!flight, rainbow: rainbowOn(), ult: !!ult, y: herY(), hp }),
     combat: () => ({ stun: !!stun, hits, blocks, parries, tint: tint && clock < tint.until ? tint.color : null }),
     setRespawn: on => { respawnOn = on; },
     attack: (i, anim) => { const e = enemies[i]; e.state = 'attack'; play(e, anim); },

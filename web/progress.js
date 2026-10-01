@@ -41,7 +41,7 @@
     { id: 'chain_burst', kind: 'Combo', name: 'Burst Chain', hint: 'A, A, A, A, then B: the chain ends in an energy burst', moves: [], meters: ['energy'] },
     { id: 'fly', kind: 'Combo', name: 'Flight', hint: 'A, B, A, B, then Up: fly for 5 seconds', moves: [] },
     { id: 'rainbow', kind: 'Combo', name: 'Rainbow Guard', hint: 'A, B, A, B, A, B: 5 seconds untouchable, walk over pits', moves: [] },
-    { id: 'ultimate', kind: 'Combo', name: 'Ultimate Chain', hint: 'A x4, then L1+L2+R1+R2 together: the chain, a taunt, then all four beams', moves: [], buttons: ['L1', 'L2', 'R1', 'R2'], meters: ['energy', 'empower'] },
+    { id: 'ultimate', kind: 'Combo', name: 'Ultimate Chain', hint: 'A x4, then L1+L2+R1+R2 together: the chain, a taunt, then all four beams', moves: ['ultimate'], buttons: ['L1', 'L2', 'R1', 'R2'], meters: ['energy', 'empower'] },
   ];
   const byId = {};
   for (const u of UNLOCKS) byId[u.id] = u;
