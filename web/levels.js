@@ -126,7 +126,10 @@
     if (item) {
       if (m.plats.length) { const p = m.plats[pick(0, m.plats.length - 1)]; m.crates.push(C(Math.round((p.x0 + p.x1) / 2), p.top, item)); }
       else { let x = pick(60, 330); for (let t = 0; t < 12 && !free(x); t++) x = pick(60, 330); m.crates.push(C(x, 0, item)); }
+      const g = m.crates[m.crates.length - 1];                     // no plain crate may sit on top of the golden one
+      m.crates = m.crates.filter(c => c === g || c.fy !== g.fy || Math.abs(c.x - g.x) >= 20);
     }
+    m.crates = m.crates.filter((c, i) => c.item || !m.crates.some((o, j) => j !== i && o.fy === c.fy && Math.abs(o.x - c.x) < 18 && (o.item || j < i)));   // no two crates stacked on one spot
     // bombs on open ground, away from pits and crates
     const nbomb = final ? 1 : pick(0, 1) + (n >= 3 ? 1 : 0);
     for (let k = 0; k < nbomb; k++) {

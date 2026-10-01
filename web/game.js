@@ -1036,18 +1036,16 @@
     c.broken = true; level.broken.add(c.key);
     burst(c.x, c.fy + 9, 9, c.item ? ['#e8c050', '#c9962a', '#fff2a0'] : ['#8a5a2b', '#6b4420', '#b07a3c']);
     if (c.item) {
-      let item = c.item;
-      if (P.has(item) || powerups.some(u => u.item === item)) {   // already owned: a golden crate only ever gives something still locked
-        const pool = unlockPool(null);
-        item = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
-      }
-      if (item) {
+      // A golden crate always gives the unlock assigned to its map, never a substitute. If it is already owned (or already
+      // floating there) the crate just drops ordinary loot.
+      const item = c.item;
+      if (!P.has(item) && !powerups.some(u => u.item === item)) {
         level.pending.set(c.key, item);
         powerups.push({ key: c.key, item, x: c.x, y: c.fy + 16, t0: clock });
-      } else {                                   // every unlock is owned: ordinary loot
+      } else {
         const pool = lootPool();
         if (pool.length) spawnGem(c.x, pool[Math.floor(Math.random() * pool.length)], c.fy);
-        floater(c.x, c.fy + 30, 'Everything unlocked', '#ffd24a');
+        floater(c.x, c.fy + 30, 'Already unlocked', '#ffd24a');
       }
     } else {                                     // every plain crate drops something useful: a health gem, a meter gem, or a +25 meter upgrade
       const pool = lootPool();
@@ -2528,6 +2526,7 @@
     addShot: (sx, sy, vx, vy) => shots.push({ x: sx, y: sy, vx, vy, from: 'foe', t0: clock }),
     doubleUsed: () => dblUsed, spinning: () => !!(cur && cur.spin && clock - cur.spin < SPIN_MS),
     smash: i => { if (curMap && curMap.crates[i]) breakCrate(curMap.crates[i]); },
+    setFloor: v => { floorY = v; prevFeet = null; },
     shove: (i, dx) => { const e = enemies[i]; if (e) { e.x += dx; e.base += dx; e.shoved = clock; } },
     maxes: () => ({ energy: maxOf('energy'), empower: maxOf('empower'), super: maxOf('super') }),
     arena: () => {

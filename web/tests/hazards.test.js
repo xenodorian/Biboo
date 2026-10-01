@@ -148,7 +148,7 @@ const { chromium } = require('playwright');
   check('an energy meter at its cap with a full bag drops nothing redundant', loot3 === 0, loot3);
   await ev('bibooGame.resetAll()');
   await custom({ crates: [{ x: 300, fy: 0, item: 'thrust' }] }); await ev("bibooGame.unlock('thrust')"); await ev('bibooGame.smash(0)');
-  { const pw = (await S()).powerups; check('a golden crate whose unlock is owned gives a different, unowned one', pw.length === 1 && pw[0].item !== 'thrust' && !(await ev(`BibooProgress.has('${pw[0].item}')`)), pw); }
+  { const pw = (await S()).powerups; check('a golden crate whose unlock is owned gives no substitute (nothing is randomized)', pw.length === 0, pw); }
 
   // ---- face buttons: Up jumps, A (Z) attacks
   await custom({}); await at(100);

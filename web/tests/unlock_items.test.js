@@ -58,7 +58,7 @@ const { chromium } = require('playwright');
   }
   check(`${trials} random smashes: never an owned unlock, never a duplicate`, bad === 0, { bad, trials, none });
 
-  // ---- many golden crates at once hand out different unlocks, then nothing once all are promised
+  // ---- many golden crates for an owned unlock give nothing
   await ev('bibooGame.resetAll(); bibooGame.enterLevel(1)'); await wait(400);
   await ev('bibooGame.unlock("thrust")');
   const n = all.length;
@@ -66,10 +66,8 @@ const { chromium } = require('playwright');
   await ev(`for (let i = 0; i < ${n + 2}; i++) bibooGame.smash(i)`);
   const st2 = await ev('bibooGame.state()');
   const items = st2.powerups.map(p => p.item);
-  check('simultaneous golden crates give distinct unlocks', new Set(items).size === items.length, items);
-  check('none of them is already owned', !items.includes('thrust'), items);
-  check('early on, the late-game Earthquake and Meteor Shower are never handed out as substitutes', !items.includes('earthquake') && !items.includes('meteor'), items);
-  check('the other 13 still-locked unlocks are handed out and the extra crates give nothing', items.length === n - 3, items.length);
+  check('golden crates whose unlock is already owned float nothing', items.length === 0, items);
+  check('no substitute is ever handed out (nothing is randomized)', !items.includes('earthquake') && !items.includes('meteor') && items.length === 0, items);
   const late = await ev(`(() => { const w = BIBOO_LEVELS.whereIs; return { eq: w.earthquake, mt: w.meteor }; })()`);
   check('Earthquake and Meteor Shower stay in their late-game crates (level 3 or later)', parseInt(late.eq) >= 3 && parseInt(late.mt) >= 3, late);
 

@@ -307,3 +307,8 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 
 ## st50
 - Pits are at least 50 px wide (the generator widens 40 px pits; level 1 pits were already 50 or more) so both feet always fit, and the narrow-pit fallback in the fall rule is removed. pushback.test.js checks every pit in every level.
+
+## st51
+- Nothing is randomized: a golden crate always gives the unlock assigned to its map. If that unlock is already owned (or already floating) the crate drops ordinary loot, with no substitute from a random pool (this replaces the earlier "no redundant unlocks" substitution).
+- Level generator no longer stacks crates on one spot (2.3 had a plain crate under the golden one).
+- web/tests/unlock_walkthrough.test.js (120 checks): walks levels 1 to 4 in order, smashes and collects every golden crate and checks the unlock matches the plan exactly, then re-smashes all 22 with everything owned and checks no substitute appears. Test hook setFloor added.
