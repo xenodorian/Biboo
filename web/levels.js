@@ -30,6 +30,9 @@
   const E = (type, x, a, b, sight, fy) => ({ type, x, fy: fy || 0, path: [a, b], sight: sight || 100 });
   const G = (x, a, b, sight, fy) => E('goblin', x, a, b, sight, fy);
   const O = (x, a, b, sight, fy) => E('orc', x, a, b, sight, fy);
+  const H = (x, a, b, sight, fy) => E('hobgoblin', x, a, b, sight, fy);
+  // Enemy ladder, easiest to hardest (by HP and damage, see tools/creatures/build.py and Current_Work.md). Levels 2 to 5 slide up it map by map.
+  const LADDER = ['goblin', 'hobgoblin', 'skullraider', 'dusksaur', 'darkknight', 'orc', 'ogre'];
   const map = o => Object.assign({ solids: [], plats: [], pits: [], bombs: [], crates: [], enemies: [] }, o);
 
   // ------------------------------------------------------------------ Level 1: Green Trail (hand built)
@@ -48,16 +51,16 @@
     map({ plats: [P(60, 140, 60), P(160, 200, 90), P(220, 320, 110)], crates: [C(100, 60), C(270, 110, 'heavy_horizontal')], bombs: [B(185)],
           enemies: [G(270, 235, 305, 80, 110), G(300, 215, 340, 100)] }),
     // 1.6 the first orc, across a pit, with a bomb on its patrol
-    map({ pits: [X(170, 225)], crates: [C(100), C(140, 0, 'double_jump')], bombs: [B(300)], enemies: [O(285, 245, 345, 110), G(120, 90, 160, 90)] }),
+    map({ pits: [X(170, 225)], crates: [C(100), C(140, 0, 'double_jump')], bombs: [B(300)], enemies: [H(285, 245, 345, 110), G(120, 90, 160, 90)] }),
     // 1.7 a row of platforms over a chasm and a golden crate at the far end
     map({ pits: [X(120, 285)], plats: [P(40, 110, 40), P(120, 190, 70), P(200, 270, 40)], crates: [C(155, 70), C(330, 0, 'dash_thrust')],
           enemies: [G(75, 50, 100, 90), G(235, 210, 260, 80, 40)] }),
     // 1.8 two pits, bombs and three enemies
     map({ pits: [X(100, 150), X(205, 260)], crates: [C(178), C(320), C(60)], bombs: [B(178, 0), B(300)],
-          enemies: [G(60, 30, 90, 90), G(178, 165, 192, 90), O(320, 275, 355, 100)] }),
+          enemies: [G(60, 30, 90, 90), G(178, 165, 192, 90), H(320, 275, 355, 100)] }),
     // 1.9 the ridge and the locked door at its right edge: an orc below, a goblin above, the sky dash up top
     map({ pits: [X(140, 215)], plats: [P(50, 120, 60), P(140, 210, 90), P(230, 300, 60)], crates: [C(85, 60), C(265, 60, 'sky_dash')], bombs: [B(300)],
-          enemies: [O(270, 230, 345, 110), G(175, 150, 200, 80, 90)] }),
+          enemies: [H(270, 230, 345, 110), G(175, 150, 200, 80, 90)] }),
   ];
 
   // ------------------------------------------------------------------ Levels 2 to 5: generated
@@ -102,10 +105,10 @@
     const wide = segs.filter(s => Math.min(s[1] - 14, 300) - Math.max(s[0] + 14, 90) >= 40);
     // enemies
     const count = final ? Math.min(6, n + 2) : Math.min(5, 1 + (n >= 2 ? 1 : 0) + (n >= 4 ? 1 : 0) + (i >= 4 ? 1 : 0) + (i >= 7 ? 1 : 0));
-    const orcP = Math.min(0.6, 0.12 * (n - 1) + 0.05 * i + (final ? 0.15 : 0));
+    const prog = Math.min(1, (((n - 2) * 9 + i + 2) / 33) + (final ? 0.05 : 0));       // 0 at map 2.1 up to 1 at the end of level 5; picks the rung of LADDER
     const sight = 90 + n * 8;
     for (let k = 0; k < count; k++) {
-      const type = chance(orcP) ? 'orc' : 'goblin';
+      const type = LADDER[Math.max(0, Math.min(LADDER.length - 1, Math.round(prog * (LADDER.length - 1) - 0.4 + (r() - 0.5) * 2.2)))];
       const tall = m.plats.filter(p => p.x1 - p.x0 >= 60);
       if (tall.length && chance(0.3)) {
         const p = tall[pick(0, tall.length - 1)];
@@ -155,7 +158,7 @@
   L1[L1.length - 1].final = true;              // level 1 ends at map 1.9, behind the locked door
   const levels = [
     { n: 1, name: 'Green Trail', blurb: 'Goblins in the grass. Find every move to open the door at the end.', tint: null, door: 'key', maps: L1 },
-    { n: 2, name: 'Mossy Ruins', blurb: 'Old walls and ledges. Orcs join the patrols.', tint: { color: '#7a5a1a', alpha: 0.18 }, door: 'key', maps: gen(2) },
+    { n: 2, name: 'Mossy Ruins', blurb: 'Old walls and ledges. Hobgoblins and raiders join the patrols.', tint: { color: '#7a5a1a', alpha: 0.18 }, door: 'key', maps: gen(2) },
     { n: 3, name: 'Dusk Bridge', blurb: 'Night falls. The guards look farther.', tint: { color: '#2a2a80', alpha: 0.25 }, door: 'key', maps: gen(3) },
     { n: 4, name: 'Ember Caves', blurb: 'Hot and crowded.', tint: { color: '#802a10', alpha: 0.22 }, door: 'key', maps: gen(4) },
     { n: 5, name: 'Crimson Keep', blurb: 'The last gate.', tint: { color: '#600020', alpha: 0.28 }, maps: gen(5) },

@@ -379,6 +379,6 @@ Decisions:
 Status:
 - [x] Step 1 clean images
 - [x] Step 2 sheets, enemy data, engine hooks, test `web/tests/creatures.test.js` (passes)
-- [ ] Step 3 spread enemies across levels by difficulty (levels.js: L1 hand maps, L2 to 5 via gen/ITEMS)
+- [x] Step 3 enemies spread by difficulty: levels.js LADDER (goblin, hobgoblin, skullraider, dusksaur, darkknight, orc, ogre); L1 hand maps use goblin + hobgoblin; genMap slides up the ladder per map (st66)
 - [ ] Step 4 boss arenas for levels 1 to 4 (unique ground/background/sky), boss fights end the level
 - [ ] Step 5 level 5 mirror-Max boss
