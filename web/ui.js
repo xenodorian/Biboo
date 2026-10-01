@@ -79,8 +79,9 @@
     if (!box) return;
     box.textContent = '';
     const hero = document.querySelector('#start-menu .hero');
-    const smenu = $('start-menu'); if (smenu) smenu.classList.toggle('story', UI.view === 'message' && !!UI.opts.story);   // story pages sit low so the scene shows
-    if (hero) hero.style.display = UI.view === 'main' || (UI.view === 'message' && !UI.opts.story) ? '' : 'none';
+    const smenu = $('start-menu'); if (smenu) smenu.classList.toggle('title', UI.view === 'main' && !!(api.isTitle && api.isTitle()));
+    if (smenu) smenu.classList.toggle('story', UI.view === 'message' && !!UI.opts.story);   // story pages sit low so the scene shows
+    if (hero) hero.style.display = (UI.view === 'main' && !(api.isTitle && api.isTitle())) || (UI.view === 'message' && !UI.opts.story) ? '' : 'none';
     const o = UI.opts;
     if (UI.view === 'main') {
       title.textContent = o.title || 'Parry Perry';

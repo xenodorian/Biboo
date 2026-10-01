@@ -879,6 +879,23 @@
   const FLOAT_MS = 900;
   const GREEN = '#3dff6e';
   function floater(wx, wy, text, color) { floaters.push({ wx, wy, text, color, t0: clock }); }
+  // ---- hit feedback: a brief freeze on impact (hit-stop), a starburst and sparks where it lands, a screen flash and shake on big hits
+  let freeze = 0, screenFlash = null, beamTick = false;
+  const flashes = [];                                            // {wx, wy, t0, ms, r, c}: starbursts
+  const hitStop = ms => { freeze = Math.min(160, Math.max(freeze, ms)); };
+  const shakeFor = (ms, amp) => { if (!rumble || rumble.amp * (1 - (clock - rumble.t0) / rumble.ms) < amp) rumble = { t0: clock, ms, amp }; };
+  function impact(wx, wy, dmg, color, killed) {
+    const big = dmg >= 100 || killed, mid = dmg >= 30;
+    flashes.push({ wx, wy, t0: clock, ms: big ? 260 : mid ? 200 : 150, r: big ? 26 : mid ? 18 : 12, c: color || '#fff6c0' });
+    burst(wx, wy, big ? 16 : mid ? 10 : 6, [color || '#fff6c0', '#ffd24a', '#ffffff']);
+    hitStop(big ? 130 : mid ? 80 : 45);
+    if (big) { screenFlash = { c: '#ffffff', a: 0.4, t0: clock, ms: 120 }; shakeFor(220, 3); }
+    else if (mid) shakeFor(140, 1.5);
+  }
+  function herHitFx() {                                          // she is hurt: a short freeze, a red flash, a shake and a red starburst
+    hitStop(100); shakeFor(200, 2.5); screenFlash = { c: '#ff2020', a: 0.35, t0: clock, ms: 200 };
+    flashes.push({ wx: bodyX(), wy: herY() + 22, t0: clock, ms: 220, r: 20, c: '#ff6060' });
+  }
   function hurtEnemy(e, dmg) {
     if (!alive(e)) return;
     aggro(e, false);                                  // being hit wakes a patrolling enemy, even for 0 damage
@@ -887,6 +904,7 @@
     const b = hurtOf(e);
     if (b) floater((b[0] + b[2]) / 2, b[3] + 4, '-' + dmg, RED);
     if (!e.tint || clock >= e.tint.until) e.tint = { color: RED, alpha: 0.55, until: clock + 110 };
+    if (b && !beamTick) impact((b[0] + b[2]) / 2, (b[1] + b[3]) / 2, dmg, null, e.hp <= 0);
     if (e.hp <= 0) kill(e);
   }
   const cheats = { invincible: false, infinite: false, nopit: false };   // set from the Cheats menu (L1+R1+L2+R2 in the pause menu reveals it)
@@ -967,7 +985,7 @@
       e.tint = { color: '#a0f', alpha: 0.4, until: clock + 400 };
     }
     const was = alive(e);
-    hurtEnemy(e, BEAM_DMG[b.kind] || 0);
+    beamTick = true; hurtEnemy(e, BEAM_DMG[b.kind] || 0); beamTick = false;
     if (was && !alive(e)) lootGem(e.x, 'super', e.fy);                 // killed by a beam: a Super Gem
     const push = BEAM_PUSH[b.kind] || 0;
     if (push && alive(e)) { e.x += b.face * push; e.base += b.face * push; e.shoved = clock; }   // shoved away along the beam
@@ -1019,6 +1037,7 @@
   function hint(text) { if (clock - lastHint > 2500) { lastHint = clock; banners.push({ title: text, t0: clock, ms: 2200 }); } }
 
   function startLevel(n, custom) {
+    freeze = 0; screenFlash = null; flashes.length = 0;
     story = null; storyAt = null;                    // any story page still open (a test hook starting a level) is dropped
     const def = custom || LV.levels[n - 1];
     if (!def) return;
@@ -1278,6 +1297,7 @@
           shots.splice(i, 1);
         } else if (clock >= invuln && !stun) {                     // a hit: damage, a short red flash and a small flinch
           hurtHer(sh.dmg || SHOT_DMG);
+          herHitFx();
           const p = push(14, 180); slide = newSlide(p, dir); lastPushT = clock;
           tint = { color: RED, alpha: 0.6, until: clock + 220 }; invuln = clock + 500; hits++;
           burst(sh.x, sh.y, 8, ['#ff2b2b', '#8fd0ff']);
@@ -1328,6 +1348,7 @@
     for (const e of enemies) { const hb = alive(e) && hurtOf(e); if (hb && distBox(cx, cy, hb) <= BOMB_R) { e.shoved = clock; hurtEnemy(e, BOMB_DMG); } }
     if (!rainbowOn() && distBox(cx, cy, herBox()) <= BOMB_R) {
       hurtHer(BOMB_DMG);
+      herHitFx();
       tint = { color: RED, alpha: 0.6, until: clock + 300 }; invuln = Math.max(invuln, clock + 500); hits++;
     }
     crateBlast(cx, cy, BOMB_R);
@@ -1910,6 +1931,7 @@
     e.push = { v: p.v * (e.x >= bodyX() ? 1 : -1), a: p.a };
     e.tint = { color: WHITE, alpha: 0.75, until: clock + ms };
     parries++;
+    flashes.push({ wx: (bodyX() + e.x) / 2, wy: herY() + 24, t0: clock, ms: 240, r: 22, c: '#bfe8ff' }); hitStop(90); screenFlash = { c: '#ffffff', a: 0.3, t0: clock, ms: 110 };
   }
   const KNOCK_UP = 5;
   const newSlide = (p, dir) => ({ v: p.v * dir, a: p.a, y: 0, vy: -Math.sqrt(2 * 0.0018 * KNOCK_UP) });   // a block or a shot hit: slid back and up KNOCK_UP px
@@ -1925,6 +1947,7 @@
     tint = { color: RED, alpha: 0.6, until: clock + ms };
     invuln = clock + ms + 400;
     hits++;
+    herHitFx();
     hurtHer(((AT && AT.dmg) || ENEMY_DMG[e.type] || EN[e.type].ai.dmg || 10) * (e.dmgMul || 1));
     if (hp <= 0) { stun.until = clock + KO_MS; floater(bodyX(), herY() + herTop() + 18, 'K.O.', RED); if (typeof triggerGameOver === 'function') triggerGameOver(); }
   }
@@ -1933,6 +1956,7 @@
     slide = newSlide(p, dir); lastPushT = clock;
     tint = { color: WHITE, alpha: 0.75, until: clock + 150 };
     blocks++;
+    flashes.push({ wx: bodyX() + hf() * 12, wy: herY() + 22, t0: clock, ms: 160, r: 12, c: '#ffffff' }); hitStop(40);
   }
   function stepStun(dt) {
     x += stun.v * dt;
@@ -2088,6 +2112,7 @@
     drawBeam(sx, sy);
     drawExplosions(sx, sy);
     drawParticles(sx, sy);
+    drawFlashes(sx, sy);
     drawShots(sx, sy);
     g.save();                                                     // the foreground grass is cut away over the pits
     if (curMap && curMap.pits.length) { g.beginPath(); g.rect(0, 0, V.w, V.h); for (const p of curMap.pits) g.rect(Math.round(p.x0 + sx), 0, p.x1 - p.x0, V.h); g.clip('evenodd'); }
@@ -2098,6 +2123,7 @@
     drawMeters();
     drawFloaters(sx, sy);
     drawBanners();
+    if (screenFlash) { const a = (clock - screenFlash.t0) / screenFlash.ms; if (a >= 1) screenFlash = null; else { g.globalAlpha = screenFlash.a * (1 - a); g.fillStyle = screenFlash.c; g.fillRect(0, 0, V.w, V.h); g.globalAlpha = 1; } }
     if (fadeUntil > clock) { g.globalAlpha = Math.min(1, (fadeUntil - clock) / FADE_MS); g.fillStyle = '#000'; g.fillRect(0, 0, V.w, V.h); g.globalAlpha = 1; }
     if (showBoxes) drawBoxes(sx, sy);
   }
@@ -2178,6 +2204,18 @@
       g.fillStyle = it && it.kind === 'Button' ? '#ff9f43' : '#ffd24a'; g.beginPath(); g.arc(X, Y, 8, 0, Math.PI * 2); g.fill();
       g.font = 'bold 7px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#2a1a00';
       g.fillText(it && it.kind === 'Button' ? it.id : 'NEW', X, Y + 0.5);
+      g.restore();
+    }
+  }
+  function drawFlashes(sx, sy) {
+    for (let i = flashes.length - 1; i >= 0; i--) {
+      const f = flashes[i], a = (clock - f.t0) / f.ms;
+      if (a >= 1) { flashes.splice(i, 1); continue; }
+      const X = Math.round(f.wx + sx), Y = Math.round(groundY(sy) - f.wy), r = f.r * (0.4 + 0.6 * Math.min(1, a * 3)), inner = r * 0.25;
+      g.save(); g.globalAlpha = 1 - a; g.strokeStyle = f.c; g.lineWidth = a < 0.35 ? 2 : 1; g.beginPath();
+      for (let k = 0; k < 8; k++) { const ang = k * Math.PI / 4 + 0.4, len = k % 2 ? r * 0.6 : r; g.moveTo(X + Math.cos(ang) * inner, Y + Math.sin(ang) * inner); g.lineTo(X + Math.cos(ang) * len, Y + Math.sin(ang) * len); }
+      g.stroke();
+      if (a < 0.4) { g.fillStyle = '#fff'; g.beginPath(); g.arc(X, Y, r * 0.3 * (1 - a), 0, 7); g.fill(); }
       g.restore();
     }
   }
@@ -2558,6 +2596,7 @@
     x += shift;
   }
   function tickLevel(t, dt) {
+    if (freeze > 0) { freeze -= dt; readButtons(t); draw(); hud(); return; }   // (presses made during the freeze are still read)      // hit-stop: the world holds still for a moment
     clock += dt;                                      // game time: it does not run while a menu is open
     if (storyAt !== null && clock >= storyAt) { storyAt = null; P.state.story.double = true; playStory('double', () => { paused = false; }); return; }
     if (pitFall) {                                    // she fell into a pit: the rest of the world goes on while she drops out of sight
@@ -2682,7 +2721,7 @@
     if (assetsReady) {
       if (story) { clock += dt; drawStory(); }
       else if (screen === 'level') { if (!paused && !gameOver && !devOpen) tickLevel(t, dt); }
-      else { clock += dt; stepEffects(dt); drawOverworld(); hud(); }
+      else { clock += dt; stepEffects(dt); if (screen === 'title') drawTitle(); else drawOverworld(); hud(); }
     }
     requestAnimationFrame(frame);
   }
@@ -2690,6 +2729,41 @@
   // ---- the overworld: five level nodes on a path; a level opens when the one before it is beaten
   const OW_NODES = [[52, 150], [120, 112], [192, 146], [262, 104], [332, 138]];
   const nodeAt = i => OW_NODES[i % OW_NODES.length];
+  // ---- the title screen: drifting level 1 scenery, the logo with a sword slash sweeping through it, and Max on guard
+  function drawTitle() {
+    const W = V.w, H = V.h, T = clock;
+    g.fillStyle = '#10151c'; g.fillRect(0, 0, W, H);
+    for (const l of D.layers) drawLayer(img[l.src].im, -T * 0.02 * l.parallax, 0);
+    const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, 'rgba(10,8,24,0.55)'); gr.addColorStop(0.55, 'rgba(10,8,24,0.1)'); gr.addColorStop(1, 'rgba(10,8,24,0.55)');
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    // Max, idle, large, on the left
+    const m = D.moves.idle, cw = m.cell[0], ch = m.cell[1], total = m.frames.reduce((a, f) => a + f.ms, 0);
+    let t = T % total, k = 0; while (k < m.frames.length - 1 && t >= m.frames[k].ms) { t -= m.frames[k].ms; k++; }
+    const sc = 0.85, ax = 78, ay = H - 30;
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.ellipse(ax, ay + 2, 26, 4, 0, 0, 7); g.fill();
+    blit(img[m.sheet].im, k * cw, cw, ch, ax - m.anchor[0] * sc, ay - m.anchor[1] * sc, null, sc);
+    // the logo
+    g.save(); g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    const draw = (txt, cx, cy, size) => {
+      g.font = `bold ${size}px monospace`;
+      const gap = size * 0.78, x0 = cx - (txt.length - 1) * gap / 2;
+      for (let i = 0; i < txt.length; i++) {
+        const bob = Math.sin(T * 0.003 + i * 0.7) * 1.5, X = x0 + i * gap, Y = cy + bob;
+        g.lineWidth = 6; g.strokeStyle = '#1a0c06'; g.strokeText(txt[i], X + 1, Y + 2);
+        const fg = g.createLinearGradient(0, Y - size / 2, 0, Y + size / 2); fg.addColorStop(0, '#fff3b0'); fg.addColorStop(0.5, '#ffc83a'); fg.addColorStop(1, '#d8641c');
+        g.fillStyle = fg; g.lineWidth = 3; g.strokeStyle = '#3a1608'; g.strokeText(txt[i], X, Y); g.fillText(txt[i], X, Y);
+      }
+    };
+    const intro = Math.min(1, T / 700);
+    g.globalAlpha = intro; draw('PARRY', 232, 52 - (1 - intro) * 14, 34); draw('PERRY', 232, 88 - (1 - intro) * 14, 34); g.globalAlpha = 1;
+    // a sword slash sweeping across the logo, now and then
+    const sweep = (T % 4200) / 4200, sx0 = 60 + sweep * 3 * 360;
+    if (sweep < 0.34) { g.globalAlpha = 0.85 * Math.sin(sweep / 0.34 * Math.PI); g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(sx0 - 40, 120); g.lineTo(sx0 + 10, 28); g.stroke(); g.lineWidth = 1; g.beginPath(); g.moveTo(sx0 - 30, 120); g.lineTo(sx0 + 20, 28); g.stroke(); g.globalAlpha = 1; }
+    g.font = 'bold 8px monospace'; g.fillStyle = '#e8e0ff'; g.strokeStyle = '#000'; g.lineWidth = 3;
+    g.strokeText('A MAX WISHBONE ADVENTURE', 232, 112); g.fillText('A MAX WISHBONE ADVENTURE', 232, 112);
+    g.font = '7px monospace'; g.textAlign = 'right'; g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillText(window.BIBOO_VER || '', W - 4, H - 6);
+    g.restore();
+  }
   function drawOverworld() {
     const n = LV.levels.length;
     g.fillStyle = '#10151c'; g.fillRect(0, 0, V.w, V.h);
@@ -2855,7 +2929,7 @@
     else { hideMenu(); ignoreHeldButtons(); canvas.focus(); }
     setStartLabel();
   }
-  if (UI) UI.init({ mainItems, closeMenu, moveRows, lockedCount, padStatus, gemRows, useGem, devItems,
+  if (UI) UI.init({ isTitle: () => screen === 'title' && !story, mainItems, closeMenu, moveRows, lockedCount, padStatus, gemRows, useGem, devItems,
     moveNotes: () => ['Keyboard: arrows = d-pad, Z = A (attack), X = B, A = X, S = Y, Up = jump. Shoulders: Q = L1, W = R1 (hold to recover), 1 = L2, 2 = R2. Enter, Space or Escape opens and closes this menu. Hold Left or Right while jumping to steer. Double tap Down on a platform to drop through it.',
                       'A gamepad works too, wired or Bluetooth, also on an Android phone in Chrome: A (bottom) jumps, Y (top) attacks, B is right, X is left. Click the game first if keys do nothing. Press H to show hurtboxes and hit shapes.'] });
   Promise.all(srcs.map(load)).then(() => {
@@ -2921,6 +2995,7 @@
     heavy: () => cur && (cur.id === 'heavy' || cur.id === 'jump_crash') ? { id: cur.id, lite: !!cur.lite, charged: cur.charged, height: cur.height } : null,
     herBox: () => herBox(),
     story: () => story ? { id: story.id, i: story.i } : null, skipStory: () => { if (story) storyEnd(); }, playStory: id => playStory(id, () => { paused = false; }),
+    fx: () => ({ freeze, flashes: flashes.length, flash: !!screenFlash, shake: !!rumble }),
     powers: () => ({ flying: !!flight, rainbow: rainbowOn(), ult: !!ult, y: herY(), hp }),
     combat: () => ({ stun: !!stun, hits, blocks, parries, tint: tint && clock < tint.until ? tint.color : null }),
     setRespawn: on => { respawnOn = on; },
