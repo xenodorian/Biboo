@@ -1,3 +1,8 @@
+# Terms (set by the project owner, use these in chat and notes)
+- **Hitbox**: where a character can be hit and receive damage (the vulnerable area).
+- **Hurtbox**: the parts of a character that cause damage (the attack area).
+- Note: the code and data use the opposite words. In `data.js` and game.js a frame's `hurt` is the vulnerable box (a hitbox here) and its `hit` / `hits` is the attack shape (a hurtbox here), and `herBox()` / `hurtOf()` return vulnerable boxes. They are not renamed; translate when talking about them.
+
 # Current Work
 
 Shared task board for everyone working on this repo, humans and agents.
