@@ -9,7 +9,13 @@
       const im = new Image();
       im.onload = () => { ent.im = im; res(); };
       im.onerror = () => { if (n < 4) setTimeout(() => attempt(n + 1).then(res, rej), 400 * (n + 1)); else rej(new Error('missing ' + src)); };
-      im.src = src + (window.BIBOO_VER ? '?v=' + window.BIBOO_VER : '') + (n ? (window.BIBOO_VER ? '&' : '?') + 'retry=' + n : '');   // version in the URL so a new build is never served from the cache
+      if (src.startsWith('story:')) {
+        const url = (window.STORY_BGS || {})[src.slice(6)];
+        if (!url) { rej(new Error('missing ' + src)); return; }
+        im.src = url;                                         // data: URI; do not append a cache-buster
+      } else {
+        im.src = src + (window.BIBOO_VER ? '?v=' + window.BIBOO_VER : '') + (n ? (window.BIBOO_VER ? '&' : '?') + 'retry=' + n : '');
+      }
       ent.im = im;
     });
     ent.p = attempt(0);
@@ -29,3 +35,4 @@
   for (const e of Object.values(EN)) srcs.push(e.sheet);
   if (D.training) srcs.push(D.training.bunny.sheet);
   if (D.items) srcs.push(D.items.leaf, D.items.gemSheet, D.items.merchant.src);
+  if (window.STORY_BGS) for (const k of Object.keys(window.STORY_BGS)) srcs.push('story:' + k);
