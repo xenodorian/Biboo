@@ -12,7 +12,7 @@
       if (src.startsWith('story:')) {
         const url = (window.STORY_BGS || {})[src.slice(6)];
         if (!url) { rej(new Error('missing ' + src)); return; }
-        im.src = url;                                         // data: URI; do not append a cache-buster
+        im.src = url.startsWith('data:') ? url : url + (window.BIBOO_VER ? '?v=' + window.BIBOO_VER : '') + (n ? (window.BIBOO_VER ? '&' : '?') + 'retry=' + n : '');
       } else {
         im.src = src + (window.BIBOO_VER ? '?v=' + window.BIBOO_VER : '') + (n ? (window.BIBOO_VER ? '&' : '?') + 'retry=' + n : '');
       }
@@ -36,3 +36,6 @@
   if (D.training) srcs.push(D.training.bunny.sheet);
   if (D.items) srcs.push(D.items.leaf, D.items.gemSheet, D.items.merchant.src);
   if (window.STORY_BGS) for (const k of Object.keys(window.STORY_BGS)) srcs.push('story:' + k);
+  const STILLS = window.ARENA_STILLS || {};                          // boss arenas drawn from one picture
+  for (const k of Object.keys(STILLS)) srcs.push('story:arena_' + k);
+  if (window.STORY_BGS) for (const k of Object.keys(STILLS)) window.STORY_BGS['arena_' + k] = STILLS[k];

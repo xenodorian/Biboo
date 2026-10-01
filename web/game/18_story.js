@@ -55,7 +55,10 @@
   function drawStoryBg(name) {
     const im = img['story:' + name] && img['story:' + name].im;
     g.imageSmoothingEnabled = false;
-    if (im) g.drawImage(im, 0, 0, im.width, im.height, 0, 0, V.w, V.h);
+    if (im) {                                                       // the picture is 216 px tall and wider than the view: drift slowly across it
+      const range = Math.max(0, im.width - V.w), u = 0.5 + 0.5 * Math.sin(clock * 0.00012 + name.length);
+      g.drawImage(im, -Math.round(range * u), 0, im.width, V.h);
+    }
     else { g.fillStyle = '#100818'; g.fillRect(0, 0, V.w, V.h); }
   }
 

@@ -41,7 +41,12 @@
     }
     const bgx = camX + (level ? level.idx * MAP_W : 0);          // the scenery carries on from map to map
     const TH = curMap ? THEMES[curMap.def.theme || (level && level.def.bg)] || null : null;       // boss arenas set def.theme; levels 2 to 6 set def.bg
-    for (const l of TH ? TH.layers : D.layers) drawLayer(img[l.src].im, -bgx * l.parallax + sx * l.shake, camY * l.parallax + sy * l.shake);
+    const stillKey = curMap && curMap.def.boss ? curMap.def.theme : null, still = stillKey && STILLS[stillKey] && img['story:arena_' + stillKey] && img['story:arena_' + stillKey].im;
+    if (still) {                                                  // a boss arena picture: wider than the view, slid sideways a little as she moves
+      const range = Math.max(0, still.width - V.w), u = Math.max(0, Math.min(1, playerX() / MAP_W));
+      g.imageSmoothingEnabled = false;
+      g.drawImage(still, -Math.round(range * u) + Math.round(sx * 0.3), Math.round(sy * 0.3) - Math.max(0, still.height - V.h), still.width, still.height);
+    } else for (const l of TH ? TH.layers : D.layers) drawLayer(img[l.src].im, -bgx * l.parallax + sx * l.shake, camY * l.parallax + sy * l.shake);
     if (level && level.def.tint && !TH) { g.globalAlpha = level.def.tint.alpha; g.fillStyle = level.def.tint.color; g.fillRect(0, 0, V.w, V.h); g.globalAlpha = 1; }
     if (curMap) { drawPits(sx, sy); drawGeometry(sx, sy); drawCrates(sx, sy); drawBombs(sx, sy); }
     drawEnemies(sx, sy);
@@ -78,7 +83,7 @@
     drawShots(sx, sy);
     g.save();                                                     // the foreground grass is cut away over the pits
     if (curMap && curMap.pits.length) { g.beginPath(); g.rect(0, 0, V.w, V.h); for (const p of curMap.pits) g.rect(Math.round(p.x0 + sx), 0, p.x1 - p.x0, V.h); g.clip('evenodd'); }
-    drawLayer(img[TH ? TH.fringe : D.fringe.src].im, -bgx + sx, camY + sy);
+    if (!still) drawLayer(img[TH ? TH.fringe : D.fringe.src].im, -bgx + sx, camY + sy);
     g.restore();
     drawGems(sx, sy);
     drawBars(sx, sy);

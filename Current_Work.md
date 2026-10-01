@@ -439,3 +439,6 @@ Plan and status (each step is pushed on its own; resume from the first unchecked
 
 ## st86 (enemy logic, not fully tested)
 - Sight x2 for all enemies; enemies track the middle of her hurtbox; all enemies climb, drop and hop; attacks start when a damage box would touch her hurtbox (contact fallback). Damage boxes tightened by tools/creatures/tighten_hits.py (rerun after build.py). New web/tests/enemy_ai.test.js is unrun; enemy_reach.test.js still expects the old distances; goblin_pattern climb check needs a solo rerun.
+
+## st87 (backgrounds, untested in a browser)
+- web/assets/story.js maps the eight supplied scenes (assets/story/, view-sized copies in assets/story/view/): cutscene pages (calm/crowd village meadow, fire burning house, sea/rewind/meditate/sunrise sunset island, double moonlit courtyard, altar snow temple) and boss arena stills (fungal forest waterfall, crypt cave shrine, bone mine bridge, keep moonlit courtyard). Ogre Chief (tide) and Boar Lord (ember) keep their old arenas. Floor height in the pictures is not matched to the game floor; adjust if it looks off.
