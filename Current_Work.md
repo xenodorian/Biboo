@@ -362,3 +362,6 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 
 ## st63
 - Orc jump distance raised to 70 px (`ENEMY_JUMP_DIST`). It clears a pit when takeoff distance (random 3 to 13 px) plus the pit width is at most 70: 50 and 55 px pits always, 60 px about 70 percent (measured 7 of 10), 65 px about 20 percent (measured 2 of 8), 67 px and wider never.
+
+## st64
+- Her health bar is 200 px wide (was 100) and the HP text sits after it (x 232). Display only, it does not grow with Max HP.

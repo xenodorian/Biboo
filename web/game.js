@@ -2141,9 +2141,9 @@
     g.font = 'bold 7px monospace'; g.textBaseline = 'top'; g.lineWidth = 2; g.lineJoin = 'round';
     g.strokeStyle = '#000'; g.fillStyle = '#fff';
     g.strokeText('MAX', 8, 14); g.fillText('MAX', 8, 14);
-    bar(28, 15, 100, 6, hp / maxHp());
+    bar(28, 15, 200, 6, hp / maxHp());
     const t = `${hp}/${maxHp()}`;
-    g.strokeText(t, 132, 14); g.fillText(t, 132, 14);
+    g.strokeText(t, 232, 14); g.fillText(t, 232, 14);
   }
   function drawFloaters(sx, sy) {
     const X = wx => V.anchorX + (wx - camX) + sx, Y = wy => V.feetRow + camY + sy - wy;
