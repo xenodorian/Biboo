@@ -1,4 +1,4 @@
-/* Menus for Parry Perry: the one overlay panel (#start-menu) shows a "view" at a time.
+/* Menus for Perry Riposte: the one overlay panel (#start-menu) shows a "view" at a time.
  *
  *   main       Start / Resume / Retry, Moves, Items, Overworld, Fullscreen (items come from api.mainItems())
  *   moves      the controls and the unlocked combos (rows come from api.moveRows())
@@ -106,7 +106,7 @@
     if (hero) hero.style.display = (UI.view === 'main' && !(api.isTitle && api.isTitle())) || (UI.view === 'message' && !UI.opts.story) ? '' : 'none';
     const o = UI.opts;
     if (UI.view === 'main') {
-      title.textContent = o.title || 'Parry Perry';
+      title.textContent = o.title || 'Perry Riposte';
       msg.textContent = o.msg != null ? o.msg : 'Defeat the goblins and orcs';
       const list = h('div', 'actions');
       for (const it of api.mainItems()) list.appendChild(button(it.label, it.fn, it.primary ? 'primary' : '', it.id));

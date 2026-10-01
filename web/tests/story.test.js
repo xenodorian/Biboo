@@ -1,4 +1,4 @@
-/* The story: prologue on a new game, Mirror Max's confession, and the ending. Run: NODE_PATH=$(npm root -g) node web/tests/story.test.js [shots-dir] */
+/* The story: prologue on a new game, Mirror Perry's confession, and the ending. Run: NODE_PATH=$(npm root -g) node web/tests/story.test.js [shots-dir] */
 const path = require('path');
 const { chromium } = require('playwright');
 (async () => {

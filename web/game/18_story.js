@@ -1,31 +1,31 @@
 'use strict';
-  // ---- the story: a prologue before level 1, Mirror Max's confession when she falls, and the ending after the last level.
+  // ---- the story: a prologue before level 1, Mirror Perry's confession when she falls, and the ending after the last level.
   // Each page is a full-screen scene drawn on the canvas with the text panel (the message menu) on top. "Skip story" ends it.
   const STORY = {
     prologue: [
-      ['calm', 'Max Wishbone', 'Max was ten years old. She had a mom, a dad, and a little brother. The house was small and loud. It was home.'],
-      ['fire', 'The Fire', 'One night the house went up in flames. Max saw a figure on the lawn, lit by the fire. The figure looked exactly like her.'],
+      ['calm', 'Perry', 'Peregrine "Perry" Riposte was ten years old. She had a mom, a dad, and a little brother. The house was small and loud. It was home.'],
+      ['fire', 'The Fire', 'One night the house went up in flames. Perry saw a figure on the lawn, lit by the fire. The figure looked exactly like her.'],
       ['fire', 'The Fire', 'Her parents and her little brother never came out.'],
-      ['crowd', 'The Village', 'The village came running. They saw the smoke, and they saw Max. "She did it," they said. Nobody would listen. Max ran.'],
+      ['crowd', 'The Village', 'The village came running. They saw the smoke, and they saw Perry. "She did it," they said. Nobody would listen. Perry ran.'],
       ['sea', 'Miracle Island', 'She found a boat and sailed to Miracle Island. It is full of monsters. At its center lies the Legendary Wish Scroll, which can grant any wish.'],
-      ['sea', 'Miracle Island', 'Max gripped her sword. She would fight her way to the center.'],
+      ['sea', 'Miracle Island', 'Perry gripped her sword. She would fight her way to the center.'],
     ],
     double: [
-      ['double', 'Max, fallen', 'The other Max drops to one knee. Her body flickers like a candle in the wind.'],
+      ['double', 'Perry, fallen', 'The other Perry drops to one knee. Her body flickers like a candle in the wind.'],
       ['double', 'The Double', '"You still do not get it," she says. "I am not a stranger. I came from you."'],
       ['double', 'The Double', '"I was born from your magic and your worst feelings. I am every angry thought you ever had, with a body."'],
       ['double', 'The Double', '"You can beat me. It will not last. Unless you let your anger out in a healthy way, I will rise again."'],
-      ['double', 'Max', 'The double fades into red sparks. The way to the center of the island is open.'],
+      ['double', 'Perry', 'The double fades into red sparks. The way to the center of the island is open.'],
     ],
     ending: [
-      ['altar', 'The Center', 'Max walked on, past the last of the monsters, to the very center of the island.'],
-      ['altar', 'The Scroll', 'Behind a ring of old stones lay the Legendary Wish Scroll. It glowed softly. Max opened it. "Take me back," she said. "To before the fire."'],
+      ['altar', 'The Center', 'Perry walked on, past the last of the monsters, to the very center of the island.'],
+      ['altar', 'The Scroll', 'Behind a ring of old stones lay the Legendary Wish Scroll. It glowed softly. Perry opened it. "Take me back," she said. "To before the fire."'],
       ['rewind', 'Back in Time', 'The world spun backward. Days and nights blurred past, until the sky settled on that last evening.'],
-      ['calm', 'Home', 'Max stood outside her house. Through the window she saw her mom, her dad, and her little brother, laughing at supper. They were alive. This was what her anger had burned down.'],
+      ['calm', 'Home', 'Perry stood outside her house. Through the window she saw her mom, her dad, and her little brother, laughing at supper. They were alive. This was what her anger had burned down.'],
       ['calm', 'Home', 'All that hatred had never made her strong. It had only made her alone. It had hurt her far more than it ever helped.'],
-      ['meditate', 'Max', 'Max sat down in the grass. She took a deep breath. In, and out. Again. She let the anger go a little at a time, until it floated away like smoke.'],
-      ['sunrise', 'Max', '"Holding on to anger is self-destructive," Max said. "I have to appreciate what I have, before it is all gone."'],
-      ['sunrise', 'THE END', 'Thank you for playing Parry Perry.'],
+      ['meditate', 'Perry', 'Perry sat down in the grass. She took a deep breath. In, and out. Again. She let the anger go a little at a time, until it floated away like smoke.'],
+      ['sunrise', 'Perry', '"Holding on to anger is self-destructive," Perry said. "I have to appreciate what I have, before it is all gone."'],
+      ['sunrise', 'THE END', 'Thank you for playing Perry Riposte.'],
     ],
   };
   let story = null, storyAt = null;
