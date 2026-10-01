@@ -117,7 +117,7 @@
     const im = img[IDLE_SRC] && img[IDLE_SRC].im;
     if (!im) return;
     const s = o.s || 1.15;
-    const fr = (o.frame != null ? o.frame : Math.floor(clock / 280) % 4);
+    const fr = (o.frame != null ? o.frame : 0);
     const dx = Math.round(X - IDLE_AX * s);
     const dy = Math.round(Y - IDLE_AY * s + (o.sit ? 10 * s : 0));
     if (o.L) castShadow(silhouette('idle' + fr + ':' + s.toFixed(3), im, fr * IDLE_CW, 0, IDLE_CW, IDLE_CH, Math.round(IDLE_CW * s), Math.round(IDLE_CH * s), o.L.col), dx, dy, Y + (o.sit ? 10 * s : 0), o.L, o.alpha);
@@ -135,7 +135,7 @@
     const im = img[MM_SRC] && img[MM_SRC].im;
     if (!im) return;
     const s = o.s || 0.72;
-    const fr = o.frame != null ? o.frame : Math.floor(clock / 280) % 4;
+    const fr = o.frame != null ? o.frame : 0;
     const dx = Math.round(X - MM_AX * s);
     const dy = Math.round(Y - MM_AY * s + (o.sit ? 12 * s : 0));
     if (o.L) castShadow(silhouette('twin' + fr + ':' + s.toFixed(3), im, fr * MM_CW, 0, MM_CW, MM_CH, Math.round(MM_CW * s), Math.round(MM_CH * s), o.L.col), dx, dy, Y + (o.sit ? 12 * s : 0), o.L, o.alpha);
@@ -168,11 +168,11 @@
       drawTwin(c.twinX, c.twinGy, { s: c.s, L: c.L });
     }
     else if (sc === 'crowd') {
-      drawMax(60 + ((T * 0.05) % 260), c.gy, { s: c.s, L: c.L });
+      drawMax(205, c.gy, { s: c.s, L: c.L });
     }
     else if (sc === 'sea') {                                        // Perry rows toward the island in her boat, rocking on the swell
       const boat = img['assets/story/view/boat.png'] && img['assets/story/view/boat.png'].im;
-      const bob = Math.sin(T * 0.003) * 2, tilt = Math.sin(T * 0.0021) * 0.025;
+      const bob = 0, tilt = 0;
       if (boat) {                                                   // her reflection first: the boat mirrored in the water, rippled and fading with depth
         const left0 = c.boatX - 75, bw = boat.width, bh = boat.height, hb = bh - 5, hull = c.boatY + 4 + bob - 5;   // mirrored about the keel, so it touches the hull
         g.save();
