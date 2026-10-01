@@ -2311,7 +2311,40 @@
     }
     if (P.has('meter_charge')) rows.push({ move: 'meter_charge', note: 'hold', section: 'Unlocked combos', pad: 'L1+R1', keys: 'Q+W', title: 'Meter charge', how: 'hold both: every meter you own slowly fills' });
     if (P.has('double_jump')) rows.push({ move: 'double_jump', note: '', section: 'Unlocked combos', pad: 'Up, Up (air)', keys: 'Up then Up', title: 'Double jump', how: 'press jump again in the air: a spinning second jump' });
-    return rows.filter(r => r.section === 'Controls').concat(rows.filter(r => r.section !== 'Controls'));
+    // one line per move: the Left/Right variants of an input (Right+A, Left+A) become a single "Left/Right+A", duplicates go,
+    // and the unlocked combos are listed in the order the player unlocked them
+    const merge = (list) => {
+      const out = [];
+      for (const r of list) {
+        const prev = out.find(o => o.move === r.move && o.section === r.section && (o.title === r.title));
+        if (!prev) { out.push(Object.assign({}, r, { alts: [r] })); continue; }
+        if (!prev.alts.some(a => a.pad === r.pad)) prev.alts.push(r);
+      }
+      for (const o of out) {
+        if (o.alts.length < 2) continue;
+        const dir = t => t.replace(/\bLeft\b|\bRight\b/g, 'Left/Right').replace(/←|→/g, '←/→');
+        const pads = [...new Set(o.alts.map(a => dir(a.pad)))], keys = [...new Set(o.alts.map(a => dir(a.keys)))];
+        o.pad = pads.join(' or '); o.keys = keys.join(' or ');
+        o.how = o.how.replace(/hold Right/, 'hold Left or Right');
+      }
+      return out;
+    };
+    const squash = (t, sep, join) => {                           // Down-Down-Down-Down-A -> Down x4, A
+      const toks = t.split(sep), out = [];
+      for (let i = 0; i < toks.length;) { let j = i; while (j + 1 < toks.length && toks[j + 1] === toks[i]) j++; out.push(j > i ? `${toks[i]} x${j - i + 1}` : toks[i]); i = j + 1; }
+      return out.join(join);
+    };
+    const tidy = r => {
+      if (/-/.test(r.pad)) r.pad = squash(r.pad.replace(/Left\/Right-Left\/Right/g, 'Left/Right x2'), '-', ', ');
+      if (/ then /.test(r.keys)) r.keys = squash(r.keys.replace(/←\/→ then ←\/→/g, '←/→ x2'), ' then ', ', ');
+    };
+    const order = r => { const u = P.UNLOCKS.find(x => (x.moves || []).includes(r.move)); const i = u ? P.state.unlocked.indexOf(u.id) : -1; return i < 0 ? 1e6 : i; };
+    const ctrl = merge(rows.filter(r => r.section === 'Controls'));
+    const combos = merge(rows.filter(r => r.section !== 'Controls'));
+    combos.forEach(tidy);
+    combos.forEach((r, i) => { r._i = i; });
+    combos.sort((a, b) => order(a) - order(b) || a._i - b._i);
+    return ctrl.concat(combos);
   }
   function lockedCount() {
     const seen = new Set();
@@ -2674,7 +2707,7 @@
                     powerups: powerups.map(u => ({ item: u.item, x: u.x, y: u.y })),
                     foes: enemies.map(e => ({ type: e.type, x: e.x, fy: e.fy, anim: e.anim, jumping: !!e.jump, hp: e.hp, state: e.state, alive: alive(e), path: e.path, dir: e.dir })),
                     solids: curMap ? curMap.solids : [], plats: curMap ? curMap.plats : [], pits: curMap ? curMap.pits : [], bombs: curMap ? curMap.bombs.map(b => ({ x: b.x, fy: b.fy, gone: b.gone })) : [], shots: shots.map(q => ({ x: q.x, y: q.y, vx: q.vx, vy: q.vy, from: q.from })), pitFall: !!pitFall, feetNow: herY(), fx: { gems: gems.length } }),
-    enterLevel: n => enterLevel(n), warp: idx => { loadMap(idx, 'left'); }, setX: v => { x = v; }, goOverworld: () => goOverworld(),
+    moveRows: () => moveRows(), enterLevel: n => enterLevel(n), warp: idx => { loadMap(idx, 'left'); }, setX: v => { x = v; }, goOverworld: () => goOverworld(),
     menuOpen: () => !!(UI && UI.isOpen()),
     charging: () => ({ cur: cur && cur.id, kind: cur && cur.kind, chargeMs: Math.round(chargeMs), full: isCharged(), energy: Math.round(energyMeter * 10) / 10, power: cur && cur.power, hold: hold && hold.move }),
     beamStats: () => ({ cost: { ...BEAM_TICK_COST }, dmg: { ...BEAM_DMG } }),

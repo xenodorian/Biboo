@@ -384,3 +384,14 @@ Status:
 - [x] Step 5 level 5 mirror-Max boss (st68): map 5.11 (`bossMap('mirrormax','keep')`). `tools/creatures/mirror.py` builds the enemy from Max's own move sheets (flipped to face left, dark tint) with her real frame timings, root motion and hit shapes (her shapes are in sheet px, forward positive; converted to one hit box per frame). Moves: slash, thrust, upswing, push_kick, heavy, spin (damage 30/30/35/40/50/40). HP 200 (her cap). Not done yet (ideas for the next agent): energy moves and meters (energy wave, energy kick, burst), block and parry, dash thrust (382 px wide cells), a harder HP value (the `hp` field in mirror.py is a single knob), a purple/steel tint that reads less pink.
 
 All five steps are done. Possible polish: per-attack reach selection for enemies (they currently start any attack at the longest attack's reach), boss attack telegraphs, a boss drop of an unlock, balance pass (boss damage is 0.6 of table, boss HP 700 to 1400, enrage at 50 percent), and level 1 to 4 boss blurbs.
+
+## Big update 2 (user request 2026-10-01 02:30): story, level 4, cheats, ankhs, new backgrounds
+Plan and status (each step is pushed on its own; resume from the first unchecked box):
+- [x] A. Move list (st70): `moveRows()` in game.js merges redundant inputs (Left/Right variants, repeated tokens as "x4"), orders unlocked combos by pickup order (`P.state.unlocked`), and Up/Down scroll the list (`UI.nav` in ui.js when view is 'moves').
+- [ ] B. Renumber old levels 4 and 5 to 5 and 6, new level 4 (new unlockables) and a fifth boss
+- [ ] C. Cheats menu (L1+R1+L2+R2 in the pause menu): God Mode, Infinite Meter, Level Unlock, Master Unlock, No Pitfalls
+- [ ] D. Backgrounds: level 1 current, levels 2 to 6 from the five supplied images
+- [ ] E. Ankhs
+- [ ] F. Bosses immune to taunt and the empowerment beam, drops
+- [ ] G. New unlockables: AAAAA, AAAAB, ABAB-Up (fly), ABABAB (rainbow), AAAA+R1+R2+L1+L2
+- [ ] H. Story: prologue, Mirror Max dialogue, scroll, ending

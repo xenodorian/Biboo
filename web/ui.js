@@ -54,6 +54,10 @@
   UI.refresh = function () { if (UI.isOpen()) { UI.opts.keepIdx = UI.idx; UI.open(UI.view, UI.opts); } };
 
   UI.nav = function (d) {
+    if (UI.view === 'moves') {                                   // Up and Down scroll the move list
+      const sc = document.querySelector('#menu-view .menu-scroll');
+      if (sc) { sc.scrollTop += d * 44; return; }
+    }
     const bs = UI.buttons();
     if (!bs.length) return;
     UI.idx = (UI.idx + d + bs.length) % bs.length;
