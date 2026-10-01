@@ -3,7 +3,7 @@
 The GIF is one loop: the club rests on the ground in a cloud of dust (frames 8, 9, 0, 1), lifts and swings back (2 to 5),
 comes down on the ground (6) and hits (7). Its art faces left, like every sheet in this game.
 
-  * idle and walk: frame 0 with the dust removed, moved by the same squash and sway recipes as the other monsters (build.py)
+  * idle and walk: frame 0 with the dust removed and its club rebuilt from frame 6 (repair_club), moved by the same squash and sway recipes as the other monsters (build.py)
   * smash: the real frames 2 to 9. Frame 6 (club down) is the striking frame. It lasts 200 ms and is flagged `pause`, so the
     engine counts that time as the parry window: the damage lands when the 200 ms are up (see stepEnemyCore in 11_enemies.js)
   * hurt and death: the same recipes as the other monsters, moved from the still
@@ -58,10 +58,46 @@ def remove_dust(a):
     return a
 
 
+CLUB_SHIFT = (9, -9)         # frame 6's club moved by this (x, y) lies on frame 0's club (best match found by search; whole pixels only)
+CLUB_TIP = (30, 46, 92, 104)  # native window (x0, x1, y0, y1) around the club's end, where the loose cap pixels are closed up
+
+
+def close_gaps(a, win, fill=(65, 37, 36)):
+    """Morphological closing (3x3 dilate, then erode) inside win: pixels that sit in a gap of the club's outline get the club's dark shade."""
+    x0, x1, y0, y1 = win
+    op = a[..., 3] > 0
+    pad = np.pad(op, 1)
+    dil = np.zeros_like(op)
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            dil |= pad[1 + dy:1 + dy + op.shape[0], 1 + dx:1 + dx + op.shape[1]]
+    pad = np.pad(dil, 1, constant_values=True)
+    ero = np.ones_like(op)
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            ero &= pad[1 + dy:1 + dy + op.shape[0], 1 + dx:1 + dx + op.shape[1]]
+    add = ero & ~op
+    keep = np.zeros_like(op); keep[y0:y1 + 1, x0:x1 + 1] = True
+    a = a.copy(); a[add & keep] = (*fill, 255)
+    return a
+
+
+def repair_club(f0, f6):
+    """Frame 0's club is half hidden under the dust cloud, so deleting the dust leaves it chewed up. Everything of the club left of
+    the hand (x < BODY_X0) is rebuilt from frame 6, where the same club is clear: its pixels, moved by CLUB_SHIFT. The upper club and
+    the hand keep frame 0's own pixels. The loose dust of frame 0 is gone."""
+    a = remove_dust(f0); a[:, :BODY_X0, 3] = 0
+    club = (f6[..., 3] > 0) & ~dust_mask(f6); club[:, BODY_X0:] = False; club[:FEET_Y - 40] = False
+    for y, x in zip(*np.nonzero(club)):
+        x0, y0 = x + CLUB_SHIFT[0], y + CLUB_SHIFT[1]
+        if x0 < BODY_X0 and 0 <= y0 < a.shape[0]: a[y0, x0] = f6[y, x]
+    return close_gaps(a, CLUB_TIP)
+
+
 def build():
     import build as B                                            # the recipes shared with the other monsters
     F = frames()
-    still = remove_dust(F[0])
+    still = repair_club(F[0], F[6])
     used = [still] + [F[i] for i in SMASH]
     alpha = np.any(np.stack([u[..., 3] > 0 for u in used]), 0)
     ys, xs = np.nonzero(alpha)
