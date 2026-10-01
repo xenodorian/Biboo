@@ -26,7 +26,7 @@
   const P = (x0, x1, top) => ({ x0, x1, top });
   const X = (x0, x1) => ({ x0, x1 });                     // a pit in the ground
   const B = (x, fy) => ({ x, fy: fy || 0 });              // a bomb
-  const C = (x, fy, item) => (item ? { x, fy: fy || 0, item } : { x, fy: fy || 0 });
+  const C = (x, fy) => ({ x, fy: fy || 0 });                          // crates hold no unlocks any more: moves are bought from the Bone Merchant (progress.js UNLOCKS has each one's level)
   const E = (type, x, a, b, sight, fy) => ({ type, x, fy: fy || 0, path: [a, b], sight: sight || 100 });
   const G = (x, a, b, sight, fy) => E('goblin', x, a, b, sight, fy);
   const O = (x, a, b, sight, fy) => E('orc', x, a, b, sight, fy);
@@ -77,7 +77,8 @@
   const COUNT = { 2: 9, 3: 9, 4: 9 };                      // levels 2 to 4 end at x.9 (a locked door); level 5 has MAPS_PER_LEVEL maps
   // n: difficulty class (old level number, kept so the terrain of old levels stays the same), i: map index, item: unlock id,
   // ln: the level number shown to the player (picks the enemy rung), sk: seed key (defaults to n), cnt: map count of the level
-  function genMap(n, i, item, ln, sk, cnt) {
+  function genMap(n, i, item0, ln, sk, cnt) {
+    const item = null;                                           // (the old unlock crates are gone; the random stream below is unchanged)
     const r = rng((sk || n) * 7919 + i * 104729 + 17);
     const pick = (a, b) => a + Math.floor(r() * (b - a + 1));
     const chance = p => r() < p;
@@ -148,23 +149,15 @@
     m.final = final;
     return m;
   }
-  const ITEMS = {                                          // level number -> map index (0 based) -> unlock id
-    // level 2 (maps 2.1 to 2.8), then the locked door at the end of 2.9
-    2: { 0: 'recover', 1: 'taunt', 2: 'empower_beam', 3: 'energy_kick', 4: 'energy_dash', 5: 'energy_burst', 6: 'energy_wave', 7: 'cloud_beam' },
-    3: { 0: 'heavy_chop', 2: 'crash', 4: 'fire_beam', 6: 'laser_beam' },   // 3.8 holds the key drop, 3.9 the locked door
-    4: { 0: 'meter_charge', 3: 'earthquake', 6: 'meteor' },   // old level 4, now level 5 (5.9 has the locked door)
-    5: {},                                                    // old level 5, now level 6
-    n4: { 0: 'chain', 2: 'chain_burst', 4: 'fly', 6: 'rainbow', 7: 'ultimate' },   // the new level 4 (4.9 has the locked door)
-  };
-  const gen = (n, ln, sk, items, cnt) => Array.from({ length: cnt || COUNT[n] || MAPS_PER_LEVEL }, (_, i) => genMap(n, i, (items || ITEMS[n] || {})[i], ln, sk, cnt));
+  const gen = (n, ln, sk, items, cnt) => Array.from({ length: cnt || COUNT[n] || MAPS_PER_LEVEL }, (_, i) => genMap(n, i, null, ln, sk, cnt));
 
   L1[L1.length - 1].final = true;              // level 1: map 1.9 holds the locked door to the boss arena 1.10
   const levels = [
-    { n: 1, name: 'Green Trail', blurb: 'Goblins in the grass. Find every move to open the door at the end.', tint: null, door: 'key', maps: L1 },
-    { n: 2, name: 'Mossy Falls', blurb: 'Waterfalls and old stone. Hobgoblins and raiders join the patrols.', tint: null, door: 'key', bg: 'falls', maps: gen(2, 2) },
-    { n: 3, name: 'Sunstone Canyon', blurb: 'Red cliffs and long drops. The guards look farther.', tint: null, door: 'key', bg: 'canyon', maps: gen(3, 3) },
-    { n: 4, name: 'Sunset Shore', blurb: 'A calm beach with a bad crowd. Five new moves wait here.', tint: null, door: 'key', bg: 'shore', maps: gen(3, 4, 33, ITEMS.n4, 9) },
-    { n: 5, name: 'Mire Wood', blurb: 'Hot, wet and crowded.', tint: null, door: 'key', bg: 'mire', maps: gen(4, 5) },
+    { n: 1, name: 'Green Trail', blurb: 'Goblins in the grass. Clear each screen to open its door.', tint: null, maps: L1 },
+    { n: 2, name: 'Mossy Falls', blurb: 'Waterfalls and old stone. Hobgoblins and raiders join the patrols.', tint: null, bg: 'falls', maps: gen(2, 2) },
+    { n: 3, name: 'Sunstone Canyon', blurb: 'Red cliffs and long drops. The guards look farther.', tint: null, bg: 'canyon', maps: gen(3, 3) },
+    { n: 4, name: 'Sunset Shore', blurb: 'A calm beach with a bad crowd.', tint: null, bg: 'shore', maps: gen(3, 4, 33, null, 9) },
+    { n: 5, name: 'Mire Wood', blurb: 'Hot, wet and crowded.', tint: null, bg: 'mire', maps: gen(4, 5) },
     { n: 6, name: 'Moonlit Sanctum', blurb: 'The last gate. Something waits at the center of the island.', tint: null, bg: 'sanctum', maps: gen(5, 6) },
   ];
   // Boss arenas: one closed map added at the end of levels 1 to 5 (behind the locked door of x.9). The boss's death opens the right edge.
@@ -175,27 +168,38 @@
   levels[3].maps.push(bossMap('ogrechief', 'tide', { plats: [P(40, 110, 60), P(274, 344, 60)], crates: [C(75, 60), C(330)] }));
   levels[4].maps.push(bossMap('boarlord', 'ember', { plats: [P(150, 234, 70)], crates: [C(192, 70)] }));
   levels[5].maps.push(bossMap('mirrormax', 'keep', { plats: [P(150, 234, 70)] }));      // 6.11 the final boss: an enemy Max
-  // Ankhs lying on the maps (like coins): 1 to 3 per ordinary map, on the ground or a platform, away from pits, bombs and crates.
-  // Placed here with their own seeded generator so the terrain and enemies above are unchanged.
+  // Leaves (gold coins) lying on every map in a few groups: a line on the ground or a platform, or an arc over a pit. Some crates hold a cache of
+  // leaves and some an ankh (ankhs are no longer lying about). Placed with their own seeded generator so terrain and enemies are unchanged.
   levels.forEach(L => L.maps.forEach((m, i) => {
-    m.ankhs = [];
-    if (m.boss) return;
-    const r = rng(L.n * 6007 + i * 131 + 5), cnt = 1 + (r() < 0.5 ? 1 : 0) + (r() < 0.15 ? 1 : 0);
-    const onGround = x => !m.pits.some(q => x > q.x0 - 14 && x < q.x1 + 14) && !m.crates.some(c => c.fy === 0 && Math.abs(c.x - x) < 16) && !m.bombs.some(b => b.fy === 0 && Math.abs(b.x - x) < 18);
-    for (let k = 0; k < cnt; k++) {
-      for (let t = 0; t < 20; t++) {
-        const plat = m.plats.length && r() < 0.4 ? m.plats[Math.floor(r() * m.plats.length)] : null;
-        const x = plat ? Math.round(plat.x0 + 10 + r() * (plat.x1 - plat.x0 - 20)) : Math.round(40 + r() * 300), fy = plat ? plat.top : 0;
-        if (!plat && !onGround(x)) continue;
-        if (plat && m.crates.some(c => c.fy === fy && Math.abs(c.x - x) < 16)) continue;
-        if (m.ankhs.some(a => a.fy === fy && Math.abs(a.x - x) < 40)) continue;
-        m.ankhs.push({ x, fy });
-        break;
+    const r = rng(L.n * 7001 + i * 173 + 11);
+    m.leaves = []; m.ankhs = [];
+    const clearGround = x => !m.pits.some(q => x > q.x0 - 6 && x < q.x1 + 6) && !m.bombs.some(b => (b.fy || 0) === 0 && Math.abs(b.x - x) < 14) && !m.solids.some(q => x > q.x0 - 4 && x < q.x1 + 4);
+    const groups = m.boss ? 2 : 2 + (r() < 0.6 ? 1 : 0) + (r() < 0.3 ? 1 : 0);
+    for (let k = 0; k < groups; k++) {
+      const roll = r();
+      if (!m.boss && m.pits.length && roll < 0.55) {                         // an arc over a pit
+        const q = m.pits[Math.floor(r() * m.pits.length)], n = 5, w = q.x1 - q.x0 + 20;
+        for (let j = 0; j < n; j++) { const t = j / (n - 1); m.leaves.push({ x: Math.round(q.x0 - 10 + w * t), fy: 0, h: Math.round(14 + 30 * Math.sin(Math.PI * t)) }); }
+      } else if (!m.boss && m.plats.length && roll < 0.8) {                  // a short line on a platform
+        const p = m.plats[Math.floor(r() * m.plats.length)], n = Math.max(2, Math.min(5, Math.floor((p.x1 - p.x0 - 14) / 13)));
+        const x0 = Math.round((p.x0 + p.x1) / 2 - (n - 1) * 6.5);
+        for (let j = 0; j < n; j++) m.leaves.push({ x: x0 + j * 13, fy: p.top, h: 12 });
+      } else {                                                               // a line on the ground
+        const n = 3 + Math.floor(r() * 3);
+        for (let t = 0; t < 14; t++) {
+          const x0 = Math.round(40 + r() * (300 - n * 13));
+          const xs = Array.from({ length: n }, (_, j) => x0 + j * 13);
+          if (!xs.every(clearGround) || xs.some(x => m.leaves.some(l => l.fy === 0 && l.h <= 14 && Math.abs(l.x - x) < 12))) continue;
+          xs.forEach(x => m.leaves.push({ x, fy: 0, h: 12 })); break;
+        }
       }
     }
+    const crates = m.crates.slice().sort(() => r() - 0.5);
+    const lvScale = 1 + 0.25 * (L.n - 1), cache = () => 5 * Math.round((15 + r() * 30) * lvScale / 5);
+    if (m.boss) { crates.forEach(c => { c.loot = 'leaves:' + cache(); }); return; }
+    if (crates.length && r() < 0.4) crates.shift().loot = 'ankh';
+    if (crates.length && r() < 0.5) crates.shift().loot = 'leaves:' + cache();
   }));
-  const nameOf = { }; // filled below: unlock id -> 'level.map' where its crate is
-  levels.forEach(L => L.maps.forEach((m, i) => m.crates.forEach(c => { if (c.item) nameOf[c.item] = `${L.n}.${i + 1}`; })));
   L1.forEach((m, i) => { m.id = `1.${i + 1}`; });
   levels.slice(1).forEach(L => L.maps.forEach((m, i) => { m.id = `${L.n}.${i + 1}`; }));
 
@@ -203,6 +207,6 @@
   const training = { n: 0, name: 'Sunset Training', blurb: 'Optional. Hit the heavy bag with any move you own.', bg: 'training', training: true, tint: null,
     maps: [{ id: 'T', solids: [], plats: [], pits: [], bombs: [], crates: [], enemies: [{ type: 'heavybag', x: 140, fy: 12 }], arena: true }] };
 
-  root.BIBOO_LEVELS = { MAP_W, MAPS_PER_LEVEL, levels, whereIs: nameOf, training };
+  root.BIBOO_LEVELS = { MAP_W, MAPS_PER_LEVEL, levels, training };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.BIBOO_LEVELS;
 })(typeof window !== 'undefined' ? window : globalThis);

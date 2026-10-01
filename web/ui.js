@@ -70,7 +70,8 @@
   };
   // B or Escape: a sub-menu goes back to the main list; the main list closes (only if the game allows it)
   UI.back = function () {
-    if (UI.view === 'moves' || UI.view === 'gems') { UI.open('main', { msg: UI.opts.msg }); return; }
+    if (UI.view === 'moves' || UI.view === 'gems' || UI.view === 'shop') {
+      if (UI.view === 'shop' && UI.opts.back) { UI.opts.back(); return; } UI.open('main', { msg: UI.opts.msg }); return; }
     if (UI.api && UI.api.closeMenu) UI.api.closeMenu();
   };
 
@@ -97,6 +98,10 @@
       title.textContent = 'Gems';
       msg.textContent = 'Gems you collect are stored here. Use one to fill a meter or heal.';
       box.appendChild(gemsView(api));
+    } else if (UI.view === 'shop') {
+      title.textContent = 'Bone Merchant';
+      msg.textContent = o.msg || '';
+      box.appendChild(shopView(api));
     } else if (UI.view === 'message') {
       title.textContent = o.title || '';
       msg.textContent = o.msg || '';
@@ -139,10 +144,44 @@
     if (api.moveNotes) for (const n of api.moveNotes(keys ? 'keys' : 'pad')) wrap.appendChild(h('p', 'note', n));
     wrap.appendChild(scroll);
     const locked = api.lockedCount ? api.lockedCount() : 0;
-    if (locked > 0) wrap.appendChild(h('p', 'note', `${locked} more moves are still locked. Smash the golden crates to find them.`));
+    if (locked > 0) wrap.appendChild(h('p', 'note', `${locked} more moves are still locked. Buy Scrolls and Mutagens from the Bone Merchant on the overworld.`));
     const list = h('div', 'actions');
     list.appendChild(button('Back', () => UI.open('main', { msg: UI.opts.msg }), 'primary'));
     wrap.appendChild(list);
+    return wrap;
+  }
+
+  // a 32px pixel-art icon cut from the item sheets (api.sprite returns css for a name: leaf, bone, powder, quartz, garnet, diamond)
+  function icon(api, name) {
+    const sp = api.sprite ? api.sprite(name) : null, e = h('span', 'item-icon');
+    if (sp) Object.assign(e.style, sp); else e.classList.add('plain');
+    return e;
+  }
+  function shopView(api) {
+    const wrap = h('div', 'shop-wrap');
+    const bal = h('div', 'shop-balance'); bal.appendChild(icon(api, 'leaf')); bal.appendChild(h('span', '', ' ' + api.leaves() + ' Leaves'));
+    wrap.appendChild(bal);
+    const scroll = h('div', 'scroll menu-scroll shop-scroll');
+    for (const sec of api.shopRows()) {
+      scroll.appendChild(h('h3', '', sec.title));
+      for (const r of sec.rows) {
+        const row = h('div', 'shop-row' + (r.owned ? ' owned' : ''));
+        row.appendChild(icon(api, r.sprite));
+        const info = h('span', 'shop-info');
+        info.appendChild(h('b', '', r.label));
+        info.appendChild(h('small', '', r.desc + (r.have ? ' (' + r.have + ')' : '')));
+        if (r.note) info.appendChild(h('small', 'shop-note', r.note));
+        row.appendChild(info);
+        const b = button(r.owned ? 'Owned' : r.price + ' Leaves', () => { const m = api.buy(r.key); UI.opts.msg = m || ''; UI.opts.keepIdx = UI.idx; UI.open('shop', UI.opts); }, '', 'buy-' + r.key);
+        b.disabled = !r.canBuy;
+        row.appendChild(b);
+        scroll.appendChild(row);
+      }
+    }
+    wrap.appendChild(scroll);
+    const acts = h('div', 'actions');
+    acts.appendChild(button('Leave the shop', () => { if (UI.opts.back) UI.opts.back(); else UI.api.closeMenu(); }, 'primary', 'btn-shop-back'));
+    wrap.appendChild(acts);
     return wrap;
   }
 
@@ -151,8 +190,7 @@
     const list = h('div', 'gem-list');
     for (const r of api.gemRows()) {
       const row = h('div', 'gem-row');
-      const sw = h('span', 'gem-swatch'); sw.style.background = r.color;
-      row.appendChild(sw);
+      row.appendChild(icon(api, r.sprite));
       const name = h('span', 'gem-name', r.label);
       const cnt = h('span', 'gem-count', 'x ' + r.count);
       const note = h('span', 'gem-note', r.note || '');

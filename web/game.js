@@ -150,8 +150,8 @@
     return pool;
   }
   // A locked door level (door: 'key'): the door at the end stays locked until every unlock in the level is owned. There are no keys.
-  const doorLocked = () => !!level && level.def.door === 'key' && !allMovesHere();
-  const allMovesHere = () => !!level && level.def.maps.every(m => m.crates.every(c => !c.item || P.has(c.item)));
+  // Every map's door (the right edge) stays shut until every enemy on the map is defeated. There is no way back to the map before.
+  const doorOpen = () => !enemies.some(e => alive(e) && !EN[e.type].ai.prop);
   function spawnGem(wx, kind, fy) { gems.push({ x: wx, y: (fy || 0) + 14 + Math.random() * 8, fy: fy || 0, kind, bob: Math.random() * 6.28, t0: clock }); }
   // Progress is kept in progress.js; the meters live here while playing and are copied over when it is saved.
   function syncProgress() { P.state.meters = { energy: energyMeter, empower: empowerMeter, super: superMeter }; P.save(); }
@@ -186,16 +186,22 @@
     if (clock - lastDeny > 500) { lastDeny = clock; floater(bodyX(), herY() + herTop() + 8, n[0] === 'energy' ? 'No energy' : n[0] === 'super' ? 'No super' : 'No empower', n[0] === 'energy' ? '#4af' : n[0] === 'super' ? '#c6f' : '#fa4'); }
   }
   // Walking over a gem puts it in the gem bag (the Gems menu); nothing is applied until the player uses it there.
-  const GEM_LABEL = { health: 'Health Gem', energy: 'Energy Gem', empower: 'Empower Gem', super: 'Super Gem' };
+  const GEM_LABEL = { health: 'Bone', energy: 'Quartz', empower: 'Garnet', super: 'Diamond' };      // the gems, renamed (they work as before)
   const GEM_COLOR = { health: '#3ddc5f', energy: '#4af', empower: '#fa4', super: '#c6f' };
   const UP_LABEL = { energy: 'ENG', empower: 'EMP', super: 'SUP' };
+  const GEM_SPRITE = { health: 'bone', up_hp: 'powder', energy: 'quartz', empower: 'garnet', super: 'diamond' };
   const gemHeal = () => Math.ceil(maxHp() / 4);                                // a health gem: +25 percent of Max HP
   function stepGems(dt) {
     for (const gm of gems) gm.bob += dt * 0.006;
     gems = gems.filter(gm => {
-      if (clock - gm.t0 > GEM_LIFE && !gm.perm && gm.kind !== 'ankh') return false;
+      if (clock - gm.t0 > GEM_LIFE && !gm.perm && gm.kind !== 'ankh' && gm.kind !== 'leaf') return false;
       const hy = herY();
       if (Math.abs(gm.x - bodyX()) < GEM_PICKUP && hy < gm.fy + 50 && hy > gm.fy - 20) {
+        if (gm.kind === 'leaf') {                          // a Leaf (gold coin): straight into the purse
+          P.addLeaves(gm.val || 1); floater(gm.x, gm.y + 20, '+' + (gm.val || 1), '#ffd24a');
+          if (gm.key && level) level.leafGot.add(gm.key);
+          return false;
+        }
         if (gm.kind === 'ankh') {
           if (P.addAnkh(1) > 0) { floater(gm.x, gm.y + 24, '+1 ANKH', '#ffd24a'); if (gm.key && level) level.ankhGot.add(gm.key); return false; }
           floater(gm.x, gm.y + 24, 'ANKHS FULL', '#ffd24a'); return true;
@@ -203,7 +209,7 @@
         if (gm.kind.startsWith('up_')) {                   // a meter upgrade: applied at once, the meter grows by 25 and fills by 25
           const m = gm.kind.slice(3);
           if (m === 'hp') {                                // +25 Max HP: the cap and the current health both grow by 25
-            if (P.raiseMax('hp') > 0) { hp = Math.min(maxHp(), hp + P.MAX_STEP); floater(gm.x, gm.y + 24, '+25 MAX HP', GEM_COLOR.health); }
+            if (P.raiseMax('hp') > 0) { hp = Math.min(maxHp(), hp + P.MAX_STEP); floater(gm.x, gm.y + 24, 'BONE POWDER +25 MAX HP', GEM_COLOR.health); }
             else floater(gm.x, gm.y + 24, 'HP at its limit', GEM_COLOR.health);
             return false;
           }
@@ -234,13 +240,55 @@
     else { superMeter = Math.min(maxOf('super'), superMeter + GEM_VALUE); meterFlash.super = clock + 400; }
     syncProgress();
   }
+  // ---- the Bone Merchant (on the overworld): Leaves buy Bones (health), Bone Powder (+25 max HP), Quartz, Garnet and Diamonds (meter refills),
+  // Mutagens (the unlocks that use a meter) and Warrior Scrolls (every other unlock). An unlock goes on sale once its level's predecessor is beaten.
+  function shopRows() {
+    const PR = P.PRICE, L = P.state.leaves, sections = [];
+    const gemRow = (kind, key, label, sprite) => {
+      const need = kind !== 'health' && !P.meterOn(kind), full = (P.state.gems[kind] || 0) >= P.MAX_GEMS, price = PR[key];
+      return { key, label, sprite, price, desc: kind === 'health' ? `Restores ${gemHeal()} HP. Use it from the Gems menu.` : `Refills ${GEM_VALUE} ${kind}. Use it from the Gems menu.`,
+               have: `You hold ${P.state.gems[kind] || 0}`, canBuy: !need && !full && L >= price, note: need ? `Needs a ${kind[0].toUpperCase() + kind.slice(1)} Mutagen` : full ? 'Bag full' : L < price ? 'Not enough Leaves' : '' };
+    };
+    sections.push({ title: 'Supplies', rows: [
+      gemRow('health', 'bone', 'Bone', 'bone'), gemRow('energy', 'quartz', 'Quartz', 'quartz'), gemRow('empower', 'garnet', 'Garnet', 'garnet'), gemRow('super', 'diamond', 'Diamond', 'diamond'),
+      { key: 'powder', label: 'Bone Powder', sprite: 'powder', price: PR.powder, desc: `Raises your maximum HP by ${P.MAX_STEP} (now ${maxHp()}, limit ${P.MAX_CAP}).`, have: '',
+        canBuy: maxHp() < P.MAX_CAP && L >= PR.powder, note: maxHp() >= P.MAX_CAP ? 'Max HP reached' : L < PR.powder ? 'Not enough Leaves' : '' } ] });
+    for (const [kind, title, noun] of [['mutagen', 'Mutagens', 'Mutagen'], ['scroll', 'Warrior Scrolls', 'Scroll']]) {
+      const rows = P.UNLOCKS.filter(u => u.shop === kind).sort((a, b) => a.level - b.level).map(u => {
+        const own = P.has(u.id), open = u.level <= P.state.levelsUnlocked, price = P.priceOf(u);
+        return { key: 'unlock:' + u.id, label: `${noun}: ${u.name}`, sprite: kind === 'mutagen' ? 'quartz' : 'scroll', price, desc: u.hint, have: `Level ${u.level}`, owned: own,
+                 canBuy: !own && open && L >= price, note: own ? 'Owned' : !open ? `Beat level ${u.level - 1} first` : L < price ? 'Not enough Leaves' : '' };
+      });
+      sections.push({ title, rows });
+    }
+    return sections;
+  }
+  function buy(key) {                                              // returns the message to show, or '' when nothing was bought
+    const row = shopRows().flatMap(sct => sct.rows).find(r => r.key === key);
+    if (!row || !row.canBuy) return row && row.note ? row.note : '';
+    P.addLeaves(-row.price);
+    if (key === 'powder') { P.raiseMax('hp'); if (level) hp = Math.min(maxHp(), hp + P.MAX_STEP); }
+    else if (key.startsWith('unlock:')) {
+      const it = P.byId[key.slice(7)]; unlockItem(it.id);
+      syncProgress();
+      return `Bought ${row.label}. ${unlockLines(it).join('  |  ')}`;
+    } else P.addGem({ bone: 'health', quartz: 'energy', garnet: 'empower', diamond: 'super' }[key], 1);
+    syncProgress();
+    return `Bought ${row.label}.`;
+  }
+  function spriteCss(name) {
+    const I = D.items; if (!I) return null;
+    if (name === 'leaf') return { backgroundImage: `url(${I.leaf})`, backgroundSize: `${I.cell * I.leafFrames * 2}px 32px`, backgroundPosition: '0 0' };
+    if (name in I.gems) return { backgroundImage: `url(${I.gemSheet})`, backgroundSize: `${I.cell * 5 * 2}px 32px`, backgroundPosition: `${-I.gems[name] * 32}px 0` };
+    return null;
+  }
   function gemRows() {
     return P.GEM_KINDS.map(kind => {
       let note = '';
       if (kind === 'health') note = level ? `+${gemHeal()} HP  (${hp}/${maxHp()})` : `+${gemHeal()} HP, use it inside a level`;
       else if (!P.meterOn(kind)) note = 'meter not unlocked yet';
       else note = `+${GEM_VALUE}  (${Math.round(meterOf(kind))}/${maxOf(kind)})`;
-      return { kind, label: GEM_LABEL[kind], color: GEM_COLOR[kind], count: P.state.gems[kind] || 0, canUse: canUseGem(kind), note };
+      return { kind, sprite: GEM_SPRITE[kind], label: GEM_LABEL[kind], color: GEM_COLOR[kind], count: P.state.gems[kind] || 0, canUse: canUseGem(kind), note };
     });
   }
 
@@ -277,6 +325,7 @@
   const EN = D.enemies || {};
   for (const e of Object.values(EN)) srcs.push(e.sheet);
   if (D.training) srcs.push(D.training.bunny.sheet);
+  if (D.items) srcs.push(D.items.leaf, D.items.gemSheet, D.items.merchant.src);
 
   // ------------------------------------------------------------------ input
   const BUTTONS = ['Up', 'Down', 'Left', 'Right', 'A', 'B', 'X', 'Y', 'L1', 'L2', 'R1', 'R2', 'R'];
@@ -1106,7 +1155,7 @@
     story = null; storyAt = null;                    // any story page still open (a test hook starting a level) is dropped
     const def = custom || LV.levels[n - 1];
     if (!def) return;
-    level = { n, def, idx: 0, killed: new Set(), broken: new Set(), popped: new Set(), pending: new Map(), ankhGot: new Set() };
+    level = { n, def, idx: 0, killed: new Set(), broken: new Set(), popped: new Set(), pending: new Map(), ankhGot: new Set(), leafGot: new Set() };
     if (n > 0 && P.state.ankhs < P.ANKH_START) P.state.ankhs = P.ANKH_START;          // every level starts with at least 3 ankhs
     kills = 0; hp = maxHp(); gameOver = false; paused = false; respawnOn = false;
     screen = 'level';
@@ -1121,8 +1170,7 @@
     level.idx = idx;
     const md = level.def.maps[idx];
     curMap = { idx, id: md.id, def: md, solids: md.solids, plats: md.plats,
-               crates: md.crates.map((c, i) => ({ key: idx + ':' + i, x: c.x, fy: c.fy, item: c.item || null, broken: level.broken.has(idx + ':' + i) }))
-                 .filter(c => !(c.item && P.has(c.item))),                                 // a golden crate exists only while its unlock is not owned
+               crates: md.crates.map((c, i) => ({ key: idx + ':' + i, x: c.x, fy: c.fy, item: null, loot: c.loot || null, broken: level.broken.has(idx + ':' + i) })),                                 // a golden crate exists only while its unlock is not owned
                pits: (md.pits || []).map(p => ({ x0: p.x0, x1: p.x1 })),
                bombs: (md.bombs || []).map((b, i) => ({ key: idx + ':b' + i, x: b.x, fy: b.fy || 0, gone: level.popped.has(idx + ':b' + i), fuse: 0 })) };
     shots.length = 0; pitFall = null;
@@ -1136,33 +1184,22 @@
       if (!sf) for (const p of curMap.pits) { if (p.x1 <= d.x) lo = Math.max(lo, p.x1 + 2); else if (p.x0 >= d.x) hi = Math.min(hi, p.x0 - 2); }   // a ground enemy stays between the pits
       spawn(d.type, d.x, { fy: d.fy, path: d.path, sight: d.sight, key, lo, hi, lo0, hi0 });
     });
-    (md.ankhs || []).forEach((a, i) => {                             // ankhs lying on the map: gone for good once picked up (until the level restarts)
-      const key = idx + ':a' + i;
-      if (!level.ankhGot.has(key)) gems.push({ x: a.x, y: a.fy + 16, fy: a.fy, kind: 'ankh', perm: true, key, bob: Math.random() * 6.28, t0: clock });
+    (md.leaves || []).forEach((l, i) => {                            // Leaves lying on the map: gone for good once picked up (until the level restarts)
+      const key = idx + ':l' + i;
+      if (!level.leafGot.has(key)) gems.push({ x: l.x, y: l.fy + l.h, fy: l.fy, kind: 'leaf', val: 1, perm: true, key, bob: Math.random() * 6.28, t0: clock });
     });
-    for (const c of curMap.crates) {                                 // a golden crate smashed earlier whose item was not picked up
-      const pend = level.pending.get(c.key);
-      if (c.broken && c.item && pend && !P.has(pend)) powerups.push({ key: c.key, item: pend, x: c.x, y: c.fy + 16, t0: clock });
-    }
     x = side === 'left' ? 26 : MAP_W - 26; facing = side === 'left' ? 1 : -1;
     floorY = 0; fall = null; stun = null; slide = null; cur = null; queued = null; hold = null; rumble = null; tint = null; flight = null; rainbow = null; ult = null;
     visFace = facing; invuln = clock + 600; prevFeet = null; lastCx = null; camX = V.anchorX; camY = 0; fadeUntil = clock + FADE_MS;
     if (killsEl) killsEl.textContent = '';
   }
   function exitMap(dir) {                        // true when the map changed (or the level ended)
+    if (dir < 0) return false;                   // the left edge is a wall: no backtracking, so a knockback can never carry her to the map before
+    if (!doorOpen()) { hint('Defeat every enemy to open the door'); return false; }
     const last = level.def.maps.length - 1;
-    if (dir > 0) {
-      if (level.idx < last) {
-        if (level.def.maps[level.idx + 1].boss && doorLocked()) { hint('The door is locked. Unlock every move in this level first.'); return false; }
-        loadMap(level.idx + 1, 'left'); banners.push({ title: `Level ${level.n}.${level.idx + 1}`, t0: clock, ms: 1300 }); return true;
-      }
-      if (doorLocked() && !curMap.def.boss) { hint('The door is locked. Unlock every move in this level first.'); return false; }
-      if (level.def.door !== 'key' && enemies.some(alive)) { hint('Defeat every enemy to open the gate'); return false; }
-      levelComplete();
-      return true;
-    }
-    if (level.idx > 0) { loadMap(level.idx - 1, 'right'); banners.push({ title: `Level ${level.n}.${level.idx + 1}`, t0: clock, ms: 1300 }); return true; }
-    return false;
+    if (level.idx < last) { loadMap(level.idx + 1, 'left'); banners.push({ title: `Level ${level.n}.${level.idx + 1}`, t0: clock, ms: 1300 }); return true; }
+    levelComplete();
+    return true;
   }
   // She is a point on the ground (her anchor, `playerX()`) for standing and for the doors, and a narrow foot (FOOT px
   // each side) for barriers, so turning around never moves her against a wall or off a ledge.
@@ -1251,13 +1288,14 @@
   function breakCrate(c) {
     if (c.broken) return;
     c.broken = true; level.broken.add(c.key);
-    burst(c.x, c.fy + 9, 9, c.item ? ['#e8c050', '#c9962a', '#fff2a0'] : ['#8a5a2b', '#6b4420', '#b07a3c']);
-    if (c.item) {
-      // A golden crate holds exactly the unlock assigned to its map, and nothing else: no substitute, no loot. It is only
-      // built while that unlock is not owned (loadMap), so smashing it always floats that unlock.
-      level.pending.set(c.key, c.item);
-      powerups.push({ key: c.key, item: c.item, x: c.x, y: c.fy + 16, t0: clock });
-    } else {                                     // every plain crate drops something useful: a health gem, a meter gem, or a +25 meter upgrade
+    burst(c.x, c.fy + 9, 9, c.loot ? ['#e8c050', '#c9962a', '#fff2a0'] : ['#8a5a2b', '#6b4420', '#b07a3c']);
+    if (c.loot === 'ankh') { spawnGem(c.x, 'ankh', c.fy); floater(c.x, c.fy + 26, 'ANKH', '#ffd24a'); return; }
+    if (c.loot && c.loot.startsWith('leaves:')) {                    // a cache: a shower of leaves, the big ones worth 5
+      let n = +c.loot.split(':')[1]; const big = Math.floor(n / 5), small = n - big * 5, pieces = [...Array(big).fill(5), ...Array(small).fill(1)];
+      pieces.forEach((v, k) => { const side = (k % 2 ? 1 : -1) * (6 + Math.floor(k / 2) * 6); gems.push({ x: c.x + Math.max(-60, Math.min(60, side)), y: c.fy + 14 + (k % 3) * 7, fy: c.fy, kind: 'leaf', val: v, bob: Math.random() * 6.28, t0: clock }); });
+      burst(c.x, c.fy + 14, 14, ['#ffd24a', '#fff2a0', '#c9962a']); floater(c.x, c.fy + 26, n + ' LEAVES', '#ffd24a');
+    }
+    {                                            // every crate drops something useful: a health gem, a meter gem, or a +25 meter upgrade
       const pool = lootPool();
       if (pool.length) spawnGem(c.x, pool[Math.floor(Math.random() * pool.length)], c.fy);
     }
@@ -1278,29 +1316,6 @@
       if (!seen.has(line)) { seen.add(line); out.push(line); }
     }
     return out.length ? out : [it.hint];
-  }
-  // the unlocks a golden crate may give: only ones the player does not own yet, and not already floating as an item
-  function unlockPool(forItem) {
-    const float = new Set(powerups.map(u => u.item)), placed = new Set(Object.keys(LV.whereIs));
-    const LATE = { chain: 4, chain_burst: 4, fly: 4, rainbow: 4, ultimate: 4, earthquake: 5, meteor: 5 };                               // late-game unlocks: only handed out as substitutes from their level on
-    const open = P.UNLOCKS.map(u => u.id).filter(id => !P.has(id) && !float.has(id) && !(LATE[id] && level && level.n < LATE[id]));
-    const free = open.filter(id => !placed.has(id) || id === forItem);      // not promised to another crate
-    return free.length ? free : open;
-  }
-  // the floating item a golden crate leaves: touch it to unlock the button or combo
-  function stepPowerups() {
-    for (let i = powerups.length - 1; i >= 0; i--) {
-      const u = powerups[i];
-      if (Math.abs(u.x - bodyX()) < 26 && Math.abs(u.y - (herY() + 22)) < 44) {
-        powerups.splice(i, 1);
-        if (level) level.pending.delete(u.key);
-        const it = P.byId[u.item];
-        if (P.has(u.item)) continue;                                  // never a second copy
-        unlockItem(u.item);
-        banners.push({ title: `NEW ${it.kind === 'Button' ? 'BUTTON' : 'MOVE'}: ${it.name}`, sub: unlockLines(it), t0: clock, ms: 5200 });
-        burst(u.x, u.y, 18, ['#fff2a0', '#ffd24a', '#ffffff']);
-      }
-    }
   }
   function stepEffects(dt) {
     for (let i = particles.length - 1; i >= 0; i--) {
@@ -2151,7 +2166,7 @@
     const TH = curMap ? THEMES[curMap.def.theme || (level && level.def.bg)] || null : null;       // boss arenas set def.theme; levels 2 to 6 set def.bg
     for (const l of TH ? TH.layers : D.layers) drawLayer(img[l.src].im, -bgx * l.parallax + sx * l.shake, camY * l.parallax + sy * l.shake);
     if (level && level.def.tint && !TH) { g.globalAlpha = level.def.tint.alpha; g.fillStyle = level.def.tint.color; g.fillRect(0, 0, V.w, V.h); g.globalAlpha = 1; }
-    if (curMap) { drawPits(sx, sy); drawGeometry(sx, sy); drawCrates(sx, sy); drawBombs(sx, sy); drawPowerups(sx, sy); }
+    if (curMap) { drawPits(sx, sy); drawGeometry(sx, sy); drawCrates(sx, sy); drawBombs(sx, sy); }
     drawEnemies(sx, sy);
     drawTraining(sx, sy);
     drawTraining(sx, sy);
@@ -2224,29 +2239,12 @@
       g.fillStyle = '#2a1a0c'; for (let nx = x0 + 6; nx < x0 + w - 3; nx += 16) g.fillRect(nx, top + 3, 2, 2);
       g.strokeStyle = '#111'; g.strokeRect(x0 + 0.5, top + 0.5, w - 1, 6);
     }
-    // the way on: an arrow at the right edge (and the left, when there is a map before), a gate on the last map
-    const last = level.idx === level.def.maps.length - 1, pulse = 0.55 + 0.35 * Math.sin(clock / 260);
-    g.save();
-    g.globalAlpha = pulse;
-    const arrow = (ex, dir) => { const ay = Y(28); g.fillStyle = '#ffe14d'; g.beginPath(); g.moveTo(ex, ay - 7); g.lineTo(ex + dir * 9, ay); g.lineTo(ex, ay + 7); g.closePath(); g.fill(); };
-    if (!last) arrow(MAP_W - 12 + sx, 1);
-    if (level.idx > 0) arrow(12 + sx, -1);
-    g.restore();
-    const nextBoss = !last && !!level.def.maps[level.idx + 1].boss && level.def.door === 'key';     // the locked door in front of a boss arena
-    if (last || nextBoss) {
-      const open = curMap.def.boss ? !bossAlive() : nextBoss ? !doorLocked() : (level.def.door === 'key' ? !doorLocked() : !enemies.some(alive)) && !bossAlive(), gx = MAP_W - 10 + sx;
-      g.fillStyle = open ? 'rgba(90,220,120,0.35)' : 'rgba(30,30,40,0.85)';
-      g.fillRect(gx, Y(70), 10, Y(0) - Y(70));
-      if (!open) { g.fillStyle = '#8a8a99'; for (let yy = Y(70); yy < Y(0); yy += 6) g.fillRect(gx + 2, yy, 6, 2); }
-      if (!open && level.def.door === 'key') {                      // a padlock on the door
-        const py = Y(34);
-        g.strokeStyle = '#000'; g.lineWidth = 3; g.beginPath(); g.arc(gx + 5, py - 6, 5, Math.PI, 0); g.stroke();
-        g.strokeStyle = '#c9c9d6'; g.lineWidth = 1.5; g.beginPath(); g.arc(gx + 5, py - 6, 5, Math.PI, 0); g.stroke();
-        g.fillStyle = '#000'; g.fillRect(gx - 1, py - 7, 13, 12); g.fillStyle = '#ffd24a'; g.fillRect(gx, py - 6, 11, 10);
-        g.fillStyle = '#000'; g.fillRect(gx + 4, py - 3, 3, 4);
-      }
-      else { g.save(); g.globalAlpha = pulse; g.fillStyle = '#7dff9a'; g.beginPath(); g.moveTo(gx - 4, Y(28) - 7); g.lineTo(gx + 5, Y(28)); g.lineTo(gx - 4, Y(28) + 7); g.closePath(); g.fill(); g.restore(); }
-    }
+    // the door at the right edge: barred while an enemy is alive, a green glow and arrow once the map is clear
+    const open = doorOpen(), pulse = 0.55 + 0.35 * Math.sin(clock / 260), gx = MAP_W - 10 + sx;
+    g.fillStyle = open ? 'rgba(90,220,120,0.35)' : 'rgba(30,30,40,0.85)';
+    g.fillRect(gx, Y(70), 10, Y(0) - Y(70));
+    if (!open) { g.fillStyle = '#8a8a99'; for (let yy = Y(70); yy < Y(0); yy += 6) g.fillRect(gx + 2, yy, 6, 2); }
+    else { g.save(); g.globalAlpha = pulse; g.fillStyle = '#7dff9a'; g.beginPath(); g.moveTo(gx - 4, Y(28) - 7); g.lineTo(gx + 5, Y(28)); g.lineTo(gx - 4, Y(28) + 7); g.closePath(); g.fill(); g.restore(); }
   }
   function drawCrates(sx, sy) {
     for (const c of curMap.crates) {
@@ -2263,19 +2261,6 @@
       g.beginPath(); g.moveTo(X - 8, Y - 17); g.lineTo(X + 8, Y - 2); g.moveTo(X + 8, Y - 17); g.lineTo(X - 8, Y - 2); g.stroke();
       g.strokeRect(X - 8.5, Y - 17.5, 17, 16);
       if (gold) { g.font = 'bold 9px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 2; g.strokeText('?', X, Y - 10); g.fillText('?', X, Y - 10); g.textAlign = 'left'; }
-    }
-  }
-  function drawPowerups(sx, sy) {
-    for (const u of powerups) {
-      const X = Math.round(u.x + sx), Y = Math.round(groundY(sy) - u.y - Math.sin((clock - u.t0) / 240) * 3), it = P.byId[u.item];
-      g.save();
-      g.globalAlpha = 0.3 + 0.15 * Math.sin(clock / 180); g.fillStyle = '#ffe14d';
-      g.beginPath(); g.arc(X, Y, 13, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
-      g.fillStyle = '#000'; g.beginPath(); g.arc(X, Y, 9, 0, Math.PI * 2); g.fill();
-      g.fillStyle = it && it.kind === 'Button' ? '#ff9f43' : '#ffd24a'; g.beginPath(); g.arc(X, Y, 8, 0, Math.PI * 2); g.fill();
-      g.font = 'bold 7px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#2a1a00';
-      g.fillText(it && it.kind === 'Button' ? it.id : 'NEW', X, Y + 0.5);
-      g.restore();
     }
   }
   function drawFlashes(sx, sy) {
@@ -2357,17 +2342,20 @@
       if (gm.kind !== 'ankh' && left < 4000 && Math.floor(clock / 120) % 2) continue;
       const X = Math.round(V.anchorX + (gm.x - camX) + sx), Y = Math.round(V.feetRow + camY + sy - gm.y - Math.sin(gm.bob) * 3);
       if (gm.kind === 'ankh') { drawAnkh(X, Y, 1); continue; }
-      const up = gm.kind.startsWith('up_'), base = up ? gm.kind.slice(3) : gm.kind;
+      const IT = D.items, up = gm.kind.startsWith('up_'), base = up ? gm.kind.slice(3) : gm.kind;
+      if (gm.kind === 'leaf') {                                   // the spinning Leaf coin (a 5-leaf piece is drawn larger)
+        const f = Math.floor((clock + gm.bob * 97) / 85) % IT.leafFrames, sc = (gm.val || 1) >= 5 ? 1.5 : 1;
+        g.drawImage(img[IT.leaf].im, f * IT.cell, 0, IT.cell, IT.cell, X - IT.cell * sc / 2, Y - IT.cell * sc / 2, IT.cell * sc, IT.cell * sc);
+        continue;
+      }
       const c = base === 'energy' ? ['#bfe6ff', '#4af', '#1d5fb0'] : base === 'super' ? ['#f0d6ff', '#c6f', '#6a2a9a'] : base === 'health' || base === 'hp' ? ['#c9ffd6', '#3ddc5f', '#15803d'] : ['#ffe3b0', '#fa4', '#b25a10'];
       g.save();
       g.globalAlpha = 0.25 + 0.1 * Math.sin(gm.bob * 2); g.fillStyle = c[1];
       g.beginPath(); g.arc(X, Y, 9, 0, Math.PI * 2); g.fill();
       g.globalAlpha = 1;
-      g.fillStyle = '#000'; g.beginPath(); g.moveTo(X, Y - 7); g.lineTo(X + 5, Y); g.lineTo(X, Y + 7); g.lineTo(X - 5, Y); g.closePath(); g.fill();
-      g.fillStyle = c[1]; g.beginPath(); g.moveTo(X, Y - 6); g.lineTo(X + 4, Y); g.lineTo(X, Y + 6); g.lineTo(X - 4, Y); g.closePath(); g.fill();
-      g.fillStyle = c[0]; g.beginPath(); g.moveTo(X, Y - 6); g.lineTo(X - 4, Y); g.lineTo(X, Y - 1); g.closePath(); g.fill();
-      g.fillStyle = c[2]; g.beginPath(); g.moveTo(X, Y + 6); g.lineTo(X + 4, Y); g.lineTo(X, Y + 1); g.closePath(); g.fill();
-      if (up) {                                                   // a meter upgrade: a ring and a plus sign
+      const spr = GEM_SPRITE[gm.kind] || GEM_SPRITE[base];            // Bone, Bone Powder, Quartz, Garnet, Diamond
+      g.drawImage(img[IT.gemSheet].im, IT.gems[spr] * IT.cell, 0, IT.cell, IT.cell, X - IT.cell / 2, Y - IT.cell / 2, IT.cell, IT.cell);
+      if (up && gm.kind !== 'up_hp') {                            // a meter upgrade (the gem's powder): a ring and a plus sign
         g.strokeStyle = '#fff'; g.lineWidth = 1; g.beginPath(); g.arc(X, Y, 11, 0, Math.PI * 2); g.stroke();
         g.fillStyle = '#fff'; g.fillRect(X - 3, Y - 1, 7, 2); g.fillRect(X, Y - 4, 1, 8);
       }
@@ -2414,6 +2402,10 @@
     g.strokeStyle = '#000'; g.fillStyle = '#fff';
     g.strokeText('MAX', 8, 14); g.fillText('MAX', 8, 14);
     bar(28, 15, 200, 6, hp / maxHp());
+    if (level) {                                                     // Leaves counter
+      const IT = D.items; g.drawImage(img[IT.leaf].im, 0, 0, IT.cell, IT.cell, 318, 12, 10, 10);
+      g.strokeText('x' + P.state.leaves, 330, 14); g.fillText('x' + P.state.leaves, 330, 14);
+    }
     if (level && level.n > 0) {                                      // ankh counter
       drawAnkh(284, 17, 0.8);
       g.strokeText('x' + P.state.ankhs, 291, 14); g.fillText('x' + P.state.ankhs, 291, 14);
@@ -2646,7 +2638,7 @@
       if (now.A && !navPrev.A) UI.activate();
       if (now.B && !navPrev.B) UI.back();
     } else if (screen === 'overworld' && !paused && !devOpen) {
-      const n = LV.levels.length + 1;                                  // the six levels and Sunset Training
+      const n = LV.levels.length + 2;                                  // the six levels, Sunset Training and the Bone Merchant
       if ((now.Left && !navPrev.Left) || (now.Up && !navPrev.Up)) ow.sel = (ow.sel + n - 1) % n;
       if ((now.Right && !navPrev.Right) || (now.Down && !navPrev.Down)) ow.sel = (ow.sel + 1) % n;
       if (now.A && !navPrev.A) enterLevel(ow.sel + 1);
@@ -2701,7 +2693,6 @@
     if (hp <= 0 && !gameOver) triggerGameOver();     // any source of damage ends the run, not only an enemy hit
     beamHits();
     stepHeal(dt);
-    stepPowerups();
     stepEffects(dt);
     stepShots(dt);
     stepBombs();
@@ -2801,7 +2792,12 @@
 
   // ---- the overworld: five level nodes on a path; a level opens when the one before it is beaten
   const OW_NODES = [[36, 150], [90, 112], [144, 146], [198, 106], [252, 144], [306, 108], [348, 60]];   // six levels, then the optional training node
-  const nodeAt = i => OW_NODES[i % OW_NODES.length];
+  const nodeAt = i => i === LV.levels.length + 1 ? MERCHANT_AT : OW_NODES[i % OW_NODES.length];
+  const MERCHANT_AT = [50, 92];                                     // the Bone Merchant's feet; selection index levels+1
+  function openShop() {
+    if (!UI) return;
+    UI.open('shop', { msg: 'Spend your Leaves. Press B to leave.', back: () => { UI.close(); ignoreHeldButtons(); canvas.focus(); } });
+  }
   // ---- the title screen: drifting level 1 scenery, the logo with a sword slash sweeping through it, and Max on guard
   function drawTitle() {
     const W = V.w, H = V.h, T = clock;
@@ -2864,13 +2860,23 @@
       g.fillStyle = '#c04ab8'; g.beginPath(); g.arc(px, py, 11, 0, Math.PI * 2); g.fill();
       g.font = 'bold 10px monospace'; g.fillStyle = '#fff'; g.fillText('T', px, py + 1);
       if (sel) { g.strokeStyle = '#ffe14d'; g.lineWidth = 2; g.globalAlpha = 0.6 + 0.4 * Math.sin(clock / 160); g.beginPath(); g.arc(px, py, 16, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1; } }
+    { const mi = n + 1, sel = ow.sel === mi, M = D.items && D.items.merchant, im2 = M && img[M.src] && img[M.src].im;   // the Bone Merchant sits by the first level
+      if (im2) {
+        const bob2 = Math.sin(clock / 400) * 1;
+        g.fillStyle = 'rgba(0,0,0,0.4)'; g.beginPath(); g.ellipse(MERCHANT_AT[0], MERCHANT_AT[1] + 1, 24, 5, 0, 0, Math.PI * 2); g.fill();
+        g.drawImage(im2, Math.round(MERCHANT_AT[0] - M.w / 2), Math.round(MERCHANT_AT[1] - M.h + bob2), M.w, M.h);
+        g.font = 'bold 7px monospace'; g.textAlign = 'center'; g.textBaseline = 'top'; g.strokeStyle = '#000'; g.lineWidth = 3; g.fillStyle = '#ffe14d';
+        g.strokeText('BONE MERCHANT', MERCHANT_AT[0], MERCHANT_AT[1] - M.h - 11); g.fillText('BONE MERCHANT', MERCHANT_AT[0], MERCHANT_AT[1] - M.h - 11);
+        if (sel) { g.strokeStyle = '#ffe14d'; g.lineWidth = 2; g.globalAlpha = 0.6 + 0.4 * Math.sin(clock / 160); g.strokeRect(MERCHANT_AT[0] - M.w / 2 - 3, MERCHANT_AT[1] - M.h - 3, M.w + 6, M.h + 8); g.globalAlpha = 1; }
+        g.textBaseline = 'middle';
+      } }
     // Max stands on the selected node and bobs a little
-    const [mx, my] = nodeAt(ow.sel), im = D.moves.idle, sc = 0.4, bob = Math.sin(clock / 260) * 1.5;
+    const [mx, my] = ow.sel === n + 1 ? [MERCHANT_AT[0] + 44, MERCHANT_AT[1] + 4] : nodeAt(ow.sel), im = D.moves.idle, sc = 0.4, bob = Math.sin(clock / 260) * 1.5;
     g.save(); g.translate(Math.round(mx), Math.round(my - 14 + bob));
     blit(img[im.sheet].im, 0, im.cell[0], im.cell[1], -im.anchor[0] * sc, -im.anchor[1] * sc, null, sc);
     g.restore();
     // header and the info strip for the selected level
-    const isT = ow.sel >= n, L = isT ? LV.training : LV.levels[ow.sel], open = isT || P.levelOpen(ow.sel + 1), got = P.state.unlocked.length;
+    const isM = ow.sel === n + 1, isT = ow.sel >= n, L = isM ? { name: 'Bone Merchant', blurb: `Bones, Bone Powder, Quartz, Garnet, Diamonds, Mutagens and Scrolls. You have ${P.state.leaves} Leaves.` } : isT ? LV.training : LV.levels[ow.sel], open = isT || P.levelOpen(ow.sel + 1), got = P.state.unlocked.length;
     g.textAlign = 'center'; g.textBaseline = 'top'; g.lineJoin = 'round'; g.lineWidth = 3;
     g.font = 'bold 12px monospace'; g.strokeStyle = '#000'; g.fillStyle = '#ffe14d';
     g.strokeText('OVERWORLD', V.w / 2, 10); g.fillText('OVERWORLD', V.w / 2, 10);
@@ -2881,12 +2887,13 @@
     g.font = '7px monospace'; g.fillStyle = '#e6e6ec';
     g.fillText(open ? L.blurb : `Locked. Beat level ${L.n - 1} first.`, V.w / 2, 188);
     g.fillStyle = '#9a9aa8';
-    g.fillText(`${open ? 'A or Enter: play   ' : ''}Left and Right: choose   Start: menu   Moves found: ${got}/${P.UNLOCKS.length}`, V.w / 2, 198);
+    g.fillText(`${isM ? 'A or Enter: shop   ' : open ? 'A or Enter: play   ' : ''}Left and Right: choose   Start: menu   Moves found: ${got}/${P.UNLOCKS.length}`, V.w / 2, 198);
     g.textAlign = 'left';
     drawBanners();
   }
   function enterTraining() { startLevel(0, LV.training); }
   function enterLevel(n) {
+    if (n === LV.levels.length + 2) { openShop(); return; }
     if (n > LV.levels.length) { enterTraining(); return; }
     if (!P.levelOpen(n)) { hint(`Locked: beat level ${n - 1} first`); return; }
     startLevel(n);
@@ -2961,7 +2968,7 @@
     energyMeter = empowerMeter = superMeter = 0;
     refreshUnlocks();
     goOverworld();
-    playStory('prologue', () => startLevel(1));
+    playStory('prologue', () => { goOverworld(); ow.sel = LV.levels.length + 1; banners.push({ title: 'You start with 100 Leaves', sub: 'Visit the Bone Merchant to buy moves', t0: clock, ms: 4200 }); });
   }
   function continueGame() {
     if (!P.loadSave()) { showMenu('No saved game'); return; }
@@ -2986,6 +2993,7 @@
     items.push({ label: 'Moves: Keyboard', fn: () => UI.open('moves', { msg: UI.opts.msg, device: 'keys' }) });
     if (cheatsShown) items.push({ label: 'Cheats', fn: () => openDev() });
     items.push({ label: 'Gems', fn: () => UI.open('gems', { msg: UI.opts.msg }) });
+    if (screen === 'overworld' || screen === 'title') items.push({ label: 'Bone Merchant', fn: () => UI.open('shop', { msg: 'Spend your Leaves. Press B to go back.', back: () => UI.open('main', { msg: '' }) }), id: 'btn-shop' });
     if (screen === 'level') items.push({ label: 'Back to the overworld', fn: () => goOverworld() });
     if (screen !== 'title') items.push({ label: 'Save game', fn: () => saveGame(), id: 'btn-save' });
     items.push({ label: 'Fullscreen', fn: toggleFullscreen, id: 'btn-fullscreen' });
@@ -3011,7 +3019,8 @@
     else { hideMenu(); ignoreHeldButtons(); canvas.focus(); }
     setStartLabel();
   }
-  if (UI) UI.init({ isTitle: () => screen === 'title' && !story, mainItems, closeMenu, moveRows, lockedCount, padStatus, gemRows, useGem, devItems,
+  if (UI) UI.init({ isTitle: () => screen === 'title' && !story, mainItems, closeMenu, moveRows, lockedCount, padStatus, gemRows, useGem, devItems, shopRows, buy, leaves: () => P.state.leaves,
+    sprite: spriteCss,
     moveNotes: dev => dev === 'keys'
       ? ['Keyboard: arrows = d-pad, Z = A (attack), X = B, A = X, S = Y, Up = jump. Shoulders: Q = L1, W = R1 (hold to recover), 1 = L2, 2 = R2. Enter, Space or Escape opens and closes this menu. Hold Left or Right while jumping to steer. Double tap Down on a platform to drop through it. Press H to show hurtboxes and hit shapes.']
       : ['A gamepad works too, wired or Bluetooth, also on an Android phone in Chrome: A (bottom) jumps, Y (top) attacks, B is right, X is left. Start opens and closes this menu. Click the game first if buttons do nothing.'] });
@@ -3035,9 +3044,9 @@
     canvas.focus();
     if (screen !== 'overworld' || paused) return;      // tap or click a level on the overworld: first selects, second enters
     const r = canvas.getBoundingClientRect(), px = (ev.clientX - r.left) * V.w / r.width, py = (ev.clientY - r.top) * V.h / r.height;
-    for (let i = 0; i <= LV.levels.length; i++) {
-      const [nx, ny] = nodeAt(i);
-      if (Math.hypot(px - nx, py - ny) < 18) { if (ow.sel === i) enterLevel(i + 1); else ow.sel = i; return; }
+    for (let i = 0; i <= LV.levels.length + 1; i++) {
+      const [nx, ny] = i === LV.levels.length + 1 ? [MERCHANT_AT[0], MERCHANT_AT[1] - 25] : nodeAt(i);
+      if (Math.hypot(px - nx, py - ny) < (i === LV.levels.length + 1 ? 32 : 18)) { if (ow.sel === i) enterLevel(i + 1); else ow.sel = i; return; }
     }
   });
   window.togglePause = togglePause;
@@ -3086,7 +3095,7 @@
     // state and controls for the browser tests of levels, unlocks, menus and the dev console
     state: () => ({ screen, paused, gameOver, levelDone, devOpen, hp, floorY, feet: herY(), px: playerX(), cheats: { ...cheats },
                     level: level ? { n: level.n, idx: level.idx, id: curMap && curMap.id } : null,
-                    crates: curMap ? curMap.crates.map(c => ({ x: c.x, fy: c.fy, item: c.item, broken: c.broken })) : [],
+                    crates: curMap ? curMap.crates.map(c => ({ x: c.x, fy: c.fy, item: c.item, loot: c.loot, broken: c.broken })) : [],
                     powerups: powerups.map(u => ({ item: u.item, x: u.x, y: u.y })),
                     foes: enemies.map(e => ({ type: e.type, x: e.x, fy: e.fy, anim: e.anim, taunted: !!e.taunted, jumping: !!e.jump, hp: e.hp, state: e.state, alive: alive(e), path: e.path, dir: e.dir })),
                     solids: curMap ? curMap.solids : [], plats: curMap ? curMap.plats : [], pits: curMap ? curMap.pits : [], bombs: curMap ? curMap.bombs.map(b => ({ x: b.x, fy: b.fy, gone: b.gone })) : [], shots: shots.map(q => ({ x: q.x, y: q.y, vx: q.vx, vy: q.vy, from: q.from })), pitFall: !!pitFall, feetNow: herY(), fx: { gems: gems.length } }),
@@ -3094,8 +3103,8 @@
     menuOpen: () => !!(UI && UI.isOpen()),
     charging: () => ({ cur: cur && cur.id, kind: cur && cur.kind, chargeMs: Math.round(chargeMs), full: isCharged(), energy: Math.round(energyMeter * 10) / 10, power: cur && cur.power, hold: hold && hold.move }),
     beamStats: () => ({ cost: { ...BEAM_TICK_COST }, dmg: { ...BEAM_DMG } }),
-    doorLocked: () => doorLocked(), allMovesHere: () => allMovesHere(),
-    unlockLines: id => unlockLines(P.byId[id]), unlockPool: () => unlockPool(null), banners: () => banners.map(b => ({ title: b.title, sub: b.sub })),
+    doorOpen: () => doorOpen(),
+    unlockLines: id => unlockLines(P.byId[id]), banners: () => banners.map(b => ({ title: b.title, sub: b.sub })),
     unlock: id => unlockItem(id), resetAll: () => { P.reset(); energyMeter = empowerMeter = superMeter = 0; refreshUnlocks(); },
     // the old combat tests: everything unlocked, one closed map with no scenery, enemies as the test places them
     // a one-map level built from the given data (plats, pits, bombs, crates, enemies), doors closed, for the hazard tests

@@ -60,6 +60,14 @@
   .gem-row { display: grid; grid-template-columns: 16px 1fr auto 1fr auto; gap: 10px; align-items: center; text-align: left; }
   .gem-swatch { width: 14px; height: 14px; transform: rotate(45deg); border: 1px solid #000; }
   .gem-count { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .item-icon { width: 32px; height: 32px; image-rendering: pixelated; display: inline-block; vertical-align: middle; }
+  .item-icon.plain { background: #c9a566; border: 1px solid #000; width: 20px; height: 26px; margin: 3px 6px; }
+  .shop-wrap { min-width: min(520px, 90vw); }
+  .shop-balance { font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .shop-scroll { max-height: 46vh; overflow-y: auto; }
+  .shop-row { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; text-align: left; margin-bottom: 6px; }
+  .shop-info { display: flex; flex-direction: column; } .shop-info small { color: var(--dim); font-size: 11px; } .shop-info .shop-note { color: #e0a040; }
+  .shop-row.owned { opacity: .55; }
   .gem-note { color: var(--dim); font-size: 12px; }
   #start-menu .actions.dev button { text-align: left; }
 
@@ -162,17 +170,18 @@
     <pre id="monitor"></pre>
   </section>
 </main>
-<script>window.BIBOO_VER = 'st81';   /* cache buster: change it whenever the game or its assets change */</script>
-<script src="assets/data.js?v=st81"></script>
-<script src="assets/moves_extra.js?v=st81"></script>
-<script src="assets/creatures.js?v=st81"></script>
-<script src="assets/arenas.js?v=st81"></script>
-<script src="assets/bgs.js?v=st81"></script>
-<script src="assets/training.js?v=st81"></script>
-<script src="input.js?v=st81"></script>
-<script src="progress.js?v=st81"></script>
-<script src="ui.js?v=st81"></script>
-<script src="levels.js?v=st81"></script>
-<script src="game.js?v=st81"></script>
+<script>window.BIBOO_VER = 'st82';   /* cache buster: change it whenever the game or its assets change */</script>
+<script src="assets/data.js?v=st82"></script>
+<script src="assets/moves_extra.js?v=st82"></script>
+<script src="assets/creatures.js?v=st82"></script>
+<script src="assets/arenas.js?v=st82"></script>
+<script src="assets/bgs.js?v=st82"></script>
+<script src="assets/training.js?v=st82"></script>
+<script src="assets/items.js?v=st82"></script>
+<script src="input.js?v=st82"></script>
+<script src="progress.js?v=st82"></script>
+<script src="ui.js?v=st82"></script>
+<script src="levels.js?v=st82"></script>
+<script src="game.js?v=st82"></script>
 </body>
 </html>
