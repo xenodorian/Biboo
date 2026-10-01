@@ -1,4 +1,4 @@
-/* Boss arenas: x.10 of levels 1 to 4 has a boss, a theme, a closed right edge until the boss dies, and then completes the level.
+/* Boss arenas: x.10 (5.11) of levels 1 to 5 has a boss, a theme, a closed right edge until the boss dies, and then completes the level.
  * Run: NODE_PATH=$(npm root -g) node web/tests/boss_arena.test.js */
 const path = require('path');
 const { chromium } = require('playwright');
@@ -9,11 +9,11 @@ const { chromium } = require('playwright');
   await page.waitForFunction(() => document.getElementById('btn-start') && window.bibooGame, null, { timeout: 20000 });
   const ev = j => page.evaluate(j), wait = ms => page.waitForTimeout(ms), res = [];
   const check = (n, ok, d) => { res.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${n}${ok ? '' : '  ' + JSON.stringify(d)}`); };
-  const boss = ['wyrmslug', 'oozewraith', 'horneddread', 'boarlord'];
-  for (let n = 1; n <= 4; n++) {
+  const boss = ['wyrmslug', 'oozewraith', 'horneddread', 'boarlord', 'mirrormax'];
+  for (let n = 1; n <= 5; n++) {
     await ev('bibooGame.goOverworld()'); await wait(200);
     await ev(`bibooGame.enterLevel(${n})`); await wait(400);
-    await ev('bibooGame.warp(9)'); await wait(500);
+    await ev(`bibooGame.warp(${n === 5 ? 10 : 9})`); await wait(500);
     await ev('bibooGame.setHp(200)');
     let s = await ev('bibooGame.state()');
     check(`level ${n}: boss ${boss[n - 1]} waits in the arena`, s.foes.length === 1 && s.foes[0].type === boss[n - 1], s.foes);

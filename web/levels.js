@@ -169,6 +169,7 @@
   levels[1].maps.push(bossMap('oozewraith', 'crypt', { plats: [P(40, 110, 60), P(274, 344, 60)], crates: [C(75, 60)] }));
   levels[2].maps.push(bossMap('horneddread', 'bone', { crates: [C(50), C(335)] }));
   levels[3].maps.push(bossMap('boarlord', 'ember', { plats: [P(150, 234, 70)], crates: [C(192, 70)] }));
+  levels[4].maps.push(bossMap('mirrormax', 'keep', { plats: [P(150, 234, 70)] }));      // 5.11 the final boss: an enemy Max
   const nameOf = { }; // filled below: unlock id -> 'level.map' where its crate is
   levels.forEach(L => L.maps.forEach((m, i) => m.crates.forEach(c => { if (c.item) nameOf[c.item] = `${L.n}.${i + 1}`; })));
   L1.forEach((m, i) => { m.id = `1.${i + 1}`; });
