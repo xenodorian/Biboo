@@ -112,7 +112,7 @@ const { chromium } = require('playwright');
   for (let i = 0; i < 60 && !(await S()).pitFall; i++) await wait(50);
   await page.keyboard.up('ArrowRight');
   s = await S();
-  check('walking into a pit starts a fall, and she is not dead yet', s.pitFall && s.hp === 200 && !s.gameOver, { pf: s.pitFall, hp: s.hp, go: s.gameOver });
+  check('walking into a pit starts a fall, and she is not dead yet', s.pitFall && s.hp === 50 && !s.gameOver, { pf: s.pitFall, hp: s.hp, go: s.gameOver });
   const f1 = (await S()).feetNow; await wait(150); const f2 = (await S()).feetNow;
   check('she is visibly falling (feet getting lower)', f2 < f1 - 2, { f1, f2 });
   await wait(2000);
@@ -122,14 +122,16 @@ const { chromium } = require('playwright');
   await at(120);
   await page.keyboard.down('ArrowRight'); await key('ArrowUp', 50); await wait(1100); await page.keyboard.up('ArrowRight'); await wait(600);
   s = await S();
-  check('jumping over the pit works (still alive, past it)', !s.pitFall && s.hp === 200 && s.px > 215, { pf: s.pitFall, hp: s.hp, px: s.px });
+  check('jumping over the pit works (still alive, past it)', !s.pitFall && s.hp === 50 && s.px > 215, { pf: s.pitFall, hp: s.hp, px: s.px });
   // enemy stops at the edge
   await custom({ pits: [{ x0: 150, x1: 210 }], enemies: [{ type: 'goblin', x: 260, fy: 0, path: [240, 330], sight: 300 }] });
   await at(120);
   await wait(6000);
   s = await S();
-  check('a chasing goblin stops at the pit edge instead of walking in', s.foes[0].alive && s.foes[0].x > 205, s.foes[0]);
+  check('a chasing goblin leaps the pit to reach her instead of walking in', s.foes[0].alive && s.foes[0].x < 150, s.foes[0]);
   // pushed in
+  await custom({ pits: [{ x0: 150, x1: 210 }], enemies: [{ type: 'goblin', x: 230, fy: 0, path: [220, 330], sight: 5 }] });
+  await at(290); await wait(300);
   await ev('bibooGame.shove(0, -60)'); await wait(300);
   s = await S();
   check('an enemy shoved over the pit falls in and dies', !s.foes[0] || !s.foes[0].alive, s.foes[0]);
@@ -138,12 +140,12 @@ const { chromium } = require('playwright');
   // ---- redundant drops
   await custom({}); await ev('bibooGame.resetAll()');
   const loot = await ev(`(() => { const seen = {}; for (let i = 0; i < 300; i++) { bibooGame.custom({ crates: [{ x: 300, fy: 0 }] }); bibooGame.smash(0); for (const g of bibooGame.pickups()) seen[g.kind] = (seen[g.kind] || 0) + 1; } return seen; })()`);
-  check('with nothing unlocked, crates drop only health gems (no meter gems or upgrades)', Object.keys(loot).join() === 'health', loot);
-  await ev('BibooProgress.state.gems.health = 99');
+  check('with nothing unlocked, crates drop only health gems and +25 Max HP gems (no meter gems or meter upgrades)', Object.keys(loot).sort().join() === 'health,up_hp', loot);
+  await ev('BibooProgress.state.gems.health = 99; BibooProgress.state.maxes.hp = 200');
   const loot2 = await ev(`(() => { let n = 0; for (let i = 0; i < 60; i++) { bibooGame.custom({ crates: [{ x: 300, fy: 0 }] }); bibooGame.smash(0); n += bibooGame.pickups().length; } return n; })()`);
   check('with the health bag full and no meters, crates drop nothing', loot2 === 0, loot2);
   await ev('bibooGame.resetAll()'); await ev("bibooGame.unlock('energy_kick')");
-  await ev('BibooProgress.state.maxes.energy = 200; BibooProgress.state.gems.energy = 99; BibooProgress.state.gems.health = 99');
+  await ev('BibooProgress.state.maxes.energy = 200; BibooProgress.state.gems.energy = 99; BibooProgress.state.gems.health = 99; BibooProgress.state.maxes.hp = 200');
   const loot3 = await ev(`(() => { let n = 0; for (let i = 0; i < 60; i++) { bibooGame.custom({ crates: [{ x: 300, fy: 0 }] }); bibooGame.smash(0); n += bibooGame.pickups().length; } return n; })()`);
   check('an energy meter at its cap with a full bag drops nothing redundant', loot3 === 0, loot3);
   await ev('bibooGame.resetAll()');
@@ -214,7 +216,7 @@ const { chromium } = require('playwright');
   // ---- goblin shots
   await custom({}); await ev('bibooGame.resetAll()');
   await custom({ enemies: [{ type: 'goblin', x: 300, fy: 0, path: [295, 305], sight: 5 }] });
-  await at(150);
+  await at(150); await ev('bibooGame.setHp(200)');
   await ev("bibooGame.attack(0, 'dive')");
   let seen = 0, shotInfo = null;
   for (let i = 0; i < 40; i++) { await wait(40); const st = await S(); seen = Math.max(seen, st.shots.length); if (st.shots.length && !shotInfo) shotInfo = st.shots[0]; }

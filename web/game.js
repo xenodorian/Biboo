@@ -115,10 +115,11 @@
   // play at all, and a beam or recovery stops the moment the meter runs dry.
   // Each meter has its own capacity: 50 at first, +25 for every upgrade pickup (P.maxOf, saved with the progress).
   const maxOf = k => P.maxOf(k);
+  const maxHp = () => P.maxOf('hp');                  // starts at 50; each +25 Max HP gem adds 25 (cap 200)
   // The super meter (purple, SUP) starts empty and is filled only by Super Gems: one drops when an enemy is
   // killed by a beam. A full meter pays for the earthquake and the meteor shower.
   let energyMeter = P.state.meters.energy, empowerMeter = P.state.meters.empower, superMeter = P.state.meters.super;   // saved with the progress
-  const GEM_VALUE = 25, GEM_CHANCE = 0.35, GEM_LIFE = 20000, GEM_PICKUP = 28;
+  const GEM_VALUE = 25, GEM_CHANCE = 0.35, MAXHP_CHANCE = 0.12, GEM_LIFE = 20000, GEM_PICKUP = 28;
   const BEAM_TICK_COST = { cloud: 1, fire: 3, laser: 5, plasma: 5 };         // per beam tick (100 ms)
   const MOVE_COST = { jump_crash: ['energy', 30], earthquake: ['super', 'full'], meteor_shower: ['super', 'full'] };   // earthquake and meteor shower need a full super meter and use all of it                          // paid once, when the move starts
   const HEAL_COST = 1;                                                        // empower per recover tick
@@ -134,6 +135,7 @@
   function lootPool() {
     const pool = [];
     if (gemUseful('health')) pool.push('health', 'health', 'health');
+    if (P.maxOf('hp') < P.MAX_CAP) pool.push('up_hp');                    // a +25 Max HP gem drops alongside the health gems
     for (const m of ['energy', 'empower', 'super']) {
       if (!P.meterOn(m) || (level && level.n === 1)) continue;          // level 1 drops only health gems
       if (gemUseful(m)) pool.push(m);
@@ -181,7 +183,7 @@
   const GEM_LABEL = { health: 'Health Gem', energy: 'Energy Gem', empower: 'Empower Gem', super: 'Super Gem' };
   const GEM_COLOR = { health: '#3ddc5f', energy: '#4af', empower: '#fa4', super: '#c6f' };
   const UP_LABEL = { energy: 'ENG', empower: 'EMP', super: 'SUP' };
-  const GEM_HEAL = 50;                                                         // a health gem: +25 percent of MAX_HP (200)
+  const gemHeal = () => Math.ceil(maxHp() / 4);                                // a health gem: +25 percent of Max HP
   function stepGems(dt) {
     for (const gm of gems) gm.bob += dt * 0.006;
     gems = gems.filter(gm => {
@@ -190,6 +192,11 @@
       if (Math.abs(gm.x - bodyX()) < GEM_PICKUP && hy < gm.fy + 50 && hy > gm.fy - 20) {
         if (gm.kind.startsWith('up_')) {                   // a meter upgrade: applied at once, the meter grows by 25 and fills by 25
           const m = gm.kind.slice(3);
+          if (m === 'hp') {                                // +25 Max HP: the cap and the current health both grow by 25
+            if (P.raiseMax('hp') > 0) { hp = Math.min(maxHp(), hp + P.MAX_STEP); floater(gm.x, gm.y + 24, '+25 MAX HP', GEM_COLOR.health); }
+            else floater(gm.x, gm.y + 24, 'HP at its limit', GEM_COLOR.health);
+            return false;
+          }
           if (P.raiseMax(m) > 0) { spend(m, -P.MAX_STEP); meterFlash[m] = clock + 600; syncProgress(); floater(gm.x, gm.y + 24, '+25 MAX ' + UP_LABEL[m], GEM_COLOR[m]); }
           else floater(gm.x, gm.y + 24, UP_LABEL[m] + ' at its limit', GEM_COLOR[m]);
           return false;
@@ -204,14 +211,14 @@
   }
   function canUseGem(kind) {
     if ((P.state.gems[kind] || 0) < 1) return false;
-    if (kind === 'health') return !!level && hp < MAX_HP;                      // health only matters inside a level
+    if (kind === 'health') return !!level && hp < maxHp();                      // health only matters inside a level
     if (!P.meterOn(kind)) return false;
     return meterOf(kind) < maxOf(kind);
   }
   function useGem(kind) {
     if (!canUseGem(kind)) return;
     P.takeGem(kind);
-    if (kind === 'health') hp = Math.min(MAX_HP, hp + GEM_HEAL);
+    if (kind === 'health') hp = Math.min(maxHp(), hp + gemHeal());
     else if (kind === 'energy') { energyMeter = Math.min(maxOf('energy'), energyMeter + GEM_VALUE); meterFlash.energy = clock + 400; }
     else if (kind === 'empower') { empowerMeter = Math.min(maxOf('empower'), empowerMeter + GEM_VALUE); meterFlash.empower = clock + 400; }
     else { superMeter = Math.min(maxOf('super'), superMeter + GEM_VALUE); meterFlash.super = clock + 400; }
@@ -220,7 +227,7 @@
   function gemRows() {
     return P.GEM_KINDS.map(kind => {
       let note = '';
-      if (kind === 'health') note = level ? `+${GEM_HEAL} HP  (${hp}/${MAX_HP})` : `+${GEM_HEAL} HP, use it inside a level`;
+      if (kind === 'health') note = level ? `+${gemHeal()} HP  (${hp}/${maxHp()})` : `+${gemHeal()} HP, use it inside a level`;
       else if (!P.meterOn(kind)) note = 'meter not unlocked yet';
       else note = `+${GEM_VALUE}  (${Math.round(meterOf(kind))}/${maxOf(kind)})`;
       return { kind, label: GEM_LABEL[kind], color: GEM_COLOR[kind], count: P.state.gems[kind] || 0, canUse: canUseGem(kind), note };
@@ -737,7 +744,7 @@
   // ------------------------------------------------------------------ health and damage
   // Tunable numbers. A move hurts each enemy once per use (moves in REHIT_MS again after that many ms);
   // beams hurt on every tick they touch. The heavy chop and the crash do more when full.
-  const MAX_HP = 200, ENEMY_HP = { goblin: 60, orc: 200 }, ENEMY_DMG = { goblin: 12, orc: 30 };
+  const ENEMY_HP = { goblin: 60, orc: 200 }, ENEMY_DMG = { goblin: 12, orc: 30 };
   const DAMAGE = { slash: 25, heavy_horizontal: 50, thrust: 15, upswing: 15, push_kick: 10, heavy_kick: 25, energy_kick: 30, energy_burst: 50,
                    dash_thrust: 25, energy_dash_thrust: 50, spin_attack: 20, energy_wave: 0, earthquake: 250, meteor_shower: 200 };
   // knockback of the moves that push an enemy: [distance px, duration ms]
@@ -753,7 +760,7 @@
   const CRASH_DMG = 300, CRASH_COST = 30;      // the jump crash: flat damage, energy paid when it starts
   const HEAL_EVERY = 350, HEAL_AMOUNT = 5, KO_MS = 1500;
   const dmgOf = c => c.id === 'heavy' ? HEAVY_DMG : c.id === 'jump_crash' ? CRASH_DMG : (c.id in DAMAGE ? Math.round(DAMAGE[c.id] * (c.power || 1)) : 15);   // 0 is a real value (the wave hurts only by its blast)
-  let hp = MAX_HP, hpOverride = null, healAcc = 0;
+  let hp = maxHp(), hpOverride = null, healAcc = 0;
   const floaters = [];                  // {wx, wy, text, color, t0}: numbers that rise and fade
   const FLOAT_MS = 900;
   const GREEN = '#3dff6e';
@@ -787,12 +794,12 @@
         }
       } else if (!hold || ENERGY_HOLD.has(hold.move)) stepCharge(dt);
     } else meterAcc = 0;
-    if (!cur || cur.id !== 'recover' || cur.kind !== 'hold' || stun || hp >= MAX_HP) { healAcc = 0; return; }
+    if (!cur || cur.id !== 'recover' || cur.kind !== 'hold' || stun || hp >= maxHp()) { healAcc = 0; return; }
     healAcc += dt;
-    while (healAcc >= HEAL_EVERY && hp < MAX_HP && empowerMeter >= HEAL_COST) {
+    while (healAcc >= HEAL_EVERY && hp < maxHp() && empowerMeter >= HEAL_COST) {
       healAcc -= HEAL_EVERY;
       empowerMeter = Math.max(0, empowerMeter - HEAL_COST);
-      const n = Math.min(HEAL_AMOUNT, MAX_HP - hp);
+      const n = Math.min(HEAL_AMOUNT, maxHp() - hp);
       hp += n;
       floater(bodyX(), herY() + herTop() + 6, '+' + n, GREEN);
     }
@@ -899,7 +906,7 @@
     const def = custom || LV.levels[n - 1];
     if (!def) return;
     level = { n, def, idx: 0, killed: new Set(), broken: new Set(), popped: new Set(), pending: new Map() };
-    kills = 0; hp = MAX_HP; gameOver = false; paused = false; respawnOn = false;
+    kills = 0; hp = maxHp(); gameOver = false; paused = false; respawnOn = false;
     screen = 'level';
     hideMenu(); ignoreHeldButtons();
     loadMap(0, 'left');
@@ -1006,7 +1013,7 @@
     setStartLabel();
   }
   function retryMap() {                          // after a K.O.: the same map again, full health
-    hp = MAX_HP; gameOver = false; paused = false;
+    hp = maxHp(); gameOver = false; paused = false;
     hideMenu(); ignoreHeldButtons();
     loadMap(level.idx, 'left');
     setStartLabel();
@@ -1311,6 +1318,7 @@
     if (e.dropEnergy) { lootGem(e.x - 6, 'energy', fy); lootGem(e.x + 6, 'energy', fy); }
     if (e.dropEmpower) { lootGem(e.x - 6, 'empower', fy); lootGem(e.x + 6, 'empower', fy); }
     if (Math.random() < GEM_CHANCE) lootGem(e.x - 3, 'health', fy);
+    if (Math.random() < MAXHP_CHANCE && P.maxOf('hp') < P.MAX_CAP) spawnGem(e.x - 9, 'up_hp', fy);
     const pool = [];
     if (P.meterOn('energy')) pool.push('energy');
     if (P.meterOn('empower')) pool.push('empower');
@@ -1579,8 +1587,8 @@
     return cur.id === 'duck' ? top - DUCK_TRIM : top;
   }
   const RED = '#ff2b2b', WHITE = '#ffffff';
-  const DASH_HOP = 5, DASH_MOVES = new Set(['dash', 'dash_thrust', 'energy_dash_thrust']);
-  function dashHop() {                  // the dash and the moves built on it rise 5 px and settle again over the move
+  const DASH_HOP = 5, DASH_MOVES = new Set(['dash', 'dash_thrust', 'energy_dash_thrust', 'push_kick', 'energy_kick']);
+  function dashHop() {                  // the dash, its thrusts and the push kicks rise 5 px and settle again over the move
     if (!cur || !DASH_MOVES.has(cur.id) || cur.kind === 'fall') return 0;
     const F = D.moves[cur.id].frames; let tot = 0, at = 0;
     for (let i = 0; i < F.length; i++) { if (i === cur.k) at = tot + Math.min(cur.t || 0, F[i].ms); tot += F[i].ms; }
@@ -1655,7 +1663,7 @@
       }
     }
     if (stun.v === 0 && stun.y === 0 && (!stun.until || clock >= stun.until)) {
-      if (stun.until) { if (typeof gameOver !== 'undefined' && gameOver) { stun = null; cur = null; return; } hp = MAX_HP; floater(bodyX(), herY() + herTop() + 6, '+' + MAX_HP, GREEN); }
+      if (stun.until) { if (typeof gameOver !== 'undefined' && gameOver) { stun = null; cur = null; return; } hp = maxHp(); floater(bodyX(), herY() + herTop() + 6, '+' + maxHp(), GREEN); }
       stun = null; cur = null; holdState(clock);
     }
   }
@@ -1941,7 +1949,7 @@
       if (left < 4000 && Math.floor(clock / 120) % 2) continue;
       const X = Math.round(V.anchorX + (gm.x - camX) + sx), Y = Math.round(V.feetRow + camY + sy - gm.y - Math.sin(gm.bob) * 3);
       const up = gm.kind.startsWith('up_'), base = up ? gm.kind.slice(3) : gm.kind;
-      const c = base === 'energy' ? ['#bfe6ff', '#4af', '#1d5fb0'] : base === 'super' ? ['#f0d6ff', '#c6f', '#6a2a9a'] : base === 'health' ? ['#c9ffd6', '#3ddc5f', '#15803d'] : ['#ffe3b0', '#fa4', '#b25a10'];
+      const c = base === 'energy' ? ['#bfe6ff', '#4af', '#1d5fb0'] : base === 'super' ? ['#f0d6ff', '#c6f', '#6a2a9a'] : base === 'health' || base === 'hp' ? ['#c9ffd6', '#3ddc5f', '#15803d'] : ['#ffe3b0', '#fa4', '#b25a10'];
       g.save();
       g.globalAlpha = 0.25 + 0.1 * Math.sin(gm.bob * 2); g.fillStyle = c[1];
       g.beginPath(); g.arc(X, Y, 9, 0, Math.PI * 2); g.fill();
@@ -1996,8 +2004,8 @@
     g.font = 'bold 7px monospace'; g.textBaseline = 'top'; g.lineWidth = 2; g.lineJoin = 'round';
     g.strokeStyle = '#000'; g.fillStyle = '#fff';
     g.strokeText('MAX', 8, 14); g.fillText('MAX', 8, 14);
-    bar(28, 15, 100, 6, hp / MAX_HP);
-    const t = `${hp}/${MAX_HP}`;
+    bar(28, 15, 100, 6, hp / maxHp());
+    const t = `${hp}/${maxHp()}`;
     g.strokeText(t, 132, 14); g.fillText(t, 132, 14);
   }
   function drawFloaters(sx, sy) {
@@ -2325,7 +2333,7 @@
   function leaveDev() {                              // close the console and the menus under it: play on
     devOpen = false; devReturn = null; resetArmed = false;
     paused = false; gameOver = false; levelDone = false;
-    if (hp <= 0) hp = MAX_HP;
+    if (hp <= 0) hp = maxHp();
     UI.close(); ignoreHeldButtons(); setStartLabel();
   }
   function toggleDev() { if (devOpen) closeDev(); else if (assetsReady) openDev(); }
@@ -2338,7 +2346,7 @@
       { label: 'Unlock all levels', fn: act(() => { P.unlockAllLevels(); }) },
       { label: 'Unlock all moves and buttons', fn: act(() => unlockEverything()) },
       { label: 'Give 5 of every gem', fn: act(() => { for (const k of P.GEM_KINDS) P.addGem(k, 5); P.save(); }) },
-      { label: 'Full health and full meters', fn: act(() => { hp = MAX_HP; energyMeter = maxOf('energy'); empowerMeter = maxOf('empower'); superMeter = maxOf('super'); syncProgress(); }) },
+      { label: 'Full health and full meters', fn: act(() => { hp = maxHp(); energyMeter = maxOf('energy'); empowerMeter = maxOf('empower'); superMeter = maxOf('super'); syncProgress(); }) },
       { label: 'Raise every meter maximum by 25', fn: act(() => { for (const k of ['energy', 'empower', 'super']) P.raiseMax(k); }) },
     ];
     if (level) {
@@ -2491,7 +2499,7 @@
     enemyHp: () => enemies.map(e => e.hp),
     floaters: () => floaters.map(f => f.text),
     setEnemyHp: n => { hpOverride = n; },
-    setHp: n => { hp = n; },
+    setHp: n => { if (n > maxHp()) P.state.maxes.hp = Math.min(P.MAX_CAP, n); hp = n; },      // test hook: asking for more than Max HP raises Max HP to match
     heavy: () => cur && (cur.id === 'heavy' || cur.id === 'jump_crash') ? { id: cur.id, lite: !!cur.lite, charged: cur.charged, height: cur.height } : null,
     herBox: () => herBox(),
     combat: () => ({ stun: !!stun, hits, blocks, parries, tint: tint && clock < tint.until ? tint.color : null }),
@@ -2518,6 +2526,7 @@
       respawnOn = false; paused = false; hideMenu();
     },
     addShot: (sx, sy, vx, vy) => shots.push({ x: sx, y: sy, vx, vy, from: 'foe', t0: clock }),
+    maxHp: () => maxHp(), addGem: (kind, x, fy) => spawnGem(x, kind, fy || 0), lootPool: () => lootPool(),
     doubleUsed: () => dblUsed, spinning: () => !!(cur && cur.spin && clock - cur.spin < SPIN_MS),
     smash: i => { if (curMap && curMap.crates[i]) breakCrate(curMap.crates[i]); },
     setFloor: v => { floorY = v; prevFeet = null; },
@@ -2532,7 +2541,7 @@
     hurtHer: d => hurtHer(d), gemBag: () => ({ ...P.state.gems }), pickups: () => gems.map(g => ({ x: g.x, kind: g.kind })),
     // test setup: clear the field and place enemies at distances from her anchor
     setEnemies: list => {
-      enemies.length = 0; respawns.length = 0; facing = 1; hp = MAX_HP;
+      enemies.length = 0; respawns.length = 0; facing = 1; hp = maxHp();
       for (const [type, dx, rest] of list) {                  // rest: stand still this long first (ms)
         const e = spawn(type, playerX() + dx);
         if (rest) { e.state = 'idle'; e.rest = rest; play(e, 'idle'); }

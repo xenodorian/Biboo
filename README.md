@@ -318,3 +318,5 @@ Level 3 has nine maps (3.10 was removed): 3.1 Heavy Overhead Chop, 3.3 Jumping C
 No keys or key chests: every locked-door level (1 to 4) has its door at the right edge of map .9, drawn with a padlock and closed until every unlock placed in that level is owned (`doorLocked` in game.js). The hint reads 'The door is locked. Unlock every move in this level first.'
 
 Enemies leap pits: a chasing ground enemy that reaches a pit edge with her on the far side jumps the gap (22 px arc, gaps up to 140 px) and carries on; patrols and enemies on platforms are unchanged. The dash, dash thrust and energy dash thrust hop 5 px (a short arc over the move, `dashHop` in game.js).
+
+Max HP starts at 50. A +25 Max HP gem (green diamond with a ring and plus) drops from crates and kills alongside health gems; a health gem heals 25 percent of Max HP. The push kick and energy kick hop 5 px like the dash.

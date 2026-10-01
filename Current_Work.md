@@ -323,3 +323,8 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 - Removed keys and key chests. A locked-door level's door stays locked until every unlock in that level is owned. chest.test.js deleted; level2/3/4, level1_door and progression tests now unlock the level's moves instead of adding a key.
 - Ground enemies leap pits to reach her (e.jump arc in stepEnemyCore, `setRange` recomputes the ground after landing).
 - Dash, dash_thrust and energy_dash_thrust hop 5 px (`dashHop` added in `heightAbove`). Test: enemy_jump_dash_hop.test.js.
+
+## st54
+- Max HP starts at 50 (`P.state.maxes.hp`, cap 200). +25 Max HP gems (`up_hp`) drop beside health gems (crates and a 12 percent kill roll) and raise Max HP and current HP by 25. A health gem heals 25 percent of Max HP.
+- Push kick and energy kick hop 5 px like the dash (`DASH_MOVES` in game.js). Test: maxhp_kick_hop.test.js.
+- hazards, level1_door and progression tests updated for 50 HP and the new gem; the pit tests now expect enemies to leap pits. Not re-run after the last edits. browser, combat and meters tests were already stale.

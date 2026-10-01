@@ -82,7 +82,7 @@ const { chromium } = require('playwright');
   await page.keyboard.down('ArrowRight'); await key('ArrowUp', 60);
   await wait(1100); await page.keyboard.up('ArrowRight'); await wait(500);
   s = await S();
-  check('jump with Right held clears the 1.2 pit and she survives', !s.pitFall && s.hp === 200 && s.px > 205 && s.floorY === 0, { px: s.px, hp: s.hp, pf: s.pitFall });
+  check('jump with Right held clears the 1.2 pit and she survives', !s.pitFall && s.hp === 50 && s.px > 205 && s.floorY === 0, { px: s.px, hp: s.hp, pf: s.pitFall });
 
   // platform: 1.1 has a plank x 150-214 top 44; jump onto it from x 120
   await ev('bibooGame.warp(0)'); await wait(700); await ev('bibooGame.setEnemies([])');
@@ -158,9 +158,10 @@ const { chromium } = require('playwright');
 
   // ---- 11. drops: kill many goblins, count health gems
   const N = 400;
-  const drops = await ev(`(() => { let d = 0; for (let i = 0; i < ${N}; i++) { bibooGame.enterLevel(1); bibooGame.killFoe(0); if (bibooGame.state().fx.gems > 0) d++; } return d; })()`);
+  const drops = await ev(`(() => { let d = 0; for (let i = 0; i < ${N}; i++) { bibooGame.enterLevel(1); bibooGame.killFoe(0); if (bibooGame.pickups().some(g => g.kind === 'health')) d++; } return d; })()`);
   check(`health gem drop rate is about 35% (${drops}/${N})`, drops / N > 0.28 && drops / N < 0.42, drops);
   // ---- 12. gems: pick up into the bag, use from the menu
+  await ev('BibooProgress.state.maxes.hp = 200');
   await ev('bibooGame.enterLevel(1)'); await wait(600);
   await ev('bibooGame.setEnemies([])');
   const bag0 = (await ev('bibooGame.gemBag()')).health;
@@ -227,7 +228,7 @@ const { chromium } = require('playwright');
   check('K.O. shows the Game Over menu with Retry this map', s.gameOver && (await labels())[0] === 'Retry this map', { s, l: await labels() });
   await clickText('Retry this map'); await wait(600);
   s = await S();
-  check('Retry reloads the same map at full health', !s.gameOver && !s.paused && s.hp === 200 && s.level.id === '2.1', s);
+  check('Retry reloads the same map at full health', !s.gameOver && !s.paused && s.hp === (await ev('bibooGame.maxHp()')) && s.level.id === '2.1', s);
 
   // ---- 15. dev console actions in a level
   const dev = async () => { await key('Backquote'); await wait(200); };
@@ -244,7 +245,7 @@ const { chromium } = require('playwright');
   await dev(); await devClick('Kill every enemy on this map'); await devClick('Close'); await wait(300);
   check('dev: kill every enemy', (await S()).foes.every(f => !f.alive), (await S()).foes);
   await dev(); await devClick('Invincible'); await devClick('Close'); await ev('bibooGame.setHp(200)'); await ev('bibooGame.hurtHer(150)');
-  check('dev: invincible blocks damage', (await S()).hp === 200, (await S()).hp);
+  check('dev: invincible blocks damage', (await S()).hp === (await ev('bibooGame.maxHp()')), (await S()).hp);
   await dev(); await devClick('Complete this level'); await wait(300);
   check('dev: Complete this level shows the message', (await S()).levelDone, await S());
   await clickText('Back to the overworld'); await wait(200);
