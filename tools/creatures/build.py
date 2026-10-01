@@ -145,12 +145,15 @@ def build(name, c):
             T.alpha_composite(body_n, (PADN, PADN))
             A = Image.new('RGBA', T.size, (0, 0, 0, 0)); A.alpha_composite(arm_n, (PADN, PADN))
             A = A.rotate(th, resample=Image.NEAREST, center=(PADN + px0, PADN + py0))
-            A = ImageChops.offset(A, round(tx), round(ty)); T.alpha_composite(A)
+            A = ImageChops.offset(A, round(tx), round(ty))
+            boar_rig.close_gaps(A)                                         # nearest rotation opens pinholes along the shaft and the sleeve
+            T.alpha_composite(A)
             # the spear tip, found by turning and sliding a marker the same way
             t = math.radians(th); ddx, ddy = boar_rig.TIP[0] - px0, boar_rig.TIP[1] - py0
             tipx = px0 + ddx * math.cos(t) + ddy * math.sin(t) + tx; tipy = py0 - ddx * math.sin(t) + ddy * math.cos(t) + ty
             args = (w, h, pf, pb, pt, pbot, cw, ch, cx, by, dx, dy, sx, sy, rot)
             fr = render(scaled(T), *args, pad=PADN * k)
+            boar_rig.close_gaps(fr)                                        # the lean is another nearest rotation; close what it opens
             bb = render(S_body, *args).getchannel('A').getbbox()        # the body only, so the swinging arm does not stretch its hitbox
             L, T0, R, B = bb
             hurtb = [round((L + (R - L) * 0.12) - cx), 0, round((R - (R - L) * 0.12) - cx), max(2, round(by - T0))]

@@ -81,12 +81,51 @@ def fill_mode(img, todo, radius=4, reject=None):
     return img
 
 
+def is_cape(p):
+    return p[3] > 0 and p[0] > 140 and p[0] > p[1] + 30 and p[1] < 140 and p[2] < 150
+
+
+def close_gaps(im):
+    """Fill pinholes from the cut and from nearest-neighbour rotation.
+
+    A clear pixel is filled only when opaque pixels sit on both axes around it, so a
+    gap in the spear shaft closes and an outside corner of the silhouette does not."""
+    from collections import Counter
+    px = im.load(); w, h = im.size
+    for _ in range(4):
+        fix = []
+        for y in range(1, h - 1):
+            for x in range(1, w - 1):
+                if px[x, y][3]: continue
+                offs = []; cols = []; card = 0
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        if not dx and not dy: continue
+                        p = px[x + dx, y + dy]
+                        if p[3] > 200:
+                            offs.append((dx, dy)); cols.append(p)
+                            if dx == 0 or dy == 0: card += 1
+                if not offs: continue
+                xs = [d[0] for d in offs]; ys = [d[1] for d in offs]
+                spanned = min(xs) < 0 < max(xs) and min(ys) < 0 < max(ys)
+                if card >= 3 or (len(offs) >= 5 and spanned):
+                    fix.append((x, y, Counter(cols).most_common(1)[0][0]))
+        if not fix: break
+        for x, y, c in fix: px[x, y] = c
+    return im
+
+
 def remove_white(im):
-    """White left from the background cut, on the rider only: tiny specks beside the edge go clear, enclosed blobs (and the dark ring around them) are filled from their surroundings."""
+    """White left from the background cut, on the rider only.
+
+    Enclosed blobs, and the dark ring that fenced them, are filled from the cape
+    pixels around them (its own reds, not one flat stamp, and never the boar's brown).
+    A speck sitting on the outline is filled from whatever pixel it actually touches,
+    so the silhouette is not notched."""
     im = im.copy(); px = im.load(); w, h = im.size
     x0, y0, x1, y1 = RIDER
     cand = {(x, y) for y in range(y0, y1) for x in range(x0, x1) if is_white(px[x, y])}
-    seen = set(); fill = set(); clear = set()
+    seen = set(); fill = set(); specks = set()
     for s in cand:
         if s in seen: continue
         comp = []; q = deque([s]); seen.add(s)
@@ -97,7 +136,7 @@ def remove_white(im):
                     n = (c[0] + dx, c[1] + dy)
                     if n in cand and n not in seen: seen.add(n); q.append(n)
         edge = any(not (0 <= x + dx < w and 0 <= y + dy < h) or px[x + dx, y + dy][3] == 0 for x, y in comp for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
-        if edge and len(comp) <= 6: clear.update(comp)               # a speck on the outline: just remove it
+        if edge and len(comp) <= 6: specks.update(comp)
         else:
             fill.update(comp)
             for (x, y) in comp:                                     # the dark outline ring that fenced the blob in goes too
@@ -105,10 +144,16 @@ def remove_white(im):
                     for dy in (-1, 0, 1):
                         n = (x + dx, y + dy)
                         if n not in cand and 0 <= n[0] < w and 0 <= n[1] < h and is_dark(px[n]): fill.add(n)
-    for k in clear: px[k] = (0, 0, 0, 0)
     from collections import Counter
-    cape = Counter(px[x, y][:3] for y in range(y0, y1) for x in range(x0, x1) if px[x, y][3] and px[x, y][0] > 200 and px[x, y][1] < 100 and px[x, y][2] < 110).most_common(1)[0][0]
-    for k in fill: px[k] = cape + (255,)      # what the white hid was the red cape: fill it with that red (never with the boar's brown)
+    cape = Counter(px[x, y][:3] for y in range(y0, y1) for x in range(x0, x1) if is_cape(px[x, y])).most_common(1)[0][0]
+    inpaint(im, specks, avoid_dark=True)
+    for k in fill: px[k] = (0, 0, 0, 0)
+    fill_mode(im, fill, 6, lambda p: not is_cape(p))
+    px = im.load()
+    for (x, y) in fill:
+        if px[x, y][3] == 0: px[x, y] = cape + (255,)
+        elif any(0 <= x + dx < w and 0 <= y + dy < h and px[x + dx, y + dy][3] == 0 for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+            px[x, y] = (28, 16, 24, 255)
     return im
 
 
@@ -154,8 +199,21 @@ def split(im):
         if ok: fill.add((x, y))
     pole = {p for p in fill if seg_dist(p, POLE_A, POLE_B) <= POLE_R and not inside(ARM, *p) and not inside(PENNANT, *p)}
     low = {p for p in pole if p[1] >= 128}; high = pole - low
-    fur = lambda p: not (p[0] > p[1] >= p[2] and p[0] < 200) or is_white(p)       # below the rider only the boar's own browns count
-    for (x, y) in low:                       # the pole crosses the fur at a slant: each row takes the fur beside it, from whichever side is nearer, so no band is left
+    def fur_at(x, y):
+        if (x, y) in fill or (x, y) in cut or not (0 <= x < w and 0 <= y < h): return None
+        p = bp[x, y]
+        if p[3] == 0 or is_dark(p) or is_white(p): return None
+        if not (p[0] > p[1] >= p[2]): return None          # the boar's brown, not the cape and not the armour
+        return p
+    for (x, y) in low:
+        # continue the fur from above or below. Copying the pixel beside the gap
+        # stamped one colour across the whole row and left a flat band.
+        pick = None
+        for d in range(1, 8):
+            for p in (fur_at(x, y - d), fur_at(x, y + d)):
+                if p is not None and (pick is None or d < pick[0]): pick = (d, p)
+            if pick and pick[0] < d: break
+        if pick: bp[x, y] = pick[1]; continue
         l = x
         while l >= 0 and ((l, y) in fill or (l, y) in cut or is_dark(bp[l, y]) or bp[l, y][3] == 0) and x - l < 14: l -= 1
         r = x
@@ -168,6 +226,7 @@ def split(im):
     # a new edge made by the cut gets the same dark outline the art has everywhere else
     for (x, y) in fill:
         if any(0 <= x + dx < w and 0 <= y + dy < h and bp[x + dx, y + dy][3] == 0 for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))): bp[x, y] = (28, 16, 24, 255)
+    close_gaps(body)
     return body, arm
 
 
