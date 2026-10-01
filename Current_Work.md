@@ -429,3 +429,10 @@ Plan and status (each step is pushed on its own; resume from the first unchecked
 - Test: music.test.js (serves the folder over http).
 
 - Test status at st82: all pass except the known older failures (browser, combat, enemy_reach, hazards 4, meters 7, turn_stun 1) and chain.test.js 'slow presses stay plain slashes' (fails on st81 too; the test fights a live ogre chief, so the second press can land while she is stunned).
+
+### Engine split (st82)
+- web/game.js (3150 lines) was cut at its section markers into web/game/00_core.js ... 22_test_hooks.js (23 files, 26 to 345 lines). Same code, IIFE removed: classic scripts share one global lexical scope, so the files see each other's top-level let/const/function. index.html loads them in numeric order (order matters for load-time statements). Only collision with a window property is `screen` (game variable shadows window.screen; nothing else uses it). When adding a new top-level name, avoid names of window properties (name, top, status, location, close, open, stop, print, event ...).
+- To edit: grep -n the function name in web/game/, then Read only that file. Cache stamp sed in the notes above still works (it rewrites every v=stN).
+
+## st83
+- Gems menu renamed Items; parry deals 10 damage; no leaves over pits; ankh cap removed; Y shows descriptions in Items, Moves and shop (row cursor). Test: web/tests/menus_info.test.js. Also: web/game.js split into web/game/*.js (st82 follow-up).

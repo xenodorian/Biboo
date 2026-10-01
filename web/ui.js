@@ -1,6 +1,6 @@
 /* Menus for Parry Perry: the one overlay panel (#start-menu) shows a "view" at a time.
  *
- *   main       Start / Resume / Retry, Moves, Gems, Overworld, Fullscreen (items come from api.mainItems())
+ *   main       Start / Resume / Retry, Moves, Items, Overworld, Fullscreen (items come from api.mainItems())
  *   moves      the controls and the unlocked combos (rows come from api.moveRows())
  *   gems       stored gems with a Use button each (api.gemRows(), api.useGem(kind))
  *   message    a title, a line of text and a list of buttons (Game Over, Level Complete)
@@ -36,6 +36,7 @@
   UI.open = function (view, opts) {
     const menu = $('start-menu');
     if (!menu) return;
+    if (UI.view !== view) { UI.ridx = 0; UI.showInfo = false; }
     UI.view = view;
     UI.opts = opts || UI.opts || {};
     const keep = UI.opts.keepIdx;
@@ -45,6 +46,7 @@
     UI.idx = keep != null ? Math.min(keep, bs.length - 1) : Math.max(0, bs.findIndex(b => b.classList.contains('primary')));
     if (bs[UI.idx]) bs[UI.idx].focus({ preventScroll: true });
     UI.opts.keepIdx = null;
+    if (rowMode()) markRow(false);
   };
   UI.close = function () {
     const menu = $('start-menu');
@@ -53,11 +55,24 @@
   };
   UI.refresh = function () { if (UI.isOpen()) { UI.opts.keepIdx = UI.idx; UI.open(UI.view, UI.opts); } };
 
+  // Items, Moves and the shop have a row cursor: Up and Down walk every row (even one whose button is greyed out), A presses the row's
+  // button, and Y (or a tap on the row) shows what the row does. The Back button is the last stop.
+  const rowMode = () => UI.view === 'moves' || UI.view === 'gems' || UI.view === 'shop';
+  const stops = () => [...document.querySelectorAll('#menu-view [data-info], #menu-view .actions button')];
+  function markRow(scroll) {
+    const st = stops();
+    if (!st.length) return;
+    UI.ridx = Math.max(0, Math.min(UI.ridx || 0, st.length - 1));
+    st.forEach((e, i) => e.classList.toggle('cur', i === UI.ridx));
+    const cur = st[UI.ridx], b = cur.tagName === 'BUTTON' ? cur : cur.querySelector('button:not(:disabled)');
+    if (b) b.focus({ preventScroll: true }); else if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    if (scroll) cur.scrollIntoView({ block: 'nearest' });
+    const box = document.getElementById('info-box');
+    if (box) { const t = UI.showInfo ? cur.getAttribute('data-info') : null; box.textContent = t || (UI.showInfo ? 'Nothing to describe here.' : 'Y: what does this do?'); box.classList.toggle('on', !!UI.showInfo); }
+  }
+  UI.info = function () { if (!rowMode()) return; UI.showInfo = !UI.showInfo; markRow(false); };
   UI.nav = function (d) {
-    if (UI.view === 'moves') {                                   // Up and Down scroll the move list
-      const sc = document.querySelector('#menu-view .menu-scroll');
-      if (sc) { sc.scrollTop += d * 44; return; }
-    }
+    if (rowMode()) { const n = stops().length; if (n) { UI.ridx = ((UI.ridx || 0) + d + n) % n; markRow(true); } return; }
     const bs = UI.buttons();
     if (!bs.length) return;
     UI.idx = (UI.idx + d + bs.length) % bs.length;
@@ -65,6 +80,12 @@
     bs[UI.idx].scrollIntoView({ block: 'nearest' });
   };
   UI.activate = function () {
+    if (rowMode()) {
+      const cur = stops()[UI.ridx || 0];
+      const b = cur && (cur.tagName === 'BUTTON' ? cur : cur.querySelector('button'));
+      if (b && !b.disabled) b.click();
+      return;
+    }
     const bs = UI.buttons();
     if (bs[UI.idx]) bs[UI.idx].click();
   };
@@ -95,8 +116,8 @@
       msg.textContent = UI.opts.device === 'keys' ? '' : (api.padStatus ? api.padStatus() : '');
       box.appendChild(movesView(api));
     } else if (UI.view === 'gems') {
-      title.textContent = 'Gems';
-      msg.textContent = 'Gems you collect are stored here. Use one to fill a meter or heal.';
+      title.textContent = 'Items';
+      msg.textContent = 'Items you collect are stored here. Use one to fill a meter or heal. Press Y on a row to see what it does.';
       box.appendChild(gemsView(api));
     } else if (UI.view === 'shop') {
       title.textContent = 'Bone Merchant';
@@ -135,7 +156,7 @@
         scroll.appendChild(h('h3', '', section));
         scroll.appendChild(table);
       }
-      const tr = h('tr');
+      const tr = h('tr'); tr.setAttribute('data-info', r.info || r.how || ''); tr.addEventListener('click', () => { UI.ridx = stops().indexOf(tr); UI.showInfo = true; markRow(false); });
       tr.appendChild(h('td', keys ? 'keys' : 'pad', keys ? r.keys : r.pad));
       tr.appendChild(h('td', '', r.title));
       tr.appendChild(h('td', 'how', r.how));
@@ -143,6 +164,7 @@
     }
     if (api.moveNotes) for (const n of api.moveNotes(keys ? 'keys' : 'pad')) wrap.appendChild(h('p', 'note', n));
     wrap.appendChild(scroll);
+    wrap.appendChild(h('p', 'note info-box', 'Y: what does this do?')).id = 'info-box';
     const locked = api.lockedCount ? api.lockedCount() : 0;
     if (locked > 0) wrap.appendChild(h('p', 'note', `${locked} more moves are still locked. Buy Scrolls and Mutagens from the Bone Merchant on the overworld.`));
     const list = h('div', 'actions');
@@ -165,20 +187,21 @@
     for (const sec of api.shopRows()) {
       scroll.appendChild(h('h3', '', sec.title));
       for (const r of sec.rows) {
-        const row = h('div', 'shop-row' + (r.owned ? ' owned' : ''));
+        const row = h('div', 'shop-row' + (r.owned ? ' owned' : '')); row.setAttribute('data-info', r.info || r.desc || ''); row.addEventListener('click', ev => { if (ev.target.tagName === 'BUTTON') return; UI.ridx = stops().indexOf(row); UI.showInfo = true; markRow(false); });
         row.appendChild(icon(api, r.sprite));
         const info = h('span', 'shop-info');
         info.appendChild(h('b', '', r.label));
         info.appendChild(h('small', '', r.desc + (r.have ? ' (' + r.have + ')' : '')));
         if (r.note) info.appendChild(h('small', 'shop-note', r.note));
         row.appendChild(info);
-        const b = button(r.owned ? 'Owned' : r.price + ' Leaves', () => { const m = api.buy(r.key); UI.opts.msg = m || ''; UI.opts.keepIdx = UI.idx; UI.open('shop', UI.opts); }, '', 'buy-' + r.key);
+        const b = button(r.owned ? 'Owned' : r.price + ' Leaves', () => { const m = api.buy(r.key); UI.opts.msg = m || ''; UI.open('shop', UI.opts); }, '', 'buy-' + r.key);
         b.disabled = !r.canBuy;
         row.appendChild(b);
         scroll.appendChild(row);
       }
     }
     wrap.appendChild(scroll);
+    wrap.appendChild(h('p', 'note info-box', 'Y: what does this do?')).id = 'info-box';
     const acts = h('div', 'actions');
     acts.appendChild(button('Leave the shop', () => { if (UI.opts.back) UI.opts.back(); else UI.api.closeMenu(); }, 'primary', 'btn-shop-back'));
     wrap.appendChild(acts);
@@ -189,7 +212,7 @@
     const wrap = h('div', 'gems-wrap');
     const list = h('div', 'gem-list');
     for (const r of api.gemRows()) {
-      const row = h('div', 'gem-row');
+      const row = h('div', 'gem-row'); row.setAttribute('data-info', r.info || ''); row.addEventListener('click', ev => { if (ev.target.tagName === 'BUTTON') return; UI.ridx = stops().indexOf(row); UI.showInfo = true; markRow(false); });
       row.appendChild(icon(api, r.sprite));
       const name = h('span', 'gem-name', r.label);
       const cnt = h('span', 'gem-count', 'x ' + r.count);
@@ -200,6 +223,7 @@
       list.appendChild(row);
     }
     wrap.appendChild(list);
+    wrap.appendChild(h('p', 'note info-box', 'Y: what does this do?')).id = 'info-box';
     const acts = h('div', 'actions');
     acts.appendChild(button('Back', () => UI.open('main', { msg: UI.opts.msg }), 'primary'));
     wrap.appendChild(acts);

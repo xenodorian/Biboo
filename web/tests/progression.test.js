@@ -23,7 +23,7 @@ const { chromium } = require('playwright');
   // ---- 1. load, title menu
   let s = await S();
   check('title screen, no errors', s.screen === 'title' && errors.length === 0, { s: s.screen, errors });
-  check('title menu lists New game, both Moves lists, Gems, Fullscreen', JSON.stringify(await labels()) === JSON.stringify(['New game', 'Moves: Gamepad', 'Moves: Keyboard', 'Music: 60%', 'Gems', 'Bone Merchant', 'Fullscreen']), await labels());
+  check('title menu lists New game, both Moves lists, Gems, Fullscreen', JSON.stringify(await labels()) === JSON.stringify(['New game', 'Moves: Gamepad', 'Moves: Keyboard', 'Music: 60%', 'Items', 'Bone Merchant', 'Fullscreen']), await labels());
   check('old controls panel and combo table removed from the page', await ev("!document.querySelector('#pad-section') && document.querySelectorAll('table.moves-table').length === 0"), null);
 
   // ---- 2. moves menu at first launch
@@ -37,7 +37,7 @@ const { chromium } = require('playwright');
   check('Escape goes back from Moves to the main list', (await labels())[0] === 'New game', await labels());
 
   // ---- 3. gems menu empty
-  await clickText('Gems');
+  await clickText('Items');
   const gemtxt = await ev("document.getElementById('menu-view').textContent");
   check('gems menu shows 4 kinds, all Use disabled', (await page.$$('#menu-view .gem-row')).length === 4 && (await page.$$('#menu-view .gem-row button:disabled')).length === 4, gemtxt);
   await key('Escape'); await wait(100);
@@ -170,8 +170,8 @@ const { chromium } = require('playwright');
   check('walking over a gem stores it in the bag (+1 health)', s.health === bag0 + 1, s);
   await ev('bibooGame.hurtHer(0)');
   await ev('bibooGame.setHp(100)'); await key('Escape'); await wait(200);
-  check('Escape pauses with the menu (Resume, Moves, Cheats, Gems, Back to overworld, Save game, Fullscreen, New game)', JSON.stringify(await labels()) === JSON.stringify(['Resume', 'Moves: Gamepad', 'Moves: Keyboard', 'Music: 60%', 'Cheats', 'Gems', 'Back to the overworld', 'Save game', 'Fullscreen', 'New game (erases save)']), await labels());
-  await clickText('Gems');
+  check('Escape pauses with the menu (Resume, Moves, Cheats, Gems, Back to overworld, Save game, Fullscreen, New game)', JSON.stringify(await labels()) === JSON.stringify(['Resume', 'Moves: Gamepad', 'Moves: Keyboard', 'Music: 60%', 'Cheats', 'Items', 'Back to the overworld', 'Save game', 'Fullscreen', 'New game (erases save)']), await labels());
+  await clickText('Items');
   let rows = await page.$$eval('#menu-view .gem-row', r => r.map(x => ({ t: x.textContent, dis: x.querySelector('button').disabled })));
   check('Gems menu: health Use is enabled, the rest disabled', !rows[0].dis && rows.slice(1).every(r => r.dis), rows);
   await page.locator('#menu-view .gem-row').first().locator('button').click(); await wait(150);
@@ -180,7 +180,7 @@ const { chromium } = require('playwright');
   check('Escape twice resumes play', !(await S()).paused, await S());
   // energy gem needs the meter: give one, verify disabled, then unlock L1 and use it
   await ev("BibooProgress.addGem('energy', 1)");
-  await key('Escape'); await wait(150); await clickText('Gems');
+  await key('Escape'); await wait(150); await clickText('Items');
   rows = await page.$$eval('#menu-view .gem-row', r => r.map(x => ({ t: x.textContent, dis: x.querySelector('button').disabled })));
   check('energy gem cannot be used before the meter is unlocked', rows[1].dis && /not unlocked/.test(rows[1].t), rows[1]);
   await key('Escape'); await wait(100); await key('Escape'); await wait(100);

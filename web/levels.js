@@ -174,14 +174,11 @@
     const r = rng(L.n * 7001 + i * 173 + 11);
     m.leaves = []; m.ankhs = [];
     const clearGround = x => !m.pits.some(q => x > q.x0 - 6 && x < q.x1 + 6) && !m.bombs.some(b => (b.fy || 0) === 0 && Math.abs(b.x - x) < 14) && !m.solids.some(q => x > q.x0 - 4 && x < q.x1 + 4);
-    const freePits = m.pits.slice(), freePlats = m.plats.slice();        // each pit arc and platform line is used at most once per map
+    const freePlats = m.plats.slice();        // each pit arc and platform line is used at most once per map
     const groups = m.boss ? 2 : 2 + (r() < 0.6 ? 1 : 0) + (r() < 0.3 ? 1 : 0);
     for (let k = 0; k < groups; k++) {
       const roll = r();
-      if (!m.boss && freePits.length && roll < 0.55) {                         // an arc over a pit
-        const q = freePits.splice(Math.floor(r() * freePits.length), 1)[0], n = 5, w = q.x1 - q.x0 + 20;
-        for (let j = 0; j < n; j++) { const t = j / (n - 1); m.leaves.push({ x: Math.round(q.x0 - 10 + w * t), fy: 0, h: Math.round(14 + 30 * Math.sin(Math.PI * t)) }); }
-      } else if (!m.boss && freePlats.length && roll < 0.8) {                  // a short line on a platform
+      if (!m.boss && freePlats.length && roll < 0.5) {                        // a short line on a platform (never an arc over a pit)
         const p = freePlats.splice(Math.floor(r() * freePlats.length), 1)[0], n = Math.max(2, Math.min(5, Math.floor((p.x1 - p.x0 - 14) / 13)));
         const x0 = Math.round((p.x0 + p.x1) / 2 - (n - 1) * 6.5);
         for (let j = 0; j < n; j++) m.leaves.push({ x: x0 + j * 13, fy: p.top, h: 12 });
@@ -195,7 +192,7 @@
         }
       }
     }
-    m.leaves = m.leaves.filter((l, j) => m.leaves.findIndex(o => o.x === l.x && o.fy === l.fy) === j);   // two neighbouring arcs may share an end leaf
+    m.leaves = m.leaves.filter((l, j) => m.leaves.findIndex(o => o.x === l.x && o.fy === l.fy) === j && !m.pits.some(q => l.x > q.x0 - 8 && l.x < q.x1 + 8));   // no leaf ever hangs over a pit
     const crates = m.crates.slice().sort(() => r() - 0.5);
     const lvScale = 1 + 0.25 * (L.n - 1), cache = () => 5 * Math.round((15 + r() * 30) * lvScale / 5);
     if (m.boss) { crates.forEach(c => { c.loot = 'leaves:' + cache(); }); return; }

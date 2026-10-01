@@ -1,6 +1,6 @@
 """Extra moves for the chain unlocks, built by recombining frames of Max's existing sheets (rotated, shifted, re-timed).
 Writes web/assets/moves_extra/<id>.png and web/assets/moves_extra.js (adds to BIBOO.moves). The chain moves are only
-reachable through the A mash (see `chainStep` in web/game.js); they carry no knockback (it is keyed by move id in game.js).
+reachable through the A mash (see `chainStep` in web/game/04_chain.js); they carry no knockback (it is keyed by move id in web/game/).
 Run: python3 build_moves.py"""
 import json, os, copy
 from PIL import Image

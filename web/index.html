@@ -57,6 +57,9 @@
   .moves-table td.keys { font-family: ui-monospace, monospace; white-space: nowrap; }
   .moves-table td.how { color: var(--dim); }
   .gem-list { display: flex; flex-direction: column; gap: 8px; min-width: min(460px, 80vw); margin-bottom: 12px; }
+  .cur { outline: 2px solid var(--lit); outline-offset: -2px; background: rgba(255,255,255,.07); }
+  #start-menu p.info-box { min-height: 2.4em; color: var(--dim); }
+  #start-menu p.info-box.on { color: var(--lit); }
   .gem-row { display: grid; grid-template-columns: 16px 1fr auto 1fr auto; gap: 10px; align-items: center; text-align: left; }
   .gem-swatch { width: 14px; height: 14px; transform: rotate(45deg); border: 1px solid #000; }
   .gem-count { font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -170,20 +173,42 @@
     <pre id="monitor"></pre>
   </section>
 </main>
-<script>window.BIBOO_VER = 'st82';   /* cache buster: change it whenever the game or its assets change */</script>
-<script src="assets/data.js?v=st82"></script>
-<script src="assets/moves_extra.js?v=st82"></script>
-<script src="assets/creatures.js?v=st82"></script>
-<script src="assets/arenas.js?v=st82"></script>
-<script src="assets/bgs.js?v=st82"></script>
-<script src="assets/training.js?v=st82"></script>
-<script src="assets/items.js?v=st82"></script>
-<script src="assets/music.js?v=st82"></script>
-<script src="music.js?v=st82"></script>
-<script src="input.js?v=st82"></script>
-<script src="progress.js?v=st82"></script>
-<script src="ui.js?v=st82"></script>
-<script src="levels.js?v=st82"></script>
-<script src="game.js?v=st82"></script>
+<script>window.BIBOO_VER = 'st83';   /* cache buster: change it whenever the game or its assets change */</script>
+<script src="assets/data.js?v=st83"></script>
+<script src="assets/moves_extra.js?v=st83"></script>
+<script src="assets/creatures.js?v=st83"></script>
+<script src="assets/arenas.js?v=st83"></script>
+<script src="assets/bgs.js?v=st83"></script>
+<script src="assets/training.js?v=st83"></script>
+<script src="assets/items.js?v=st83"></script>
+<script src="assets/music.js?v=st83"></script>
+<script src="music.js?v=st83"></script>
+<script src="input.js?v=st83"></script>
+<script src="progress.js?v=st83"></script>
+<script src="ui.js?v=st83"></script>
+<script src="levels.js?v=st83"></script>
+<script src="game/00_core.js?v=st83"></script>
+<script src="game/01_assets.js?v=st83"></script>
+<script src="game/02_input.js?v=st83"></script>
+<script src="game/03_state.js?v=st83"></script>
+<script src="game/04_chain.js?v=st83"></script>
+<script src="game/05_health.js?v=st83"></script>
+<script src="game/06_training.js?v=st83"></script>
+<script src="game/07_feedback.js?v=st83"></script>
+<script src="game/08_beams.js?v=st83"></script>
+<script src="game/09_maps.js?v=st83"></script>
+<script src="game/10_hazards.js?v=st83"></script>
+<script src="game/11_enemies.js?v=st83"></script>
+<script src="game/12_hits.js?v=st83"></script>
+<script src="game/13_enemy_attacks.js?v=st83"></script>
+<script src="game/14_draw_player.js?v=st83"></script>
+<script src="game/15_draw_scenery.js?v=st83"></script>
+<script src="game/16_hud.js?v=st83"></script>
+<script src="game/17_menus.js?v=st83"></script>
+<script src="game/18_story.js?v=st83"></script>
+<script src="game/19_overworld.js?v=st83"></script>
+<script src="game/20_title.js?v=st83"></script>
+<script src="game/21_cheats_loop.js?v=st83"></script>
+<script src="game/22_test_hooks.js?v=st83"></script>
 </body>
 </html>

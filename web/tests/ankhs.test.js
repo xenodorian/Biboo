@@ -16,7 +16,7 @@ const { chromium } = require('playwright');
   await ev("bibooGame.dropGem(0, 'ankh')"); await wait(900);
   check('an ankh dropped from a crate is picked up (+1)', (await ev('bibooGame.ankhs()')) === 4, await ev('bibooGame.ankhs()'));
   await ev('bibooGame.setAnkhs(9)'); await ev("bibooGame.dropGem(0, 'ankh')"); await wait(900);
-  check('the counter stops at 9', (await ev('bibooGame.ankhs()')) === 9, null);
+  check('there is no cap: the counter goes past 9', (await ev('bibooGame.ankhs()')) === 10, await ev('bibooGame.ankhs()'));
   await ev('bibooGame.warp(1)'); await wait(500);
   // K.O. and retry
   await ev('bibooGame.setX(20)'); await wait(300); await ev('bibooGame.setAnkhs(2); bibooGame.setHp(50); bibooGame.hurtHer(500)'); await wait(1800);

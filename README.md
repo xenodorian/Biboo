@@ -168,7 +168,7 @@ Meters: Energy, Empowerment and Super each start with a maximum of 50 (Super 100
 a meter gem, or a +25 meter upgrade (raises that meter's maximum by 25 and fills it by 25, up to 200). Earthquake and Meteor Shower need a
 full Super meter, whatever its maximum is.
 
-Hazards (Level data in `web/levels.js`, code in the "hazards" section of `web/game.js`):
+Hazards (Level data in `web/levels.js`, code in the "hazards" section of the `web/game/` files):
 - Pits: gaps in the ground. Her feet on the ground inside one start a fall; she drops visibly and dies only once she has fallen off the bottom of the screen. Ground enemies stop at the edge; one pushed in
   by a hit, beam or blast falls and is gone (no drops). There are no barriers any more.
 - Bombs: only she sets them off (touch, or any damage she does, including a reflected shard). 50 damage within 50 px to her and to enemies; they chain.
@@ -176,13 +176,13 @@ Hazards (Level data in `web/levels.js`, code in the "hazards" section of `web/ga
   to reflect it straight forward (it hurts enemies and sets off bombs).
 
 Enemies patrol a set path and chase only when hit or when she is inside their sight range in front of them.
-35% of kills drop a health gem (+25% of max health, 50 of 200 HP, `GEM_HEAL` in game.js). Gems go
-to a bag and are used from the Gems menu. Air control was added because the jump has no sideways motion.
+35% of kills drop a health gem (+25% of max health, 50 of 200 HP, `GEM_HEAL` in web/game/). Gems go
+to a bag and are used from the Items menu. Air control was added because the jump has no sideways motion.
 
 Cheats menu: open the pause menu and press L1+R1+L2+R2 together (Q+W+1+2 on the keyboard) to add a Cheats entry to it. Cheats: God Mode (no damage),
 Infinite Meter (meters never drain), Level Unlock (all six levels), Master Unlock (every unlockable) and No Pitfalls (pits act as solid ground).
 
-Files: `web/game.js` (engine), `web/progress.js` (unlocks, gems, in memory; the only thing written to the browser is the manual save, localStorage `parryperry.manualsave.v1`),
+Files: `web/game/*.js` (engine, 23 numbered section files loaded in order by index.html: 00_core, 01_assets, 02_input, 03_state, 04_chain, 05_health, 06_training, 07_feedback, 08_beams, 09_maps, 10_hazards, 11_enemies, 12_hits, 13_enemy_attacks, 14_draw_player, 15_draw_scenery, 16_hud, 17_menus, 18_story, 19_overworld, 20_title, 21_cheats_loop, 22_test_hooks; they share one global scope, no IIFE), `web/progress.js` (unlocks, gems, in memory; the only thing written to the browser is the manual save, localStorage `parryperry.manualsave.v1`),
 `web/levels.js` (map data, Level 1 by hand, Levels 2 to 5 generated from fixed seeds), `web/ui.js` (menus),
 `web/input.js` (input reader), `web/assets/data.js` (generated move data).
 
@@ -273,7 +273,7 @@ data/
   body_old.npy  character body (no arms or sword), 128x82 palette indices
 docs/           preview GIF and sprite sheet
 tests/          pytest wrapper around checks.py and the web input tests
-web/            browser game: index.html, game.js, input.js, generated assets/
+web/            browser game: index.html, game/ (engine sections), input.js, generated assets/
 ```
 
 ## Changing things
@@ -301,7 +301,7 @@ The four beam textures come from `data/beams_src/` (two source images with a top
 
 ### Health and damage
 
-Max has 200 HP, a goblin 60 and an orc 200. Every attack takes HP off an enemy it touches (numbers are tunable at the top of the health section in `web/game.js`): slash 15, thrust 18, upswing 18, push kick 10, heavy kick 25, energy kick 30, energy burst 50, dash thrust 22, energy dash thrust 35, spin 20 (each side), energy wave 40, earthquake 30, meteor shower 25. The heavy overhead chop does 200 on a direct hit and, where the blade lands, 150 plus a 25 px push (100 ms) to every other enemy within 25 px; the jump crash does 300. A move hurts an enemy once per use; beams hurt every 100 ms they touch (cloud 5, fire 15, laser 10, Empowerment Beam 0) and shove the enemy back per tick (cloud 0, fire 5 px, laser 20 px, Empowerment Beam 30 px). An orc hit takes 30 HP off Max and a goblin hit 12; blocking and parrying take none. Damage shows as red numbers rising from the target, each enemy has a bar over its head and Max's bar is at the top left. Kneeling to recover (R held) gives 5 HP every 0.35 s with green numbers. At 0 HP Max is knocked out for 1.5 s and gets back up at full HP.
+Max has 200 HP, a goblin 60 and an orc 200. Every attack takes HP off an enemy it touches (numbers are tunable at the top of the health section in the `web/game/` files): slash 15, thrust 18, upswing 18, push kick 10, heavy kick 25, energy kick 30, energy burst 50, dash thrust 22, energy dash thrust 35, spin 20 (each side), energy wave 40, earthquake 30, meteor shower 25. The heavy overhead chop does 200 on a direct hit and, where the blade lands, 150 plus a 25 px push (100 ms) to every other enemy within 25 px; the jump crash does 300. A move hurts an enemy once per use; beams hurt every 100 ms they touch (cloud 5, fire 15, laser 10, Empowerment Beam 0) and shove the enemy back per tick (cloud 0, fire 5 px, laser 20 px, Empowerment Beam 30 px). An orc hit takes 30 HP off Max and a goblin hit 12; blocking and parrying take none. Damage shows as red numbers rising from the target, each enemy has a bar over its head and Max's bar is at the top left. Kneeling to recover (R held) gives 5 HP every 0.35 s with green numbers. At 0 HP Max is knocked out for 1.5 s and gets back up at full HP.
 
 Knockback (distance, stun time): push kick 100 px, 200 ms; energy kick 200 px, 300 ms; energy burst 100 px, 500 ms; a parry 100 px, 400 ms (no damage). An enemy that dies is not pushed.
 
@@ -315,12 +315,14 @@ Level 2 has nine maps (2.10 was removed) and ends at a locked door at the right 
 
 Level 3 has nine maps (3.10 was removed): 3.1 Heavy Overhead Chop, 3.3 Jumping Crash, 3.5 Fire Beam, 3.7 Laser Beam (now 5 energy and 15 damage per tick), the key drop only in 3.8 (plain crates there, once all four are owned), and the locked door at the end of 3.9. Earthquake moved to 4.1 (Meteor Shower stays in 4.3), so both stay late-game.
 
-No keys or key chests: every locked-door level (1 to 4) has its door at the right edge of map .9, drawn with a padlock and closed until every unlock placed in that level is owned (`doorLocked` in game.js). The hint reads 'The door is locked. Unlock every move in this level first.'
+No keys or key chests: every locked-door level (1 to 4) has its door at the right edge of map .9, drawn with a padlock and closed until every unlock placed in that level is owned (`doorLocked` in web/game/). The hint reads 'The door is locked. Unlock every move in this level first.'
 
-Enemies leap pits: a chasing ground enemy that reaches a pit edge with her on the far side jumps the gap (22 px arc, gaps up to 140 px) and carries on; patrols and enemies on platforms are unchanged. The dash, dash thrust and energy dash thrust hop 5 px (a short arc over the move, `dashHop` in game.js).
+Enemies leap pits: a chasing ground enemy that reaches a pit edge with her on the far side jumps the gap (22 px arc, gaps up to 140 px) and carries on; patrols and enemies on platforms are unchanged. The dash, dash thrust and energy dash thrust hop 5 px (a short arc over the move, `dashHop` in web/game/).
 
 Max HP starts at 50. A +25 Max HP gem (green diamond with a ring and plus) drops from crates and kills alongside health gems; a health gem heals 25 percent of Max HP. The push kick and energy kick hop 5 px like the dash.
 
 
 ## Leaves and the Bone Merchant
 Leaves are the gold coin currency (start with 100). They lie along the maps and some crates hold large caches. Ankhs now come only from crates. Each map's right door stays barred until every enemy on that map is defeated, and the left edge is a wall. The Bone Merchant on the overworld sells Bones (health), Bone Powder (+25 max HP), Quartz, Garnet and Diamonds (meter refills), Mutagens (meter based unlocks) and Warrior Scrolls (all other unlocks). An unlock is on sale once the level before the one that used to hold it is beaten. Gems still drop from crates and enemies as before.
+
+Menu and combat changes (st83): the Gems sub menu is now called Items. A parried melee attack deals 10 damage (`PARRY_DMG`). No leaves are placed over pits. Ankhs have no carry limit. In the Items, Moves and shop views Up and Down move a row cursor, and Y (S on the keyboard, or a tap on a row) shows a description of the highlighted row.

@@ -47,7 +47,7 @@ const { chromium } = require('playwright');
   let stop = first; while (stop < xs.length - 3 && !(xs[stop + 1] === xs[stop] && xs[stop + 2] === xs[stop] && xs[stop + 3] === xs[stop])) stop++;
   check('energy burst: the slide lasts about 500 ms', first > 0 && near((stop - first) * 20 + (stop - first) * 0, 500, 160), { first, stop });
 
-  // parry: push 300 px, no damage, stun. Try the tap at several delays after the swing starts.
+  // parry: push 300 px, 10 damage, stun. Try the tap at several delays after the swing starts.
   let parried = null;
   for (const delay of [90, 60, 120, 150, 180]) {
     await setup([['orc', 60, 60000]]);
@@ -58,7 +58,7 @@ const { chromium } = require('playwright');
     const c = await ev('bibooGame.combat()');
     if (c.parries > p0) { await wait(900); parried = { delay, moved: (await en())[0].x - e0, hp: await ev('bibooGame.hp()'), oh: (await hps())[0] }; break; }
   }
-  check('parry: pushes the orc about 300 px, no damage to either', !!parried && near(parried.moved, 300, 20) && parried.hp === 200 && parried.oh === 1000, parried);
+  check('parry: pushes the orc about 300 px, 10 damage to it and none to her', !!parried && near(parried.moved, 300, 20) && parried.hp === 200 && parried.oh === 990, parried);
 
   // ---- batch 2: beams (A+L2 cloud, A+X fire (hold X), A+L1 laser, A+R1 Empowerment)
   const beams = [

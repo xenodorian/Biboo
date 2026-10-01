@@ -71,7 +71,7 @@
   P.LEAVES_START = 100; P.LEAF_CAP = 99999; P.PRICE = PRICE;
   P.addLeaves = n => { P.state.leaves = Math.max(0, Math.min(P.LEAF_CAP, (P.state.leaves | 0) + n)); return P.state.leaves; };
   P.priceOf = u => PRICE[u.shop](u.level);
-  P.ANKH_START = 3; P.ANKH_CAP = 9;
+  P.ANKH_START = 3; P.ANKH_CAP = Infinity;                               // no limit on the ankhs carried
   P.addAnkh = n => { const b = P.state.ankhs; P.state.ankhs = Math.max(0, Math.min(P.ANKH_CAP, b + (n == null ? 1 : n))); return P.state.ankhs - b; };
   P.levelCount = () => (root.BIBOO_LEVELS && root.BIBOO_LEVELS.levels.length) || 6;
 
