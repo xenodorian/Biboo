@@ -20,14 +20,14 @@ const { chromium } = require('playwright');
   await page.keyboard.press('KeyZ', { delay: 90 }); await wait(300);
   check('A on the merchant opens the shop', /Bone Merchant/.test(await page.textContent('#menu-title')));
   const rows = await page.$$eval('.shop-row', r => r.map(x => x.textContent));
-  check('shop lists supplies, mutagens and scrolls', rows.some(r => /Bone Powder/.test(r)) && rows.some(r => /Mutagen/.test(r)) && rows.some(r => /Scroll/.test(r)), rows.length);
-  check('level 2 unlocks are not for sale yet', await page.$$eval('.shop-row', r => r.filter(x => /Beat level 1 first/.test(x.textContent)).length > 3));
+  check('shop lists supplies, mutagens and scrolls', rows.some(r => /Bone Powder/.test(r)) && rows.some(r => /Scroll/.test(r)), rows.length);
+  check('items that are not available yet are hidden (no level 2 unlocks, no meter gems)', await page.$$eval('.shop-row', r => !r.some(x => /Beat level|Needs a/.test(x.textContent))) && (await page.$$('#buy-quartz, #buy-garnet, #buy-diamond')).length === 0);
   await page.screenshot({ path: process.env.SHOT_DIR ? process.env.SHOT_DIR + '/shop.png' : '/tmp/shop.png' });
   // buy a Bone (8)
   await page.click('#buy-bone'); await wait(200);
   check('buying a Bone costs 8 and adds one', (await ev(`${P}.state.leaves`)) === 92 && (await ev(`${P}.state.gems.health`)) === 1, [await ev(`${P}.state.leaves`), await ev(`${P}.state.gems.health`)]);
   // quartz needs a meter
-  check('Quartz is blocked without an Energy Mutagen', await page.$eval('#buy-quartz', b => b.disabled));
+  check('Quartz is not on sale without an Energy Mutagen', (await page.$$('#buy-quartz')).length === 0);
   // bone powder is 90: not enough
   check('Bone Powder is unaffordable at 92-8? (90 <= 92 so affordable)', !(await page.$eval('#buy-powder', b => b.disabled)));
   await page.click('#buy-powder'); await wait(200);
@@ -40,7 +40,7 @@ const { chromium } = require('playwright');
   await page.click(`#buy-unlock\\:${first}`); await wait(200);
   check('a level 1 scroll unlocks its move', !before && (await ev(`${P}.has('${first}')`)));
   const mut = await ev(`${P}.UNLOCKS.filter(u => u.shop === 'mutagen' && u.level === 2)[0].id`);
-  check('a level 2 mutagen is locked until level 1 is beaten', await page.$eval(`#buy-unlock\\:${mut}`, b => b.disabled));
+  check('a level 2 mutagen is not on sale until level 1 is beaten', (await page.$$(`#buy-unlock\\:${mut}`)).length === 0);
   await ev(`${P}.state.levelsUnlocked = 2`);
   await page.click('#btn-shop-back'); await wait(500); await page.keyboard.press('KeyZ', { delay: 90 }); await wait(300);
   await page.click(`#buy-unlock\\:${mut}`); await wait(200);
