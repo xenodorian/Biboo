@@ -7,17 +7,17 @@
   // grade/ga is a vertical multiply on the background. water is a damp reflection under the feet (0 means none).
   // Boss stills use the same direction as the matching cutscene.
   const LIGHTS = {
-    trail:    { sx: 0.8,  sy: 0.22, a: 0.55, col: '#0a120c', grade: '#1c140c', ga: 0.28, rim: '#ffe0a0' },
-    falls:    { sx: 0.35, sy: 0.12, a: 0.50, col: '#061018', grade: '#0c1a22', ga: 0.32, rim: '#d0ecff', water: 0.22 },
-    canyon:   { sx: -0.9, sy: 0.26, a: 0.62, col: '#1a0804', grade: '#3a1408', ga: 0.30, rim: '#ffb070' },
-    shore:    { sx: -1.3, sy: 0.30, a: 0.70, col: '#14041c', grade: '#2a1018', ga: 0.34, rim: '#ffd0a0', water: 0.32 },
-    mire:     { sx: 0.15, sy: 0.08, a: 0.45, col: '#041008', grade: '#06140c', ga: 0.38, rim: '#b0e0c0' },
-    sanctum:  { sx: 0.25, sy: -0.32, a: 0.70, col: '#000010', grade: '#080818', ga: 0.42, rim: '#c8d0ff' },
-    training: { sx: 0.55, sy: 0.18, a: 0.50, col: '#100818', grade: '#201008', ga: 0.22, rim: '#ffe0b0' },
-    fungal:   { sx: 0.4,  sy: 0.16, a: 0.55, col: '#061410', grade: '#081810', ga: 0.26, rim: '#d8ffe4', water: 0.28 },
-    crypt:    { sx: 0.2,  sy: -0.28, a: 0.75, col: '#000008', grade: '#060814', ga: 0.40, rim: '#b0b8ff' },
-    bone:     { sx: -0.7, sy: 0.22, a: 0.65, col: '#140808', grade: '#1a0c08', ga: 0.32, rim: '#ffc090' },
-    keep:     { sx: 0.9,  sy: 0.25, a: 0.80, col: '#01030a', grade: '#060810', ga: 0.36, rim: '#d0d8ff' },
+    trail:    { sx: 0.8,  sy: 0.22, a: 0.55, col: '#0a120c', grade: '#1c140c', ga: 0.28 },
+    falls:    { sx: 0.35, sy: 0.12, a: 0.50, col: '#061018', grade: '#0c1a22', ga: 0.32, water: 0.22 },
+    canyon:   { sx: -0.9, sy: 0.26, a: 0.62, col: '#1a0804', grade: '#3a1408', ga: 0.30 },
+    shore:    { sx: -1.3, sy: 0.30, a: 0.70, col: '#14041c', grade: '#2a1018', ga: 0.34, water: 0.32 },
+    mire:     { sx: 0.15, sy: 0.08, a: 0.45, col: '#041008', grade: '#06140c', ga: 0.38 },
+    sanctum:  { sx: 0.25, sy: -0.32, a: 0.70, col: '#000010', grade: '#080818', ga: 0.42 },
+    training: { sx: 0.55, sy: 0.18, a: 0.50, col: '#100818', grade: '#201008', ga: 0.22 },
+    fungal:   { sx: 0.4,  sy: 0.16, a: 0.55, col: '#061410', grade: '#081810', ga: 0.26, water: 0.28 },
+    crypt:    { sx: 0.2,  sy: -0.28, a: 0.75, col: '#000008', grade: '#060814', ga: 0.40 },
+    bone:     { sx: -0.7, sy: 0.22, a: 0.65, col: '#140808', grade: '#1a0c08', ga: 0.32 },
+    keep:     { sx: 0.9,  sy: 0.25, a: 0.80, col: '#01030a', grade: '#060810', ga: 0.36 },
   };
   function sceneLight() {
     const boss = curMap && curMap.def.boss && curMap.def.theme;
@@ -389,12 +389,6 @@
       if (e.face > 0) g.scale(-1, 1);
       if (e.type === 'heavybag' && e.sw) { const top = ay * SPRITE_SCALE; g.translate(0, -top); g.rotate(e.sw.a); g.translate(0, top); }   // it swings from its top
       const Lm = sceneLight();
-      if (Lm.rim && img[T.sheet]) {
-        const screenOx = Lm.sx >= 0 ? -1 : 1, localOx = e.face > 0 ? -screenOx : screenOx;
-        g.save(); g.globalAlpha = 0.5 * alpha;
-        blit(img[T.sheet].im, cell * cw, cw, ch, -ax * SPRITE_SCALE * (e.scale||1) + localOx, -ay * SPRITE_SCALE * (e.scale||1) - 1, { color: Lm.rim, alpha: 0.9 }, SPRITE_SCALE * (e.scale||1));
-        g.restore();
-      }
       blit(img[T.sheet].im, cell * cw, cw, ch, -ax * SPRITE_SCALE * (e.scale||1), -ay * SPRITE_SCALE * (e.scale||1), e.tint && clock < e.tint.until ? e.tint : null, SPRITE_SCALE * (e.scale||1));
       if (Lm.water && (e.fy || 0) < 2 && (e.jy || 0) < 8 && !e.sinkAt && !inPit(e.x)) {
         const sc = SPRITE_SCALE * (e.scale || 1);

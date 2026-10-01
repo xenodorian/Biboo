@@ -78,14 +78,8 @@
       if (BOTH_SIDES.has(cur.id) && !gone(-cur.face)) { g.save(); g.scale(-1, 1); blit(fim, cur.k * cw, cw, ch, -m.anchor[0] * fs, -m.anchor[1] * fs, null, fs); g.restore(); }
       g.restore();
     }
-    const Lm = sceneLight();
-    if (Lm.rim) {
-      const screenOx = Lm.sx >= 0 ? -1 : 1, localOx = cur.face < 0 ? -screenOx : screenOx;
-      g.save(); g.globalAlpha = 0.5;
-      blit(img[m.sheet].im, cur.k * cw, cw, ch, -m.anchor[0] * SPRITE_SCALE + localOx, -m.anchor[1] * SPRITE_SCALE - 1, { color: Lm.rim, alpha: 0.9 }, SPRITE_SCALE);
-      g.restore();
-    }
     blit(img[m.sheet].im, cur.k * cw, cw, ch, -m.anchor[0] * SPRITE_SCALE, -m.anchor[1] * SPRITE_SCALE, tc, SPRITE_SCALE);
+    const Lm = sceneLight();
     if (Lm.water && heightAbove() < 8 && floorY < 2 && !pitFall && !inPit(playerX())) {
       dampMirrorLocal(img[m.sheet].im, cur.k * cw, cw, ch, -m.anchor[0] * SPRITE_SCALE, -m.anchor[1] * SPRITE_SCALE, cw * SPRITE_SCALE, ch * SPRITE_SCALE, Lm.water);
     }
