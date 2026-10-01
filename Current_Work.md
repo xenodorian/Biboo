@@ -445,3 +445,6 @@ Plan and status (each step is pushed on its own; resume from the first unchecked
 
 ## st88 (cutscene layout, not run in a browser)
 - Story text panel now at the top (#start-menu.story). 18_story.js has an SC table: per scene the picture pan, Perry's feet (x, gy) and size, picked from each picture's ground. Drift removed. Idle-sprite anchor fixed to the middle of her boots. Miracle Island pages use the supplied boat picture (assets/story/boat.png, view copy 150 px wide) rocking on the water instead of her idle sprite. Pictures re-cut 3 px inside the borders (removed a leftover white line).
+
+## st92 (cutscene shadows and reflection, not run in a browser)
+- 18_story.js: castShadow() lays a silhouette of Perry (and the twin) on the ground along each scene's light (SC[...].L: sx, sy, a, col). Altar scene steps the shadow up the stair treads (L.steps); the cliff scene clips it to the grass (L.clip). Miracle Island draws a rippled, fading mirror image of the boat and Perry in the water instead of a shadow. Scene feet lines were raised a little (calm, fire, double) so shadows stay on screen.

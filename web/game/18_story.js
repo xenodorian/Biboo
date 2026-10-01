@@ -54,16 +54,21 @@
 
   // Where Perry stands in each scene, picked from the pictures: pan (0 left .. 1 right) says which part of the wide picture shows,
   // x and gy are where her feet go (gy is the ground line in that picture), s her size there (nearer ground, bigger).
+  // Shadows: L says which way the light falls. sx leans the shadow sideways with height (+ right), sy lays it toward the viewer (+) or away (-),
+  // a is its darkness. steps: tread lines (screen y, nearest first) a shadow is stepped up across, stepDy px per tread. clip: the ground polygon the
+  // shadow may fall on (it is cut at a cliff edge). Sunset island: the sun sits low on the right, so the shadow runs long to the left and front.
+  const LOW_SUN = { sx: -1.3, sy: 0.3, a: 0.6, col: '#2a0a3a', clip: [[0, 148], [150, 148], [160, 184], [168, 200], [182, 216], [0, 216]] };
   const SC = {
-    calm:     { pan: 0,    x: 205, gy: 198, s: 1.05 },     // the path at the foot of the meadow
-    fire:     { pan: 0.8,  x: 78,  gy: 202, s: 1.0, twinX: 338, twinGy: 204 },   // the dark lawn in front of the burning house
-    crowd:    { pan: 0.5,  gy: 198, s: 0.95 },
+    calm:     { pan: 0,    x: 205, gy: 188, s: 1.0, L: { sx: 0.8, sy: 0.28, a: 0.6, col: '#0b1a10' } },     // the path at the foot of the meadow
+    fire:     { pan: 0.8,  x: 78,  gy: 186, s: 0.95, twinX: 338, twinGy: 190, L: { sx: -1.0, sy: 0.28, a: 0.7, col: '#120000', flick: true } },   // the dark lawn in front of the burning house
+    crowd:    { pan: 0.5,  gy: 188, s: 0.95, L: { sx: 0.8, sy: 0.28, a: 0.6, col: '#0b1a10' } },
     sea:      { pan: 0.35, boatX: 268, boatY: 185 },        // open water, raised so the bow stays clear of the shore
-    double:   { pan: 0.5,  x: 96,  gy: 202, s: 1.15, twinX: 306, twinGy: 206 },  // the flagstone yard
-    altar:    { pan: 0.5,  x: 236, gy: 180, s: 0.8 },       // the foot of the temple stairs
+    double:   { pan: 0.5,  x: 96,  gy: 190, s: 1.1, twinX: 306, twinGy: 194, L: { sx: 0.9, sy: 0.25, a: 0.65, col: '#02050f' } },  // the flagstone yard
+    altar:    { pan: 0.5,  x: 236, gy: 181, s: 0.8,
+                L: { sx: 0.45, sy: -0.28, a: 0.6, col: '#06063a', steps: [181, 172, 164, 156, 148, 141, 133, 125], stepDy: 3 } },       // the foot of the temple stairs
     rewind:   { pan: 0.35 },
-    meditate: { pan: 0,    x: 104, gy: 178, s: 0.95 },      // the grassy cliff
-    sunrise:  { pan: 0,    x: 104, gy: 178, s: 0.95 },
+    meditate: { pan: 0,    x: 104, gy: 178, s: 0.95, L: LOW_SUN },      // the grassy cliff
+    sunrise:  { pan: 0,    x: 104, gy: 178, s: 0.95, L: LOW_SUN },
   };
   function drawStoryBg(name) {
     const im = img['story:' + name] && img['story:' + name].im;
@@ -75,6 +80,37 @@
     else { g.fillStyle = '#100818'; g.fillRect(0, 0, V.w, V.h); }
   }
 
+  // A silhouette of one sprite frame in one colour, cached.
+  const _sil = {};
+  function silhouette(key, im, sx0, sy0, sw, sh, w, h, col) {
+    const k = key + col;
+    if (_sil[k]) return _sil[k];
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+    x.drawImage(im, sx0, sy0, sw, sh, 0, 0, w, h);
+    x.globalCompositeOperation = 'source-in'; x.fillStyle = col; x.fillRect(0, 0, w, h);
+    return (_sil[k] = c);
+  }
+  const _scratch = document.createElement('canvas'); _scratch.width = 384; _scratch.height = 216;
+  // Cast a shadow of the silhouette (drawn at dx, dy, standing on groundY) along the light L, laid flat on the ground.
+  function castShadow(sil, dx, dy, groundY, L, alpha) {
+    const sx = L.sx + (L.flick ? Math.sin(clock * 0.011) * 0.15 : 0), sy = L.sy;
+    const lay = c => { c.setTransform(1, 0, -sx, -sy, sx * groundY, groundY * (1 + sy)); c.drawImage(sil, dx, dy); c.setTransform(1, 0, 0, 1, 0, 0); };
+    g.save();
+    g.globalAlpha = (L.a || 0.35) * (alpha == null ? 1 : alpha);
+    if (L.clip) { g.beginPath(); L.clip.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.clip(); }   // cut off at a cliff edge
+    if (L.steps) {                                                // stairs: each tread the shadow climbs lifts it a little, in a hard step
+      const c = _scratch.getContext('2d'); c.clearRect(0, 0, 384, 216); c.imageSmoothingEnabled = false; lay(c);
+      const ys = L.steps;
+      for (let k = 0; k < ys.length; k++) {
+        const top = k + 1 < ys.length ? ys[k + 1] : 0, bot = k === 0 ? 216 : ys[k];   // the rows between tread k+1 and tread k
+        const sh = bot - top; if (sh <= 0) continue;
+        g.drawImage(_scratch, 0, top, 384, sh, 0, top - k * (L.stepDy || 3), 384, sh);
+      }
+    } else lay(g);
+    g.restore();
+  }
+
   // Perry: real idle sprite, feet at (X, Y). Optional sit lowers her a little.
   function drawMax(X, Y, o) {
     o = o || {};
@@ -84,6 +120,7 @@
     const fr = (o.frame != null ? o.frame : Math.floor(clock / 280) % 4);
     const dx = Math.round(X - IDLE_AX * s);
     const dy = Math.round(Y - IDLE_AY * s + (o.sit ? 10 * s : 0));
+    if (o.L) castShadow(silhouette('idle' + fr + ':' + s.toFixed(3), im, fr * IDLE_CW, 0, IDLE_CW, IDLE_CH, Math.round(IDLE_CW * s), Math.round(IDLE_CH * s), o.L.col), dx, dy, Y + (o.sit ? 10 * s : 0), o.L, o.alpha);
     g.save();
     if (o.alpha != null) g.globalAlpha = o.alpha;
     if (o.flip) { g.translate(Math.round(X), 0); g.scale(-1, 1); g.translate(-Math.round(X), 0); }
@@ -101,6 +138,7 @@
     const fr = o.frame != null ? o.frame : Math.floor(clock / 280) % 4;
     const dx = Math.round(X - MM_AX * s);
     const dy = Math.round(Y - MM_AY * s + (o.sit ? 12 * s : 0));
+    if (o.L) castShadow(silhouette('twin' + fr + ':' + s.toFixed(3), im, fr * MM_CW, 0, MM_CW, MM_CH, Math.round(MM_CW * s), Math.round(MM_CH * s), o.L.col), dx, dy, Y + (o.sit ? 12 * s : 0), o.L, o.alpha);
     g.save();
     if (o.alpha != null) g.globalAlpha = o.alpha;
     g.imageSmoothingEnabled = false;
@@ -121,20 +159,30 @@
     drawStoryBg(sc);
 
     if (sc === 'calm') {
-      drawMax(c.x, c.gy, { s: c.s });
+      drawMax(c.x, c.gy, { s: c.s, L: c.L });
     }
     else if (sc === 'fire') {
       g.fillStyle = 'rgba(255,80,20,' + (0.08 + 0.06 * Math.sin(T * 0.01)) + ')';
       g.fillRect(0, 0, W, H);
-      drawMax(c.x, c.gy, { s: c.s });
-      drawTwin(c.twinX, c.twinGy, { s: 0.7 });
+      drawMax(c.x, c.gy, { s: c.s, L: c.L });
+      drawTwin(c.twinX, c.twinGy, { s: 0.7, L: c.L });
     }
     else if (sc === 'crowd') {
-      drawMax(60 + ((T * 0.05) % 260), c.gy, { s: c.s });
+      drawMax(60 + ((T * 0.05) % 260), c.gy, { s: c.s, L: c.L });
     }
     else if (sc === 'sea') {                                        // Perry rows toward the island in her boat, rocking on the swell
       const boat = img['assets/story/view/boat.png'] && img['assets/story/view/boat.png'].im;
       const bob = Math.sin(T * 0.003) * 2, tilt = Math.sin(T * 0.0021) * 0.025;
+      if (boat) {                                                   // her reflection first: the boat mirrored in the water, rippled and fading with depth
+        const left0 = c.boatX - 75, base = c.boatY + 4 + bob, bw = boat.width, bh = boat.height;
+        g.save();
+        for (let r = 0; r < bh; r++) {
+          const depth = r / bh, off = Math.round(Math.sin(r * 0.9 + T * 0.004) * (0.7 + depth * 2.6));
+          g.globalAlpha = 0.5 * (1 - depth) * (Math.sin(r * 1.7 + T * 0.006) > -0.5 ? 1 : 0.45);   // gaps in the lines of reflection, as water breaks them up
+          g.drawImage(boat, 0, bh - 1 - r, bw, 1, left0 + off, Math.round(base + r * 0.85), bw, 1);
+        }
+        g.restore();
+      }
       if (boat) {                                                   // half size, kept on the same bottom left corner it had at full size
         const left = c.boatX - 75, bottom = c.boatY + 4;
         g.save(); g.translate(Math.round(left + boat.width / 2), Math.round(bottom - boat.height / 2 + bob)); g.rotate(tilt);
@@ -143,9 +191,9 @@
       }
     }
     else if (sc === 'double') {
-      drawMax(c.x, c.gy, { s: c.s });
+      drawMax(c.x, c.gy, { s: c.s, L: c.L });
       const a = 0.5 + 0.4 * Math.sin(T * 0.012);
-      drawTwin(c.twinX, c.twinGy, { s: 0.78, sit: true, alpha: a });
+      drawTwin(c.twinX, c.twinGy, { s: 0.78, sit: true, alpha: a, L: c.L });
       for (let i = 0; i < 14; i++) {
         g.fillStyle = '#ff5060';
         g.fillRect(c.twinX - 20 + (i * 7) % 40, c.twinGy - 20 - ((T * 0.03 + i * 17) % 70), 2, 2);
@@ -155,7 +203,7 @@
       const gl = 0.15 + 0.12 * Math.sin(T * 0.004);
       g.fillStyle = `rgba(255,230,140,${gl})`;
       g.fillRect(c.x - 34, c.gy - 72, 68, 52);
-      drawMax(c.x, c.gy, { s: c.s });
+      drawMax(c.x, c.gy, { s: c.s, L: c.L });
     }
     else if (sc === 'rewind') {
       g.globalAlpha = 0.15 + 0.1 * Math.sin(T * 0.008);
@@ -164,15 +212,15 @@
       g.globalAlpha = 1;
     }
     else if (sc === 'meditate') {
-      drawMax(c.x, c.gy, { s: c.s, sit: true });
+      drawMax(c.x, c.gy, { s: c.s, sit: true, L: c.L });
       for (let i = 0; i < 14; i++) {
         g.fillStyle = i % 3 ? '#e8fff4' : '#a8e8ff';
         g.fillRect(c.x - 40 + (i * 13) % 90, c.gy - ((T * 0.025 + i * 23) % 120), 2, 2);
       }
     }
     else {
-      drawMax(c.x, c.gy, { s: c.s });
-      figure(c.x + 64, c.gy + 2, '#b89a7a');
-      figure(c.x + 86, c.gy + 2, '#7a6a9a', { s: 0.8 });
+      drawMax(c.x, c.gy, { s: c.s, L: c.L });
+      figure(c.x - 52, c.gy + 2, '#b89a7a');                      // on the grass beside her, not out over the cliff
+      figure(c.x - 74, c.gy + 2, '#7a6a9a', { s: 0.8 });
     }
   }
