@@ -635,7 +635,7 @@
     if (!D.moves[move] || stun || !moveOpen(move)) return;
     if (move === 'jump' && tryDoubleJump()) return;
     if (!canAfford(move)) { deny(move); return; }             // no meter: the move does not play
-    const air = via === 'sequence' && /^Up-/.test(D.moves[move].input) ? null     // Up then A (heavy, meteor shower) is not the air A
+    const air = via === 'sequence' && (/^Up-/.test(D.moves[move].input) || move === 'meteor_shower') ? null     // Up then A (heavy, meteor shower) is not the air A
               : AIR.find(b => usesButton(D.moves[move].input, b.input));
     const inAir = airborne() || (cur && cur.id === 'jump' && cur.kind === 'action');
     if (ENERGY_HOLD.has(move) && via === 'release') {                   // let go of an energy charge: fire it if it was held long enough

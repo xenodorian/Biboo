@@ -126,7 +126,7 @@ sequence) with chord, sequence and tap windows. Previews of every move are in `d
 | B-X+A | energy_dash_thrust | Dash thrust with blue energy; tap or hold B, then press X and A together |
 | Down-Right-A-B | energy_wave | Upswing that launches a large energy crescent |
 | Down x4, A | earthquake | Slam, cracks and rocks along the ground, heavy shake |
-| Up x4, A | meteor_shower | Sword to the sky, meteors rain ahead |
+| B x5 | meteor_shower | Sword to the sky, meteors rain ahead |
 
 Moves are written as short pose specs (only what differs from the plow guard) in
 `swingkit/moves/`; `base.frame()` turns them into rig frames, `base.tween()` makes in-betweens and

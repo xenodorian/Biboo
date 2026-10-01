@@ -113,7 +113,7 @@ const shots = process.argv[2];
     ['double tap Right, then X+A -> energy_dash_thrust', 'energy_dash_thrust', async () => { await tap('Right', 40); await wait(80); await tap('Right', 40); await wait(80); await chord(['X', 'A'])(); }],
     ['R2 -> energy_wave', 'energy_wave', async () => tap('R2')],
     ['Down x4, A -> earthquake', 'earthquake', seq(['Down', 'Down', 'Down', 'Down', 'A'])],
-    ['Up x4, A -> meteor_shower', 'meteor_shower', seq(['Up', 'Up', 'Up', 'Up', 'A'])],
+    ['B x5 -> meteor_shower', 'meteor_shower', seq(['B', 'B', 'B', 'B', 'B'])],
   ];
   for (const [name, want, act] of cases) {
     await settle();

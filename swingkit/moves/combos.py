@@ -214,7 +214,7 @@ def meteor_shower():
                            fx=[('meteors', dict(t=0.6 + k * 0.55))] + (fire if k < 3 else [])))
     frames += [tween(sky, P, 0.5, 'lower', 100, order='HIGH', far=dict(sleeve=3.5, rs=2.6), fx=[('meteors', dict(t=4.0))]),
                pose(name='plow', ms=120, fx=[('meteors', dict(t=4.6))])]
-    return Move('meteor_shower', 'Meteor shower', 'Up-Up-Up-Up-A', 'combo', frames,
+    return Move('meteor_shower', 'Meteor shower', 'B-B-B-B-B', 'combo', frames,
                 notes='meteors land ahead of her across the screen during frames 3-8')
 
 

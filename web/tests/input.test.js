@@ -71,7 +71,7 @@ const cases = [
   ['X, A one after another is dash then slash', run(seq(['X', 'A'])).moves.join(), 'dash,slash'],
   ['energy_wave: Down-Right-A-B', run(seq(['Down', 'Right', 'A', 'B'])).moves.join(), 'slash,energy_wave'],
   ['earthquake: Down x4, A', run(seq(['Down', 'Down', 'Down', 'Down', 'A'])).moves.join(), 'earthquake'],
-  ['meteor_shower: Up x4, A', run(seq(['Up', 'Up', 'Up', 'Up', 'A'])).moves.join(), 'meteor_shower'],
+  ['meteor_shower: B x5 (the first four taps are parries)', run(seq(['B', 'B', 'B', 'B', 'B'])).moves.join(), 'parry,parry,parry,parry,meteor_shower'],
   ['a slow sequence is two presses', run(seq(['Y', 'A'], 600)).moves.join(), 'jump,slash'],
   ['chord partners too far apart are two presses', run([[0, 'down', 'X'], [120, 'down', 'A'], [180, 'up', 'X'], [200, 'up', 'A']]).moves.join(), 'dash,slash'],
 ];

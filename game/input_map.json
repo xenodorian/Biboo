@@ -34,6 +34,6 @@
     {"input": "B-X+A", "type": "sequence", "move": "energy_dash_thrust"},
     {"input": "Down-Right-A-B", "type": "sequence", "move": "energy_wave"},
     {"input": "Down-Down-Down-Down-A", "type": "sequence", "move": "earthquake"},
-    {"input": "Up-Up-Up-Up-A", "type": "sequence", "move": "meteor_shower"}
+    {"input": "B-B-B-B-B", "type": "sequence", "move": "meteor_shower"}
   ]
 }
