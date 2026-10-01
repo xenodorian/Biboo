@@ -27,22 +27,22 @@ C = {
      dict(name='club', style='slam', dmg=40, knock=[90, 400], hit=(-0.55, 0.45, 0.0, 0.70)),
      dict(name='swat', style='sweep', dmg=36, knock=[80, 350], hit=(-0.60, 0.40, 0.25, 0.85))]),
  # bosses
- 'wyrmslug': dict(src=3, H=70, speed=38, hp=700, rest=[500, 900], knock=[12, 150], parried=[30, 400], boss=True, atk=[
-     dict(name='bite', style='lunge', dmg=30, knock=[70, 300], hit=(-0.45, 0.30, 0.10, 0.75)),
-     dict(name='slam', style='slam', dmg=38, knock=[90, 350], hit=(-0.40, 0.35, 0.0, 0.50)),
-     dict(name='lash', style='sweep', dmg=34, knock=[80, 350], hit=(-0.55, 0.45, 0.10, 0.85))]),
- 'oozewraith': dict(src=9, H=84, speed=34, hp=900, rest=[500, 900], knock=[12, 150], parried=[30, 400], boss=True, atk=[
-     dict(name='lunge', style='lunge', dmg=36, knock=[80, 300], hit=(-0.45, 0.30, 0.10, 0.80)),
-     dict(name='crush', style='slam', dmg=44, knock=[100, 400], hit=(-0.40, 0.40, 0.0, 0.55)),
-     dict(name='sweep', style='sweep', dmg=40, knock=[90, 350], hit=(-0.55, 0.45, 0.10, 0.90))]),
- 'horneddread': dict(src=0, H=104, speed=36, hp=1100, rest=[500, 800], knock=[12, 150], parried=[30, 400], boss=True, atk=[
-     dict(name='gore', style='lunge', dmg=44, knock=[100, 300], hit=(-0.50, 0.30, 0.25, 0.95)),
-     dict(name='stomp', style='stomp', dmg=50, knock=[110, 400], hit=(-0.45, 0.45, 0.0, 0.40)),
-     dict(name='claw', style='sweep', dmg=46, knock=[100, 350], hit=(-0.55, 0.45, 0.10, 0.80))]),
- 'boarlord': dict(src=8, H=112, speed=44, hp=1400, rest=[450, 750], knock=[12, 150], parried=[30, 400], boss=True, atk=[
-     dict(name='charge', style='lunge', dmg=52, knock=[120, 350], hit=(-0.60, 0.30, 0.05, 0.60)),
-     dict(name='spear', style='sweep', dmg=48, knock=[100, 350], hit=(-0.90, 0.40, 0.55, 1.00)),
-     dict(name='trample', style='stomp', dmg=56, knock=[130, 400], hit=(-0.45, 0.45, 0.0, 0.45))]),
+ 'wyrmslug': dict(title='Wyrm Slug', src=3, H=70, speed=38, hp=700, rest=[500, 900], knock=[12, 150], parried=[30, 400], boss=True, atk=[
+     dict(name='bite', style='lunge', dmg=18, knock=[70, 300], hit=(-0.45, 0.30, 0.10, 0.75)),
+     dict(name='slam', style='slam', dmg=23, knock=[90, 350], hit=(-0.40, 0.35, 0.0, 0.50)),
+     dict(name='lash', style='sweep', dmg=20, knock=[80, 350], hit=(-0.55, 0.45, 0.10, 0.85))]),
+ 'oozewraith': dict(title='Ooze Wraith', src=9, H=84, speed=34, hp=900, rest=[500, 900], knock=[12, 150], parried=[30, 400], boss=True, atk=[
+     dict(name='lunge', style='lunge', dmg=22, knock=[80, 300], hit=(-0.45, 0.30, 0.10, 0.80)),
+     dict(name='crush', style='slam', dmg=26, knock=[100, 400], hit=(-0.40, 0.40, 0.0, 0.55)),
+     dict(name='sweep', style='sweep', dmg=24, knock=[90, 350], hit=(-0.55, 0.45, 0.10, 0.90))]),
+ 'horneddread': dict(title='Horned Dread', src=0, H=104, speed=36, hp=1100, rest=[500, 800], knock=[12, 150], parried=[30, 400], boss=True, atk=[
+     dict(name='gore', style='lunge', dmg=26, knock=[100, 300], hit=(-0.50, 0.30, 0.25, 0.95)),
+     dict(name='stomp', style='stomp', dmg=30, knock=[110, 400], hit=(-0.45, 0.45, 0.0, 0.40)),
+     dict(name='claw', style='sweep', dmg=28, knock=[100, 350], hit=(-0.55, 0.45, 0.10, 0.80))]),
+ 'boarlord': dict(title='Boar Lord', src=8, H=112, speed=44, hp=1400, rest=[450, 750], knock=[12, 150], parried=[30, 400], boss=True, atk=[
+     dict(name='charge', style='lunge', dmg=31, knock=[120, 350], hit=(-0.60, 0.30, 0.05, 0.60)),
+     dict(name='spear', style='sweep', dmg=29, knock=[100, 350], hit=(-0.90, 0.40, 0.55, 1.00)),
+     dict(name='trample', style='stomp', dmg=34, knock=[130, 400], hit=(-0.45, 0.45, 0.0, 0.45))]),
 }
 # frame recipe: (dx frac of w (neg = forward), dy frac of h (up), sx, sy, rot deg (+ = lean forward), ms, hit?)
 def idle(b): return [(0, 0, 1, 1, 0, 180), (0, 0.012, 1, 1.02, 0, 180), (0, 0, 1, 1, 0, 180), (0, -0.01, 1.01, 0.985, 0, 180)][:b]
@@ -117,7 +117,7 @@ def build(name, c):
     sheet.save(os.path.join(OUT, 'enemies', f'{name}.png'), optimize=True)
     ai = {'speed': c['speed'], 'reach': 70, 'attacks': [a['name'] for a in c['atk']], 'rest': c['rest'], 'death': 'death', 'stun': 'hurt',
           'knock': c['knock'], 'parried': c['parried'], 'hp': c['hp'], 'dmg': c['atk'][0]['dmg'], 'atk': stats}
-    if boss: ai['boss'] = True
+    if boss: ai['boss'] = True; ai['bossName'] = c['title']
     return {'title': name, 'sheet': f'assets/enemies/{name}.png', 'cell': [cw, ch], 'anchor': [cx, by], 'frames': frames, 'anims': anims, 'ai': ai}, (cw, ch, len(cells))
 
 if __name__ == '__main__':

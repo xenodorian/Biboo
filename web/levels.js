@@ -155,7 +155,7 @@
   };
   const gen = n => Array.from({ length: COUNT[n] || MAPS_PER_LEVEL }, (_, i) => genMap(n, i, (ITEMS[n] || {})[i]));
 
-  L1[L1.length - 1].final = true;              // level 1 ends at map 1.9, behind the locked door
+  L1[L1.length - 1].final = true;              // level 1: map 1.9 holds the locked door to the boss arena 1.10
   const levels = [
     { n: 1, name: 'Green Trail', blurb: 'Goblins in the grass. Find every move to open the door at the end.', tint: null, door: 'key', maps: L1 },
     { n: 2, name: 'Mossy Ruins', blurb: 'Old walls and ledges. Hobgoblins and raiders join the patrols.', tint: { color: '#7a5a1a', alpha: 0.18 }, door: 'key', maps: gen(2) },
@@ -163,6 +163,12 @@
     { n: 4, name: 'Ember Caves', blurb: 'Hot and crowded.', tint: { color: '#802a10', alpha: 0.22 }, door: 'key', maps: gen(4) },
     { n: 5, name: 'Crimson Keep', blurb: 'The last gate.', tint: { color: '#600020', alpha: 0.28 }, maps: gen(5) },
   ];
+  // Boss arenas: one closed map added at the end of levels 1 to 4 (behind the locked door of x.9). The boss's death opens the right edge.
+  const bossMap = (type, theme, extra) => map(Object.assign({ boss: true, theme, enemies: [{ type, x: 270, fy: 0, path: [40, 340], sight: 420 }] }, extra || {}));
+  levels[0].maps.push(bossMap('wyrmslug', 'fungal', { crates: [C(60), C(330)] }));
+  levels[1].maps.push(bossMap('oozewraith', 'crypt', { plats: [P(40, 110, 60), P(274, 344, 60)], crates: [C(75, 60)] }));
+  levels[2].maps.push(bossMap('horneddread', 'bone', { crates: [C(50), C(335)] }));
+  levels[3].maps.push(bossMap('boarlord', 'ember', { plats: [P(150, 234, 70)], crates: [C(192, 70)] }));
   const nameOf = { }; // filled below: unlock id -> 'level.map' where its crate is
   levels.forEach(L => L.maps.forEach((m, i) => m.crates.forEach(c => { if (c.item) nameOf[c.item] = `${L.n}.${i + 1}`; })));
   L1.forEach((m, i) => { m.id = `1.${i + 1}`; });

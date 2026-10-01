@@ -1,4 +1,4 @@
-/* Level 2: nine maps, one unlock per map in a fixed order, and a locked door at the end of 2.9.
+/* Level 2: ten maps, one unlock per map in a fixed order, and a locked door at the end of 2.9.
  * Run: NODE_PATH=$(npm root -g) node web/tests/level2.test.js */
 const path = require('path');
 const { chromium } = require('playwright');
@@ -16,9 +16,9 @@ const { chromium } = require('playwright');
   const check = (name, ok, detail) => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : '  ' + JSON.stringify(detail)}`); };
   const ORDER = ['recover', 'taunt', 'empower_beam', 'energy_kick', 'energy_dash', 'energy_burst', 'energy_wave', 'cloud_beam'];
 
-  const L = await ev(`(() => { const l = BIBOO_LEVELS.levels[1]; return { n: l.maps.length, door: l.door, last: l.maps[l.maps.length - 1].id, finalFlag: !!l.maps[l.maps.length - 1].final,
+  const L = await ev(`(() => { const l = BIBOO_LEVELS.levels[1]; return { n: l.maps.length, door: l.door, last: l.maps[l.maps.length - 1].id, finalFlag: !!l.maps[l.maps.length - 1].boss,
     items: l.maps.map(m => m.crates.filter(c => c.item).map(c => c.item)) }; })()`);
-  check('level 2 has nine maps and 2.10 is gone', L.n === 9 && L.last === '2.9', L);
+  check('level 2 has ten maps, the last (2.10) is the boss arena', L.n === 10 && L.last === '2.10', L);
   check('level 2 ends at a locked door', L.door === 'key' && L.finalFlag, L);
   check('2.1 to 2.8 hold Recover, Taunt, Empowerment Beam, Energy Kick, Energy Dash Thrust, Energy Burst, Energy Wave, Cloud Beam in that order',
     JSON.stringify(L.items.slice(0, 8)) === JSON.stringify(ORDER.map(i => [i])), L.items);
@@ -41,7 +41,7 @@ const { chromium } = require('playwright');
   check('the door is locked without every move of the level', s.screen === 'level' && !s.levelDone && s.level.id === '2.9', { screen: s.screen, id: s.level && s.level.id });
   await ev("Object.keys(BIBOO_LEVELS.whereIs).filter(i => BIBOO_LEVELS.whereIs[i].split('.')[0] === '2').forEach(i => bibooGame.unlock(i))"); await ev('bibooGame.setX(376)'); await wait(900);
   s = await S();
-  check('with every move the door ends level 2', s.levelDone === true || s.screen !== 'level', { screen: s.screen, done: s.levelDone });
+  check('with every move the door opens into the boss arena 2.10', s.screen === 'level' && s.level.id === '2.10', { screen: s.screen, id: s.level && s.level.id });
 
   // level 1's moves do not open level 2
   await ev('bibooGame.resetAll(); BibooProgress.completeLevel(1); bibooGame.enterLevel(2)'); await wait(600);

@@ -260,7 +260,9 @@
     img[src] = ent;
     return ent.p;
   }
+  const THEMES = D.themes || {};                                     // boss arena scenery (tools/arenas/build_arenas.py)
   const srcs = [...D.layers.map(l => l.src), D.fringe.src];
+  for (const t of Object.values(THEMES)) { for (const l of t.layers) srcs.push(l.src); srcs.push(t.fringe); }
   for (const m of Object.values(D.moves)) {
     srcs.push(m.sheet);
     if (m.fxSheet) srcs.push(m.fxSheet);                       // effects drawn apart from Max (own scale)
@@ -951,8 +953,11 @@
   function exitMap(dir) {                        // true when the map changed (or the level ended)
     const last = level.def.maps.length - 1;
     if (dir > 0) {
-      if (level.idx < last) { loadMap(level.idx + 1, 'left'); banners.push({ title: `Level ${level.n}.${level.idx + 1}`, t0: clock, ms: 1300 }); return true; }
-      if (doorLocked()) { hint('The door is locked. Unlock every move in this level first.'); return false; }
+      if (level.idx < last) {
+        if (level.def.maps[level.idx + 1].boss && doorLocked()) { hint('The door is locked. Unlock every move in this level first.'); return false; }
+        loadMap(level.idx + 1, 'left'); banners.push({ title: `Level ${level.n}.${level.idx + 1}`, t0: clock, ms: 1300 }); return true;
+      }
+      if (doorLocked() && !curMap.def.boss) { hint('The door is locked. Unlock every move in this level first.'); return false; }
       if (level.def.door !== 'key' && enemies.some(alive)) { hint('Defeat every enemy to open the gate'); return false; }
       levelComplete();
       return true;
@@ -971,6 +976,11 @@
       if (herY() >= sd.top - 2 || px + FOOT <= sd.x0 || px - FOOT >= sd.x1) continue;
       const mid = (sd.x0 + sd.x1) / 2;
       if ((lastCx !== null ? lastCx : px) < mid) x -= (px + FOOT) - sd.x0; else x += sd.x1 - (px - FOOT);
+      px = playerX();
+    }
+    if (curMap.def.boss) {                        // boss arena: closed on the left; the right edge opens when the boss is dead
+      if (px < EDGE + 1) x += EDGE + 1 - px;
+      if (bossAlive() && px > MAP_W - EDGE - 1) x -= px - (MAP_W - EDGE - 1);
       px = playerX();
     }
     if (curMap.def.arena) {                       // test arena: one closed map, no doors
@@ -1009,6 +1019,7 @@
     }
     prevFeet = herY(); lastCx = playerX();
   }
+  const bossAlive = () => enemies.some(e => EN[e.type].ai.boss && e.state !== 'dying' && e.hp > 0);
   function levelComplete() {
     const n = level.n, next = LV.levels[n];
     P.completeLevel(n); syncProgress();
@@ -1372,6 +1383,11 @@
     e.state = 'dying'; e.dead = 0; e.hp = 0;
     const death = EN[e.type].ai.death;
     if (death) play(e, death);
+    if (EN[e.type].ai.boss) {
+      banners.push({ title: 'Boss defeated', sub: 'The way on is open', t0: clock, ms: 2600 });
+      for (let k = 0; k < 4; k++) spawnGem(e.x - 24 + k * 16, 'health', fy);
+      if (P.maxOf('hp') < P.MAX_CAP) spawnGem(e.x, 'up_hp', fy);
+    }
     kills++;
     respawns.push({ type: e.type, at: clock + 2 * (DIE_MS + 4200), side: Math.random() < 0.5 ? -1 : 1 });
   }
@@ -1381,6 +1397,7 @@
   // level with no tall barrier between. A chasing enemy that loses her (far away, or on another level) for 3.5 s goes
   // back to its patrol.
   const PATROL_SPEED = 0.5;
+  const espeed = (e, ai) => ai.speed * (ai.boss && e.hp < e.maxHp / 2 ? 1.45 : 1);     // a boss below half HP is enraged: faster
   function sees(e) {
     if (!curMap) return false;
     const bxp = bodyX(), dx = bxp - e.x;
@@ -1407,7 +1424,7 @@
     const target = e.dir > 0 ? e.path[1] : e.path[0], dist = target - e.x;
     turn(e, dist >= 0 ? 1 : -1);
     if (e.anim !== 'walk') play(e, 'walk');
-    const step = ai.speed * PATROL_SPEED * dt / 1000;
+    const step = espeed(e, ai) * PATROL_SPEED * dt / 1000;
     if (Math.abs(dist) <= step) { e.x += dist; e.base += dist; e.pause = 700 + Math.random() * 900; play(e, 'idle'); }
     else { const mv = Math.sign(dist) * step; e.x += mv; e.base += mv; }
   }
@@ -1576,7 +1593,7 @@
             return;
           }
           turn(e, dir); if (e.anim !== 'walk') play(e, 'walk');
-          const mv = dir * Math.min(ai.speed * dt / 1000, Math.abs(plan.launch - e.x));
+          const mv = dir * Math.min(espeed(e, ai) * dt / 1000, Math.abs(plan.launch - e.x));
           e.x += mv; e.base += mv;
           return;
         }
@@ -1609,7 +1626,7 @@
         }
       }
       const eb = hurtOf(e), room = eb ? (e.face < 0 ? eb[0] - me[2] : me[0] - eb[2]) : gap;   // free ground until its hitbox meets hers
-      const mv = e.face * Math.max(0, Math.min(ai.speed * dt / 1000, room));
+      const mv = e.face * Math.max(0, Math.min(espeed(e, ai) * dt / 1000, room));
       if (mv === 0 && e.anim !== 'idle') play(e, 'idle');
       e.x += mv; e.base += mv;
     }
@@ -1909,8 +1926,9 @@
       return;
     }
     const bgx = camX + (level ? level.idx * MAP_W : 0);          // the scenery carries on from map to map
-    for (const l of D.layers) drawLayer(img[l.src].im, -bgx * l.parallax + sx * l.shake, camY * l.parallax + sy * l.shake);
-    if (level && level.def.tint) { g.globalAlpha = level.def.tint.alpha; g.fillStyle = level.def.tint.color; g.fillRect(0, 0, V.w, V.h); g.globalAlpha = 1; }
+    const TH = curMap && curMap.def.theme ? THEMES[curMap.def.theme] : null;
+    for (const l of TH ? TH.layers : D.layers) drawLayer(img[l.src].im, -bgx * l.parallax + sx * l.shake, camY * l.parallax + sy * l.shake);
+    if (level && level.def.tint && !TH) { g.globalAlpha = level.def.tint.alpha; g.fillStyle = level.def.tint.color; g.fillRect(0, 0, V.w, V.h); g.globalAlpha = 1; }
     if (curMap) { drawPits(sx, sy); drawGeometry(sx, sy); drawCrates(sx, sy); drawBombs(sx, sy); drawPowerups(sx, sy); }
     drawEnemies(sx, sy);
     const cw = m.cell[0], ch = m.cell[1];
@@ -1943,7 +1961,7 @@
     drawShots(sx, sy);
     g.save();                                                     // the foreground grass is cut away over the pits
     if (curMap && curMap.pits.length) { g.beginPath(); g.rect(0, 0, V.w, V.h); for (const p of curMap.pits) g.rect(Math.round(p.x0 + sx), 0, p.x1 - p.x0, V.h); g.clip('evenodd'); }
-    drawLayer(img[D.fringe.src].im, -bgx + sx, camY + sy);
+    drawLayer(img[TH ? TH.fringe : D.fringe.src].im, -bgx + sx, camY + sy);
     g.restore();
     drawGems(sx, sy);
     drawBars(sx, sy);
@@ -1987,8 +2005,9 @@
     if (!last) arrow(MAP_W - 12 + sx, 1);
     if (level.idx > 0) arrow(12 + sx, -1);
     g.restore();
-    if (last) {
-      const open = level.def.door === 'key' ? !doorLocked() : !enemies.some(alive), gx = MAP_W - 10 + sx;
+    const nextBoss = !last && !!level.def.maps[level.idx + 1].boss && level.def.door === 'key';     // the locked door in front of a boss arena
+    if (last || nextBoss) {
+      const open = curMap.def.boss ? !bossAlive() : nextBoss ? !doorLocked() : (level.def.door === 'key' ? !doorLocked() : !enemies.some(alive)) && !bossAlive(), gx = MAP_W - 10 + sx;
       g.fillStyle = open ? 'rgba(90,220,120,0.35)' : 'rgba(30,30,40,0.85)';
       g.fillRect(gx, Y(70), 10, Y(0) - Y(70));
       if (!open) { g.fillStyle = '#8a8a99'; for (let yy = Y(70); yy < Y(0); yy += 6) g.fillRect(gx + 2, yy, 6, 2); }
@@ -2136,13 +2155,18 @@
     const X = wx => V.anchorX + (wx - camX) + sx, Y = wy => V.feetRow + camY + sy - wy;
     for (const e of enemies) {
       const b = hurtOf(e);
-      if (!b) continue;
+      if (!b || EN[e.type].ai.boss) continue;
       bar(Math.round(X((b[0] + b[2]) / 2)) - 15, Math.round(Y(b[3])) - 8, 30, 3, e.hp / e.maxHp);
     }
     g.font = 'bold 7px monospace'; g.textBaseline = 'top'; g.lineWidth = 2; g.lineJoin = 'round';
     g.strokeStyle = '#000'; g.fillStyle = '#fff';
     g.strokeText('MAX', 8, 14); g.fillText('MAX', 8, 14);
     bar(28, 15, 200, 6, hp / maxHp());
+    const bo = enemies.find(e => EN[e.type].ai.boss && alive(e));
+    if (bo) {                                                         // boss bar along the bottom
+      g.textAlign = 'center'; g.strokeText(EN[bo.type].ai.bossName || EN[bo.type].title, V.w / 2, 196); g.fillText(EN[bo.type].ai.bossName || EN[bo.type].title, V.w / 2, 196); g.textAlign = 'left';
+      bar(64, 206, 256, 6, bo.hp / bo.maxHp);
+    }
     const t = `${hp}/${maxHp()}`;
     g.strokeText(t, 232, 14); g.fillText(t, 232, 14);
   }

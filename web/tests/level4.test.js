@@ -16,7 +16,7 @@ const { chromium } = require('playwright');
 
   const L = await ev(`(() => { const l = BIBOO_LEVELS.levels[3]; return { n: l.maps.length, door: l.door, last: l.maps[l.maps.length - 1].id,
     items: l.maps.map(m => m.crates.filter(c => c.item).map(c => c.item)) }; })()`);
-  check('level 4 has nine maps and 4.10 is gone', L.n === 9 && L.last === '4.9', L);
+  check('level 4 has ten maps, the last (4.10) is the boss arena', L.n === 10 && L.last === '4.10', L);
   check('level 4 ends at a locked door', L.door === 'key', L);
   check('4.1 Meter Charge, 4.4 Earthquake, 4.7 Meteor Shower', JSON.stringify([L.items[0], L.items[3], L.items[6]]) === JSON.stringify([['meter_charge'], ['earthquake'], ['meteor']]), L.items);
   check('no other level 4 map has an unlock crate', [1, 2, 4, 5, 7, 8].every(i => L.items[i].length === 0), L.items);
