@@ -3,6 +3,149 @@
   let fadeUntil = 0;
   const FADE_MS = 350;
   const groundY = sy => V.feetRow + camY + sy;                    // screen row of the ground line
+  // One light per backdrop. sx leans the shadow (+ right), sy lays it toward the viewer (+) or away (-).
+  // grade/ga is a vertical multiply on the background. water is a damp reflection under the feet (0 means none).
+  // Boss stills use the same direction as the matching cutscene.
+  const LIGHTS = {
+    trail:    { sx: 0.8,  sy: 0.22, a: 0.55, col: '#0a120c', grade: '#1c140c', ga: 0.28, rim: '#ffe0a0' },
+    falls:    { sx: 0.35, sy: 0.12, a: 0.50, col: '#061018', grade: '#0c1a22', ga: 0.32, rim: '#d0ecff', water: 0.22 },
+    canyon:   { sx: -0.9, sy: 0.26, a: 0.62, col: '#1a0804', grade: '#3a1408', ga: 0.30, rim: '#ffb070' },
+    shore:    { sx: -1.3, sy: 0.30, a: 0.70, col: '#14041c', grade: '#2a1018', ga: 0.34, rim: '#ffd0a0', water: 0.32 },
+    mire:     { sx: 0.15, sy: 0.08, a: 0.45, col: '#041008', grade: '#06140c', ga: 0.38, rim: '#b0e0c0' },
+    sanctum:  { sx: 0.25, sy: -0.32, a: 0.70, col: '#000010', grade: '#080818', ga: 0.42, rim: '#c8d0ff' },
+    training: { sx: 0.55, sy: 0.18, a: 0.50, col: '#100818', grade: '#201008', ga: 0.22, rim: '#ffe0b0' },
+    fungal:   { sx: 0.4,  sy: 0.16, a: 0.55, col: '#061410', grade: '#081810', ga: 0.26, rim: '#d8ffe4', water: 0.28 },
+    crypt:    { sx: 0.2,  sy: -0.28, a: 0.75, col: '#000008', grade: '#060814', ga: 0.40, rim: '#b0b8ff' },
+    bone:     { sx: -0.7, sy: 0.22, a: 0.65, col: '#140808', grade: '#1a0c08', ga: 0.32, rim: '#ffc090' },
+    keep:     { sx: 0.9,  sy: 0.25, a: 0.80, col: '#01030a', grade: '#060810', ga: 0.36, rim: '#d0d8ff' },
+  };
+  function sceneLight() {
+    const boss = curMap && curMap.def.boss && curMap.def.theme;
+    const key = boss || (level && level.def.bg) || 'trail';
+    return LIGHTS[key] || LIGHTS.trail;
+  }
+  function drawGrade() {
+    const L = sceneLight();
+    g.save();
+    g.globalCompositeOperation = 'multiply';
+    const gr = g.createLinearGradient(0, 0, 0, V.h);
+    gr.addColorStop(0, L.grade); gr.addColorStop(0.55, '#ffffff'); gr.addColorStop(1, L.grade);
+    g.globalAlpha = L.ga; g.fillStyle = gr; g.fillRect(0, 0, V.w, V.h);
+    g.restore();
+  }
+  // Filled oval made of solid rows, so it stays on the pixel grid (no antialiased arc).
+  function pixOval(cx, cy, rx, ry, col, a) {
+    rx = Math.max(1, Math.round(rx)); ry = Math.max(1, Math.round(ry));
+    g.save(); g.globalAlpha = a; g.fillStyle = col; g.imageSmoothingEnabled = false;
+    for (let y = -ry; y <= ry; y++) {
+      const t = 1 - (y * y) / (ry * ry); if (t <= 0) continue;
+      const w = Math.max(1, Math.round(rx * Math.sqrt(t)));
+      g.fillRect(cx - w, cy + y, w * 2, 1);
+    }
+    g.restore();
+  }
+  // A 2 px ring, used wherever a soft radial glow used to be.
+  function pixGlow(cx, cy, r, col, a) {
+    g.save(); g.globalAlpha = a; g.fillStyle = col; g.imageSmoothingEnabled = false;
+    r = Math.max(2, Math.round(r));
+    for (let i = 0; i < 8; i++) {
+      const ang = i * Math.PI / 4 + clock * 0.002;
+      g.fillRect(cx + Math.round(Math.cos(ang) * r), cy + Math.round(Math.sin(ang) * r), 2, 2);
+    }
+    g.restore();
+  }
+  function pixRing(cx, cy, R, col, a) {
+    R = Math.max(2, Math.round(R));
+    const R2 = R * R, rIn = Math.max(0, R - 2), rIn2 = rIn * rIn;
+    g.save(); g.globalAlpha = a; g.fillStyle = col; g.imageSmoothingEnabled = false;
+    for (let y = -R; y <= R; y++) {
+      const yy = y * y; if (yy > R2) continue;
+      const xo = Math.round(Math.sqrt(R2 - yy));
+      const xi = yy >= rIn2 ? 0 : Math.round(Math.sqrt(Math.max(0, rIn2 - yy)));
+      if (xi <= 0) g.fillRect(cx - xo, cy + y, xo * 2 + 1, 1);
+      else { g.fillRect(cx - xo, cy + y, xo - xi, 1); g.fillRect(cx + xi + 1, cy + y, xo - xi, 1); }
+    }
+    g.restore();
+  }
+  // air is px above the surface. withCast: a long shadow is also drawn, so the blob stays small.
+  function contactBlob(x, y, rx, air, withCast) {
+    const k = Math.max(0, 1 - (air || 0) / 96);
+    if (k < 0.05) return;
+    const L = sceneLight();
+    pixOval(x, y + 1, Math.max(3, rx * (0.55 + 0.45 * k)), Math.max(1, Math.round(3 * k)), L.col, (withCast ? 0.28 : 0.55) * k * Math.min(1, L.a + 0.2));
+  }
+  const _gameSil = {};
+  function gameSil(key, im, sx0, sy0, sw, sh, w, h, col, flip) {
+    if (!im) return null;
+    w = Math.max(1, w); h = Math.max(1, h);
+    if (!flip) return silhouette(key, im, sx0, sy0, sw, sh, w, h, col);
+    const k = key + col + '~f';
+    if (_gameSil[k]) return _gameSil[k];
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+    x.translate(w, 0); x.scale(-1, 1);
+    x.drawImage(im, sx0, sy0, sw, sh, 0, 0, w, h);
+    x.setTransform(1, 0, 0, 1, 0, 0);
+    x.globalCompositeOperation = 'source-in'; x.fillStyle = col; x.fillRect(0, 0, w, h);
+    return (_gameSil[k] = c);
+  }
+  // Long shadow only on a flat floor. Clipped to a band around the feet so it cannot paint the sky.
+  function castOnGround(sil, dx, dy, feetY, L, alpha) {
+    if (!sil) return;
+    const clip = [[0, feetY - 56], [V.w, feetY - 56], [V.w, V.h], [0, V.h]];
+    castShadow(sil, dx, dy, feetY, { sx: L.sx, sy: L.sy, a: L.a, col: L.col, clip }, alpha);
+  }
+  function drawContacts(sx, sy, ax, ay, m) {
+    const L = sceneLight();
+    const air = heightAbove();
+    const surfY = Math.round(groundY(sy) - floorY);
+    const hx = Math.round(playerX() + sx);
+    const pitted = floorY < 2 && (pitFall || inPit(playerX()));
+    if (!pitted && img[m.sheet]) {
+      const planted = air < 3 && floorY < 2;
+      contactBlob(hx, surfY, 14, air, planted);
+      if (planted) {
+        const sc = SPRITE_SCALE, cw = m.cell[0], ch = m.cell[1], dw = Math.round(cw * sc), dh = Math.round(ch * sc);
+        const left = cur.face < 0 ? Math.round(ax - dw + m.anchor[0] * sc) : Math.round(ax - m.anchor[0] * sc);
+        const top = Math.round(ay - m.anchor[1] * sc);
+        castOnGround(gameSil('p' + cur.id + ':' + cur.k + ':' + dw + (cur.face < 0 ? 'f' : ''), img[m.sheet].im, cur.k * cw, 0, cw, ch, dw, dh, L.col, cur.face < 0), left, top, Math.round(ay), L, 1);
+      }
+    }
+    if (!curMap) return;
+    for (const e of enemies) {
+      if (e.sinkAt || !EN[e.type]) continue;
+      const T = EN[e.type], surf = e.fy || 0, airE = e.jy || 0;
+      if (surf < 2 && inPit(e.x)) continue;
+      const sc = SPRITE_SCALE * (e.scale || 1);
+      const ex = Math.round(V.anchorX + (e.base - camX) + sx);
+      const ey = Math.round(groundY(sy) - surf);
+      const planted = airE < 3 && surf < 2 && e.state !== 'dying';
+      contactBlob(ex, ey, Math.max(8, Math.round(T.cell[0] * sc * 0.22)), airE, planted);
+      if (!planted || !img[T.sheet]) continue;
+      const cell = T.anims[e.anim].frames[e.k], [cw, ch] = T.cell, [ax0, ay0] = T.anchor;
+      const dw = Math.round(cw * sc), dh = Math.round(ch * sc), faceR = e.face > 0;
+      const left = faceR ? Math.round(ex - dw + ax0 * sc) : Math.round(ex - ax0 * sc);
+      const top = Math.round(ey - ay0 * sc);
+      let alpha = 1;
+      if (e.state === 'dying') { const fade = T.ai.death ? 500 : 400; alpha = Math.max(0, Math.min(1, (DIE_MS - e.dead) / fade)); }
+      castOnGround(gameSil('e' + e.type + ':' + e.anim + ':' + cell + ':' + dw + (faceR ? 'f' : ''), img[T.sheet].im, cell * cw, 0, cw, ch, dw, dh, L.col, faceR), left, top, ey, L, alpha);
+    }
+  }
+  // The bottom of a sprite, mirrored a few rows into wet ground. Called in the sprite's own transform (feet at dy+dh).
+  function dampMirrorLocal(im, sx0, sw, sh, dx, dy, dw, dh, alpha) {
+    if (!im || !alpha) return;
+    const feet = dy + dh, band = 12;
+    g.save();
+    g.beginPath(); g.rect(dx - 8, feet, dw + 16, band); g.clip();
+    g.globalAlpha = alpha; g.imageSmoothingEnabled = false;
+    for (let r = 0; r < band; r++) {
+      const srcY = Math.min(sh - 1, Math.max(0, sh - 1 - Math.floor(r * sh / Math.max(1, dh))));
+      const off = Math.round(Math.sin(r * 0.9 + clock * 0.004)) * 2;
+      g.drawImage(im, sx0, srcY, sw, 1, dx + off, feet + r, dw, 1);
+    }
+    g.restore();
+  }
+
   function drawGeometry(sx, sy) {
     const Y = wy => Math.round(groundY(sy) - wy);
     for (const s of curMap.solids) {                              // barriers: stone blocks
@@ -35,10 +178,8 @@
     for (const c of curMap.crates) {
       if (c.broken) continue;
       const X = Math.round(c.x + sx), Y = Math.round(groundY(sy) - c.fy), gold = !!c.item;
-      if (gold) {                                                 // a soft pulsing glow so golden crates stand out
-        g.save(); g.globalAlpha = 0.22 + 0.12 * Math.sin(clock / 220);
-        g.fillStyle = '#ffd24a'; g.beginPath(); g.arc(X, Y - 9, 16, 0, Math.PI * 2); g.fill(); g.restore();
-      }
+      if (!(c.fy < 2 && inPit(c.x))) contactBlob(X, Y, 8, 0, false);
+      if (gold) pixGlow(X, Y - 9, 12, '#ffd24a', 0.55 + 0.25 * Math.sin(clock / 220));
       g.fillStyle = '#000'; g.fillRect(X - 10, Y - 19, 20, 19);
       g.fillStyle = gold ? '#c9962a' : '#8a5a2b'; g.fillRect(X - 9, Y - 18, 18, 17);
       g.fillStyle = gold ? '#f0cf66' : '#b07a3c'; g.fillRect(X - 9, Y - 18, 18, 2);
@@ -93,16 +234,13 @@
       const ex = explosions[i], age = clock - ex.t0;
       if (age > BLAST_MS) { explosions.splice(i, 1); continue; }
       if (age < 0) continue;
-      const u = age / BLAST_MS, R = (ex.r || (ex.big ? 90 : 34)) * (0.25 + 0.75 * Math.sqrt(u));
+      const u = age / BLAST_MS;
       const X = Math.round(V.anchorX + (ex.wx - camX) + sx), Y = Math.round(V.feetRow + camY + sy - ex.wy);
-      g.save();
-      g.globalAlpha = Math.max(0, 1 - u);
-      const gr = g.createRadialGradient(X, Y, 0, X, Y, R);
-      gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.35, '#ffd060'); gr.addColorStop(0.7, '#ff6a20'); gr.addColorStop(1, 'rgba(255,60,0,0)');
-      g.fillStyle = gr; g.beginPath(); g.arc(X, Y, R, 0, Math.PI * 2); g.fill();
-      g.strokeStyle = '#8fd0ff'; g.lineWidth = ex.big ? 4 : 2;
-      g.beginPath(); g.arc(X, Y, R, 0, Math.PI * 2); g.stroke();
-      g.restore();
+      const R = Math.max(4, Math.round((ex.r || (ex.big ? 90 : 34)) * (0.25 + 0.75 * Math.sqrt(u))));
+      pixRing(X, Y, Math.max(2, Math.round(R * 0.35)), '#ffffff', Math.max(0, 1 - u));
+      pixRing(X, Y, Math.max(3, Math.round(R * 0.7)), '#ffd060', Math.max(0, 0.85 - u));
+      pixRing(X, Y, R, '#ff6a20', Math.max(0, 0.7 - u));
+      pixRing(X, Y, R, '#8fd0ff', Math.max(0, 0.9 - u) * 0.85);
     }
     if (clock < flashUntil) {
       g.save(); g.globalAlpha = 0.75 * (flashUntil - clock) / FLASH_MS; g.fillStyle = '#fff'; g.fillRect(0, 0, V.w, V.h); g.restore();
@@ -135,8 +273,7 @@
       }
       const c = base === 'energy' ? ['#bfe6ff', '#4af', '#1d5fb0'] : base === 'super' ? ['#f0d6ff', '#c6f', '#6a2a9a'] : base === 'health' || base === 'hp' ? ['#c9ffd6', '#3ddc5f', '#15803d'] : ['#ffe3b0', '#fa4', '#b25a10'];
       g.save();
-      g.globalAlpha = 0.25 + 0.1 * Math.sin(gm.bob * 2); g.fillStyle = c[1];
-      g.beginPath(); g.arc(X, Y, 9, 0, Math.PI * 2); g.fill();
+      pixGlow(X, Y, 8, c[1], 0.45 + 0.2 * Math.sin(gm.bob * 2));
       g.globalAlpha = 1;
       const spr = GEM_SPRITE[gm.kind] || GEM_SPRITE[base];            // Bone, Bone Powder, Quartz, Garnet, Diamond
       g.drawImage(img[IT.gemSheet].im, IT.gems[spr] * IT.cell, 0, IT.cell, IT.cell, X - IT.cell / 2, Y - IT.cell / 2, IT.cell, IT.cell);
@@ -251,7 +388,18 @@
       g.translate(vx, Math.round(gy - (e.fy || 0) - (e.jy || 0) + (e.sinkAt ? PIT_GRAV * (clock - e.sinkAt) * (clock - e.sinkAt) : 0)));
       if (e.face > 0) g.scale(-1, 1);
       if (e.type === 'heavybag' && e.sw) { const top = ay * SPRITE_SCALE; g.translate(0, -top); g.rotate(e.sw.a); g.translate(0, top); }   // it swings from its top
+      const Lm = sceneLight();
+      if (Lm.rim && img[T.sheet]) {
+        const screenOx = Lm.sx >= 0 ? -1 : 1, localOx = e.face > 0 ? -screenOx : screenOx;
+        g.save(); g.globalAlpha = 0.5 * alpha;
+        blit(img[T.sheet].im, cell * cw, cw, ch, -ax * SPRITE_SCALE * (e.scale||1) + localOx, -ay * SPRITE_SCALE * (e.scale||1) - 1, { color: Lm.rim, alpha: 0.9 }, SPRITE_SCALE * (e.scale||1));
+        g.restore();
+      }
       blit(img[T.sheet].im, cell * cw, cw, ch, -ax * SPRITE_SCALE * (e.scale||1), -ay * SPRITE_SCALE * (e.scale||1), e.tint && clock < e.tint.until ? e.tint : null, SPRITE_SCALE * (e.scale||1));
+      if (Lm.water && (e.fy || 0) < 2 && (e.jy || 0) < 8 && !e.sinkAt && !inPit(e.x)) {
+        const sc = SPRITE_SCALE * (e.scale || 1);
+        dampMirrorLocal(img[T.sheet].im, cell * cw, cw, ch, -ax * sc, -ay * sc, cw * sc, ch * sc, Lm.water * alpha);
+      }
       g.restore();
     }
   }

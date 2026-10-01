@@ -113,9 +113,11 @@
   // Cast a shadow of the silhouette (drawn at dx, dy, standing on groundY) along the light L, laid flat on the ground.
   function castShadow(sil, dx, dy, groundY, L, alpha) {
     const sx = L.sx + (L.flick ? Math.sin(clock * 0.011) * 0.15 : 0), sy = L.sy;
-    const lay = c => { c.setTransform(1, 0, -sx, -sy, sx * groundY, groundY * (1 + sy)); c.drawImage(sil, dx, dy); c.setTransform(1, 0, 0, 1, 0, 0); };
+    const lay = c => { c.imageSmoothingEnabled = false; c.setTransform(1, 0, -sx, -sy, sx * groundY, groundY * (1 + sy)); c.drawImage(sil, dx, dy); c.setTransform(1, 0, 0, 1, 0, 0); };
     g.save();
-    g.globalAlpha = (L.a || 0.35) * (alpha == null ? 1 : alpha);
+    let shade = (L.a || 0.35) * (alpha == null ? 1 : alpha);
+    if (L.flick) shade *= 0.72 + 0.28 * (0.5 + 0.5 * Math.sin(clock * 0.017));
+    g.globalAlpha = shade;
     if (L.clip) { g.beginPath(); L.clip.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.clip(); }   // cut off at a cliff edge
     if (L.steps) {                                                // stairs: each tread the shadow climbs lifts it a little, in a hard step
       const c = _scratch.getContext('2d'); c.clearRect(0, 0, 384, 216); c.imageSmoothingEnabled = false; lay(c);
@@ -180,10 +182,13 @@
       drawMax(c.x, c.gy, { s: c.s, L: c.L });
     }
     else if (sc === 'fire') {
-      g.fillStyle = 'rgba(255,80,20,' + (0.08 + 0.06 * Math.sin(T * 0.01)) + ')';
-      g.fillRect(0, 0, W, H);
       drawMax(c.x, c.gy, { s: c.s, L: c.L });
       drawTwin(c.twinX, c.twinGy, { s: c.s, L: c.L });
+      g.save();
+      g.globalCompositeOperation = 'overlay';
+      g.fillStyle = 'rgba(255,90,24,' + (0.22 + 0.14 * Math.sin(T * 0.01)) + ')';
+      g.fillRect(0, 0, W, H);
+      g.restore();
     }
     else if (sc === 'crowd') {
       drawMax(205, c.gy, { s: c.s, L: c.L });
@@ -238,7 +243,9 @@
     }
     else {
       drawMax(c.x, c.gy, { s: c.s, L: c.L });
+      pixOval(c.x - 52, c.gy + 1, 6, 2, '#14041c', 0.55);
       figure(c.x - 52, c.gy + 2, '#b89a7a');                      // on the grass beside her, not out over the cliff
+      pixOval(c.x - 74, c.gy + 1, 5, 2, '#14041c', 0.45);
       figure(c.x - 74, c.gy + 2, '#7a6a9a', { s: 0.8 });
     }
   }

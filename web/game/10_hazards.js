@@ -128,7 +128,7 @@
       g.strokeStyle = '#8a6a3a'; g.lineWidth = 1; g.beginPath(); g.moveTo(X + 2, Y - 12); g.lineTo(X + 5, Y - 16); g.stroke();
       const on = lit ? Math.floor(clock / 50) % 2 : Math.floor(clock / 240) % 2;   // the fuse spark blinks
       g.fillStyle = on ? '#ffe14d' : '#ff6a20'; g.fillRect(X + 4, Y - 18, 3, 3);
-      if (lit) { g.globalAlpha = 0.4; g.fillStyle = '#ff2b2b'; g.beginPath(); g.arc(X, Y - 6, 9, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; }
+      if (lit) pixGlow(X, Y - 6, 9, '#ff2b2b', 0.7);
     }
   }
 

@@ -13,6 +13,7 @@
 
   function draw() {
     if (!cur) return;
+    g.imageSmoothingEnabled = false;
     const m = D.moves[cur.id];
     const f = m.frames[cur.k];
     const rel = stun ? [0, stun.y] : fall ? [0, fall.y] : (cur.kind === 'fall' ? [0, 0] : rootOf(cur));
@@ -47,14 +48,17 @@
       g.imageSmoothingEnabled = false;
       g.drawImage(still, -Math.round(range * 0.5) + Math.round(sx * 0.3), Math.round(sy * 0.3) - Math.max(0, still.height - V.h), still.width, still.height);
     } else for (const l of TH ? TH.layers : D.layers) drawLayer(img[l.src].im, -bgx * l.parallax + sx * l.shake, camY * l.parallax + sy * l.shake);
-    if (level && level.def.tint && !TH) { g.globalAlpha = level.def.tint.alpha; g.fillStyle = level.def.tint.color; g.fillRect(0, 0, V.w, V.h); g.globalAlpha = 1; }
+    drawGrade();
+    if (level && level.def.tint && !TH) {
+      g.save(); g.globalCompositeOperation = 'multiply'; g.globalAlpha = level.def.tint.alpha; g.fillStyle = level.def.tint.color; g.fillRect(0, 0, V.w, V.h); g.restore();
+    }
     if (curMap) { drawPits(sx, sy); drawGeometry(sx, sy); drawCrates(sx, sy); drawBombs(sx, sy); }
-    drawEnemies(sx, sy);
-    drawTraining(sx, sy);
-    drawTraining(sx, sy);
     const cw = m.cell[0], ch = m.cell[1];
     const ax = V.anchorX + (px - camX) + sx;
     const ay = V.feetRow - (ry - camY) + sy;
+    drawContacts(sx, sy, ax, ay, m);
+    drawEnemies(sx, sy);
+    drawTraining(sx, sy);
     const tc = tint && clock < tint.until ? tint : (isCharged() ? CHARGED_TINT : null);
     g.save();
     if (pitFall && curMap) pitClip(sx, sy);
@@ -74,7 +78,17 @@
       if (BOTH_SIDES.has(cur.id) && !gone(-cur.face)) { g.save(); g.scale(-1, 1); blit(fim, cur.k * cw, cw, ch, -m.anchor[0] * fs, -m.anchor[1] * fs, null, fs); g.restore(); }
       g.restore();
     }
+    const Lm = sceneLight();
+    if (Lm.rim) {
+      const screenOx = Lm.sx >= 0 ? -1 : 1, localOx = cur.face < 0 ? -screenOx : screenOx;
+      g.save(); g.globalAlpha = 0.5;
+      blit(img[m.sheet].im, cur.k * cw, cw, ch, -m.anchor[0] * SPRITE_SCALE + localOx, -m.anchor[1] * SPRITE_SCALE - 1, { color: Lm.rim, alpha: 0.9 }, SPRITE_SCALE);
+      g.restore();
+    }
     blit(img[m.sheet].im, cur.k * cw, cw, ch, -m.anchor[0] * SPRITE_SCALE, -m.anchor[1] * SPRITE_SCALE, tc, SPRITE_SCALE);
+    if (Lm.water && heightAbove() < 8 && floorY < 2 && !pitFall && !inPit(playerX())) {
+      dampMirrorLocal(img[m.sheet].im, cur.k * cw, cw, ch, -m.anchor[0] * SPRITE_SCALE, -m.anchor[1] * SPRITE_SCALE, cw * SPRITE_SCALE, ch * SPRITE_SCALE, Lm.water);
+    }
     g.restore();
     drawBeam(sx, sy);
     drawExplosions(sx, sy);

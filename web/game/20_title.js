@@ -65,8 +65,10 @@
     { const mi = n + 1, sel = ow.sel === mi, M = D.items && D.items.merchant, im2 = M && img[M.src] && img[M.src].im;   // the Bone Merchant sits by the first level
       if (im2) {
         const bob2 = Math.sin(clock / 400) * 1;
-        g.fillStyle = 'rgba(0,0,0,0.4)'; g.beginPath(); g.ellipse(MERCHANT_AT[0], MERCHANT_AT[1] + 1, 24, 5, 0, 0, Math.PI * 2); g.fill();
-        g.drawImage(im2, Math.round(MERCHANT_AT[0] - M.w / 2), Math.round(MERCHANT_AT[1] - M.h + bob2), M.w, M.h);
+        pixOval(MERCHANT_AT[0], MERCHANT_AT[1] + 1, 16, 3, '#0a0614', 0.5);
+        const mw = M.w, mh = M.h, mLeft = Math.round(MERCHANT_AT[0] - mw / 2), mTop = Math.round(MERCHANT_AT[1] - mh + bob2);
+        castOnGround(gameSil('merch' + mw, im2, 0, 0, im2.width, im2.height, mw, mh, '#0a0614', false), mLeft, mTop, MERCHANT_AT[1], LIGHTS.trail, 1);
+        g.drawImage(im2, mLeft, mTop, mw, mh);
         g.font = 'bold 7px monospace'; g.textAlign = 'center'; g.textBaseline = 'top'; g.strokeStyle = '#000'; g.lineWidth = 3; g.fillStyle = '#ffe14d';
         g.strokeText('BONE MERCHANT', MERCHANT_AT[0], MERCHANT_AT[1] - M.h - 11); g.fillText('BONE MERCHANT', MERCHANT_AT[0], MERCHANT_AT[1] - M.h - 11);
         if (sel) { g.strokeStyle = '#ffe14d'; g.lineWidth = 2; g.globalAlpha = 0.6 + 0.4 * Math.sin(clock / 160); g.strokeRect(MERCHANT_AT[0] - M.w / 2 - 3, MERCHANT_AT[1] - M.h - 3, M.w + 6, M.h + 8); g.globalAlpha = 1; }

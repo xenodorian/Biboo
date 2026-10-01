@@ -33,8 +33,8 @@
     const B = D.training && D.training.bunny; if (!B || !level || !level.def.training) return;
     const gy = V.feetRow + camY + sy, X = BUNNY_X + sx, ph = (clock % 1800) / 1800, hop = ph < 0.25 ? Math.sin(ph / 0.25 * Math.PI) * 9 : 0;
     const sq = ph < 0.25 ? 1.08 : 1 + 0.05 * Math.sin(clock / 260), sc = SPRITE_SCALE;
+    pixOval(Math.round(X), Math.round(gy) + 1, 12, 3, '#100818', 0.45);
     g.save(); g.translate(Math.round(X), Math.round(gy - hop)); g.scale(1 / sq, sq);
-    g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.ellipse(0, hop, 14, 3, 0, 0, 7); g.fill();
     g.drawImage(img[B.sheet].im, 0, 0, B.cell[0], B.cell[1], -B.anchor[0] * sc, -B.anchor[1] * sc, B.cell[0] * sc, B.cell[1] * sc);
     g.restore();
   }
