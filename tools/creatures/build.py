@@ -204,6 +204,9 @@ if __name__ == '__main__':
     for n, c in C.items():
         if only and n not in only: continue
         data[n], info = build(n, c); print(n, info)
+    if not only or 'clubogre' in only:                                   # built from a real 10 frame GIF (clubogre.py)
+        import clubogre
+        data['clubogre'], info = clubogre.build(); print('clubogre', info)
     if not only:
         import mirror
         data['mirrormax'], info = mirror.build(); print('mirrormax', info)

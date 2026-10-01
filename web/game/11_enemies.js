@@ -190,7 +190,7 @@
   }
   // They try any gap up to ENEMY_JUMP_MAX wide, but the orc's jump only carries ENEMY_JUMP_DIST px (70), so wherever that falls short of
   // the far edge it lands in the pit and is lost (a goblin always makes the 140 it attempts).
-  const ENEMY_JUMP_H = 22, ENEMY_JUMP_MAX = 140, ENEMY_JUMP_DIST = { goblin: 200, orc: 70, hobgoblin: 130, skullraider: 150, dusksaur: 110, darkknight: 90, ogre: 60 }, ENEMY_LAND_OFF = { goblin: 10, orc: 4 };     // arc height, widest gap an enemy will leap
+  const ENEMY_JUMP_H = 22, ENEMY_JUMP_MAX = 140, ENEMY_JUMP_DIST = { goblin: 200, orc: 70, hobgoblin: 130, skullraider: 150, dusksaur: 110, darkknight: 90, ogre: 60, clubogre: 60 }, ENEMY_LAND_OFF = { goblin: 10, orc: 4 };     // arc height, widest gap an enemy will leap
   function setRange(e) {                          // the stretch of surface that holds the enemy where it stands: a platform, or the ground between pits
     if ((e.fy || 0) > 0) {
       const sf = surfaceAt(curMap, e.x, e.fy);
@@ -242,7 +242,11 @@
     let A = T.anims[e.anim], ended = false;
     dt *= (e.speedMul || 1);            // taunted: everything it does, walking, swinging and resting, runs 2x as fast
     if (e.taunted && (!e.tint || clock >= e.tint.until)) e.tint = TAUNT_TINT;   // back to red after a flash
-    if (e.state === 'attack' && e.landAt && !e.hitDone && clock < e.landAt) dt = 0;   // it touched her: hold the striking pose until the hit lands (or she parries), so the damage always lands on a frame that is touching her
+    if (e.state === 'attack' && e.landAt && !e.hitDone && clock < e.landAt) {          // it touched her: hold the striking pose until the hit lands (or she parries), so the damage always lands on a frame that is touching her
+      const sf = T.frames[A.frames[e.k]];
+      // a frame flagged `pause` (the Club Ogre's club-down frame) IS the parry window: its own 200 ms run while the hit is pending, so the pose lasts 200 ms, not 200 plus its time again
+      dt = sf.pause ? Math.max(0, Math.min(dt, sf.ms - 1 - e.t)) : 0;
+    }
     e.t += dt;
     while (e.t >= T.frames[A.frames[e.k]].ms) {
       e.t -= T.frames[A.frames[e.k]].ms;
