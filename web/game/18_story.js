@@ -135,9 +135,10 @@
     else if (sc === 'sea') {                                        // Perry rows toward the island in her boat, rocking on the swell
       const boat = img['assets/story/view/boat.png'] && img['assets/story/view/boat.png'].im;
       const bob = Math.sin(T * 0.003) * 2, tilt = Math.sin(T * 0.0021) * 0.025;
-      if (boat) {
-        g.save(); g.translate(Math.round(c.boatX), Math.round(c.boatY + bob)); g.rotate(tilt);
-        g.drawImage(boat, -Math.round(boat.width / 2), -boat.height + 4);
+      if (boat) {                                                   // half size, kept on the same bottom left corner it had at full size
+        const left = c.boatX - 75, bottom = c.boatY + 4;
+        g.save(); g.translate(Math.round(left + boat.width / 2), Math.round(bottom - boat.height / 2 + bob)); g.rotate(tilt);
+        g.drawImage(boat, -Math.round(boat.width / 2), -Math.round(boat.height / 2));
         g.restore();
       }
     }
