@@ -342,3 +342,6 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 
 ## st57
 - Normal enemy attacks now land HIT_DELAY = 300 ms after first contact (was 90), so a parry up to 300 ms late still counts. Combo shards already allowed 300 ms late.
+
+## st58
+- Push kick hurtbox (the part that damages, in the terms above) is now a box on both active frames (1 kick, 2 extend): sheet coords x 38 to 102.9 forward of the anchor, y -1 to 34.8, set in game.js next to the other data overrides (was a small capsule around the foot). Her lunge root motion moves it forward: world reach is about 48 to 80 px ahead of the anchor on frame 1 and 67 to 99 on frame 2. Checked with a goblin at several distances: no hit at 20 and 30 px (inside the lunge), hits from 45 to 110 px.
