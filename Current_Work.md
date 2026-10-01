@@ -331,3 +331,6 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 
 ## st55
 - The goblin roll (anim id `dive`) no longer throws shards. It is a melee attack: its low hit box on frames 19 and 20 does the damage. The hazards goblin shard checks now expect no projectile and are out of date (not updated).
+
+## st56
+- Goblin combo: frames 3, 4 and 6 of the backflip also fire a streak shard (`fireComboShard`, 10 damage each). They fly up and away for 500 ms, then curve toward her (`HOME_TURN`) until hit, blocked or reflected. Parry is generous: a parry pressed up to 450 ms early counts, and a shard that reaches her waits 300 ms for a late parry. A reflected shard flies straight forward, level. goblin_roll (dive) is untouched. Test: combo_shards.test.js.

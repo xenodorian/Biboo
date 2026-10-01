@@ -605,6 +605,7 @@
     if (id === 'charge' && !(cur && cur.id === 'charge')) chargeMs = 0;
     if (cur) x += rootOf(cur)[0];       // keep the ground covered so far; height resets
     cur = { id, k: k0, t: 0, kind, from: x, face: facing };
+    if (id === 'parry') lastParryT = clock;
     if (id === 'heavy') { cur.lite = charged < FULL_CHARGE; cur.charged = charged; }
     if (ENERGY_HOLD.has(id) && via === 'release') cur.power = 0.5 + 0.5 * Math.min(1, charged / FULL_CHARGE);   // the charge sets the power
     if (kind === 'action' && MOVE_COST[id]) { const n = needOf(id); spend(n[0], n[1]); }
@@ -1094,7 +1095,17 @@
   // at where she was when it was thrown and does SHOT_DMG. Holding B blocks one for no damage; a parry reflects it straight
   // forward (the way she faces) and the reflected shard hurts enemies and sets off bombs.
   const SHOT_SPEED = 0.24, SHOT_DMG = 20, SHOT_R = 5, SHOT_AT = [1, 3];
-  const shots = [];                      // {x, y, vx, vy, from: 'foe' | 'her', t0}
+  const shots = [];                      // {x, y, vx, vy, from: 'foe' | 'her', t0, home?}
+  // The combo's backflip leaves three streak shards. Each flies up and away at first, then after HOME_DELAY ms curves toward her
+  // (turning at most HOME_TURN rad/ms) until it hits, is blocked, or is reflected. Parry is generous: a parry pressed up to
+  // PARRY_EARLY ms before a shard arrives counts, and a shard that has reached her waits PARRY_LATE ms for a parry before it hurts.
+  const COMBO_SHOT_AT = [3, 4, 6], COMBO_ANGLES = [28, 48, 72], COMBO_SHOT_DMG = 10;
+  const COMBO_SPEED = 0.2, HOME_SPEED = 0.17, HOME_DELAY = 500, HOME_TURN = 0.0035, PARRY_EARLY = 450, PARRY_LATE = 300;
+  let lastParryT = -1e9;
+  function fireComboShard(e, n) {
+    const a = COMBO_ANGLES[n] * Math.PI / 180, ox = e.x + e.face * 10, oy = (e.fy || 0) + 44;
+    shots.push({ x: ox, y: oy, vx: e.face * Math.cos(a) * COMBO_SPEED, vy: Math.sin(a) * COMBO_SPEED, from: 'foe', t0: clock, home: true, streak: true, dmg: COMBO_SHOT_DMG });
+  }
   function fireShot(e) {
     const ox = e.x + e.face * 14, oy = (e.fy || 0) + 40;
     const dx = bodyX() - ox, dy = herY() + herTop() * SPRITE_SCALE * 0.5 - oy, L = Math.hypot(dx, dy) || 1;
@@ -1103,14 +1114,23 @@
   function stepShots(dt) {
     for (let i = shots.length - 1; i >= 0; i--) {
       const sh = shots[i];
-      sh.x += sh.vx * dt; sh.y += sh.vy * dt;
-      if (clock - sh.t0 > 4000 || sh.x < -30 || sh.x > MAP_W + 30 || sh.y < -4 || sh.y > 400) { shots.splice(i, 1); continue; }
+      if (sh.home && sh.from === 'foe' && clock - sh.t0 > HOME_DELAY && !sh.contactAt) {          // after the delay: curve toward her body
+        const ta = Math.atan2(herY() + herTop() * SPRITE_SCALE * 0.5 - sh.y, bodyX() - sh.x), ca = Math.atan2(sh.vy, sh.vx);
+        let d = ta - ca; d = Math.atan2(Math.sin(d), Math.cos(d));
+        const na = ca + Math.max(-HOME_TURN * dt, Math.min(HOME_TURN * dt, d));
+        sh.vx = Math.cos(na) * HOME_SPEED; sh.vy = Math.sin(na) * HOME_SPEED;
+      }
+      if (!sh.contactAt) { sh.x += sh.vx * dt; sh.y += sh.vy * dt; }                              // a shard that reached her holds still while she can parry
+      if (clock - sh.t0 > (sh.home ? 7000 : 4000) || sh.x < -30 || sh.x > MAP_W + 30 || sh.y < -4 || sh.y > 400) { shots.splice(i, 1); continue; }
       const box = [sh.x - SHOT_R, sh.y - SHOT_R, sh.x + SHOT_R, sh.y + SHOT_R];
       if (sh.from === 'foe') {
-        if (!overlap(box, herBox())) continue;
+        if (!overlap(box, herBox())) { sh.contactAt = 0; continue; }
         const dir = sh.vx >= 0 ? 1 : -1;
-        if (parrying()) {                                          // reflected: straight forward, a little faster
-          sh.from = 'her'; sh.vx = hf() * SHOT_SPEED * 1.5; sh.vy = 0; sh.x = playerX() + hf() * 22; sh.t0 = clock;
+        if (sh.home && !sh.contactAt) sh.contactAt = clock;
+        const reflect = parrying() || (sh.home && lastParryT >= sh.contactAt - PARRY_EARLY);
+        if (sh.home && !reflect && !blocking() && clock - sh.contactAt < PARRY_LATE) continue;       // wait out the late-parry window
+        if (reflect) {                                          // reflected: straight forward, a little faster
+          sh.from = 'her'; sh.home = false; sh.contactAt = 0; sh.vx = hf() * SHOT_SPEED * 1.5; sh.vy = 0; sh.x = playerX() + hf() * 22; sh.t0 = clock;
           tint = { color: WHITE, alpha: 0.75, until: clock + 150 }; parries++;
           floater(bodyX(), herY() + herTop() * SPRITE_SCALE + 10, 'Reflect', '#8fd0ff');
           burst(sh.x, sh.y, 8, ['#ffffff', '#8fd0ff']);
@@ -1120,7 +1140,7 @@
           burst(sh.x, sh.y, 6, ['#ffffff', '#8fd0ff']);
           shots.splice(i, 1);
         } else if (clock >= invuln && !stun) {                     // a hit: damage, a short red flash and a small flinch
-          hurtHer(SHOT_DMG);
+          hurtHer(sh.dmg || SHOT_DMG);
           const p = push(14, 180); slide = newSlide(p, dir); lastPushT = clock;
           tint = { color: RED, alpha: 0.6, until: clock + 220 }; invuln = clock + 500; hits++;
           burst(sh.x, sh.y, 8, ['#ff2b2b', '#8fd0ff']);
@@ -1142,6 +1162,12 @@
       const X = V.anchorX + (sh.x - camX) + sx, Y = V.feetRow + camY + sy - sh.y, a = Math.atan2(-sh.vy, sh.vx), mine = sh.from === 'her';
       g.save();
       g.translate(Math.round(X), Math.round(Y)); g.rotate(a);
+      if (sh.streak) {                                                  // a combo shard: the long white and blue streak drawn in the backflip
+        g.globalAlpha = 0.3; g.fillStyle = mine ? '#ffe14d' : '#4da6ff'; g.beginPath(); g.moveTo(8, 0); g.lineTo(-22, 3); g.lineTo(-22, -3); g.closePath(); g.fill();
+        g.globalAlpha = 1; g.fillStyle = mine ? '#ffd24a' : '#8fb4ff'; g.beginPath(); g.moveTo(10, 0); g.lineTo(-14, 2); g.lineTo(-14, -2); g.closePath(); g.fill();
+        g.fillStyle = '#fff'; g.beginPath(); g.moveTo(10, 0); g.lineTo(-6, 1); g.lineTo(-6, -1); g.closePath(); g.fill();
+        g.restore(); continue;
+      }
       g.globalAlpha = 0.35; g.fillStyle = mine ? '#ffe14d' : '#4da6ff'; g.beginPath(); g.ellipse(0, 0, 11, 6, 0, 0, Math.PI * 2); g.fill();
       g.globalAlpha = 1; g.fillStyle = '#000'; g.beginPath(); g.moveTo(9, 0); g.lineTo(0, 4); g.lineTo(-8, 0); g.lineTo(0, -4); g.closePath(); g.fill();
       g.fillStyle = mine ? '#ffe680' : '#9fd0ff'; g.beginPath(); g.moveTo(8, 0); g.lineTo(0, 3); g.lineTo(-6, 0); g.lineTo(0, -3); g.closePath(); g.fill();
@@ -1387,6 +1413,9 @@
   }
   function stepEnemy(e, dt) {
     stepEnemyCore(e, dt);
+    if (e.anim === 'combo' && e.state === 'attack') {        // the backflip's streaks of light also leave as homing shards
+      while (e.shotK < e.k) { e.shotK++; const n = COMBO_SHOT_AT.indexOf(e.shotK); if (n >= 0) fireComboShard(e, n); }
+    }
     // the goblin's roll (its 'dive' animation) is a melee attack: its low hit box on frames 19 and 20 does the damage, and it throws nothing
     if (e.state === 'dying') return;
     let free = false;
