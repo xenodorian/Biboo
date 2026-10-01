@@ -1219,7 +1219,7 @@
   const pitOffScreen = () => pitSink() > V.h - V.feetRow + herTop() * SPRITE_SCALE + 8;   // her head has left the bottom of the view
   function checkPit() {
     if (pitFall || !curMap || !curMap.pits.length || floorY !== 0 || herY() > 1.5) return;
-    const p = inPit(bodyX());
+    const p = inPit(legsX());
     if (!p) return;
     // A push (hit, slide, stun) only drops her when she is carried fully over the edge: her whole body inside the gap.
     // Otherwise she is set back on the ground at the nearer edge.
@@ -1227,13 +1227,13 @@
     if (clock - lastPushT < 1200) {
       const b = herBox();
       if (!(b[0] - PIT_BODY_MARGIN > p.x0 && b[2] + PIT_BODY_MARGIN < p.x1)) {     // the drawn body is wider than the hurtbox: all of it must be over the gap
-        const px = bodyX();
+        const px = legsX();
         x += (px - p.x0 < p.x1 - px) ? p.x0 - px : p.x1 - px;
         return;
       }
     }
     if (cheats.invincible) {                                       // the cheat keeps her out of the hole: back to the nearer edge
-      const px = bodyX();
+      const px = legsX();
       x += (px - p.x0 < p.x1 - px) ? p.x0 - 4 - px : p.x1 + 4 - px;
       floater(bodyX(), 40, 'Saved', '#ffd24a');
       return;
@@ -1278,6 +1278,7 @@
   let kills = 0, respawnOn = true;
   const TAUNT_TINT = { color: '#e22', alpha: 0.55, until: Infinity };     // taunted enemies stay red
   const BODY = 32;                      // her body centre, px ahead of her anchor
+  const LEGS = 19;                      // the point between her legs, px ahead of her anchor (measured from the sprite: feet at -1..8 and 27..38): she turns about this point
   // An enemy walks in until it is APPROACH x its reach from her body centre. Her plow guard holds the blade
   // out in front of her body, but only her body (herBox) is hit, so the enemy has to close in far enough
   // that its swing overlaps the body on the first hitting frames, not just the last ones (0.65 left the
@@ -1574,6 +1575,7 @@
   const heightAbove = () => stun ? stun.y : fall ? fall.y : (cur && cur.kind !== 'fall' ? rootOf(cur)[1] : 0);   // above the surface she stands on
   function herY() { return floorY + heightAbove() - pitSink(); }                                                              // world height of her feet
   const hf = () => cur ? cur.face : facing;
+  const legsX = () => playerX() + hf() * LEGS;          // between her feet
   const bodyX = () => playerX() + hf() * BODY;         // her body centre
   function herBox() {
     const px = playerX(), py = herY(), f = hf();
@@ -1602,13 +1604,14 @@
     e.tint = { color: WHITE, alpha: 0.75, until: clock + ms };
     parries++;
   }
+  const KNOCK_UP = 5;
   function knocked(e) {                 // a clean hit: red, pushed away from the enemy, stunned
     const [d, ms] = EN[e.type].ai.knock, p = push(d, ms);
     const dir = bodyX() >= e.x ? 1 : -1;
     const y = heightAbove();
     if (cur && !fall && cur.kind !== 'fall') x += rootOf(cur)[0];
     fall = null; queued = null; slide = null;
-    stun = { v: p.v * dir, a: p.a, y, vy: 0 }; lastPushT = clock;
+    stun = { v: p.v * dir, a: p.a, y, vy: -Math.sqrt(2 * 0.0018 * KNOCK_UP) }; lastPushT = clock;   // knocked back and up KNOCK_UP px (so she clears the ground and ledge edges)
     cur = { id: 'heavy', k: HIGH_K, t: 0, kind: 'stun', from: x, face: cur ? cur.face : facing };
     tint = { color: RED, alpha: 0.6, until: clock + ms };
     invuln = clock + ms + 400;
@@ -1626,7 +1629,7 @@
     x += stun.v * dt;
     const v = stun.v - Math.sign(stun.v) * stun.a * dt;
     stun.v = Math.sign(v) === Math.sign(stun.v) ? v : 0;
-    if (stun.y > 0) {
+    if (stun.y > 0 || stun.vy < 0) {
       const f0 = floorY + stun.y;
       stun.vy += 0.0018 * dt; stun.y = Math.max(0, stun.y - stun.vy * dt);
       if (curMap) {                                   // knocked while in the air: land on a platform or block she falls through, not below it
@@ -2205,12 +2208,12 @@
   const ignoreUntilUp = new Set();
   function ignoreHeldButtons() { for (const b of BUTTONS) if (btnHeld(b)) ignoreUntilUp.add(b); }
 
-  // Turning mirrors the sprite about her anchor, but her body sits BODY px ahead of it, so a bare flip would swing the body
-  // (and her feet) 2*BODY px across. Instead the anchor moves so her body stays where it was. Skipped where that would
+  // Turning mirrors the sprite about her anchor, but the point between her legs sits LEGS px ahead of it, so a bare flip would swing
+  // her feet 2*LEGS px across. Instead the anchor moves so that point stays where it was. Skipped where that would
   // push the anchor into a block or a map edge.
   let visFace = 1;
   function turnShift(from, to) {
-    const shift = (from - to) * BODY, ax = playerX() + shift, feet = herY();
+    const shift = (from - to) * LEGS, ax = playerX() + shift, feet = herY();
     if (ax < EDGE + 2 || ax > MAP_W - EDGE - 2) return;
     if (curMap && curMap.solids.some(sd => feet < sd.top - 2 && ax + FOOT > sd.x0 && ax - FOOT < sd.x1)) return;
     x += shift;

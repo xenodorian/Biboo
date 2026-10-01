@@ -11,7 +11,7 @@ const { chromium } = require('playwright');
   const check = (n, ok, d) => { res.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${n}${ok ? '' : '  ' + JSON.stringify(d)}`); };
   const S = () => ev('bibooGame.state()');
   const tap = async (k, ms = 60) => { await page.keyboard.down(k); await wait(ms); await page.keyboard.up(k); };
-  const body = async () => { const s = await S(); const f = await ev('bibooGame.facing()'); return { b: s.px + f * 32, f, px: s.px, fy: s.floorY }; };
+  const body = async () => { const s = await S(); const f = await ev('bibooGame.facing()'); return { b: s.px + f * 19, f, px: s.px, fy: s.floorY }; };
 
   // ---- turning on open ground: the body stays put
   await ev(`bibooGame.custom(${JSON.stringify({ enemies: [] })})`); await wait(900);
@@ -19,10 +19,10 @@ const { chromium } = require('playwright');
   let a = await body();
   await tap('ArrowLeft', 40); await wait(500);
   let c = await body();
-  check('turning left flips her without moving her body', a.f === 1 && c.f === -1 && Math.abs(c.b - a.b) < 12, { a, c });
+  check('turning left flips her about the point between her legs (it stays within 4 px)', a.f === 1 && c.f === -1 && Math.abs(c.b - a.b) < 4, { a, c });
   await tap('ArrowRight', 40); await wait(500);
   let d = await body();
-  check('turning back right keeps the body in place too', d.f === 1 && Math.abs(d.b - c.b) < 12, { c, d });
+  check('turning back right keeps the body in place too', d.f === 1 && Math.abs(d.b - c.b) < 4, { c, d });
 
   // ---- turning on a narrow ledge does not carry her feet off it
   await ev(`bibooGame.custom(${JSON.stringify({ plats: [{ x0: 150, x1: 200, top: 60 }], enemies: [] })})`); await wait(900);
@@ -44,6 +44,17 @@ const { chromium } = require('playwright');
   hit = (await ev('bibooGame.combat()')).hits >= 1;
   check('(she was hit in the air)', hit, await ev('bibooGame.combat()'));
   check('after the hit she is standing on the platform (floor 30)', landed === 30, { landed, minFloor });
+  // ---- a hit knocks her up about 5 px as well as back
+  await ev(`bibooGame.custom(${JSON.stringify({ enemies: [] })})`); await wait(900);
+  await ev('bibooGame.setX(200)'); await wait(400);
+  await ev("bibooGame.setRespawn(false); bibooGame.setEnemies([['orc', 60, 99999]])"); await wait(1100);
+  await ev("bibooGame.attack(0, 'attack')");
+  let peak = 0;
+  for (let i = 0; i < 40; i++) { await wait(25); const t = await S(); peak = Math.max(peak, t.feetNow); }
+  check('a hit lifts her about 5 px (peak 3 to 7 px)', peak >= 3 && peak <= 7.5, peak);
+  const after = await S();
+  check('and she is back on the ground afterwards', after.feetNow === 0 && after.floorY === 0, after.feetNow);
+
   // ---- jumping down onto a crate smashes it
   await ev(`bibooGame.custom(${JSON.stringify({ enemies: [], crates: [{ x: 200, fy: 0 }, { x: 330, fy: 0 }] })})`); await wait(900);
   await ev('bibooGame.setX(190)'); await wait(400);

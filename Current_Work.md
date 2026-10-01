@@ -294,3 +294,7 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 - Coming down onto a crate (any part of her over it, feet crossing its top) smashes it.
 - Tests: turn_stun.test.js (10). progression test expectations include the Hard reset button.
 - Not reproduced: a hit near a pit edge that clips her through the ground. I ran 40 hit/pit/platform/block combinations and found no unexpected fall; the changes above are the cases I could find.
+
+## st47
+- Turning pivots about the point between her legs (19 px ahead of the anchor, measured from the sprite: feet at -1..8 and 27..38) instead of 32. Pit falls use the same point.
+- Every landed enemy hit also knocks her up 5 px (KNOCK_UP), so she clears the ground and ledge edges.
