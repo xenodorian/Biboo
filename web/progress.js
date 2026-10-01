@@ -37,7 +37,7 @@
     { id: 'cloud_beam', kind: 'Combo', name: 'Cloud Beam', hint: 'Press A+L2, or Left, Right, A (uses energy)', moves: ['beam_cloud'], buttons: ['L2'], meters: ['energy'] },
     { id: 'laser_beam', kind: 'Combo', name: 'Laser Beam', hint: 'Press A+L1 (uses energy)', moves: ['beam_laser'], buttons: ['L1'], meters: ['energy'] },
     { id: 'fire_beam', kind: 'Combo', name: 'Fire Beam', hint: 'Press A+R2 (uses energy)', moves: ['beam_fire'], buttons: ['R2'], meters: ['energy'] },
-    { id: 'chain', kind: 'Combo', name: 'Attack Chain', hint: 'Mash A: slash, three chain strikes, then the heavy chop (uses energy)', moves: [], meters: ['energy'] },
+    { id: 'chain', kind: 'Combo', name: 'Attack Chain', hint: 'Mash A: slash, three chain strikes, then the heavy chop (uses energy)', moves: ['chain2', 'chain3', 'chain4'], meters: ['energy'] },
     { id: 'chain_burst', kind: 'Combo', name: 'Burst Chain', hint: 'A, A, A, A, then B: the chain ends in an energy burst', moves: [], meters: ['energy'] },
     { id: 'fly', kind: 'Combo', name: 'Flight', hint: 'A, B, A, B, then Up: fly for 5 seconds', moves: [] },
     { id: 'rainbow', kind: 'Combo', name: 'Rainbow Guard', hint: 'A, B, A, B, A, B: 5 seconds untouchable, walk over pits', moves: [] },

@@ -612,13 +612,16 @@
   }
   function start(id, kind, via) {
     const k0 = entryFrame(id);
-    const charged = cur && cur.id === 'charge' ? chargeMs : 0;
+    let charged = cur && cur.id === 'charge' ? chargeMs : 0;
+    if (via === 'chain' && (id === 'heavy' || id === 'energy_burst')) {          // the chain's finishers: no charging, but the energy is paid
+      const pay = Math.min(CHARGE_ENERGY, energyMeter); spend('energy', pay); charged = FULL_CHARGE * pay / CHARGE_ENERGY;
+    }
     if (id === 'charge' && !(cur && cur.id === 'charge')) chargeMs = 0;
     if (cur) x += rootOf(cur)[0];       // keep the ground covered so far; height resets
     cur = { id, k: k0, t: 0, kind, from: x, face: facing };
     if (id === 'parry') lastParryT = clock;
     if (id === 'heavy') { cur.lite = charged < FULL_CHARGE; cur.charged = charged; }
-    if (ENERGY_HOLD.has(id) && via === 'release') cur.power = 0.5 + 0.5 * Math.min(1, charged / FULL_CHARGE);   // the charge sets the power
+    if (ENERGY_HOLD.has(id) && (via === 'release' || via === 'chain')) cur.power = 0.5 + 0.5 * Math.min(1, charged / FULL_CHARGE);   // the charge sets the power
     if (kind === 'action' && MOVE_COST[id]) { const n = needOf(id); spend(n[0], n[1]); }
     if (kind === 'action') queueHit();
     if (id === 'taunt') {
@@ -635,6 +638,40 @@
     }
   }
 
+  // ---- The attack chain (unlocks 'chain', 'chain_burst'): mash A. The 1st press is the normal slash, the 2nd to 4th are the chain strikes
+  // (chain2 to chain4, no knockback), the 5th is the heavy chop without charging it (it still costs CHARGE_ENERGY). With 'chain_burst', a B tap
+  // after the 4th A ends the chain in an energy burst instead. A press cancels the recovery of the move before it once its hit frames are over.
+  const CHAIN_MS = 750, CHAIN_MOVES = ['slash', 'chain2', 'chain3', 'chain4'];
+  let chain = { n: 0, t: -1e9 }, chainQueue = [];
+  const lastHitFrame = id => { const fr = D.moves[id].frames; let k = -1; fr.forEach((f, i) => { if (f.hits && f.hits.length) k = i; }); return k; };
+  const chainBusy = () => !!cur && cur.kind === 'action' && cur.k <= lastHitFrame(cur.id);      // the move before it is still hitting
+  function chainGo(move) {                                           // play it now, or in order as soon as the move before it has finished hitting
+    if (!chainQueue.length && !chainBusy()) { queued = null; start(move, 'action', 'chain'); }
+    else chainQueue.push(move);
+  }
+  function chainTick() {
+    if (!chainQueue.length) return;
+    if (stun) { chainQueue.length = 0; return; }
+    if (chainBusy()) return;
+    queued = null; start(chainQueue.shift(), 'action', 'chain');
+  }
+  function chainPress() {                                            // an A press with the chain unlocked; true when the chain handled it
+    if (!P.has('chain') || stun || fall || airborne() || (hold && ENERGY_HOLD.has(hold.move))) { chain.n = 0; return false; }
+    const n = clock - chain.t <= CHAIN_MS ? chain.n + 1 : 1;
+    if (n === 1) { chain = { n: 1, t: clock }; return false; }       // the plain slash
+    if (n <= 4) { chain = { n, t: clock }; chainGo(CHAIN_MOVES[n - 1]); return true; }
+    chain = { n: 0, t: -1e9 };                                       // 5th press: the heavy chop, uncharged
+    if (energyMeter < 1) return true;                                // no energy for the chop: the chain simply ends
+    chainGo('heavy');
+    return true;
+  }
+  function chainBurst() {                                            // a B tap right after the 4th A
+    if (!P.has('chain_burst') || chain.n !== 4 || clock - chain.t > CHAIN_MS || stun || airborne()) return false;
+    chain = { n: 0, t: -1e9 };
+    if (energyMeter < 1) return true;
+    chainGo('energy_burst');
+    return true;
+  }
   function request(move, via) {
     if (!D.moves[move] || stun || !moveOpen(move)) return;
     if (move === 'jump' && tryDoubleJump()) return;
@@ -758,7 +795,8 @@
   // beams hurt on every tick they touch. The heavy chop and the crash do more when full.
   const ENEMY_HP = { goblin: 60, orc: 200 }, ENEMY_DMG = { goblin: 12, orc: 30 };
   const DAMAGE = { slash: 25, heavy_horizontal: 50, thrust: 15, upswing: 15, push_kick: 10, heavy_kick: 25, energy_kick: 30, energy_burst: 50,
-                   dash_thrust: 25, energy_dash_thrust: 50, spin_attack: 20, energy_wave: 0, earthquake: 250, meteor_shower: 200 };
+                   dash_thrust: 25, energy_dash_thrust: 50, spin_attack: 20, energy_wave: 0, earthquake: 250, meteor_shower: 200,
+                   chain2: 15, chain3: 18, chain4: 22 };      // the chain strikes (no knockback: they are not in KNOCK)
   // knockback of the moves that push an enemy: [distance px, duration ms]
   const KNOCK = { heavy: [25, 100], slash: [25, 100], heavy_horizontal: [50, 100], push_kick: [100, 200], energy_kick: [200, 300], energy_burst: [100, 500] };
   const BOTH_SIDES_PUSH = new Set(['energy_burst']);
@@ -2452,7 +2490,13 @@
     }
     if (cheats.infinite) { energyMeter = maxOf('energy'); empowerMeter = maxOf('empower'); superMeter = maxOf('super'); }
     readButtons(t);
-    for (const e of reader.update(t)) request(e.move, e.move === 'slash' && e.via === 'tap' ? 'press' : e.via);
+    for (const e of reader.update(t)) {
+      const via = e.move === 'slash' && e.via === 'tap' ? 'press' : e.via;
+      if (e.move === 'slash' && via === 'press' && chainPress()) continue;
+      if (e.move === 'parry' && via === 'tap' && chainBurst()) continue;
+      request(e.move, via);
+    }
+    chainTick();
     const before = cur && BLOCKED.has(cur.id) ? playerX() : null;
     step(dt, t);
     { const vf = hf(); if (vf !== visFace) { if (!stun) turnShift(visFace, vf); visFace = vf; } }
