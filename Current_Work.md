@@ -334,3 +334,6 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 
 ## st56
 - Goblin combo: frames 3, 4 and 6 of the backflip also fire a streak shard (`fireComboShard`, 10 damage each). They fly up and away for 500 ms, then curve toward her (`HOME_TURN`) until hit, blocked or reflected. Parry is generous: a parry pressed up to 450 ms early counts, and a shard that reaches her waits 300 ms for a late parry. A reflected shard flies straight forward, level. goblin_roll (dive) is untouched. Test: combo_shards.test.js.
+
+## st57
+- Normal enemy attacks now land HIT_DELAY = 300 ms after first contact (was 90), so a parry up to 300 ms late still counts. Combo shards already allowed 300 ms late.
