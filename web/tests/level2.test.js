@@ -19,7 +19,7 @@ const { chromium } = require('playwright');
   const L = await ev(`(() => { const l = BIBOO_LEVELS.levels[1]; return { n: l.maps.length, door: l.door, last: l.maps[l.maps.length - 1].id, finalFlag: !!l.maps[l.maps.length - 1].final,
     items: l.maps.map(m => m.crates.filter(c => c.item).map(c => c.item)) }; })()`);
   check('level 2 has nine maps and 2.10 is gone', L.n === 9 && L.last === '2.9', L);
-  check('level 2 ends at a locked key door', L.door === 'key' && L.finalFlag, L);
+  check('level 2 ends at a locked door', L.door === 'key' && L.finalFlag, L);
   check('2.1 to 2.8 hold Recover, Taunt, Empowerment Beam, Energy Kick, Energy Dash Thrust, Energy Burst, Energy Wave, Cloud Beam in that order',
     JSON.stringify(L.items.slice(0, 8)) === JSON.stringify(ORDER.map(i => [i])), L.items);
   check('2.9 has no unlock crate', L.items[8].length === 0, L.items[8]);
@@ -38,14 +38,15 @@ const { chromium } = require('playwright');
   await ev('bibooGame.warp(8)'); await wait(400); await ev('bibooGame.setEnemies([])'); await wait(200);
   await ev('bibooGame.setX(376)'); await wait(700);
   let s = await S();
-  check('the door is locked without the key', s.screen === 'level' && !s.levelDone && s.level.id === '2.9', { screen: s.screen, id: s.level && s.level.id });
-  await ev('BibooProgress.addKey(2)'); await ev('bibooGame.setX(376)'); await wait(900);
+  check('the door is locked without every move of the level', s.screen === 'level' && !s.levelDone && s.level.id === '2.9', { screen: s.screen, id: s.level && s.level.id });
+  await ev("Object.keys(BIBOO_LEVELS.whereIs).filter(i => BIBOO_LEVELS.whereIs[i].split('.')[0] === '2').forEach(i => bibooGame.unlock(i))"); await ev('bibooGame.setX(376)'); await wait(900);
   s = await S();
-  check('with the key the door ends level 2', s.levelDone === true || s.screen !== 'level', { screen: s.screen, done: s.levelDone });
+  check('with every move the door ends level 2', s.levelDone === true || s.screen !== 'level', { screen: s.screen, done: s.levelDone });
 
-  // level 1's key does not open level 2
-  await ev('bibooGame.resetAll(); BibooProgress.completeLevel(1); BibooProgress.addKey(1); bibooGame.enterLevel(2)'); await wait(600);
-  check('the level 1 key does not open level 2', (await ev('bibooGame.doorLocked()')) === true, null);
+  // level 1's moves do not open level 2
+  await ev('bibooGame.resetAll(); BibooProgress.completeLevel(1); bibooGame.enterLevel(2)'); await wait(600);
+  await ev("Object.keys(BIBOO_LEVELS.whereIs).filter(i => BIBOO_LEVELS.whereIs[i].split('.')[0] === '1').forEach(i => bibooGame.unlock(i))");
+  check('the level 1 moves do not open level 2', (await ev('bibooGame.doorLocked()')) === true, null);
 
   console.log(errors.length ? errors : '');
   check('no page errors', errors.length === 0, errors);

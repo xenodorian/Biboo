@@ -1,4 +1,4 @@
-/* Level 1: health gems only and enemies that respawn (the key chest and door are in chest.test.js).
+/* Level 1: health gems only and enemies that respawn (the locked door is covered in progression.test.js).
  * Run: NODE_PATH=$(npm root -g) node web/tests/level1_door.test.js */
 const path = require('path');
 const { chromium } = require('playwright');

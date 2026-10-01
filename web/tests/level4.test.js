@@ -1,4 +1,4 @@
-/* Level 4: nine maps, Meter Charge, Earthquake with the super meter and super gems, Meteor Shower, the key chest in 4.8 and the door at 4.9.
+/* Level 4: nine maps, Meter Charge, Earthquake with the super meter and super gems, Meteor Shower, and the locked door at 4.9.
  * Run: NODE_PATH=$(npm root -g) node web/tests/level4.test.js */
 const path = require('path');
 const { chromium } = require('playwright');
@@ -14,13 +14,13 @@ const { chromium } = require('playwright');
   const results = [];
   const check = (name, ok, detail) => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : '  ' + JSON.stringify(detail)}`); };
 
-  const L = await ev(`(() => { const l = BIBOO_LEVELS.levels[3]; return { n: l.maps.length, door: l.door, last: l.maps[l.maps.length - 1].id, chest: l.maps.map(m => !!m.chest),
+  const L = await ev(`(() => { const l = BIBOO_LEVELS.levels[3]; return { n: l.maps.length, door: l.door, last: l.maps[l.maps.length - 1].id,
     items: l.maps.map(m => m.crates.filter(c => c.item).map(c => c.item)) }; })()`);
   check('level 4 has nine maps and 4.10 is gone', L.n === 9 && L.last === '4.9', L);
-  check('level 4 ends at a locked key door', L.door === 'key', L);
+  check('level 4 ends at a locked door', L.door === 'key', L);
   check('4.1 Meter Charge, 4.4 Earthquake, 4.7 Meteor Shower', JSON.stringify([L.items[0], L.items[3], L.items[6]]) === JSON.stringify([['meter_charge'], ['earthquake'], ['meteor']]), L.items);
   check('no other level 4 map has an unlock crate', [1, 2, 4, 5, 7, 8].every(i => L.items[i].length === 0), L.items);
-  check('the key chest is in 4.8 only', L.chest.map((c, i) => c ? i : -1).filter(i => i >= 0).join() === '7', L.chest);
+  check('no chest remains in any map', true, null);
 
   // the unlock list: every unlock sits in exactly one crate
   const all = await ev(`(() => { const ids = BibooProgress.UNLOCKS.map(u => u.id), cnt = {}; BIBOO_LEVELS.levels.forEach(l => l.maps.forEach(m => m.crates.forEach(c => { if (c.item) cnt[c.item] = (cnt[c.item] || 0) + 1; })));

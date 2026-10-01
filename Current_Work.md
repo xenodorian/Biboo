@@ -318,3 +318,8 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 - Saving is manual only. Progress is in memory; Save game (in-level and overworld menus) writes localStorage `parryperry.manualsave.v1`; Continue appears on the title only when that save exists and returns to the overworld; New game wipes every `parryperry*` key (confirm press when a save exists) and starts Level 1.1 with nothing. The old automatic save key is deleted and never read. Hard reset button removed.
 - Tests: save_flow.test.js (13), unlock_walkthrough.test.js (164: crate present only while unowned, gone after pickup, none when everything is owned). progression, hazards and unlock_points updated for the new save rules.
 - The dev console cheats (Unlock all moves and buttons, etc.) still exist behind L1+L2+R1+R2; they are the only way to own an unlock without its crate.
+
+## st53
+- Removed keys and key chests. A locked-door level's door stays locked until every unlock in that level is owned. chest.test.js deleted; level2/3/4, level1_door and progression tests now unlock the level's moves instead of adding a key.
+- Ground enemies leap pits to reach her (e.jump arc in stepEnemyCore, `setRange` recomputes the ground after landing).
+- Dash, dash_thrust and energy_dash_thrust hop 5 px (`dashHop` added in `heightAbove`). Test: enemy_jump_dash_hop.test.js.

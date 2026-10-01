@@ -20,7 +20,7 @@ const { chromium } = require('playwright');
   const L = await ev(`(() => { const l = BIBOO_LEVELS.levels[2]; return { n: l.maps.length, door: l.door, keyMap: l.keyMap, last: l.maps[l.maps.length - 1].id, finalFlag: !!l.maps[l.maps.length - 1].final,
     items: l.maps.map(m => m.crates.filter(c => c.item).map(c => c.item)), plain: l.maps.map(m => m.crates.filter(c => !c.item).length) }; })()`);
   check('level 3 has nine maps and 3.10 is gone', L.n === 9 && L.last === '3.9', L);
-  check('level 3 ends at a locked key door', L.door === 'key' && L.finalFlag, L);
+  check('level 3 ends at a locked door', L.door === 'key' && L.finalFlag, L);
   check('3.1 Heavy Overhead Chop, 3.3 Jumping Crash, 3.5 Fire Beam, 3.7 Laser Beam',
     JSON.stringify([L.items[0], L.items[2], L.items[4], L.items[6]]) === JSON.stringify([['heavy_chop'], ['crash'], ['fire_beam'], ['laser_beam']]), L.items);
   check('no other level 3 map has an unlock crate', [1, 3, 5, 7, 8].every(i => L.items[i].length === 0), L.items);
@@ -44,10 +44,10 @@ const { chromium } = require('playwright');
   await ev('bibooGame.warp(8)'); await wait(400); await ev('bibooGame.setEnemies([])'); await wait(200);
   await ev('bibooGame.setX(376)'); await wait(700);
   let s = await S();
-  check('the door is locked without the key', s.screen === 'level' && !s.levelDone && s.level.id === '3.9', { screen: s.screen, id: s.level && s.level.id });
-  await ev('BibooProgress.addKey(3)'); await ev('bibooGame.setX(376)'); await wait(900);
+  check('the door is locked without every move of the level', s.screen === 'level' && !s.levelDone && s.level.id === '3.9', { screen: s.screen, id: s.level && s.level.id });
+  await ev("Object.keys(BIBOO_LEVELS.whereIs).filter(i => BIBOO_LEVELS.whereIs[i].split('.')[0] === '3').forEach(i => bibooGame.unlock(i))"); await ev('bibooGame.setX(376)'); await wait(900);
   s = await S();
-  check('with the key the door ends level 3', s.levelDone === true || s.screen !== 'level', { screen: s.screen, done: s.levelDone });
+  check('with every move the door ends level 3', s.levelDone === true || s.screen !== 'level', { screen: s.screen, done: s.levelDone });
 
   // energy gems drop once the energy kick is unlocked
   await ev('bibooGame.resetAll(); bibooGame.enterLevel(1)'); await wait(400);

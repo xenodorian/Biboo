@@ -141,10 +141,9 @@
     }
     return pool;
   }
-  // A locked door level (door: 'key'): the key exists only as a crate drop, and only once every unlock in the level is owned.
-  const doorLocked = () => !!level && level.def.door === 'key' && !P.hasKey(level.n);
+  // A locked door level (door: 'key'): the door at the end stays locked until every unlock in the level is owned. There are no keys.
+  const doorLocked = () => !!level && level.def.door === 'key' && !allMovesHere();
   const allMovesHere = () => !!level && level.def.maps.every(m => m.crates.every(c => !c.item || P.has(c.item)));
-  const chestOpen = () => doorLocked() && allMovesHere();              // the key chest in map .8 is unchained
   function spawnGem(wx, kind, fy) { gems.push({ x: wx, y: (fy || 0) + 14 + Math.random() * 8, fy: fy || 0, kind, bob: Math.random() * 6.28, t0: clock }); }
   // Progress is kept in progress.js; the meters live here while playing and are copied over when it is saved.
   function syncProgress() { P.state.meters = { energy: energyMeter, empower: empowerMeter, super: superMeter }; P.save(); }
@@ -179,21 +178,16 @@
     if (clock - lastDeny > 500) { lastDeny = clock; floater(bodyX(), herY() + herTop() + 8, n[0] === 'energy' ? 'No energy' : n[0] === 'super' ? 'No super' : 'No empower', n[0] === 'energy' ? '#4af' : n[0] === 'super' ? '#c6f' : '#fa4'); }
   }
   // Walking over a gem puts it in the gem bag (the Gems menu); nothing is applied until the player uses it there.
-  const GEM_LABEL = { key: 'Door Key', health: 'Health Gem', energy: 'Energy Gem', empower: 'Empower Gem', super: 'Super Gem' };
-  const GEM_COLOR = { key: '#ffd24a', health: '#3ddc5f', energy: '#4af', empower: '#fa4', super: '#c6f' };
+  const GEM_LABEL = { health: 'Health Gem', energy: 'Energy Gem', empower: 'Empower Gem', super: 'Super Gem' };
+  const GEM_COLOR = { health: '#3ddc5f', energy: '#4af', empower: '#fa4', super: '#c6f' };
   const UP_LABEL = { energy: 'ENG', empower: 'EMP', super: 'SUP' };
   const GEM_HEAL = 50;                                                         // a health gem: +25 percent of MAX_HP (200)
   function stepGems(dt) {
     for (const gm of gems) gm.bob += dt * 0.006;
     gems = gems.filter(gm => {
-      if (gm.kind !== 'key' && clock - gm.t0 > GEM_LIFE) return false;
+      if (clock - gm.t0 > GEM_LIFE) return false;
       const hy = herY();
       if (Math.abs(gm.x - bodyX()) < GEM_PICKUP && hy < gm.fy + 50 && hy > gm.fy - 20) {
-        if (gm.kind === 'key') {                           // the door key: kept in the save
-          P.addKey(level ? level.n : 1); P.save();
-          floater(gm.x, gm.y + 24, 'Door Key', GEM_COLOR.key); banners.push({ title: 'You found the key', sub: 'Take it to the door at the end of the level', t0: clock, ms: 3500 });
-          return false;
-        }
         if (gm.kind.startsWith('up_')) {                   // a meter upgrade: applied at once, the meter grows by 25 and fills by 25
           const m = gm.kind.slice(3);
           if (P.raiseMax(m) > 0) { spend(m, -P.MAX_STEP); meterFlash[m] = clock + 600; syncProgress(); floater(gm.x, gm.y + 24, '+25 MAX ' + UP_LABEL[m], GEM_COLOR[m]); }
@@ -918,8 +912,7 @@
     const md = level.def.maps[idx];
     curMap = { idx, id: md.id, def: md, solids: md.solids, plats: md.plats,
                crates: md.crates.map((c, i) => ({ key: idx + ':' + i, x: c.x, fy: c.fy, item: c.item || null, broken: level.broken.has(idx + ':' + i) }))
-                 .filter(c => !(c.item && P.has(c.item)))                                  // a golden crate exists only while its unlock is not owned
-                 .concat(md.chest && !P.hasKey(level.n) ? [{ key: idx + ':chest', x: md.chest.x, fy: md.chest.fy, item: null, chest: true, broken: false }] : []),   // the key chest is there until the key is taken
+                 .filter(c => !(c.item && P.has(c.item))),                                 // a golden crate exists only while its unlock is not owned
                pits: (md.pits || []).map(p => ({ x0: p.x0, x1: p.x1 })),
                bombs: (md.bombs || []).map((b, i) => ({ key: idx + ':b' + i, x: b.x, fy: b.fy || 0, gone: level.popped.has(idx + ':b' + i), fuse: 0 })) };
     shots.length = 0; pitFall = null;
@@ -946,7 +939,7 @@
     const last = level.def.maps.length - 1;
     if (dir > 0) {
       if (level.idx < last) { loadMap(level.idx + 1, 'left'); banners.push({ title: `Level ${level.n}.${level.idx + 1}`, t0: clock, ms: 1300 }); return true; }
-      if (doorLocked()) { hint(allMovesHere() ? 'The door is locked. Smash the chest in map 8.' : 'The door is locked. Unlock every move first.'); return false; }
+      if (doorLocked()) { hint('The door is locked. Unlock every move in this level first.'); return false; }
       if (level.def.door !== 'key' && enemies.some(alive)) { hint('Defeat every enemy to open the gate'); return false; }
       levelComplete();
       return true;
@@ -1021,19 +1014,12 @@
   }
 
   // crates: any of her attacks that touches one smashes it. A golden crate holds an unlock; a plain one may drop a gem.
-  const crateBox = c => c.chest ? [c.x - 15, c.fy, c.x + 15, c.fy + 22] : [c.x - 9, c.fy, c.x + 9, c.fy + 18];
+  const crateBox = c => [c.x - 9, c.fy, c.x + 9, c.fy + 18];
   function burst(wx, wy, n, colors) {
     for (let i = 0; i < n; i++) particles.push({ wx, wy, vx: (Math.random() - 0.5) * 0.22, vy: 0.04 + Math.random() * 0.16, t0: clock, life: 500 + Math.random() * 300, c: colors[i % colors.length] });
   }
   function breakCrate(c) {
     if (c.broken) return;
-    if (c.chest) {                                                   // the red key chest: chained until every unlock in the level is owned
-      if (!allMovesHere()) { if (clock - (c.msgAt || -1e9) > 900) { c.msgAt = clock; floater(c.x, c.fy + 34, 'Locked: find every move', '#ff6a6a'); burst(c.x, c.fy + 10, 4, ['#ffffff', '#9a9aa8']); } return; }
-      c.broken = true;
-      burst(c.x, c.fy + 10, 14, ['#c0392b', '#ffd24a', '#ffffff']);
-      spawnGem(c.x, 'key', c.fy);
-      return;
-    }
     c.broken = true; level.broken.add(c.key);
     burst(c.x, c.fy + 9, 9, c.item ? ['#e8c050', '#c9962a', '#fff2a0'] : ['#8a5a2b', '#6b4420', '#b07a3c']);
     if (c.item) {
@@ -1312,8 +1298,8 @@
     if (!h || !alive(e)) return null;
     const s = SPRITE_SCALE * (e.scale || 1), fy = e.fy || 0;
     return e.face < 0
-      ? [e.base + h[0] * s, h[1] * s + fy, e.base + h[2] * s, h[3] * s + fy]
-      : [e.base - h[2] * s, h[1] * s + fy, e.base - h[0] * s, h[3] * s + fy];
+      ? [e.base + h[0] * s, h[1] * s + fy + (e.jy || 0), e.base + h[2] * s, h[3] * s + fy + (e.jy || 0)]
+      : [e.base - h[2] * s, h[1] * s + fy + (e.jy || 0), e.base - h[0] * s, h[3] * s + fy + (e.jy || 0)];
   }
 
   function kill(e, quiet) {
@@ -1375,6 +1361,12 @@
     else { const mv = Math.sign(dist) * step; e.x += mv; e.base += mv; }
   }
   // keep an enemy inside its range and out of barriers taller than the surface it stands on
+  const ENEMY_JUMP_H = 22, ENEMY_JUMP_MAX = 140;     // arc height, widest gap an enemy will leap
+  function setRange(e) {                          // the ground between the pits that holds the enemy where it stands
+    let lo = 8, hi = MAP_W - 8;
+    for (const p of curMap.pits) { if (p.x1 <= e.x) lo = Math.max(lo, p.x1 + 8); else if (p.x0 >= e.x) hi = Math.min(hi, p.x0 - 8); }
+    e.lo = lo; e.hi = hi;
+  }
   function clampEnemy(e, free) {                 // free: it was pushed, so only the walls of the map hold it (pits can take it)
     let nx = Math.max(free ? e.lo0 : e.lo, Math.min(free ? e.hi0 : e.hi, e.x));
     if (curMap) for (const s of curMap.solids) {
@@ -1392,6 +1384,7 @@
     }
     if (e.state === 'dying') return;
     let free = false;
+    if (e.jump) return;
     if ((e.fy || 0) === 0 && curMap && curMap.pits.length) {
       free = e.state === 'stunned' || clock - (e.shoved || 0) < 150;
       if (free && curMap.pits.some(p => e.x > p.x0 + 6 && e.x < p.x1 - 6)) { plunge(e); return; }
@@ -1412,6 +1405,16 @@
     }
     e.x = e.base + groundOff(e);
     if (e.state === 'dying') { e.dead += dt; return; }
+    if (e.jump) {                       // leaping a pit: a straight run over the gap with a 22 px arc
+      if (e.state === 'stunned') { e.jump = null; e.jy = 0; }
+      else {
+        const j = e.jump; j.t += dt;
+        const u = Math.min(1, j.t / j.dur), nx = j.x0 + (j.x1 - j.x0) * u;
+        e.base += nx - e.x; e.x = nx; e.jy = 4 * ENEMY_JUMP_H * u * (1 - u);
+        if (u >= 1) { e.jump = null; e.jy = 0; setRange(e); e.prevX = e.x; }
+        return;
+      }
+    }
     if (e.state === 'stunned') {        // parried: slides back, no control until it stops
       e.x += e.push.v * dt; e.base += e.push.v * dt;
       const v = e.push.v - Math.sign(e.push.v) * e.push.a * dt;
@@ -1451,6 +1454,17 @@
       if (e.anim !== 'idle') play(e, 'idle');
     } else {
       if (e.anim !== 'walk') play(e, 'walk');
+      if ((e.fy || 0) === 0 && curMap && curMap.pits.length) {       // a pit between it and her: jump it when it reaches the edge
+        const q = curMap.pits.find(p => e.face > 0 ? (p.x0 - e.x >= -2 && p.x0 - e.x < 12 && bodyX() > p.x1)
+                                                    : (e.x - p.x1 >= -2 && e.x - p.x1 < 12 && bodyX() < p.x0));
+        if (q && q.x1 - q.x0 <= ENEMY_JUMP_MAX && Math.abs(herY() - e.fy) < 40) {
+          const tx = e.face > 0 ? q.x1 + 10 : q.x0 - 10;
+          if (!curMap.pits.some(o => tx > o.x0 - 4 && tx < o.x1 + 4)) {
+            e.jump = { x0: e.x, x1: tx, t: 0, dur: 420 + Math.abs(tx - e.x) * 4 };
+            return;
+          }
+        }
+      }
       const mv = e.face * Math.min(ai.speed * dt / 1000, dist - stop);
       e.x += mv; e.base += mv;
     }
@@ -1565,7 +1579,15 @@
     return cur.id === 'duck' ? top - DUCK_TRIM : top;
   }
   const RED = '#ff2b2b', WHITE = '#ffffff';
-  const heightAbove = () => (stun ? stun.y : (fall ? fall.y : (cur && cur.kind !== 'fall' ? rootOf(cur)[1] : 0)) + (slide ? slide.y : 0));   // above the surface she stands on
+  const DASH_HOP = 5, DASH_MOVES = new Set(['dash', 'dash_thrust', 'energy_dash_thrust']);
+  function dashHop() {                  // the dash and the moves built on it rise 5 px and settle again over the move
+    if (!cur || !DASH_MOVES.has(cur.id) || cur.kind === 'fall') return 0;
+    const F = D.moves[cur.id].frames; let tot = 0, at = 0;
+    for (let i = 0; i < F.length; i++) { if (i === cur.k) at = tot + Math.min(cur.t || 0, F[i].ms); tot += F[i].ms; }
+    const u = Math.min(1, at / tot);
+    return 4 * DASH_HOP * u * (1 - u);
+  }
+  const heightAbove = () => (stun ? stun.y : (fall ? fall.y : (cur && cur.kind !== 'fall' ? rootOf(cur)[1] : 0)) + (slide ? slide.y : 0) + (stun ? 0 : dashHop()));   // above the surface she stands on
   function herY() { return floorY + heightAbove() - pitSink(); }                                                              // world height of her feet
   const hf = () => cur ? cur.face : facing;
   const legsX = () => playerX() + hf() * LEGS;          // between her feet
@@ -1578,8 +1600,8 @@
     if (!h) return null;
     const s = SPRITE_SCALE * (e.scale || 1), fy = e.fy || 0;
     return e.face < 0
-      ? [e.base + h[0] * s, h[1] * s + fy, e.base + h[2] * s, h[3] * s + fy]
-      : [e.base - h[2] * s, h[1] * s + fy, e.base - h[0] * s, h[3] * s + fy];
+      ? [e.base + h[0] * s, h[1] * s + fy + (e.jy || 0), e.base + h[2] * s, h[3] * s + fy + (e.jy || 0)]
+      : [e.base - h[2] * s, h[1] * s + fy + (e.jy || 0), e.base - h[0] * s, h[3] * s + fy + (e.jy || 0)];
   }
   const overlap = (a, b) => a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3];
   // a push that starts at speed v0 and slows evenly to a stop: covers d px in ms
@@ -1834,35 +1856,10 @@
       else { g.save(); g.globalAlpha = pulse; g.fillStyle = '#7dff9a'; g.beginPath(); g.moveTo(gx - 4, Y(28) - 7); g.lineTo(gx + 5, Y(28)); g.lineTo(gx - 4, Y(28) + 7); g.closePath(); g.fill(); g.restore(); }
     }
   }
-  // the red key chest: chains and a padlock while the level still has unlocks to find, a golden glow once it is open to smash
-  function drawChest(X, Y, locked) {
-    g.save();
-    if (!locked) { g.globalAlpha = 0.25 + 0.12 * Math.sin(clock / 200); g.fillStyle = '#ffd24a'; g.beginPath(); g.arc(X, Y - 11, 20, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; }
-    g.fillStyle = '#000'; g.fillRect(X - 15, Y - 23, 30, 23);
-    g.fillStyle = '#9b1c1c'; g.fillRect(X - 14, Y - 22, 28, 21);                 // red body
-    g.fillStyle = '#c0392b'; g.fillRect(X - 14, Y - 22, 28, 8);                  // lid
-    g.fillStyle = '#5e0f0f'; g.fillRect(X - 14, Y - 14, 28, 1);
-    g.fillStyle = '#ffd24a'; g.fillRect(X - 14, Y - 22, 28, 1); g.fillRect(X - 14, Y - 2, 28, 1); g.fillRect(X - 14, Y - 22, 2, 21); g.fillRect(X + 12, Y - 22, 2, 21);
-    if (locked) {
-      g.strokeStyle = '#000'; g.lineWidth = 4;
-      g.beginPath(); g.moveTo(X - 15, Y - 23); g.lineTo(X + 15, Y); g.moveTo(X + 15, Y - 23); g.lineTo(X - 15, Y); g.stroke();
-      g.strokeStyle = '#b8b8c8'; g.lineWidth = 2; g.setLineDash([3, 2]);          // chain links
-      g.beginPath(); g.moveTo(X - 15, Y - 23); g.lineTo(X + 15, Y); g.moveTo(X + 15, Y - 23); g.lineTo(X - 15, Y); g.stroke();
-      g.setLineDash([]);
-      g.fillStyle = '#000'; g.fillRect(X - 5, Y - 16, 10, 10); g.fillStyle = '#ffd24a'; g.fillRect(X - 4, Y - 15, 8, 8);   // padlock
-      g.fillStyle = '#000'; g.fillRect(X - 1, Y - 13, 2, 3);
-      g.strokeStyle = '#000'; g.lineWidth = 3; g.beginPath(); g.arc(X, Y - 16, 3.5, Math.PI, 0); g.stroke();
-      g.strokeStyle = '#c9c9d6'; g.lineWidth = 1; g.beginPath(); g.arc(X, Y - 16, 3.5, Math.PI, 0); g.stroke();
-    } else {
-      g.fillStyle = '#ffd24a'; g.fillRect(X - 3, Y - 16, 6, 6); g.fillStyle = '#000'; g.fillRect(X - 1, Y - 14, 2, 3);
-    }
-    g.restore();
-  }
   function drawCrates(sx, sy) {
     for (const c of curMap.crates) {
       if (c.broken) continue;
       const X = Math.round(c.x + sx), Y = Math.round(groundY(sy) - c.fy), gold = !!c.item;
-      if (c.chest) { drawChest(X, Y, !allMovesHere()); continue; }
       if (gold) {                                                 // a soft pulsing glow so golden crates stand out
         g.save(); g.globalAlpha = 0.22 + 0.12 * Math.sin(clock / 220);
         g.fillStyle = '#ffd24a'; g.beginPath(); g.arc(X, Y - 9, 16, 0, Math.PI * 2); g.fill(); g.restore();
@@ -1941,15 +1938,7 @@
   function drawGems(sx, sy) {
     for (const gm of gems) {
       const left = GEM_LIFE - (clock - gm.t0);
-      if (gm.kind !== 'key' && left < 4000 && Math.floor(clock / 120) % 2) continue;
-      if (gm.kind === 'key') {
-        const KX = Math.round(V.anchorX + (gm.x - camX) + sx), KY = Math.round(V.feetRow + camY + sy - gm.y - Math.sin(gm.bob) * 3);
-        g.save(); g.globalAlpha = 0.3 + 0.15 * Math.sin(gm.bob * 2); g.fillStyle = '#ffd24a'; g.beginPath(); g.arc(KX, KY, 11, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
-        g.fillStyle = '#000'; g.fillRect(KX - 6, KY - 4, 12, 4); g.fillRect(KX + 2, KY - 1, 4, 6); g.fillRect(KX - 9, KY - 6, 6, 8);
-        g.fillStyle = '#ffd24a'; g.fillRect(KX - 5, KY - 3, 10, 2); g.fillRect(KX + 3, KY - 1, 2, 4); g.fillRect(KX - 8, KY - 5, 4, 6);
-        g.fillStyle = '#16202e'; g.fillRect(KX - 7, KY - 3, 2, 2);
-        g.restore(); continue;
-      }
+      if (left < 4000 && Math.floor(clock / 120) % 2) continue;
       const X = Math.round(V.anchorX + (gm.x - camX) + sx), Y = Math.round(V.feetRow + camY + sy - gm.y - Math.sin(gm.bob) * 3);
       const up = gm.kind.startsWith('up_'), base = up ? gm.kind.slice(3) : gm.kind;
       const c = base === 'energy' ? ['#bfe6ff', '#4af', '#1d5fb0'] : base === 'super' ? ['#f0d6ff', '#c6f', '#6a2a9a'] : base === 'health' ? ['#c9ffd6', '#3ddc5f', '#15803d'] : ['#ffe3b0', '#fa4', '#b25a10'];
@@ -2056,7 +2045,7 @@
       g.save();
       if (e.sinkAt && curMap) pitClip(sx, sy);
       g.globalAlpha = alpha;
-      g.translate(vx, Math.round(gy - (e.fy || 0) + (e.sinkAt ? PIT_GRAV * (clock - e.sinkAt) * (clock - e.sinkAt) : 0)));
+      g.translate(vx, Math.round(gy - (e.fy || 0) - (e.jy || 0) + (e.sinkAt ? PIT_GRAV * (clock - e.sinkAt) * (clock - e.sinkAt) : 0)));
       if (e.face > 0) g.scale(-1, 1);
       blit(img[T.sheet].im, cell * cw, cw, ch, -ax * SPRITE_SCALE * (e.scale||1), -ay * SPRITE_SCALE * (e.scale||1), e.tint && clock < e.tint.until ? e.tint : null, SPRITE_SCALE * (e.scale||1));
       g.restore();
@@ -2511,7 +2500,7 @@
     // state and controls for the browser tests of levels, unlocks, menus and the dev console
     state: () => ({ screen, paused, gameOver, levelDone, devOpen, hp, floorY, feet: herY(), px: playerX(), cheats: { ...cheats },
                     level: level ? { n: level.n, idx: level.idx, id: curMap && curMap.id } : null,
-                    crates: curMap ? curMap.crates.map(c => ({ x: c.x, fy: c.fy, item: c.item, broken: c.broken, chest: !!c.chest })) : [],
+                    crates: curMap ? curMap.crates.map(c => ({ x: c.x, fy: c.fy, item: c.item, broken: c.broken })) : [],
                     powerups: powerups.map(u => ({ item: u.item, x: u.x, y: u.y })),
                     foes: enemies.map(e => ({ type: e.type, x: e.x, fy: e.fy, hp: e.hp, state: e.state, alive: alive(e), path: e.path, dir: e.dir })),
                     solids: curMap ? curMap.solids : [], plats: curMap ? curMap.plats : [], pits: curMap ? curMap.pits : [], bombs: curMap ? curMap.bombs.map(b => ({ x: b.x, fy: b.fy, gone: b.gone })) : [], shots: shots.map(q => ({ x: q.x, y: q.y, vx: q.vx, vy: q.vy, from: q.from })), pitFall: !!pitFall, feetNow: herY(), fx: { gems: gems.length } }),
@@ -2519,7 +2508,7 @@
     menuOpen: () => !!(UI && UI.isOpen()),
     charging: () => ({ cur: cur && cur.id, kind: cur && cur.kind, chargeMs: Math.round(chargeMs), full: isCharged(), energy: Math.round(energyMeter * 10) / 10, power: cur && cur.power, hold: hold && hold.move }),
     beamStats: () => ({ cost: { ...BEAM_TICK_COST }, dmg: { ...BEAM_DMG } }),
-    chestOpen: () => chestOpen(), keyDue: () => chestOpen(), hasKey: () => P.hasKey(level ? level.n : 1), doorLocked: () => doorLocked(),
+    doorLocked: () => doorLocked(), allMovesHere: () => allMovesHere(),
     unlockLines: id => unlockLines(P.byId[id]), unlockPool: () => unlockPool(null), banners: () => banners.map(b => ({ title: b.title, sub: b.sub })),
     unlock: id => unlockItem(id), resetAll: () => { P.reset(); energyMeter = empowerMeter = superMeter = 0; refreshUnlocks(); },
     // the old combat tests: everything unlocked, one closed map with no scenery, enemies as the test places them
