@@ -623,7 +623,7 @@
     if (kind === 'action') queueHit();
     if (id === 'taunt') {
       for (const en of enemies) {
-        if (!alive(en)) continue;
+        if (!alive(en) || isBoss(en)) continue;                      // bosses are immune to the taunt
         aggro(en, false);
         en.taunted = true; en.dropEmpower = true; en.speedMul = 2; en.dmgMul = 2;
         en.tint = TAUNT_TINT;
@@ -858,6 +858,7 @@
     bombsInBox(b.box);
   }
   function beamHit(e, b) {
+    if (b.kind === 'plasma' && isBoss(e)) return;                  // bosses are immune to the Empowerment Beam (no growing, no shove)
     if (b.kind === 'plasma') {
       e.scale = Math.max(e.scale || 1, 1.6);
       e.dropEnergy = true;
@@ -1378,6 +1379,7 @@
       : [e.base - h[2] * s, h[1] * s + fy + (e.jy || 0), e.base - h[0] * s, h[3] * s + fy + (e.jy || 0)];
   }
 
+  const isBoss = e => !!(EN[e.type] && EN[e.type].ai.boss);
   function kill(e, quiet) {
     // Drops: a taunted enemy 2 empower gems, one hit by the Empowerment Beam 2 energy gems. Every kill also rolls
     // GEM_CHANCE for a health gem (+25 percent health) and, separately, GEM_CHANCE for one energy or empower gem of a
@@ -1400,8 +1402,13 @@
     if (death) play(e, death);
     if (EN[e.type].ai.boss) {
       banners.push({ title: 'Boss defeated', sub: 'The way on is open', t0: clock, ms: 2600 });
-      for (let k = 0; k < 4; k++) spawnGem(e.x - 24 + k * 16, 'health', fy);
-      if (P.maxOf('hp') < P.MAX_CAP) spawnGem(e.x, 'up_hp', fy);
+      const kinds = ['health', 'health', 'health'];                      // a bunch of random gems of the kinds the player can use, and ankhs
+      if (P.meterOn('energy')) kinds.push('energy', 'energy');
+      if (P.meterOn('empower')) kinds.push('empower', 'empower');
+      if (P.meterOn('super')) kinds.push('super');
+      for (let k = 0; k < 9; k++) spawnGem(e.x - 56 + k * 14, kinds[Math.floor(Math.random() * kinds.length)], fy);
+      for (let k = 0; k < 3; k++) spawnGem(e.x - 20 + k * 20, 'ankh', fy);
+      if (P.maxOf('hp') < P.MAX_CAP) spawnGem(e.x + 62, 'up_hp', fy);
     }
     kills++;
     respawns.push({ type: e.type, at: clock + 2 * (DIE_MS + 4200), side: Math.random() < 0.5 ? -1 : 1 });
@@ -2722,7 +2729,7 @@
                     level: level ? { n: level.n, idx: level.idx, id: curMap && curMap.id } : null,
                     crates: curMap ? curMap.crates.map(c => ({ x: c.x, fy: c.fy, item: c.item, broken: c.broken })) : [],
                     powerups: powerups.map(u => ({ item: u.item, x: u.x, y: u.y })),
-                    foes: enemies.map(e => ({ type: e.type, x: e.x, fy: e.fy, anim: e.anim, jumping: !!e.jump, hp: e.hp, state: e.state, alive: alive(e), path: e.path, dir: e.dir })),
+                    foes: enemies.map(e => ({ type: e.type, x: e.x, fy: e.fy, anim: e.anim, taunted: !!e.taunted, jumping: !!e.jump, hp: e.hp, state: e.state, alive: alive(e), path: e.path, dir: e.dir })),
                     solids: curMap ? curMap.solids : [], plats: curMap ? curMap.plats : [], pits: curMap ? curMap.pits : [], bombs: curMap ? curMap.bombs.map(b => ({ x: b.x, fy: b.fy, gone: b.gone })) : [], shots: shots.map(q => ({ x: q.x, y: q.y, vx: q.vx, vy: q.vy, from: q.from })), pitFall: !!pitFall, feetNow: herY(), fx: { gems: gems.length } }),
     ankhs: () => P.state.ankhs, setAnkhs: n => { P.state.ankhs = n; }, moveRows: () => moveRows(), enterLevel: n => enterLevel(n), warp: idx => { loadMap(idx, 'left'); }, setX: v => { x = v; }, goOverworld: () => goOverworld(),
     menuOpen: () => !!(UI && UI.isOpen()),
