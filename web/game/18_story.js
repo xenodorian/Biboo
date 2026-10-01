@@ -59,13 +59,13 @@
   // shadow may fall on (it is cut at a cliff edge). Sunset island: the sun sits low on the right, so the shadow runs long to the left and front.
   const LOW_SUN = { sx: -1.3, sy: 0.3, a: 1.0, col: '#14041c', clip: [[0, 148], [150, 148], [160, 184], [168, 200], [182, 216], [0, 216]] };
   const SC = {
-    calm:     { pan: 0,    x: 205, gy: 188, s: 1.0, L: { sx: 0.8, sy: 0.28, a: 1.0, col: '#050d08' } },     // the path at the foot of the meadow
+    calm:     { pan: 0,    x: 205, gy: 188, s: 1.0, L: { sx: 0.8, sy: 0.28, a: 0.8, col: '#050d08' } },     // the path at the foot of the meadow
     fire:     { pan: 0.8,  x: 78,  gy: 194, s: 0.95, twinX: 338, twinGy: 190, L: { sx: -1.0, sy: 0.28, a: 1.0, col: '#0a0000', flick: true } },   // the dark lawn in front of the burning house
-    crowd:    { pan: 0.5,  gy: 188, s: 0.95, L: { sx: 0.8, sy: 0.28, a: 1.0, col: '#050d08' } },
+    crowd:    { pan: 0.5,  gy: 188, s: 0.95, L: { sx: 0.8, sy: 0.28, a: 0.8, col: '#050d08' } },
     sea:      { pan: 0.35, boatX: 268, boatY: 185 },        // open water, raised so the bow stays clear of the shore
-    double:   { pan: 0.5,  x: 96,  gy: 190, s: 1.1, twinX: 306, twinGy: 194, L: { sx: 0.9, sy: 0.25, a: 1.0, col: '#01030a' } },  // the flagstone yard
+    double:   { pan: 0.5,  x: 96,  gy: 190, s: 1.1, twinX: 306, twinGy: 194, L: { sx: 0.9, sy: 0.25, a: 0.8, col: '#01030a' } },  // the flagstone yard
     altar:    { pan: 0.5,  x: 236, gy: 181, s: 0.8,
-                L: { sx: 0.45, sy: -0.4, a: 1.0, col: '#000008', steps: [181, 172, 164, 156, 148, 141, 133, 125], stepDy: 3 } },       // the foot of the temple stairs
+                L: { sx: 0.45, sy: -0.4, a: 0.8, col: '#000008', steps: [181, 172, 164, 156, 148, 141, 133, 125], stepDy: 3 } },       // the foot of the temple stairs
     rewind:   { pan: 0.35 },
     meditate: { pan: 0,    x: 104, gy: 178, s: 0.95, L: LOW_SUN },      // the grassy cliff
     sunrise:  { pan: 0,    x: 104, gy: 178, s: 0.95, L: LOW_SUN },

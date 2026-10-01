@@ -451,3 +451,4 @@ Plan and status (each step is pushed on its own; resume from the first unchecked
 - st93: shadows doubled (alpha 1.0, darker colours), temple shadow longer and near-black, burning-house Perry lowered 8 px, evil Perry now drawn at Perry's scale in both scenes.
 - st94: boat reflection mirrored about the keel (touches the hull) and twice as opaque.
 - st95: Perry, evil Perry and the boat are stationary in cutscenes (frame 0, no walk, no bob). Burning-house shadow flicker kept.
+- st96: shadow opacity: meadow 0.8, burning house 1.0, courtyard 0.8, temple 0.8, cliff 1.0 (unchanged).
