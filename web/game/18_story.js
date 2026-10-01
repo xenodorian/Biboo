@@ -58,7 +58,7 @@
     calm:     { pan: 0,    x: 205, gy: 198, s: 1.05 },     // the path at the foot of the meadow
     fire:     { pan: 0.8,  x: 78,  gy: 202, s: 1.0, twinX: 338, twinGy: 204 },   // the dark lawn in front of the burning house
     crowd:    { pan: 0.5,  gy: 198, s: 0.95 },
-    sea:      { pan: 0.35, boatX: 268, boatY: 200 },        // the water below the sun
+    sea:      { pan: 0.35, boatX: 268, boatY: 170 },        // open water, raised so the bow stays clear of the shore
     double:   { pan: 0.5,  x: 96,  gy: 202, s: 1.15, twinX: 306, twinGy: 206 },  // the flagstone yard
     altar:    { pan: 0.5,  x: 236, gy: 180, s: 0.8 },       // the foot of the temple stairs
     rewind:   { pan: 0.35 },
