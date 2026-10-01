@@ -4,7 +4,7 @@
  *   moves      the controls and the unlocked combos (rows come from api.moveRows())
  *   gems       stored gems with a Use button each (api.gemRows(), api.useGem(kind))
  *   message    a title, a line of text and a list of buttons (Game Over, Level Complete)
- *   dev        the Dev Console: cheat toggles and actions (api.devItems())
+ *   dev        the Cheats menu: cheat toggles and actions (api.devItems())
  *
  * Every view is made of real <button>s, so it works with a mouse, a finger, the keyboard and a pad:
  * game.js reads Up/Down/A/B from the keyboard and pad while a menu is open and calls nav(), activate()
@@ -102,8 +102,8 @@
       for (const it of o.items || []) list.appendChild(button(it.label, it.fn, it.primary ? 'primary' : '', it.id));
       box.appendChild(list);
     } else if (UI.view === 'dev') {
-      title.textContent = 'Dev Console';
-      msg.textContent = 'Cheats for testing. Close with B, Escape or the last button.';
+      title.textContent = 'Cheats';
+      msg.textContent = 'Close with B, Escape or the last button.';
       const list = h('div', 'actions dev');
       for (const it of api.devItems()) {
         const b = button(it.state != null ? `${it.label}: ${it.state}` : it.label, () => { it.fn(); UI.refresh(); }, it.primary ? 'primary' : '');

@@ -179,8 +179,8 @@ Enemies patrol a set path and chase only when hit or when she is inside their si
 35% of kills drop a health gem (+25% of max health, 50 of 200 HP, `GEM_HEAL` in game.js). Gems go
 to a bag and are used from the Gems menu. Air control was added because the jump has no sideways motion.
 
-Dev Console: press L1+L2+R1+R2 together (or Q+E+T+R, or the ` key). Cheats: invincibility, infinite meters,
-unlock all levels, unlock all moves, gems, map skipping, reset progress.
+Cheats menu: open the pause menu and press L1+R1+L2+R2 together (Q+W+1+2 on the keyboard) to add a Cheats entry to it. Cheats: God Mode (no damage),
+Infinite Meter (meters never drain), Level Unlock (all six levels), Master Unlock (every unlockable) and No Pitfalls (pits act as solid ground).
 
 Files: `web/game.js` (engine), `web/progress.js` (unlocks, gems, in memory; the only thing written to the browser is the manual save, localStorage `parryperry.manualsave.v1`),
 `web/levels.js` (map data, Level 1 by hand, Levels 2 to 5 generated from fixed seeds), `web/ui.js` (menus),

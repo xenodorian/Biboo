@@ -16,7 +16,7 @@
  * within their sight range. Max and the enemies have HP: her hit shapes (blade, foot, energy, beams) take HP off
  * an enemy's hurtbox they touch. Enemies drop gems into a bag (Gems menu). An enemy attack that reaches her: a
  * clean hit turns her red and knocks her back; blocking flashes white; a well timed parry knocks the enemy back.
- * L1+L2+R1+R2 (or the ` key) opens the Dev Console.
+ * L1+R1+L2+R2 together in the pause menu reveals the Cheats entry.
  */
 (function () {
   'use strict';
@@ -783,7 +783,8 @@
     if (!e.tint || clock >= e.tint.until) e.tint = { color: RED, alpha: 0.55, until: clock + 110 };
     if (e.hp <= 0) kill(e);
   }
-  const cheats = { invincible: false, infinite: false };     // set from the Dev Console (L1+L2+R1+R2)
+  const cheats = { invincible: false, infinite: false, nopit: false };   // set from the Cheats menu (L1+R1+L2+R2 in the pause menu reveals it)
+  let cheatsShown = false;
   function hurtHer(dmg) {
     if (dmg <= 0 || cheats.invincible) return;
     hp = Math.max(0, hp - dmg);
@@ -1255,8 +1256,10 @@
     for (const p of curMap.pits) if (fs[0] >= p.x0 - 1 && fs[1] <= p.x1 + 1) return p;
     return null;
   }
+  const pitsSolid = () => false;                                  // the rainbow guard turns this on (step G)
   function checkPit() {
     if (pitFall || !curMap || !curMap.pits.length || floorY !== 0 || herY() > 1.5) return;
+    if (cheats.nopit || pitsSolid()) return;                          // pitfalls count as solid ground
     if (stun || slide) return;                                     // still being pushed: wait and see where it ends
     const p = pitUnderFeet();
     if (!p) return;
@@ -2356,7 +2359,7 @@
   const killsEl = document.getElementById('kills');
   const padStatus = () => padName ? `Controller: ${padName}` : 'Controller: none seen yet. Connect it, then press any button on it.';
   function hud() {
-    if (killsEl) killsEl.textContent = (level ? `Level ${level.n}.${level.idx + 1}   Kills ${kills}` : '') + (cheats.invincible ? '  [INV]' : '') + (cheats.infinite ? '  [INF]' : '');
+    if (killsEl) killsEl.textContent = (level ? `Level ${level.n}.${level.idx + 1}   Kills ${kills}` : '') + (cheats.invincible ? '  [GOD]' : '') + (cheats.infinite ? '  [INF]' : '') + (cheats.nopit ? '  [NOPIT]' : '');
   }
 
   // ------------------------------------------------------------------ menus, screens and the loop
@@ -2373,8 +2376,8 @@
   function navPoll(t) {
     const on = k => keyDown.has(k) || padDown.has(k);
     const now = { Up: on('Up'), Down: on('Down'), Left: on('Left'), Right: on('Right'), A: on('A'), B: on('B') };
-    const chord = ['L1', 'L2', 'R1', 'R2'].every(on);                  // all four shoulder buttons together: the Dev Console
-    if (chord && !navPrev.dev && assetsReady) toggleDev();
+    const chord = ['L1', 'L2', 'R1', 'R2'].every(on);                  // all four shoulder buttons together, in the pause menu: the Cheats entry appears
+    if (chord && !navPrev.dev && assetsReady && UI && UI.isOpen() && UI.view === 'main' && !cheatsShown) { cheatsShown = true; UI.refresh(); }
     navPrev.dev = chord;
     if (UI && UI.isOpen()) {
       for (const k of ['Up', 'Down']) {
@@ -2513,7 +2516,7 @@
   }
 
 
-  // ---- the Dev Console: L1+L2+R1+R2 together (or the ` key) opens it over whatever screen is up. It pauses the game.
+  // ---- the Cheats menu: after L1+R1+L2+R2 together in the pause menu it is listed there. It pauses the game.
   let devReturn = null, resetArmed = false;
   function openDev() {
     devReturn = UI.isOpen() ? { view: UI.view, opts: UI.opts } : null;
@@ -2534,29 +2537,14 @@
   function toggleDev() { if (devOpen) closeDev(); else if (assetsReady) openDev(); }
   function devItems() {
     const onoff = v => v ? 'ON' : 'OFF', act = fn => () => { resetArmed = false; fn(); };
-    const items = [
-      { label: 'Invincible', state: onoff(cheats.invincible), fn: act(() => { cheats.invincible = !cheats.invincible; }) },
-      { label: 'Infinite meters', state: onoff(cheats.infinite), fn: act(() => { cheats.infinite = !cheats.infinite; }) },
-      { label: 'Show hitboxes', state: onoff(showBoxes), fn: act(() => { showBoxes = !showBoxes; }) },
-      { label: 'Unlock all levels', fn: act(() => { P.unlockAllLevels(); }) },
-      { label: 'Unlock all moves and buttons', fn: act(() => unlockEverything()) },
-      { label: 'Give 5 of every gem', fn: act(() => { for (const k of P.GEM_KINDS) P.addGem(k, 5); P.save(); }) },
-      { label: 'Full health and full meters', fn: act(() => { hp = maxHp(); energyMeter = maxOf('energy'); empowerMeter = maxOf('empower'); superMeter = maxOf('super'); syncProgress(); }) },
-      { label: 'Raise every meter maximum by 25', fn: act(() => { for (const k of ['energy', 'empower', 'super']) P.raiseMax(k); }) },
+    return [
+      { label: 'God Mode', state: onoff(cheats.invincible), fn: act(() => { cheats.invincible = !cheats.invincible; }) },
+      { label: 'Infinite Meter', state: onoff(cheats.infinite), fn: act(() => { cheats.infinite = !cheats.infinite; }) },
+      { label: 'Level Unlock', fn: act(() => { P.unlockAllLevels(); }) },
+      { label: 'Master Unlock', fn: act(() => unlockEverything()) },
+      { label: 'No Pitfalls', state: onoff(cheats.nopit), fn: act(() => { cheats.nopit = !cheats.nopit; }) },
+      { label: 'Close', fn: closeDev, primary: true },
     ];
-    if (level) {
-      items.push({ label: 'Kill every enemy on this map', fn: act(() => { for (const e of enemies) if (alive(e)) kill(e); }) });
-      items.push({ label: 'Next map', fn: act(() => { if (level.idx < level.def.maps.length - 1) { leaveDev(); loadMap(level.idx + 1, 'left'); } }) });
-      items.push({ label: 'Previous map', fn: act(() => { if (level.idx > 0) { leaveDev(); loadMap(level.idx - 1, 'left'); } }) });
-      items.push({ label: 'Complete this level', fn: act(() => { leaveDev(); levelComplete(); }) });
-    }
-    items.push({ label: resetArmed ? 'Press again to erase the save' : 'Reset all progress', fn: () => {
-      if (!resetArmed) { resetArmed = true; return; }
-      P.reset(); energyMeter = empowerMeter = superMeter = 0; refreshUnlocks();
-      leaveDev(); goOverworld();
-    } });
-    items.push({ label: 'Close', fn: closeDev, primary: true });
-    return items;
   }
 
   function setStartLabel() {
@@ -2605,6 +2593,7 @@
     else if (gameOver) items.push({ label: 'Retry this map', fn: () => retryMap(), primary: true, id: 'btn-start' });
     else items.push({ label: 'Resume', fn: () => togglePause(), primary: true, id: 'btn-start' });
     items.push({ label: 'Moves', fn: () => UI.open('moves', { msg: UI.opts.msg }) });
+    if (cheatsShown) items.push({ label: 'Cheats', fn: () => openDev() });
     items.push({ label: 'Gems', fn: () => UI.open('gems', { msg: UI.opts.msg }) });
     if (screen === 'level') items.push({ label: 'Back to the overworld', fn: () => goOverworld() });
     if (screen !== 'title') items.push({ label: 'Save game', fn: () => saveGame(), id: 'btn-save' });
@@ -2670,7 +2659,6 @@
       if (UI && UI.isOpen()) UI.back(); else if (screen !== 'title' && !gameOver) togglePause();
       return;
     }
-    if (e.code === 'Backquote') { e.preventDefault(); toggleDev(); return; }
     if (e.code === 'Enter' || e.code === 'Space') {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON')) return;
       e.preventDefault();
