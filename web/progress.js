@@ -37,6 +37,11 @@
     { id: 'cloud_beam', kind: 'Combo', name: 'Cloud Beam', hint: 'Press A+L2, or Left, Right, A (uses energy)', moves: ['beam_cloud'], buttons: ['L2'], meters: ['energy'] },
     { id: 'laser_beam', kind: 'Combo', name: 'Laser Beam', hint: 'Press A+L1 (uses energy)', moves: ['beam_laser'], buttons: ['L1'], meters: ['energy'] },
     { id: 'fire_beam', kind: 'Combo', name: 'Fire Beam', hint: 'Press A+R2 (uses energy)', moves: ['beam_fire'], buttons: ['R2'], meters: ['energy'] },
+    { id: 'chain', kind: 'Combo', name: 'Attack Chain', hint: 'Mash A: slash, three chain strikes, then the heavy chop (uses energy)', moves: [], meters: ['energy'] },
+    { id: 'chain_burst', kind: 'Combo', name: 'Burst Chain', hint: 'A, A, A, A, then B: the chain ends in an energy burst', moves: [], meters: ['energy'] },
+    { id: 'fly', kind: 'Combo', name: 'Flight', hint: 'A, B, A, B, then Up: fly for 5 seconds', moves: [] },
+    { id: 'rainbow', kind: 'Combo', name: 'Rainbow Guard', hint: 'A, B, A, B, A, B: 5 seconds untouchable, walk over pits', moves: [] },
+    { id: 'ultimate', kind: 'Combo', name: 'Ultimate Chain', hint: 'A x4, then L1+L2+R1+R2 together: the chain, a taunt, then all four beams', moves: [], buttons: ['L1', 'L2', 'R1', 'R2'], meters: ['energy', 'empower'] },
   ];
   const byId = {};
   for (const u of UNLOCKS) byId[u.id] = u;
@@ -55,7 +60,7 @@
   P.MAX_START = { hp: 50, energy: 50, empower: 50, super: 100 }; P.MAX_STEP = 25; P.MAX_CAP = 200;
   P.maxOf = k => (P.state.maxes && P.state.maxes[k]) || P.MAX_START[k] || 50;
   P.raiseMax = (k, n) => { const before = P.maxOf(k); P.state.maxes[k] = Math.min(P.MAX_CAP, before + (n == null ? P.MAX_STEP : n)); P.save(); return P.state.maxes[k] - before; };
-  P.levelCount = () => (root.BIBOO_LEVELS && root.BIBOO_LEVELS.levels.length) || 5;
+  P.levelCount = () => (root.BIBOO_LEVELS && root.BIBOO_LEVELS.levels.length) || 6;
 
   P.has = id => P.state.unlocked.includes(id);
   P.hasMove = move => P.state.unlocked.some(id => byId[id] && (byId[id].moves || []).includes(move));
@@ -91,7 +96,7 @@
   const SAVE_KEY = 'parryperry.manualsave.v1', LEGACY_KEYS = ['parryperry.save.v1'];
   P.save = () => {};                                           // kept so the game can say "progress changed"; it does not persist anything
   P.saveToDisk = () => {
-    try { if (!root.localStorage) return false; root.localStorage.setItem(SAVE_KEY, JSON.stringify(Object.assign({}, P.state, { v: 3 }))); return true; }
+    try { if (!root.localStorage) return false; root.localStorage.setItem(SAVE_KEY, JSON.stringify(Object.assign({}, P.state, { v: 4 }))); return true; }
     catch (e) { return false; }                                // storage blocked: the save did not happen
   };
   const readSave = () => {
@@ -99,7 +104,13 @@
       const raw = root.localStorage && root.localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const s = JSON.parse(raw);
-      return s && s.v === 3 ? s : null;
+      if (!s) return null;
+      if (s.v === 3) {                                         // before level 4 was added: old levels 4 and 5 are now 5 and 6
+        s.v = 4;
+        if (Array.isArray(s.cleared)) s.cleared = s.cleared.map(n => (n >= 4 ? n + 1 : n));
+        if (Number.isFinite(s.levelsUnlocked) && s.levelsUnlocked > 4) s.levelsUnlocked += 1;
+      }
+      return s.v === 4 ? s : null;
     } catch (e) { return null; }
   };
   P.hasSave = () => !!readSave();

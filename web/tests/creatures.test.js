@@ -9,7 +9,7 @@ const { chromium } = require('playwright');
   await page.waitForFunction(() => document.getElementById('btn-start') && window.bibooGame, null, { timeout: 20000 });
   const ev = j => page.evaluate(j), wait = ms => page.waitForTimeout(ms), res = [];
   const check = (n, ok, d) => { res.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${n}${ok ? '' : '  ' + JSON.stringify(d)}`); };
-  const names = ['hobgoblin', 'skullraider', 'dusksaur', 'darkknight', 'ogre', 'wyrmslug', 'oozewraith', 'horneddread', 'boarlord', 'mirrormax'];
+  const names = ['hobgoblin', 'skullraider', 'dusksaur', 'darkknight', 'ogre', 'wyrmslug', 'oozewraith', 'horneddread', 'ogrechief', 'boarlord', 'mirrormax'];
   for (const t of names) {
     await ev(`bibooGame.custom(${JSON.stringify({ enemies: [{ type: t, x: 200, fy: 0 }] })})`); await wait(500);
     await ev('bibooGame.setHp(200)'); await ev('bibooGame.setX(120)');

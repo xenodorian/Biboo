@@ -1,5 +1,5 @@
-/* Level 4: nine maps, Meter Charge, Earthquake with the super meter and super gems, Meteor Shower, and the locked door at 4.9.
- * Run: NODE_PATH=$(npm root -g) node web/tests/level4.test.js */
+/* Level 5 (was 4): nine maps, Meter Charge, Earthquake with the super meter and super gems, Meteor Shower, and the locked door at 4.9.
+ * Run: NODE_PATH=$(npm root -g) node web/tests/level5.test.js */
 const path = require('path');
 const { chromium } = require('playwright');
 
@@ -14,18 +14,18 @@ const { chromium } = require('playwright');
   const results = [];
   const check = (name, ok, detail) => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : '  ' + JSON.stringify(detail)}`); };
 
-  const L = await ev(`(() => { const l = BIBOO_LEVELS.levels[3]; return { n: l.maps.length, door: l.door, last: l.maps[l.maps.length - 1].id,
+  const L = await ev(`(() => { const l = BIBOO_LEVELS.levels[4]; return { n: l.maps.length, door: l.door, last: l.maps[l.maps.length - 1].id,
     items: l.maps.map(m => m.crates.filter(c => c.item).map(c => c.item)) }; })()`);
-  check('level 4 has ten maps, the last (4.10) is the boss arena', L.n === 10 && L.last === '4.10', L);
-  check('level 4 ends at a locked door', L.door === 'key', L);
-  check('4.1 Meter Charge, 4.4 Earthquake, 4.7 Meteor Shower', JSON.stringify([L.items[0], L.items[3], L.items[6]]) === JSON.stringify([['meter_charge'], ['earthquake'], ['meteor']]), L.items);
-  check('no other level 4 map has an unlock crate', [1, 2, 4, 5, 7, 8].every(i => L.items[i].length === 0), L.items);
+  check('level 5 has ten maps, the last (5.10) is the boss arena', L.n === 10 && L.last === '5.10', L);
+  check('level 5 ends at a locked door', L.door === 'key', L);
+  check('5.1 Meter Charge, 5.4 Earthquake, 5.7 Meteor Shower', JSON.stringify([L.items[0], L.items[3], L.items[6]]) === JSON.stringify([['meter_charge'], ['earthquake'], ['meteor']]), L.items);
+  check('no other level 5 map has an unlock crate', [1, 2, 4, 5, 7, 8].every(i => L.items[i].length === 0), L.items);
   check('no chest remains in any map', true, null);
 
   // the unlock list: every unlock sits in exactly one crate
   const all = await ev(`(() => { const ids = BibooProgress.UNLOCKS.map(u => u.id), cnt = {}; BIBOO_LEVELS.levels.forEach(l => l.maps.forEach(m => m.crates.forEach(c => { if (c.item) cnt[c.item] = (cnt[c.item] || 0) + 1; })));
     return { total: ids.length, missing: ids.filter(i => !cnt[i]), dup: Object.keys(cnt).filter(k => cnt[k] > 1) }; })()`);
-  check('all 22 unlocks are in exactly one crate', all.total === 22 && all.missing.length === 0 && all.dup.length === 0, all);
+  check('all 27 unlocks are in exactly one crate', all.total === 27 && all.missing.length === 0 && all.dup.length === 0, all);
 
   // meter charge: L1+R1 held only fills meters once Meter Charge is owned
   await ev('bibooGame.resetAll(); bibooGame.enterLevel(1)'); await wait(500);

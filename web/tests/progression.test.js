@@ -234,7 +234,7 @@ const { chromium } = require('playwright');
   const dev = async () => { await key('Backquote'); await wait(200); };
   const devClick = async t => { await clickText(t); };
   await dev(); await devClick('Unlock all levels'); await devClick('Unlock all moves and buttons'); await devClick('Give 5 of every gem');
-  check('dev: all levels unlocked', (await ev('BibooProgress.state.levelsUnlocked')) === 5, null);
+  check('dev: all levels unlocked', (await ev('BibooProgress.state.levelsUnlocked')) === 6, null);
   check('dev: all unlocks owned', await ev('BibooProgress.UNLOCKS.every(u => BibooProgress.has(u.id))'), null);
   check('dev: gems given', JSON.stringify(await ev('bibooGame.gemBag()')) !== JSON.stringify({ health: 0, energy: 0, empower: 0, super: 0 }), await ev('bibooGame.gemBag()'));
   await devClick('Next map'); await wait(500);

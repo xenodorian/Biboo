@@ -7,9 +7,9 @@ const PLAN = [
   ['1.2', 'thrust'], ['1.3', 'push_kick'], ['1.4', 'upswing'], ['1.5', 'heavy_horizontal'], ['1.6', 'double_jump'], ['1.7', 'dash_thrust'], ['1.9', 'sky_dash'],
   ['2.1', 'recover'], ['2.2', 'taunt'], ['2.3', 'empower_beam'], ['2.4', 'energy_kick'], ['2.5', 'energy_dash'], ['2.6', 'energy_burst'], ['2.7', 'energy_wave'], ['2.8', 'cloud_beam'],
   ['3.1', 'heavy_chop'], ['3.3', 'crash'], ['3.5', 'fire_beam'], ['3.7', 'laser_beam'],
-  ['4.1', 'meter_charge'], ['4.4', 'earthquake'], ['4.7', 'meteor'],
+  ['4.1', 'chain'], ['4.3', 'chain_burst'], ['4.5', 'fly'], ['4.7', 'rainbow'], ['4.8', 'ultimate'], ['5.1', 'meter_charge'], ['5.4', 'earthquake'], ['5.7', 'meteor'],
 ];
-// meters that must be ON right after each unlock (and were off before): the EMP meter at 2.1, ENG at 2.4, SUP at 4.4
+// meters that must be ON right after each unlock (and were off before): the EMP meter at 2.1, ENG at 2.4, SUP at 5.4
 const METER_AT = { empower: 'recover', energy: 'energy_kick', super: 'earthquake' };
 
 (async () => {
@@ -63,10 +63,10 @@ const METER_AT = { empower: 'recover', energy: 'energy_kick', super: 'earthquake
   check('level 2 before 2.1: no meters', !l2a.energy && !l2a.empower && !l2a.super, l2a);
   const l3 = await gemsAt(3, PLAN.slice(0, 15).map(p => p[1]));
   check('level 3 start: ENG and EMP on, SUP off', l3.energy && l3.empower && !l3.super, l3);
-  const l4a = await gemsAt(4, PLAN.slice(0, 20).map(p => p[1]));
-  check('level 4 at 4.1 (Meter Charge): SUP still off', !l4a.super && l4a.energy && l4a.empower, l4a);
-  const l4b = await gemsAt(4, PLAN.slice(0, 21).map(p => p[1]));
-  check('level 4 after 4.4 Earthquake: SUP on', l4b.super, l4b);
+  const l4a = await gemsAt(5, PLAN.slice(0, 25).map(p => p[1]));
+  check('level 5 at 5.1 (Meter Charge): SUP still off', !l4a.super && l4a.energy && l4a.empower, l4a);
+  const l4b = await gemsAt(5, PLAN.slice(0, 26).map(p => p[1]));
+  check('level 5 after 5.4 Earthquake: SUP on', l4b.super, l4b);
 
   // 5. real drops: smash 40 plain crates in level 1 of a new game, only health gems may appear
   await page.evaluate(() => { bibooGame.resetAll(); bibooGame.enterLevel(1); });

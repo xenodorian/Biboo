@@ -75,11 +75,13 @@
     };
   }
   const COUNT = { 2: 9, 3: 9, 4: 9 };                      // levels 2 to 4 end at x.9 (a locked door); level 5 has MAPS_PER_LEVEL maps
-  function genMap(n, i, item) {
-    const r = rng(n * 7919 + i * 104729 + 17);
+  // n: difficulty class (old level number, kept so the terrain of old levels stays the same), i: map index, item: unlock id,
+  // ln: the level number shown to the player (picks the enemy rung), sk: seed key (defaults to n), cnt: map count of the level
+  function genMap(n, i, item, ln, sk, cnt) {
+    const r = rng((sk || n) * 7919 + i * 104729 + 17);
     const pick = (a, b) => a + Math.floor(r() * (b - a + 1));
     const chance = p => r() < p;
-    const final = i === (COUNT[n] || MAPS_PER_LEVEL) - 1;
+    const final = i === (cnt || COUNT[n] || MAPS_PER_LEVEL) - 1;
     const m = map({});
     // pits: centred on distinct slots 80 px apart, 50 to 70 px wide (none on the first map of a level)
     const slots = [110, 190, 270];
@@ -105,7 +107,7 @@
     const wide = segs.filter(s => Math.min(s[1] - 14, 300) - Math.max(s[0] + 14, 90) >= 40);
     // enemies
     const count = final ? Math.min(6, n + 2) : Math.min(5, 1 + (n >= 2 ? 1 : 0) + (n >= 4 ? 1 : 0) + (i >= 4 ? 1 : 0) + (i >= 7 ? 1 : 0));
-    const prog = Math.min(1, (((n - 2) * 9 + i + 2) / 33) + (final ? 0.05 : 0));       // 0 at map 2.1 up to 1 at the end of level 5; picks the rung of LADDER
+    const prog = Math.min(1, (((ln || n) - 2) * 9 + i + 2) / 42 + (final ? 0.05 : 0));       // 0 at map 2.1 up to 1 at the end of level 6; picks the rung of LADDER
     const sight = 90 + n * 8;
     for (let k = 0; k < count; k++) {
       const type = LADDER[Math.max(0, Math.min(LADDER.length - 1, Math.round(prog * (LADDER.length - 1) - 0.4 + (r() - 0.5) * 2.2)))];
@@ -150,26 +152,29 @@
     // level 2 (maps 2.1 to 2.8), then the locked door at the end of 2.9
     2: { 0: 'recover', 1: 'taunt', 2: 'empower_beam', 3: 'energy_kick', 4: 'energy_dash', 5: 'energy_burst', 6: 'energy_wave', 7: 'cloud_beam' },
     3: { 0: 'heavy_chop', 2: 'crash', 4: 'fire_beam', 6: 'laser_beam' },   // 3.8 holds the key drop, 3.9 the locked door
-    4: { 0: 'meter_charge', 3: 'earthquake', 6: 'meteor' },   // 4.9 has the locked door
-    5: {},
+    4: { 0: 'meter_charge', 3: 'earthquake', 6: 'meteor' },   // old level 4, now level 5 (5.9 has the locked door)
+    5: {},                                                    // old level 5, now level 6
+    n4: { 0: 'chain', 2: 'chain_burst', 4: 'fly', 6: 'rainbow', 7: 'ultimate' },   // the new level 4 (4.9 has the locked door)
   };
-  const gen = n => Array.from({ length: COUNT[n] || MAPS_PER_LEVEL }, (_, i) => genMap(n, i, (ITEMS[n] || {})[i]));
+  const gen = (n, ln, sk, items, cnt) => Array.from({ length: cnt || COUNT[n] || MAPS_PER_LEVEL }, (_, i) => genMap(n, i, (items || ITEMS[n] || {})[i], ln, sk, cnt));
 
   L1[L1.length - 1].final = true;              // level 1: map 1.9 holds the locked door to the boss arena 1.10
   const levels = [
     { n: 1, name: 'Green Trail', blurb: 'Goblins in the grass. Find every move to open the door at the end.', tint: null, door: 'key', maps: L1 },
-    { n: 2, name: 'Mossy Ruins', blurb: 'Old walls and ledges. Hobgoblins and raiders join the patrols.', tint: { color: '#7a5a1a', alpha: 0.18 }, door: 'key', maps: gen(2) },
-    { n: 3, name: 'Dusk Bridge', blurb: 'Night falls. The guards look farther.', tint: { color: '#2a2a80', alpha: 0.25 }, door: 'key', maps: gen(3) },
-    { n: 4, name: 'Ember Caves', blurb: 'Hot and crowded.', tint: { color: '#802a10', alpha: 0.22 }, door: 'key', maps: gen(4) },
-    { n: 5, name: 'Crimson Keep', blurb: 'The last gate.', tint: { color: '#600020', alpha: 0.28 }, maps: gen(5) },
+    { n: 2, name: 'Mossy Falls', blurb: 'Waterfalls and old stone. Hobgoblins and raiders join the patrols.', tint: null, door: 'key', bg: 'falls', maps: gen(2, 2) },
+    { n: 3, name: 'Sunstone Canyon', blurb: 'Red cliffs and long drops. The guards look farther.', tint: null, door: 'key', bg: 'canyon', maps: gen(3, 3) },
+    { n: 4, name: 'Sunset Shore', blurb: 'A calm beach with a bad crowd. Five new moves wait here.', tint: null, door: 'key', bg: 'shore', maps: gen(3, 4, 33, ITEMS.n4, 9) },
+    { n: 5, name: 'Mire Wood', blurb: 'Hot, wet and crowded.', tint: null, door: 'key', bg: 'mire', maps: gen(4, 5) },
+    { n: 6, name: 'Moonlit Sanctum', blurb: 'The last gate. Something waits at the center of the island.', tint: null, bg: 'sanctum', maps: gen(5, 6) },
   ];
-  // Boss arenas: one closed map added at the end of levels 1 to 4 (behind the locked door of x.9). The boss's death opens the right edge.
+  // Boss arenas: one closed map added at the end of levels 1 to 5 (behind the locked door of x.9). The boss's death opens the right edge.
   const bossMap = (type, theme, extra) => map(Object.assign({ boss: true, theme, enemies: [{ type, x: 270, fy: 0, path: [40, 340], sight: 420 }] }, extra || {}));
   levels[0].maps.push(bossMap('wyrmslug', 'fungal', { crates: [C(60), C(330)] }));
   levels[1].maps.push(bossMap('oozewraith', 'crypt', { plats: [P(40, 110, 60), P(274, 344, 60)], crates: [C(75, 60)] }));
   levels[2].maps.push(bossMap('horneddread', 'bone', { crates: [C(50), C(335)] }));
-  levels[3].maps.push(bossMap('boarlord', 'ember', { plats: [P(150, 234, 70)], crates: [C(192, 70)] }));
-  levels[4].maps.push(bossMap('mirrormax', 'keep', { plats: [P(150, 234, 70)] }));      // 5.11 the final boss: an enemy Max
+  levels[3].maps.push(bossMap('ogrechief', 'tide', { plats: [P(40, 110, 60), P(274, 344, 60)], crates: [C(75, 60), C(330)] }));
+  levels[4].maps.push(bossMap('boarlord', 'ember', { plats: [P(150, 234, 70)], crates: [C(192, 70)] }));
+  levels[5].maps.push(bossMap('mirrormax', 'keep', { plats: [P(150, 234, 70)] }));      // 6.11 the final boss: an enemy Max
   const nameOf = { }; // filled below: unlock id -> 'level.map' where its crate is
   levels.forEach(L => L.maps.forEach((m, i) => m.crates.forEach(c => { if (c.item) nameOf[c.item] = `${L.n}.${i + 1}`; })));
   L1.forEach((m, i) => { m.id = `1.${i + 1}`; });

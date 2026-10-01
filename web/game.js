@@ -1076,7 +1076,7 @@
   // the unlocks a golden crate may give: only ones the player does not own yet, and not already floating as an item
   function unlockPool(forItem) {
     const float = new Set(powerups.map(u => u.item)), placed = new Set(Object.keys(LV.whereIs));
-    const LATE = { earthquake: 4, meteor: 4 };                               // late-game unlocks: only handed out as substitutes from their level on
+    const LATE = { chain: 4, chain_burst: 4, fly: 4, rainbow: 4, ultimate: 4, earthquake: 5, meteor: 5 };                               // late-game unlocks: only handed out as substitutes from their level on
     const open = P.UNLOCKS.map(u => u.id).filter(id => !P.has(id) && !float.has(id) && !(LATE[id] && level && level.n < LATE[id]));
     const free = open.filter(id => !placed.has(id) || id === forItem);      // not promised to another crate
     return free.length ? free : open;

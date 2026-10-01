@@ -149,7 +149,24 @@ def build_keep():
     save(n, 'near', near)
     save(n, 'ground', ground(n, '#a08098', '#564456', '#2a202c', '#6a4a62', pat_marble, 7)); save(n, 'fringe', fringe('keep', 6))
 
-THEMES = {'fungal': build_fungal, 'crypt': build_crypt, 'bone': build_bone, 'ember': build_ember, 'keep': build_keep}
+def pat_wet(d, r):
+    for _ in range(120):
+        x, y = r.randrange(W), r.randrange(GY + 7, H - 2); d.rectangle([x, y, x + r.randrange(3, 12), y], fill=r.choice([(150, 190, 200, 255), (96, 140, 150, 255), (200, 220, 210, 255)]))
+    for x in range(0, W, 48): d.arc([x, GY + 8, x + 40, GY + 20], 0, 180, fill=(220, 240, 240, 255))
+def build_tide():
+    n = 'tide'
+    s = sky('#101a40', '#e88a6a', stars=30, seed=16, bands=18, glow=(100, 120, 44, '#fff0c0')); save(n, 'sky', s)
+    far = silhouette(0, '#3a2a58', 26, 170, 12); d = ImageDraw.Draw(far)
+    d.rectangle([0, 168, W, 188], fill=(40, 90, 120, 255))
+    for x in (60, 200, 320): d.polygon([(x, 168), (x + 10, 120), (x + 24, 130), (x + 34, 168)], fill=(50, 38, 74, 255))     # sea stacks
+    save(n, 'far', far)
+    near = Image.new('RGBA', (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(near)
+    for x in range(30, W, 128):                                          # driftwood arches and a lantern
+        d.rectangle([x, 110, x + 6, GY], fill=(84, 60, 52, 255)); d.rectangle([x + 70, 110, x + 76, GY], fill=(84, 60, 52, 255)); d.arc([x, 90, x + 76, 140], 180, 360, fill=(84, 60, 52, 255), width=5)
+        d.ellipse([x + 32, 130, x + 44, 142], fill=(255, 200, 100, 255))
+    save(n, 'near', near)
+    save(n, 'ground', ground(n, '#e6d2a0', '#b89c6c', '#6a5a48', '#9ac0c0', pat_wet, 8)); save(n, 'fringe', fringe('bone', 7))
+THEMES = {'tide': build_tide, 'fungal': build_fungal, 'crypt': build_crypt, 'bone': build_bone, 'ember': build_ember, 'keep': build_keep}
 if __name__ == '__main__':
     os.makedirs(os.path.join(OUT, 'arenas'), exist_ok=True)
     out = {}

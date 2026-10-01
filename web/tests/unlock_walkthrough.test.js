@@ -8,7 +8,7 @@ const PLAN = {
   '1.2': 'thrust', '1.3': 'push_kick', '1.4': 'upswing', '1.5': 'heavy_horizontal', '1.6': 'double_jump', '1.7': 'dash_thrust', '1.9': 'sky_dash',
   '2.1': 'recover', '2.2': 'taunt', '2.3': 'empower_beam', '2.4': 'energy_kick', '2.5': 'energy_dash', '2.6': 'energy_burst', '2.7': 'energy_wave', '2.8': 'cloud_beam',
   '3.1': 'heavy_chop', '3.3': 'crash', '3.5': 'fire_beam', '3.7': 'laser_beam',
-  '4.1': 'meter_charge', '4.4': 'earthquake', '4.7': 'meteor',
+  '4.1': 'chain', '4.3': 'chain_burst', '4.5': 'fly', '4.7': 'rainbow', '4.8': 'ultimate', '5.1': 'meter_charge', '5.4': 'earthquake', '5.7': 'meteor',
 };
 
 (async () => {
@@ -28,7 +28,7 @@ const PLAN = {
     await ev('bibooGame.setEnemies([])'); await ev(`bibooGame.warp(${idx})`); await wait(350); await ev('bibooGame.setEnemies([])'); await wait(150);
   }
   await ev('bibooGame.resetAll()');
-  for (let n = 1; n <= 4; n++) {
+  for (let n = 1; n <= 5; n++) {
     await ev('bibooGame.goOverworld()'); await ev(`bibooGame.resetAll && 0; ${n > 1 ? `BibooProgress.completeLevel(${n - 1});` : ''} bibooGame.enterLevel(${n})`); await wait(700);
     const count = await ev('BIBOO_LEVELS.levels[' + (n - 1) + '].maps.length');
     for (let idx = 0; idx < count; idx++) {

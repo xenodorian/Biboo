@@ -39,6 +39,10 @@ C = {
      dict(name='gore', style='lunge', dmg=26, knock=[100, 300], hit=(-0.50, 0.30, 0.25, 0.95)),
      dict(name='stomp', style='stomp', dmg=30, knock=[110, 400], hit=(-0.45, 0.45, 0.0, 0.40)),
      dict(name='claw', style='sweep', dmg=28, knock=[100, 350], hit=(-0.55, 0.45, 0.10, 0.80))]),
+ 'ogrechief': dict(title='Ogre Chief', src=7, H=96, hue=0.45, speed=38, hp=1250, rest=[500, 850], knock=[12, 150], parried=[30, 400], boss=True, atk=[
+     dict(name='club', style='slam', dmg=26, knock=[100, 400], hit=(-0.55, 0.45, 0.0, 0.70)),
+     dict(name='swat', style='sweep', dmg=24, knock=[90, 350], hit=(-0.60, 0.40, 0.25, 0.85)),
+     dict(name='quake', style='stomp', dmg=30, knock=[110, 400], hit=(-0.50, 0.50, 0.0, 0.40))]),
  'boarlord': dict(title='Boar Lord', src=8, H=112, speed=44, hp=1400, rest=[450, 750], knock=[12, 150], parried=[30, 400], boss=True, atk=[
      dict(name='charge', style='lunge', dmg=31, knock=[120, 350], hit=(-0.60, 0.30, 0.05, 0.60)),
      dict(name='spear', style='sweep', dmg=29, knock=[100, 350], hit=(-0.90, 0.40, 0.55, 1.00)),
@@ -75,6 +79,14 @@ def render(S, w, h, pf, pb, pt, pbot, cw, ch, cx, by, dx, dy, sx, sy, rot):
 def build(name, c):
     im = Image.open(os.path.join(HERE, 'clean', f"creature{c['src']}.png")).convert('RGBA')
     if c['src'] in FLIP: im = im.transpose(Image.FLIP_LEFT_RIGHT)
+    if c.get('hue'):                                                    # recolour a reused sprite
+        import colorsys
+        px = im.load()
+        for y in range(im.height):
+            for x in range(im.width):
+                r, g, b, a = px[x, y]
+                if a:
+                    hh, ss, vv = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255); r2, g2, b2 = colorsys.hsv_to_rgb((hh + c['hue']) % 1, ss, vv); px[x, y] = (round(r2 * 255), round(g2 * 255), round(b2 * 255), a)
     k = 2 * c['H'] / im.height
     w, h = round(im.width * k), round(im.height * k)
     S = im.resize((w, h), Image.LANCZOS if k < 1 else Image.NEAREST)

@@ -388,7 +388,7 @@ All five steps are done. Possible polish: per-attack reach selection for enemies
 ## Big update 2 (user request 2026-10-01 02:30): story, level 4, cheats, ankhs, new backgrounds
 Plan and status (each step is pushed on its own; resume from the first unchecked box):
 - [x] A. Move list (st70): `moveRows()` in game.js merges redundant inputs (Left/Right variants, repeated tokens as "x4"), orders unlocked combos by pickup order (`P.state.unlocked`), and Up/Down scroll the list (`UI.nav` in ui.js when view is 'moves').
-- [ ] B. Renumber old levels 4 and 5 to 5 and 6, new level 4 (new unlockables) and a fifth boss
+- [x] B. (st71) Levels: 1 Green Trail, 2 Mossy Falls, 3 Sunstone Canyon, 4 Sunset Shore (NEW, holds the 5 new unlocks chain, chain_burst, fly, rainbow, ultimate at 4.1, 4.3, 4.5, 4.7, 4.8; they are in progress.js UNLOCKS with `moves: []` until step G), 5 Mire Wood (old level 4: meter_charge, earthquake, meteor), 6 Moonlit Sanctum (old level 5, ends in Mirror Max at 6.11). Bosses: wyrmslug, oozewraith, horneddread, ogrechief (new, hue-shifted ogre, theme 'tide'), boarlord, mirrormax. `genMap(n, i, item, ln, sk, cnt)` keeps old terrain seeds. Save format bumped to v4 (v3 saves are migrated: cleared and levelsUnlocked shift for old levels 4 and 5). `level.bg` ('falls','canyon','shore','mire','sanctum') is set in levels.js for step D.
 - [ ] C. Cheats menu (L1+R1+L2+R2 in the pause menu): God Mode, Infinite Meter, Level Unlock, Master Unlock, No Pitfalls
 - [ ] D. Backgrounds: level 1 current, levels 2 to 6 from the five supplied images
 - [ ] E. Ankhs

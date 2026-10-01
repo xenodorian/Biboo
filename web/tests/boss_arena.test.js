@@ -9,11 +9,11 @@ const { chromium } = require('playwright');
   await page.waitForFunction(() => document.getElementById('btn-start') && window.bibooGame, null, { timeout: 20000 });
   const ev = j => page.evaluate(j), wait = ms => page.waitForTimeout(ms), res = [];
   const check = (n, ok, d) => { res.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${n}${ok ? '' : '  ' + JSON.stringify(d)}`); };
-  const boss = ['wyrmslug', 'oozewraith', 'horneddread', 'boarlord', 'mirrormax'];
-  for (let n = 1; n <= 5; n++) {
+  const boss = ['wyrmslug', 'oozewraith', 'horneddread', 'ogrechief', 'boarlord', 'mirrormax'];
+  for (let n = 1; n <= 6; n++) {
     await ev('bibooGame.goOverworld()'); await wait(200);
     await ev(`bibooGame.enterLevel(${n})`); await wait(400);
-    await ev(`bibooGame.warp(${n === 5 ? 10 : 9})`); await wait(500);
+    await ev(`bibooGame.warp(${n === 6 ? 10 : 9})`); await wait(500);
     await ev('bibooGame.setHp(200)');
     let s = await ev('bibooGame.state()');
     check(`level ${n}: boss ${boss[n - 1]} waits in the arena`, s.foes.length === 1 && s.foes[0].type === boss[n - 1], s.foes);
