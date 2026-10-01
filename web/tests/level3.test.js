@@ -25,7 +25,7 @@ const { chromium } = require('playwright');
     JSON.stringify([L.items[0], L.items[2], L.items[4], L.items[6]]) === JSON.stringify([['heavy_chop'], ['crash'], ['fire_beam'], ['laser_beam']]), L.items);
   check('no other level 3 map has an unlock crate', [1, 3, 5, 7, 8].every(i => L.items[i].length === 0), L.items);
   const late = await ev(`(() => { const w = BIBOO_LEVELS.whereIs; return { eq: w.earthquake, mt: w.meteor }; })()`);
-  check('Earthquake and Meteor Shower are still late-game (level 4)', parseInt(late.eq) === 4 && parseInt(late.mt) === 4, late);
+  check('Earthquake and Meteor Shower are still late-game (level 5)', parseInt(late.eq) === 5 && parseInt(late.mt) === 5, late);
 
   // laser beam: 5 energy and 15 damage per tick
   await into3();

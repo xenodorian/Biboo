@@ -82,7 +82,7 @@ const METER_AT = { empower: 'recover', energy: 'energy_kick', super: 'earthquake
     }
     return [...seen];
   });
-  check('level 1 drops only health gems', kinds.every(k => k === 'health'), kinds);
+  check('level 1 drops only health gems', kinds.every(k => k === 'health' || k === 'ankh'), kinds);
   check('no page errors', errors.length === 0, errors);
 
   console.log(`${results.filter(Boolean).length}/${results.length} passed`);

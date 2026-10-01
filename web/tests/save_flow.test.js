@@ -47,7 +47,8 @@ const { chromium } = require('playwright');
   await page.reload(); await ready();
   await clickId('btn-new-game'); await wait(300);
   check('New game needs a second press while a save exists', (await keys()).length === 1 && (await labels()).some(x => /Press again/.test(x)), await labels());
-  await clickId('btn-new-game'); await wait(800);
+  await clickId('btn-new-game'); await wait(500);
+  await page.click('button:has-text("Skip story")'); await wait(500);       // the prologue
   const nw = await ev("({ u: BibooProgress.state.unlocked.length, lv: BibooProgress.state.levelsUnlocked, gems: BibooProgress.state.gems.health, lvl: bibooGame.state().level, screen: bibooGame.state().screen })");
   check('New game starts Level 1.1 with nothing unlocked', nw.u === 0 && nw.lv === 1 && nw.gems === 0 && nw.screen === 'level' && nw.lvl && nw.lvl.n === 1 && nw.lvl.idx === 0, nw);
   check('New game wiped the saved data', (await keys()).length === 0, await keys());

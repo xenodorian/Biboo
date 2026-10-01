@@ -1019,6 +1019,7 @@
   function hint(text) { if (clock - lastHint > 2500) { lastHint = clock; banners.push({ title: text, t0: clock, ms: 2200 }); } }
 
   function startLevel(n, custom) {
+    story = null; storyAt = null;                    // any story page still open (a test hook starting a level) is dropped
     const def = custom || LV.levels[n - 1];
     if (!def) return;
     level = { n, def, idx: 0, killed: new Set(), broken: new Set(), popped: new Set(), pending: new Map(), ankhGot: new Set() };

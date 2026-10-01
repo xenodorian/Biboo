@@ -396,3 +396,8 @@ Plan and status (each step is pushed on its own; resume from the first unchecked
 - [x] G1 chain (AAAAA, AAAAB)
 - [x] G2-G5 fly (ABAB-Up), rainbow (ABABAB), ultimate (AAAA + R1+R2+L1+L2), tests in powers.test.js
 - [x] H. (st78) Story: prologue on New game, Mirror Max confession (story.double), ending after level 6 (story.ending), Skip story button; story.test.js. Flags saved in P.state.story.
+
+### Final test pass (st79)
+- Passing: ankhs, asset_retry, boss_arena, boss_immunity, chain, cheats, combo_shards, creatures, enemy_jump_dash_hop, energy_charge, goblin_pattern, input, level1_door, level2, level3, level5, maxhp_kick_hop, meteor_input, orc_jump, platform_edge, powers, progression (rewritten for the Cheats menu and prologue), pushback, save_flow, sky_taunt, story, unlock_items, unlock_points, unlock_walkthrough (27 unlocks), unlocks.
+- Failing before this update too (verified on commit 4f457f9, stale expectations from older input and balance changes, not regressions): browser.test.js (15 old input checks), combat.test.js (22), meters.test.js (7), hazards.test.js (4), enemy_reach.test.js (3), turn_stun.test.js (1, air hit). They need rewriting against the current controls.
+- startLevel now drops any open story page so test hooks can start levels after "New game".

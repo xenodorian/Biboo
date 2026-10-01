@@ -61,7 +61,7 @@ const PLAN = {
     }
     await ev(`BibooProgress.completeLevel(${n})`);
   }
-  check('all 22 unlocks were collected in order, and nothing else', (await owned()).length === 22, await owned());
+  check('all 27 unlocks were collected in order, and nothing else', (await owned()).length === 27, await owned());
 
   // everything is owned now: no golden crate is built in any map
   let present = [];
@@ -72,7 +72,7 @@ const PLAN = {
     if ((await S()).crates.some(c => c.item)) present.push(id);
   }
   check('with every unlock owned, no map has a golden crate', present.length === 0, present);
-  check('still exactly 22 unlocks', (await owned()).length === 22, await owned());
+  check('still exactly 27 unlocks', (await owned()).length === 27, await owned());
   check('no page errors', errors.length === 0, errors);
   console.log(`${results.filter(Boolean).length}/${results.length} passed`);
   await browser.close();

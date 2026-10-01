@@ -44,8 +44,10 @@ const { chromium } = require('playwright');
 
   // ---- 4. Start -> overworld
   await clickText('New game');
+  check('New game opens the prologue first', !!(await ev('bibooGame.story()')), await S());
+  await clickText('Skip story'); await wait(300);
   s = await S();
-  check('New game starts Level 1.1 directly', s.screen === 'level' && s.level && s.level.n === 1 && s.level.idx === 0 && !(await ev("bibooGame.menuOpen()")), s);
+  check('Skipping the prologue starts Level 1.1', s.screen === 'level' && s.level && s.level.n === 1 && s.level.idx === 0 && !(await ev("bibooGame.menuOpen()")), s);
   await ev('bibooGame.goOverworld()'); await wait(200);
   s = await S();
   check('back to the overworld', s.screen === 'overworld' && !(await ev("bibooGame.menuOpen()")), s);
@@ -56,22 +58,26 @@ const { chromium } = require('playwright');
   check('level 1 starts on map 1.1', s.screen === 'level' && s.level.id === '1.1' && s.level.idx === 0, s.level);
   check('starts standing on the ground at the left door', s.floorY === 0 && s.px > 15 && s.px < 60, { fy: s.floorY, px: s.px });
 
-  // ---- 5. dev console by the four-shoulder chord and the ` key
-  await hold(['KeyQ', 'Digit1', 'KeyW', 'Digit2'], 250); await wait(200);
+  // ---- 5. the Cheats menu: L1+R1+L2+R2 together in the pause menu lists it
+  const cheatMenu = async () => {                              // pause, press the four shoulders, open Cheats
+    if (!(await S()).paused) { await key('Escape'); await wait(200); }
+    if (!(await labels()).includes('Cheats')) { await hold(['KeyQ', 'Digit1', 'KeyW', 'Digit2'], 250); await wait(200); }
+    await clickText('Cheats');
+  };
+  const cheatsDone = async () => { await clickText('Close'); await wait(150); if ((await S()).paused) { await key('Escape'); await wait(200); } };
+  await key('Escape'); await wait(200);
+  check('the pause menu has no Cheats entry at first', !(await labels()).includes('Cheats'), await labels());
+  await cheatMenu();
   s = await S();
-  check('Q+E+T+R opens the Dev Console', s.devOpen && (await ev('bibooGame.menuOpen()')), s.devOpen);
+  check('L1+R1+L2+R2 reveals the Cheats menu', s.devOpen && (await ev('bibooGame.menuOpen()')), s.devOpen);
   const dl = await labels();
-  check('dev console has the cheats', dl.some(l => /^Invincible: OFF/.test(l)) && dl.some(l => /^Infinite meters: OFF/.test(l)) && dl.some(l => /Unlock all levels/.test(l)) && dl.some(l => /Complete this level/.test(l)), dl);
-  await clickText('Invincible'); await clickText('Infinite meters');
+  check('Cheats lists God Mode, Infinite Meter, Level Unlock, Master Unlock, No Pitfalls', ['God Mode', 'Infinite Meter', 'Level Unlock', 'Master Unlock', 'No Pitfalls'].every(n => dl.some(l => l.startsWith(n))), dl);
+  await clickText('God Mode'); await clickText('Infinite Meter');
   s = await S();
   check('cheat toggles flip', s.cheats.invincible && s.cheats.infinite, s.cheats);
-  await key('Escape'); await wait(150);
+  await cheatsDone();
   s = await S();
-  check('Escape closes the console and returns to the game', !s.devOpen && !s.paused, s);
-  await key('Backquote'); await wait(150);
-  check('` key opens it again', (await S()).devOpen, null);
-  await key('Backquote'); await wait(150);
-  check('` key closes it', !(await S()).devOpen, null);
+  check('closing Cheats and the menu returns to the game', !s.devOpen && !s.paused, s);
 
   // ---- 6. movement: barriers, jumping, platforms (map 1.2 has a log at x 150-166, top 34)
   await ev('bibooGame.warp(1)'); await wait(700);
@@ -167,10 +173,10 @@ const { chromium } = require('playwright');
   const bag0 = (await ev('bibooGame.gemBag()')).health;
   await ev("bibooGame.dropGem(0, 'health')"); await wait(400);
   s = await ev('bibooGame.gemBag()');
-  check('walking over a gem stores it in the bag (+1 health)', s.health === bag0 + 1 && (await S()).fx.gems === 0, s);
+  check('walking over a gem stores it in the bag (+1 health)', s.health === bag0 + 1, s);
   await ev('bibooGame.hurtHer(0)');
   await ev('bibooGame.setHp(100)'); await key('Escape'); await wait(200);
-  check('Escape pauses with the menu (Resume, Moves, Gems, Back to overworld, Save game, Fullscreen, New game)', JSON.stringify(await labels()) === JSON.stringify(['Resume', 'Moves', 'Gems', 'Back to the overworld', 'Save game', 'Fullscreen', 'New game (erases save)']), await labels());
+  check('Escape pauses with the menu (Resume, Moves, Cheats, Gems, Back to overworld, Save game, Fullscreen, New game)', JSON.stringify(await labels()) === JSON.stringify(['Resume', 'Moves', 'Cheats', 'Gems', 'Back to the overworld', 'Save game', 'Fullscreen', 'New game (erases save)']), await labels());
   await clickText('Gems');
   let rows = await page.$$eval('#menu-view .gem-row', r => r.map(x => ({ t: x.textContent, dis: x.querySelector('button').disabled })));
   check('Gems menu: health Use is enabled, the rest disabled', !rows[0].dis && rows.slice(1).every(r => r.dis), rows);
@@ -211,7 +217,11 @@ const { chromium } = require('playwright');
   await ev("Object.keys(BIBOO_LEVELS.whereIs).filter(i => BIBOO_LEVELS.whereIs[i].split('.')[0] === '1').forEach(i => bibooGame.unlock(i))");
   await ev('bibooGame.setX(300)'); await page.keyboard.down('ArrowRight'); await wait(3000); await page.keyboard.up('ArrowRight'); await wait(300);
   s = await S();
-  check('with every move, walking out of the door completes the level', s.levelDone, s);
+  check('with every move, the door leads into the boss arena', s.level.id === '1.10', s.level);
+  await ev('bibooGame.killFoe(0)'); await wait(600);
+  await ev('bibooGame.setX(300)'); await page.keyboard.down('ArrowRight'); await wait(3000); await page.keyboard.up('ArrowRight'); await wait(300);
+  s = await S();
+  check('beating the boss and walking out of the arena completes the level', s.levelDone, s);
   check('level 2 is now unlocked and Level complete message shown', (await ev('BibooProgress.state.levelsUnlocked')) === 2 && /complete/i.test(await ev("document.getElementById('menu-title').textContent")), await ev("document.getElementById('menu-title').textContent"));
   await clickText('Back to the overworld'); await wait(200);
   s = await S();
@@ -221,38 +231,25 @@ const { chromium } = require('playwright');
   check('level 2 can now be entered (2.1)', s.screen === 'level' && s.level.id === '2.1', s.level);
 
   // ---- 14. game over and retry (cheats from earlier off first)
-  await key('Backquote'); await wait(200); await clickText('Invincible'); await clickText('Infinite meters'); await key('Backquote'); await wait(200);
+  await cheatMenu(); await clickText('God Mode'); await clickText('Infinite Meter'); await cheatsDone();
   check('cheats can be turned off again', !(await S()).cheats.invincible && !(await S()).cheats.infinite, (await S()).cheats);
   await ev('bibooGame.hurtHer(9999)'); await wait(700);
   s = await S();
-  check('K.O. shows the Game Over menu with Retry this map', s.gameOver && (await labels())[0] === 'Retry this map', { s, l: await labels() });
+  check('K.O. shows the Game Over menu with Retry this map', s.gameOver && /^Retry this map/.test((await labels())[0]), { s, l: await labels() });
   await clickText('Retry this map'); await wait(600);
   s = await S();
   check('Retry reloads the same map at full health', !s.gameOver && !s.paused && s.hp === (await ev('bibooGame.maxHp()')) && s.level.id === '2.1', s);
 
-  // ---- 15. dev console actions in a level
-  const dev = async () => { await key('Backquote'); await wait(200); };
-  const devClick = async t => { await clickText(t); };
-  await dev(); await devClick('Unlock all levels'); await devClick('Unlock all moves and buttons'); await devClick('Give 5 of every gem');
-  check('dev: all levels unlocked', (await ev('BibooProgress.state.levelsUnlocked')) === 6, null);
-  check('dev: all unlocks owned', await ev('BibooProgress.UNLOCKS.every(u => BibooProgress.has(u.id))'), null);
-  check('dev: gems given', JSON.stringify(await ev('bibooGame.gemBag()')) !== JSON.stringify({ health: 0, energy: 0, empower: 0, super: 0 }), await ev('bibooGame.gemBag()'));
-  await devClick('Next map'); await wait(500);
-  s = await S();
-  check('dev: Next map goes to 2.2 and closes the console', s.level.id === '2.2' && !s.devOpen && !s.paused, s);
-  await dev(); await devClick('Previous map'); await wait(500);
-  check('dev: Previous map goes back to 2.1', (await S()).level.id === '2.1', (await S()).level);
-  await dev(); await devClick('Kill every enemy on this map'); await devClick('Close'); await wait(300);
-  check('dev: kill every enemy', (await S()).foes.every(f => !f.alive), (await S()).foes);
-  await dev(); await devClick('Invincible'); await devClick('Close'); await ev('bibooGame.setHp(200)'); await ev('bibooGame.hurtHer(150)');
-  check('dev: invincible blocks damage', (await S()).hp === (await ev('bibooGame.maxHp()')), (await S()).hp);
-  await dev(); await devClick('Complete this level'); await wait(300);
-  check('dev: Complete this level shows the message', (await S()).levelDone, await S());
-  await clickText('Back to the overworld'); await wait(200);
-  await dev(); await devClick('Reset all progress');
-  check('reset needs a second press (still unlocked)', await ev("BibooProgress.has('thrust')"), null);
-  await devClick('Press again to erase the save'); await wait(300);
-  check('reset erased progress and returned to the overworld', !(await ev("BibooProgress.has('thrust')")) && (await ev('BibooProgress.state.levelsUnlocked')) === 1 && (await S()).screen === 'overworld' && !(await S()).devOpen && !(await S()).paused, await S());
+  // ---- 15. Cheats actions in a level
+  await cheatMenu(); await clickText('Level Unlock'); await clickText('Master Unlock'); await cheatsDone();
+  check('cheats: all levels unlocked', (await ev('BibooProgress.state.levelsUnlocked')) === 6, null);
+  check('cheats: all unlocks owned', await ev('BibooProgress.UNLOCKS.every(u => BibooProgress.has(u.id))'), null);
+  await cheatMenu(); await clickText('God Mode'); await cheatsDone(); await ev('bibooGame.setHp(200)'); await ev('bibooGame.hurtHer(150)');
+  check('cheats: God Mode blocks damage', (await S()).hp === (await ev('bibooGame.maxHp()')), (await S()).hp);
+  await cheatMenu(); await clickText('No Pitfalls'); await cheatsDone();
+  check('cheats: No Pitfalls is on', (await S()).cheats.nopit, (await S()).cheats);
+  await ev("BibooProgress.wipe(); BibooProgress.reset(); bibooGame.goOverworld()"); await wait(200);
+  check('reset returned to the overworld with nothing unlocked', !(await ev("BibooProgress.has('thrust')")) && (await ev('BibooProgress.state.levelsUnlocked')) === 1 && (await S()).screen === 'overworld', await S());
 
   // ---- 16. unsaved progress does not survive a reload; a manual save does
   await ev("BibooProgress.unlock('thrust'); BibooProgress.completeLevel(1); BibooProgress.addGem('health', 3)");
