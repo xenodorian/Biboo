@@ -359,3 +359,6 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 
 ## st62
 - Orc pit jumps: it attempts gaps up to 140 px like the goblin, but its jump only carries 60 px (`ENEMY_JUMP_DIST`; goblin 200, so it always makes the 140 it tries). Where 60 px falls short of the far edge it lands in the pit and is lost (`doom`, `plunge`). Takeoff distance from the edge is random per jump (`hopAt`, 3 to 13 px) so a 50 px pit is sometimes cleared by an orc and every pit over about 57 px never is. Enemies now walk to within 2 px of a pit edge (was 8). Test: orc_jump.test.js.
+
+## st63
+- Orc jump distance raised to 70 px (`ENEMY_JUMP_DIST`). It clears a pit when takeoff distance (random 3 to 13 px) plus the pit width is at most 70: 50 and 55 px pits always, 60 px about 70 percent (measured 7 of 10), 65 px about 20 percent (measured 2 of 8), 67 px and wider never.
