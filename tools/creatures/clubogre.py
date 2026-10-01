@@ -82,6 +82,31 @@ def close_gaps(a, win, fill=(65, 37, 36)):
     return a
 
 
+def fill_end(a, win=(35, 49, 94, 100), body=(65, 37, 36), edge=(39, 23, 15)):
+    """The club's end had a bite out of its underside, with the cap's last pixels hanging below it. Everything inside the convex hull of
+    the club's pixels in win is filled with the club's dark shade, and the pixels on the new underside get the dark outline shade."""
+    x0, x1, y0, y1 = win
+    pts = sorted({(x, y) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1) if a[y, x, 3] > 0})
+    def cross(o, p, q): return (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0])
+    hull = []
+    for seq in (pts, pts[::-1]):                                  # monotone chain: lower hull, then upper hull
+        h = []
+        for pt in seq:
+            while len(h) >= 2 and cross(h[-2], h[-1], pt) <= 0: h.pop()
+            h.append(pt)
+        hull += h[:-1]
+    out = a.copy()
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            if a[y, x, 3] == 0 and all(cross(hull[i], hull[(i + 1) % len(hull)], (x, y)) >= 0 for i in range(len(hull))):
+                out[y, x] = (*body, 255)
+    op = out[..., 3] > 0
+    for y in range(y0, y1 + 1):                                   # the new underside: filled pixels with nothing below them
+        for x in range(x0, x1 + 1):
+            if a[y, x, 3] == 0 and op[y, x] and not op[y + 1, x]: out[y, x] = (*edge, 255)
+    return out
+
+
 def repair_club(f0, f6):
     """Frame 0's club is half hidden under the dust cloud, so deleting the dust leaves it chewed up. Everything of the club left of
     the hand (x < BODY_X0) is rebuilt from frame 6, where the same club is clear: its pixels, moved by CLUB_SHIFT. The upper club and
@@ -91,7 +116,7 @@ def repair_club(f0, f6):
     for y, x in zip(*np.nonzero(club)):
         x0, y0 = x + CLUB_SHIFT[0], y + CLUB_SHIFT[1]
         if x0 < BODY_X0 and 0 <= y0 < a.shape[0]: a[y0, x0] = f6[y, x]
-    return close_gaps(a, CLUB_TIP)
+    return fill_end(close_gaps(a, CLUB_TIP))
 
 
 def build():
