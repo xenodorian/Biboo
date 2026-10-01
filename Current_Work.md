@@ -405,3 +405,11 @@ Plan and status (each step is pushed on its own; resume from the first unchecked
 ### Hit feedback and title screen (st80)
 - Hit feedback in game.js: `hitStop(ms)` freezes the world (tickLevel returns early but still reads buttons so presses are not lost), `impact()` adds a starburst (`flashes`), sparks, a white screen flash and shake on big hits, `herHitFx()` for her being hurt (red flash, shake, stop), parry and block sparks. Beam ticks are excluded (`beamTick`). Test hook `bibooGame.fx()`. Test: feedback.test.js.
 - Title screen: `drawTitle()` (scenery, big idle Max, animated PARRY PERRY logo with a sword slash sweep, tagline, version stamp). The menu uses the `.title` layout (bottom right, no hero) via `api.isTitle`.
+
+### Sunset Training (st81)
+- Optional level outside the six: `BIBOO_LEVELS.training` (levels.js), bg 'training' from the vaporwave image (tools/backgrounds/source/bg6.jpg, build_bgs.py), entered from a 'T' node on the overworld (7th selection, `enterTraining()`). Level n=0: progress is never touched; health and meters refill.
+- Heavy bag: enemy type `heavybag` (`ai.prop`) from tools/training/build.py -> web/assets/training.js. Never dies or moves; swings like a pendulum (`stepBag`), counts last hit, total, hits, combo (`train`, HUD top right).
+- Slime Bunny: `BIBOO.training.bunny` sprite, bobbing on the right, speech bubble cycling `TIPS` every 8.5 s (how to open the move lists, locked moves, parry, leaving).
+- Move lists: the menu now has `Moves: Gamepad` and `Moves: Keyboard` (ui.js movesView takes `opts.device`).
+- Overworld positions fixed: OW_NODES has 7 entries (6 levels + training; level 6 used to share node 1's spot).
+- Test: training.test.js; progression.test.js updated for the new menu labels.

@@ -90,8 +90,8 @@
       for (const it of api.mainItems()) list.appendChild(button(it.label, it.fn, it.primary ? 'primary' : '', it.id));
       box.appendChild(list);
     } else if (UI.view === 'moves') {
-      title.textContent = 'Moves';
-      msg.textContent = api.padStatus ? api.padStatus() : '';
+      title.textContent = UI.opts.device === 'keys' ? 'Moves: Keyboard' : 'Moves: Gamepad';
+      msg.textContent = UI.opts.device === 'keys' ? '' : (api.padStatus ? api.padStatus() : '');
       box.appendChild(movesView(api));
     } else if (UI.view === 'gems') {
       title.textContent = 'Gems';
@@ -118,26 +118,25 @@
   function movesView(api) {
     const wrap = h('div', 'moves-wrap');
     const scroll = h('div', 'scroll menu-scroll');
-    const rows = api.moveRows();
+    const keys = UI.opts.device === 'keys', rows = api.moveRows();
     let section = null, table = null;
     for (const r of rows) {
       if (r.section !== section) {
         section = r.section;
         table = h('table', 'moves-table');
         const head = h('tr');
-        for (const t of ['Pad', 'Keyboard', 'Move', 'How']) head.appendChild(h('th', '', t));
+        for (const t of [keys ? 'Keyboard' : 'Gamepad', 'Move', 'How']) head.appendChild(h('th', '', t));
         table.appendChild(head);
         scroll.appendChild(h('h3', '', section));
         scroll.appendChild(table);
       }
       const tr = h('tr');
-      tr.appendChild(h('td', 'pad', r.pad));
-      tr.appendChild(h('td', 'keys', r.keys));
+      tr.appendChild(h('td', keys ? 'keys' : 'pad', keys ? r.keys : r.pad));
       tr.appendChild(h('td', '', r.title));
       tr.appendChild(h('td', 'how', r.how));
       table.appendChild(tr);
     }
-    if (api.moveNotes) for (const n of api.moveNotes()) wrap.appendChild(h('p', 'note', n));
+    if (api.moveNotes) for (const n of api.moveNotes(keys ? 'keys' : 'pad')) wrap.appendChild(h('p', 'note', n));
     wrap.appendChild(scroll);
     const locked = api.lockedCount ? api.lockedCount() : 0;
     if (locked > 0) wrap.appendChild(h('p', 'note', `${locked} more moves are still locked. Smash the golden crates to find them.`));

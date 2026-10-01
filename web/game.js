@@ -276,6 +276,7 @@
   for (const b of Object.values(D.beams || {})) srcs.push(b.src);
   const EN = D.enemies || {};
   for (const e of Object.values(EN)) srcs.push(e.sheet);
+  if (D.training) srcs.push(D.training.bunny.sheet);
 
   // ------------------------------------------------------------------ input
   const BUTTONS = ['Up', 'Down', 'Left', 'Right', 'A', 'B', 'X', 'Y', 'L1', 'L2', 'R1', 'R2', 'R'];
@@ -879,6 +880,69 @@
   const FLOAT_MS = 900;
   const GREEN = '#3dff6e';
   function floater(wx, wy, text, color) { floaters.push({ wx, wy, text, color, t0: clock }); }
+  // ---- Sunset Training: the heavy bag swings and counts, Slime Bunny gives tips. Nothing here touches progress.
+  const train = { last: 0, total: 0, hits: 0, combo: 0, comboAt: -1e9, t0: 0 };
+  const TIPS = [
+    "Hi, I'm Slime Bunny! Welcome to Sunset Training. Hit the heavy bag with any move you own.",
+    "To see your moves: press Start (pad) or Enter, Space or Escape (keyboard), then pick Moves: Gamepad or Moves: Keyboard.",
+    "The lists only show moves you have found. Smash golden crates in the levels to unlock more.",
+    "The bag never breaks. Your last hit, total damage, hits and combo are at the top right.",
+    "Your meters and health refill here, so try everything, even the beams.",
+    "Tap B to parry, hold B to block. A parry pushes enemies back and reflects shards.",
+    "Mash A for the attack chain once you have it. More combos hide in the later levels.",
+    "Ready to go? Open the menu and choose Back to the overworld.",
+  ];
+  function bagHit(e, dmg) {                                       // any hit on the bag: count it, swing it, spark
+    if (dmg <= 0) return;
+    const b = hurtOf(e), cx = b ? (b[0] + b[2]) / 2 : e.x, cy = b ? (b[1] + b[3]) / 2 : 30;
+    train.total += dmg;
+    if (!beamTick) { train.last = dmg; train.hits++; train.combo = clock - train.comboAt < 1400 ? train.combo + 1 : 1; train.comboAt = clock; }
+    const dir = bodyX() <= e.x ? 1 : -1;
+    e.sw = e.sw || { a: 0, v: 0 };
+    e.sw.v += dir * Math.min(0.012, 0.0025 + dmg * 0.00007);
+    floater(cx, (b ? b[3] : 60) + 4, '-' + dmg, RED);
+    if (!beamTick) impact(cx, cy, dmg, null, false);
+    e.tint = { color: WHITE, alpha: 0.5, until: clock + 70 };
+  }
+  function stepBag(e, dt) {                                        // a pendulum: it swings back and settles
+    e.hp = e.maxHp; e.scale = 1; e.state = 'idle'; e.taunted = false;
+    const w = e.sw = e.sw || { a: 0, v: 0 };
+    w.v += (-0.00016 * w.a - 0.0035 * w.v) * dt * 4; w.a += w.v * dt;
+    w.a = Math.max(-1.2, Math.min(1.2, w.a));
+  }
+  function drawTraining(sx, sy) {                                  // Slime Bunny: bobbing on the right
+    const B = D.training && D.training.bunny; if (!B || !level || !level.def.training) return;
+    const gy = V.feetRow + camY + sy, X = BUNNY_X + sx, ph = (clock % 1800) / 1800, hop = ph < 0.25 ? Math.sin(ph / 0.25 * Math.PI) * 9 : 0;
+    const sq = ph < 0.25 ? 1.08 : 1 + 0.05 * Math.sin(clock / 260), sc = SPRITE_SCALE;
+    g.save(); g.translate(Math.round(X), Math.round(gy - hop)); g.scale(1 / sq, sq);
+    g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.ellipse(0, hop, 14, 3, 0, 0, 7); g.fill();
+    g.drawImage(img[B.sheet].im, 0, 0, B.cell[0], B.cell[1], -B.anchor[0] * sc, -B.anchor[1] * sc, B.cell[0] * sc, B.cell[1] * sc);
+    g.restore();
+  }
+  const BUNNY_X = 338;
+  function wrapText(txt, maxW) {
+    const words = txt.split(' '), lines = []; let cur = '';
+    for (const w of words) { const t = cur ? cur + ' ' + w : w; if (g.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t; }
+    if (cur) lines.push(cur); return lines;
+  }
+  function drawTrainingHud() {
+    if (!level || !level.def.training) return;
+    g.save(); g.textBaseline = 'top'; g.lineJoin = 'round';
+    g.font = 'bold 7px monospace'; g.textAlign = 'right'; g.lineWidth = 2;
+    const rows = [['LAST HIT', train.last], ['TOTAL', train.total], ['HITS', train.hits], ['COMBO', clock - train.comboAt < 1400 ? train.combo : 0]];
+    rows.forEach(([k, v], i) => { const y = 20 + i * 10; g.strokeStyle = '#000'; g.fillStyle = '#ffb0f0'; g.strokeText(k, V.w - 52, y); g.fillText(k, V.w - 52, y); g.fillStyle = '#fff'; g.strokeText(String(v), V.w - 8, y); g.fillText(String(v), V.w - 8, y); });
+    // the speech bubble
+    const tip = TIPS[Math.floor((clock - train.t0) / 8500) % TIPS.length];
+    g.font = '7px monospace'; g.textAlign = 'left';
+    const lines = wrapText(tip, 150), w = Math.min(166, Math.max(...lines.map(l => g.measureText(l).width)) + 12), h = lines.length * 9 + 8;
+    const bx = Math.max(6, Math.min(V.w - w - 6, BUNNY_X - w / 2)), by = V.feetRow - 36 - h;
+    g.fillStyle = 'rgba(255,255,255,0.95)'; g.strokeStyle = '#7a2a8a'; g.lineWidth = 1.5;
+    g.beginPath(); g.rect(bx, by, w, h); g.fill(); g.stroke();
+    g.fillStyle = 'rgba(255,255,255,0.95)'; g.beginPath(); g.moveTo(BUNNY_X - 6, by + h); g.lineTo(BUNNY_X + 4, by + h); g.lineTo(BUNNY_X, by + h + 8); g.closePath(); g.fill(); g.stroke();
+    g.fillRect(BUNNY_X - 5, by + h - 1, 9, 3);
+    g.fillStyle = '#3a1048'; lines.forEach((l, i) => g.fillText(l, bx + 6, by + 5 + i * 9));
+    g.restore();
+  }
   // ---- hit feedback: a brief freeze on impact (hit-stop), a starburst and sparks where it lands, a screen flash and shake on big hits
   let freeze = 0, screenFlash = null, beamTick = false;
   const flashes = [];                                            // {wx, wy, t0, ms, r, c}: starbursts
@@ -898,6 +962,7 @@
   }
   function hurtEnemy(e, dmg) {
     if (!alive(e)) return;
+    if (e.type === 'heavybag') { bagHit(e, dmg); return; }
     aggro(e, false);                                  // being hit wakes a patrolling enemy, even for 0 damage
     if (dmg <= 0) return;
     e.hp = Math.max(0, e.hp - dmg);
@@ -1047,7 +1112,8 @@
     screen = 'level';
     hideMenu(); ignoreHeldButtons();
     loadMap(0, 'left');
-    banners.push({ title: `Level ${n}: ${def.name}`, sub: def.blurb, t0: clock, ms: 3200 });
+    banners.push({ title: def.training ? def.name : `Level ${n}: ${def.name}`, sub: def.blurb, t0: clock, ms: 3200 });
+    if (def.training) { Object.assign(train, { last: 0, total: 0, hits: 0, combo: 0, comboAt: -1e9, t0: clock }); }
     setStartLabel();
     canvas.focus();
   }
@@ -1483,6 +1549,7 @@
                 fy: o.fy || 0, lo: o.lo != null ? o.lo : 8, hi: o.hi != null ? o.hi : MAP_W - 8, lo0: o.lo0 != null ? o.lo0 : 8, hi0: o.hi0 != null ? o.hi0 : MAP_W - 8, shotK: 0, key: o.key || null,
                 path: o.path || null, sight: o.sight || 100, pause: 0, far: 0, prevX: wx, dir: 1, comboReady: true, meleeSeen: false };
     enemies.push(e);
+    if (EN[type] && EN[type].ai.prop) { e.anim = 'idle'; e.state = 'idle'; e.face = -1; return e; }          // a training prop (the heavy bag): no walking, no attacks
     if (e.path) {                                    // patrol: walk between the two ends until hit or until she comes into view
       e.state = 'patrol';
       e.dir = wx <= (e.path[0] + e.path[1]) / 2 ? 1 : -1;
@@ -1647,6 +1714,7 @@
     e.prevX = e.x;
   }
   function stepEnemy(e, dt) {
+    if (e.type === 'heavybag') { stepBag(e, dt); return; }
     stepEnemyCore(e, dt);
     if (e.anim === 'combo' && e.state === 'attack') {        // the backflip's streaks of light also leave as homing shards
       while (e.shotK < e.k) { e.shotK++; const n = COMBO_SHOT_AT.indexOf(e.shotK); if (n >= 0) fireComboShard(e, n); }
@@ -1823,7 +1891,7 @@
           if (last !== undefined && !(gap && clock - last >= gap)) continue;
           seen.set(e, clock);
           hurtEnemy(e, dmgOf(h.mv));
-          if (KNOCK[h.mv.id] && alive(e)) {                        // knocked back and stunned
+          if (KNOCK[h.mv.id] && alive(e) && e.type !== 'heavybag') {                        // knocked back and stunned
             const [dist, ms] = KNOCK[h.mv.id];
             // a kick sends it the way she faces; the burst sends it away from her on either side
             const p = push(dist, ms), dir = BOTH_SIDES_PUSH.has(h.mv.id) ? (e.x >= h.px ? 1 : -1) : h.face;
@@ -2085,6 +2153,8 @@
     if (level && level.def.tint && !TH) { g.globalAlpha = level.def.tint.alpha; g.fillStyle = level.def.tint.color; g.fillRect(0, 0, V.w, V.h); g.globalAlpha = 1; }
     if (curMap) { drawPits(sx, sy); drawGeometry(sx, sy); drawCrates(sx, sy); drawBombs(sx, sy); drawPowerups(sx, sy); }
     drawEnemies(sx, sy);
+    drawTraining(sx, sy);
+    drawTraining(sx, sy);
     const cw = m.cell[0], ch = m.cell[1];
     const ax = V.anchorX + (px - camX) + sx;
     const ay = V.feetRow - (ry - camY) + sy;
@@ -2123,6 +2193,7 @@
     drawMeters();
     drawFloaters(sx, sy);
     drawBanners();
+    drawTrainingHud();
     if (screenFlash) { const a = (clock - screenFlash.t0) / screenFlash.ms; if (a >= 1) screenFlash = null; else { g.globalAlpha = screenFlash.a * (1 - a); g.fillStyle = screenFlash.c; g.fillRect(0, 0, V.w, V.h); g.globalAlpha = 1; } }
     if (fadeUntil > clock) { g.globalAlpha = Math.min(1, (fadeUntil - clock) / FADE_MS); g.fillStyle = '#000'; g.fillRect(0, 0, V.w, V.h); g.globalAlpha = 1; }
     if (showBoxes) drawBoxes(sx, sy);
@@ -2336,7 +2407,7 @@
     const X = wx => V.anchorX + (wx - camX) + sx, Y = wy => V.feetRow + camY + sy - wy;
     for (const e of enemies) {
       const b = hurtOf(e);
-      if (!b || EN[e.type].ai.boss) continue;
+      if (!b || EN[e.type].ai.boss || EN[e.type].ai.prop) continue;
       bar(Math.round(X((b[0] + b[2]) / 2)) - 15, Math.round(Y(b[3])) - 8, 30, 3, e.hp / e.maxHp);
     }
     g.font = 'bold 7px monospace'; g.textBaseline = 'top'; g.lineWidth = 2; g.lineJoin = 'round';
@@ -2402,6 +2473,7 @@
       g.globalAlpha = alpha;
       g.translate(vx, Math.round(gy - (e.fy || 0) - (e.jy || 0) + (e.sinkAt ? PIT_GRAV * (clock - e.sinkAt) * (clock - e.sinkAt) : 0)));
       if (e.face > 0) g.scale(-1, 1);
+      if (e.type === 'heavybag' && e.sw) { const top = ay * SPRITE_SCALE; g.translate(0, -top); g.rotate(e.sw.a); g.translate(0, top); }   // it swings from its top
       blit(img[T.sheet].im, cell * cw, cw, ch, -ax * SPRITE_SCALE * (e.scale||1), -ay * SPRITE_SCALE * (e.scale||1), e.tint && clock < e.tint.until ? e.tint : null, SPRITE_SCALE * (e.scale||1));
       g.restore();
     }
@@ -2547,7 +2619,7 @@
   const killsEl = document.getElementById('kills');
   const padStatus = () => padName ? `Controller: ${padName}` : 'Controller: none seen yet. Connect it, then press any button on it.';
   function hud() {
-    if (killsEl) killsEl.textContent = (level ? `Level ${level.n}.${level.idx + 1}   Kills ${kills}` : '') + (cheats.invincible ? '  [GOD]' : '') + (cheats.infinite ? '  [INF]' : '') + (cheats.nopit ? '  [NOPIT]' : '');
+    if (killsEl) killsEl.textContent = (level ? (level.def.training ? 'Sunset Training' : `Level ${level.n}.${level.idx + 1}   Kills ${kills}`) : '') + (cheats.invincible ? '  [GOD]' : '') + (cheats.infinite ? '  [INF]' : '') + (cheats.nopit ? '  [NOPIT]' : '');
   }
 
   // ------------------------------------------------------------------ menus, screens and the loop
@@ -2574,7 +2646,7 @@
       if (now.A && !navPrev.A) UI.activate();
       if (now.B && !navPrev.B) UI.back();
     } else if (screen === 'overworld' && !paused && !devOpen) {
-      const n = LV.levels.length;
+      const n = LV.levels.length + 1;                                  // the six levels and Sunset Training
       if ((now.Left && !navPrev.Left) || (now.Up && !navPrev.Up)) ow.sel = (ow.sel + n - 1) % n;
       if ((now.Right && !navPrev.Right) || (now.Down && !navPrev.Down)) ow.sel = (ow.sel + 1) % n;
       if (now.A && !navPrev.A) enterLevel(ow.sel + 1);
@@ -2604,6 +2676,7 @@
       stepEffects(dt); stepEnemies(dt); follow(dt); draw(); hud(); drawMonitor();
       return;
     }
+    if (level && level.def.training) { hp = maxHp(); energyMeter = maxOf('energy'); empowerMeter = maxOf('empower'); superMeter = maxOf('super'); }   // training: nothing runs out
     if (cheats.infinite) { energyMeter = maxOf('energy'); empowerMeter = maxOf('empower'); superMeter = maxOf('super'); }
     readButtons(t);
     for (const e of reader.update(t)) {
@@ -2727,7 +2800,7 @@
   }
 
   // ---- the overworld: five level nodes on a path; a level opens when the one before it is beaten
-  const OW_NODES = [[52, 150], [120, 112], [192, 146], [262, 104], [332, 138]];
+  const OW_NODES = [[36, 150], [90, 112], [144, 146], [198, 106], [252, 144], [306, 108], [348, 60]];   // six levels, then the optional training node
   const nodeAt = i => OW_NODES[i % OW_NODES.length];
   // ---- the title screen: drifting level 1 scenery, the logo with a sword slash sweeping through it, and Max on guard
   function drawTitle() {
@@ -2785,20 +2858,26 @@
       if (!open) { g.fillStyle = '#9a9aa8'; g.fillRect(px - 4, py + 4, 8, 6); g.strokeStyle = '#9a9aa8'; g.lineWidth = 1.5; g.beginPath(); g.arc(px, py + 4, 3, Math.PI, 0); g.stroke(); }
       if (sel) { g.strokeStyle = '#ffe14d'; g.lineWidth = 2; g.globalAlpha = 0.6 + 0.4 * Math.sin(clock / 160); g.beginPath(); g.arc(px, py, 16, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1; }
     }
+    { const [px, py] = nodeAt(n), sel = ow.sel === n;                  // the optional training node, off the main path
+      g.strokeStyle = '#ff7ad8'; g.lineWidth = 1.5; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(...nodeAt(0)); g.quadraticCurveTo(160, 40, px, py); g.stroke(); g.setLineDash([]);
+      g.fillStyle = '#000'; g.beginPath(); g.arc(px, py, 13, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#c04ab8'; g.beginPath(); g.arc(px, py, 11, 0, Math.PI * 2); g.fill();
+      g.font = 'bold 10px monospace'; g.fillStyle = '#fff'; g.fillText('T', px, py + 1);
+      if (sel) { g.strokeStyle = '#ffe14d'; g.lineWidth = 2; g.globalAlpha = 0.6 + 0.4 * Math.sin(clock / 160); g.beginPath(); g.arc(px, py, 16, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1; } }
     // Max stands on the selected node and bobs a little
     const [mx, my] = nodeAt(ow.sel), im = D.moves.idle, sc = 0.4, bob = Math.sin(clock / 260) * 1.5;
     g.save(); g.translate(Math.round(mx), Math.round(my - 14 + bob));
     blit(img[im.sheet].im, 0, im.cell[0], im.cell[1], -im.anchor[0] * sc, -im.anchor[1] * sc, null, sc);
     g.restore();
     // header and the info strip for the selected level
-    const L = LV.levels[ow.sel], open = P.levelOpen(ow.sel + 1), got = P.state.unlocked.length;
+    const isT = ow.sel >= n, L = isT ? LV.training : LV.levels[ow.sel], open = isT || P.levelOpen(ow.sel + 1), got = P.state.unlocked.length;
     g.textAlign = 'center'; g.textBaseline = 'top'; g.lineJoin = 'round'; g.lineWidth = 3;
     g.font = 'bold 12px monospace'; g.strokeStyle = '#000'; g.fillStyle = '#ffe14d';
     g.strokeText('OVERWORLD', V.w / 2, 10); g.fillText('OVERWORLD', V.w / 2, 10);
     g.fillStyle = 'rgba(12,10,18,0.85)'; g.fillRect(24, 170, V.w - 48, 38);
     g.strokeStyle = '#ffd24a'; g.lineWidth = 1; g.strokeRect(24.5, 170.5, V.w - 49, 37);
     g.font = 'bold 9px monospace'; g.fillStyle = '#fff';
-    g.fillText(`Level ${L.n}: ${L.name}${P.state.cleared.includes(L.n) ? '  (cleared)' : ''}`, V.w / 2, 175);
+    g.fillText(isT ? L.name : `Level ${L.n}: ${L.name}${P.state.cleared.includes(L.n) ? '  (cleared)' : ''}`, V.w / 2, 175);
     g.font = '7px monospace'; g.fillStyle = '#e6e6ec';
     g.fillText(open ? L.blurb : `Locked. Beat level ${L.n - 1} first.`, V.w / 2, 188);
     g.fillStyle = '#9a9aa8';
@@ -2806,7 +2885,9 @@
     g.textAlign = 'left';
     drawBanners();
   }
+  function enterTraining() { startLevel(0, LV.training); }
   function enterLevel(n) {
+    if (n > LV.levels.length) { enterTraining(); return; }
     if (!P.levelOpen(n)) { hint(`Locked: beat level ${n - 1} first`); return; }
     startLevel(n);
   }
@@ -2901,7 +2982,8 @@
     }
     else if (gameOver) items.push({ label: level && level.n > 0 && P.state.ankhs < 1 ? 'Out of ankhs: restart the level' : level && level.n > 0 ? `Retry this map (costs 1 ankh, ${P.state.ankhs} left)` : 'Retry this map', fn: () => retryMap(), primary: true, id: 'btn-start' });
     else items.push({ label: 'Resume', fn: () => togglePause(), primary: true, id: 'btn-start' });
-    items.push({ label: 'Moves', fn: () => UI.open('moves', { msg: UI.opts.msg }) });
+    items.push({ label: 'Moves: Gamepad', fn: () => UI.open('moves', { msg: UI.opts.msg, device: 'pad' }) });
+    items.push({ label: 'Moves: Keyboard', fn: () => UI.open('moves', { msg: UI.opts.msg, device: 'keys' }) });
     if (cheatsShown) items.push({ label: 'Cheats', fn: () => openDev() });
     items.push({ label: 'Gems', fn: () => UI.open('gems', { msg: UI.opts.msg }) });
     if (screen === 'level') items.push({ label: 'Back to the overworld', fn: () => goOverworld() });
@@ -2930,8 +3012,9 @@
     setStartLabel();
   }
   if (UI) UI.init({ isTitle: () => screen === 'title' && !story, mainItems, closeMenu, moveRows, lockedCount, padStatus, gemRows, useGem, devItems,
-    moveNotes: () => ['Keyboard: arrows = d-pad, Z = A (attack), X = B, A = X, S = Y, Up = jump. Shoulders: Q = L1, W = R1 (hold to recover), 1 = L2, 2 = R2. Enter, Space or Escape opens and closes this menu. Hold Left or Right while jumping to steer. Double tap Down on a platform to drop through it.',
-                      'A gamepad works too, wired or Bluetooth, also on an Android phone in Chrome: A (bottom) jumps, Y (top) attacks, B is right, X is left. Click the game first if keys do nothing. Press H to show hurtboxes and hit shapes.'] });
+    moveNotes: dev => dev === 'keys'
+      ? ['Keyboard: arrows = d-pad, Z = A (attack), X = B, A = X, S = Y, Up = jump. Shoulders: Q = L1, W = R1 (hold to recover), 1 = L2, 2 = R2. Enter, Space or Escape opens and closes this menu. Hold Left or Right while jumping to steer. Double tap Down on a platform to drop through it. Press H to show hurtboxes and hit shapes.']
+      : ['A gamepad works too, wired or Bluetooth, also on an Android phone in Chrome: A (bottom) jumps, Y (top) attacks, B is right, X is left. Start opens and closes this menu. Click the game first if buttons do nothing.'] });
   Promise.all(srcs.map(load)).then(() => {
     const loading = document.getElementById('loading');
     if (loading) loading.remove();
@@ -2952,7 +3035,7 @@
     canvas.focus();
     if (screen !== 'overworld' || paused) return;      // tap or click a level on the overworld: first selects, second enters
     const r = canvas.getBoundingClientRect(), px = (ev.clientX - r.left) * V.w / r.width, py = (ev.clientY - r.top) * V.h / r.height;
-    for (let i = 0; i < LV.levels.length; i++) {
+    for (let i = 0; i <= LV.levels.length; i++) {
       const [nx, ny] = nodeAt(i);
       if (Math.hypot(px - nx, py - ny) < 18) { if (ow.sel === i) enterLevel(i + 1); else ow.sel = i; return; }
     }
@@ -3016,6 +3099,7 @@
     unlock: id => unlockItem(id), resetAll: () => { P.reset(); energyMeter = empowerMeter = superMeter = 0; refreshUnlocks(); },
     // the old combat tests: everything unlocked, one closed map with no scenery, enemies as the test places them
     // a one-map level built from the given data (plats, pits, bombs, crates, enemies), doors closed, for the hazard tests
+    enterTraining: () => enterTraining(), training: () => ({ ...train, tip: TIPS[Math.floor((clock - train.t0) / 8500) % TIPS.length], on: !!(level && level.def.training) }),
     custom: md => {
       startLevel(0, { n: 0, name: 'Test', blurb: '', tint: null, maps: [Object.assign({ id: 'test', solids: [], plats: [], pits: [], bombs: [], crates: [], enemies: [], arena: true }, md)] });
       respawnOn = false; paused = false; hideMenu();
