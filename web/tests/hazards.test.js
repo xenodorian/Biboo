@@ -66,7 +66,7 @@ const { chromium } = require('playwright');
     await ev(`bibooGame.setX(${got.x - 20})`); await wait(700);
     m = await ev('bibooGame.meters()'); const mx = await ev('bibooGame.maxes()');
     check('picking it up: max 50 to 75 and the meter +25 (10 to 35)', mx.energy === 75 && Math.round(m.energy) === 35, { mx, m });
-    check('the raised maximum is saved', (await ev("JSON.parse(localStorage.getItem('parryperry.save.v1')).maxes.energy")) === 75, null);
+    check('the raised maximum is kept in memory (nothing is written to the browser)', (await ev("BibooProgress.state.maxes.energy")) === 75 && (await ev("Object.keys(localStorage).filter(k => k.startsWith('parryperry')).length")) === 0, null);
   }
   await ev('bibooGame.resetAll()');
 
@@ -147,8 +147,8 @@ const { chromium } = require('playwright');
   const loot3 = await ev(`(() => { let n = 0; for (let i = 0; i < 60; i++) { bibooGame.custom({ crates: [{ x: 300, fy: 0 }] }); bibooGame.smash(0); n += bibooGame.pickups().length; } return n; })()`);
   check('an energy meter at its cap with a full bag drops nothing redundant', loot3 === 0, loot3);
   await ev('bibooGame.resetAll()');
-  await custom({ crates: [{ x: 300, fy: 0, item: 'thrust' }] }); await ev("bibooGame.unlock('thrust')"); await ev('bibooGame.smash(0)');
-  { const pw = (await S()).powerups; check('a golden crate whose unlock is owned gives no substitute (nothing is randomized)', pw.length === 0, pw); }
+  await ev("bibooGame.unlock('thrust')"); await custom({ crates: [{ x: 300, fy: 0, item: 'thrust' }] });
+  { const st = await S(); check('a golden crate whose unlock is owned does not exist', st.crates.length === 0 && st.powerups.length === 0, st.crates); }
 
   // ---- face buttons: Up jumps, A (Z) attacks
   await custom({}); await at(100);

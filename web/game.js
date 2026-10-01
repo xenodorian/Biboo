@@ -918,6 +918,7 @@
     const md = level.def.maps[idx];
     curMap = { idx, id: md.id, def: md, solids: md.solids, plats: md.plats,
                crates: md.crates.map((c, i) => ({ key: idx + ':' + i, x: c.x, fy: c.fy, item: c.item || null, broken: level.broken.has(idx + ':' + i) }))
+                 .filter(c => !(c.item && P.has(c.item)))                                  // a golden crate exists only while its unlock is not owned
                  .concat(md.chest && !P.hasKey(level.n) ? [{ key: idx + ':chest', x: md.chest.x, fy: md.chest.fy, item: null, chest: true, broken: false }] : []),   // the key chest is there until the key is taken
                pits: (md.pits || []).map(p => ({ x0: p.x0, x1: p.x1 })),
                bombs: (md.bombs || []).map((b, i) => ({ key: idx + ':b' + i, x: b.x, fy: b.fy || 0, gone: level.popped.has(idx + ':b' + i), fuse: 0 })) };
@@ -1036,17 +1037,10 @@
     c.broken = true; level.broken.add(c.key);
     burst(c.x, c.fy + 9, 9, c.item ? ['#e8c050', '#c9962a', '#fff2a0'] : ['#8a5a2b', '#6b4420', '#b07a3c']);
     if (c.item) {
-      // A golden crate always gives the unlock assigned to its map, never a substitute. If it is already owned (or already
-      // floating there) the crate just drops ordinary loot.
-      const item = c.item;
-      if (!P.has(item) && !powerups.some(u => u.item === item)) {
-        level.pending.set(c.key, item);
-        powerups.push({ key: c.key, item, x: c.x, y: c.fy + 16, t0: clock });
-      } else {
-        const pool = lootPool();
-        if (pool.length) spawnGem(c.x, pool[Math.floor(Math.random() * pool.length)], c.fy);
-        floater(c.x, c.fy + 30, 'Already unlocked', '#ffd24a');
-      }
+      // A golden crate holds exactly the unlock assigned to its map, and nothing else: no substitute, no loot. It is only
+      // built while that unlock is not owned (loadMap), so smashing it always floats that unlock.
+      level.pending.set(c.key, c.item);
+      powerups.push({ key: c.key, item: c.item, x: c.x, y: c.fy + 16, t0: clock });
     } else {                                     // every plain crate drops something useful: a health gem, a meter gem, or a +25 meter upgrade
       const pool = lootPool();
       if (pool.length) spawnGem(c.x, pool[Math.floor(Math.random() * pool.length)], c.fy);
@@ -2377,8 +2371,8 @@
     const b = document.getElementById('btn-hud-start');
     if (b) b.textContent = screen === 'title' ? 'Start' : gameOver ? 'Retry' : paused ? 'Resume' : 'Menu';
   }
-  function showMenu(msg) { hardResetArmed = false; if (UI) UI.open('main', { msg: msg != null ? msg : '' }); }
-  function hideMenu() { if (UI) UI.close(); }
+  function showMenu(msg) { newGameArmed = false; if (UI) UI.open('main', { msg: msg != null ? msg : '' }); }
+  function hideMenu() { newGameArmed = false; if (UI) UI.close(); }
   function toggleFullscreen() {
     const stage = document.getElementById('stage') || canvas;
     if (!document.fullscreenElement) (stage.requestFullscreen && stage.requestFullscreen()) || (canvas.requestFullscreen && canvas.requestFullscreen());
@@ -2390,29 +2384,41 @@
     if (screen === 'title' || gameOver || levelDone || !paused) return;
     togglePause();
   }
-  // Hard reset: wipes every saved key for the game (progress, unlocks, meters, maxes, keys) and reloads into a new game.
-  let hardResetArmed = false;
-  function hardReset() {
-    try { P.reset(); } catch (e) {}
-    try { for (const st of [window.localStorage, window.sessionStorage]) for (const k of Object.keys(st)) if (k.indexOf('parryperry') === 0) st.removeItem(k); } catch (e) {}
-    try { if (window.caches) caches.keys().then(ks => ks.forEach(k => caches.delete(k))); } catch (e) {}
-    try { window.sessionStorage.setItem('parryperry.fresh', '1'); } catch (e) {}   // the next load starts straight in level 1.1
+  // Saving is manual only. Progress lives in memory; "Save game" writes one snapshot to the browser, "Continue" loads it,
+  // "New game" wipes it and starts level 1.1 with nothing unlocked. Closing or reloading the page loses unsaved progress.
+  let newGameArmed = false;
+  function newGame() {
+    P.wipe(); P.reset();
     energyMeter = empowerMeter = superMeter = 0;
-    location.reload();
+    refreshUnlocks();
+    goOverworld(); startLevel(1);
+  }
+  function continueGame() {
+    if (!P.loadSave()) { showMenu('No saved game'); return; }
+    energyMeter = P.state.meters.energy; empowerMeter = P.state.meters.empower; superMeter = P.state.meters.super;
+    refreshUnlocks();
+    goOverworld();
+  }
+  function saveGame() {
+    syncProgress();
+    showMenu(P.saveToDisk() ? 'Game saved' : 'Could not save: the browser blocked storage');
   }
   function mainItems() {
-    const items = [];
-    if (screen === 'title') items.push({ label: 'Start', fn: () => goOverworld(), primary: true, id: 'btn-start' });
+    const items = [], hasSave = P.hasSave();
+    if (screen === 'title') {
+      if (hasSave) items.push({ label: 'Continue', fn: () => continueGame(), primary: true, id: 'btn-start' });
+      items.push({ label: !hasSave ? 'New game' : newGameArmed ? 'Press again to erase the save' : 'New game (erases save)', primary: !hasSave, id: hasSave ? 'btn-new-game' : 'btn-start',
+        fn: () => { if (hasSave && !newGameArmed) { newGameArmed = true; UI.refresh(); return; } newGame(); } });
+    }
     else if (gameOver) items.push({ label: 'Retry this map', fn: () => retryMap(), primary: true, id: 'btn-start' });
     else items.push({ label: 'Resume', fn: () => togglePause(), primary: true, id: 'btn-start' });
     items.push({ label: 'Moves', fn: () => UI.open('moves', { msg: UI.opts.msg }) });
     items.push({ label: 'Gems', fn: () => UI.open('gems', { msg: UI.opts.msg }) });
     if (screen === 'level') items.push({ label: 'Back to the overworld', fn: () => goOverworld() });
+    if (screen !== 'title') items.push({ label: 'Save game', fn: () => saveGame(), id: 'btn-save' });
     items.push({ label: 'Fullscreen', fn: toggleFullscreen, id: 'btn-fullscreen' });
-    items.push({ label: hardResetArmed ? 'Press again to erase everything' : 'Hard reset (erase save)', id: 'btn-hard-reset', fn: () => {
-      if (!hardResetArmed) { hardResetArmed = true; UI.refresh(); return; }
-      hardReset();
-    } });
+    if (screen !== 'title') items.push({ label: newGameArmed ? 'Press again: erase everything and start over' : 'New game (erases save)', id: 'btn-new-game',
+      fn: () => { if (!newGameArmed) { newGameArmed = true; UI.refresh(); return; } newGame(); } });
     return items;
   }
   function triggerGameOver() {
@@ -2446,7 +2452,6 @@
     ow.sel = 0;
     setStartLabel();
     showMenu('Defeat the goblins and orcs');
-    try { if (window.sessionStorage.getItem('parryperry.fresh')) { window.sessionStorage.removeItem('parryperry.fresh'); hideMenu(); startLevel(1); } } catch (e) {}   // after a hard reset: straight to 1.1
   }).catch(err => {
     const loading = document.getElementById('loading');
     if (loading) loading.textContent = String(err) + '. Reload the page (hard refresh) to try again.';

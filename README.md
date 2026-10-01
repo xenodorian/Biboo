@@ -154,7 +154,7 @@ A (key Z) is the attack button again (slash and every combo). Jump is the Up but
 Y (key S) is the spin attack, and X+Y is the taunt. Sky Dash is Down then Up. A is also the accept button in menus. Holding Up still charges once she has landed.
 | L1 L2 R1 R2 | Q 1 W 2 | shoulders or triggers |
 
-Unlocks: a new game has only the d-pad and A, B, X, Y. Golden crates (marked "?") hold unlocks: combos and the
+Unlocks: a new game has only the d-pad and A, B, X, Y. Saving is manual only: the main menu has New game (wipes the saved data and starts Level 1.1), Continue (only when a manual save exists) and Save game (in-level and overworld menus). Nothing is saved automatically, and closing or reloading the page loses unsaved progress (Retry this map after a K.O. still works). Golden crates (marked "?") hold unlocks, each one exactly the unlock assigned to its map; a golden crate is only built while that unlock is not owned, and it never gives loot or a substitute: combos and the
 L1, L2, R1, R2 buttons. Smash the crate and touch the item. Energy, Empowerment and Super meters appear once a move that
 uses them is unlocked; the health bar is always shown. Unlock definitions: `web/progress.js` (UNLOCKS); where each
 crate sits: `web/levels.js` (`whereIs`).
@@ -165,7 +165,7 @@ Jumping: A is a floaty physics jump (about 135 px high, about 670 ms in the air,
 Double Jump (an unlock, Level 2.4): tap Up again in the air for a spinning second jump that rises about two more of her heights (81 px). One per trip through the air.
 
 Meters: Energy, Empowerment and Super each start with a maximum of 50 (Super 100) (a new meter starts full). Every plain crate drops something useful (never a gem for a meter she has not unlocked, a full bag, or an upgrade at the cap): a health gem,
-a meter gem, or a +25 meter upgrade (raises that meter's maximum by 25 and fills it by 25, up to 200; saved). Earthquake and Meteor Shower need a
+a meter gem, or a +25 meter upgrade (raises that meter's maximum by 25 and fills it by 25, up to 200). Earthquake and Meteor Shower need a
 full Super meter, whatever its maximum is.
 
 Hazards (Level data in `web/levels.js`, code in the "hazards" section of `web/game.js`):
@@ -182,7 +182,7 @@ to a bag and are used from the Gems menu. Air control was added because the jump
 Dev Console: press L1+L2+R1+R2 together (or Q+E+T+R, or the ` key). Cheats: invincibility, infinite meters,
 unlock all levels, unlock all moves, gems, map skipping, reset progress.
 
-Files: `web/game.js` (engine), `web/progress.js` (unlocks, gems, saves in localStorage `parryperry.save.v1`),
+Files: `web/game.js` (engine), `web/progress.js` (unlocks, gems, in memory; the only thing written to the browser is the manual save, localStorage `parryperry.manualsave.v1`),
 `web/levels.js` (map data, Level 1 by hand, Levels 2 to 5 generated from fixed seeds), `web/ui.js` (menus),
 `web/input.js` (input reader), `web/assets/data.js` (generated move data).
 

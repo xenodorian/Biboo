@@ -66,7 +66,7 @@ const { chromium } = require('playwright');
   await ev(`for (let i = 0; i < ${n + 2}; i++) bibooGame.smash(i)`);
   const st2 = await ev('bibooGame.state()');
   const items = st2.powerups.map(p => p.item);
-  check('golden crates whose unlock is already owned float nothing', items.length === 0, items);
+  check('golden crates whose unlock is already owned are not built at all', st2.crates.length === 0 && items.length === 0, st2.crates.length);
   check('no substitute is ever handed out (nothing is randomized)', !items.includes('earthquake') && !items.includes('meteor') && items.length === 0, items);
   const late = await ev(`(() => { const w = BIBOO_LEVELS.whereIs; return { eq: w.earthquake, mt: w.meteor }; })()`);
   check('Earthquake and Meteor Shower stay in their late-game crates (level 3 or later)', parseInt(late.eq) >= 3 && parseInt(late.mt) >= 3, late);

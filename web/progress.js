@@ -1,5 +1,5 @@
 /* Progress for Parry Perry: what the player has unlocked, the gems in the bag, the meters, and which levels are open.
- * Saved in localStorage (every read and write is wrapped, so a browser that blocks storage just plays without saving).
+ * Nothing is saved automatically: only the Save game button writes to localStorage, and New game wipes it.
  *
  * A new game starts with only the d-pad and A, B, X, Y (A jumps, Y slashes, B blocks and parries, X dashes).
  * Everything else is an "unlock": a golden crate holds one, and smashing the crate then touching the item unlocks it.
@@ -10,7 +10,6 @@
  */
 (function (root) {
   'use strict';
-  const KEY = 'parryperry.save.v1';
   const GEM_KINDS = ['health', 'energy', 'empower', 'super'];
   const SHOULDERS = new Set(['L1', 'L2', 'R1', 'R2', 'R']);
 
@@ -90,34 +89,44 @@
     return true;
   };
 
-  P.save = () => {
-    try { if (root.localStorage) root.localStorage.setItem(KEY, JSON.stringify(P.state)); } catch (e) { /* storage blocked: play without saving */ }
+  // Nothing is saved automatically. Progress lives in memory (P.state) and is gone when the page is closed or reloaded.
+  // The only thing written to the browser is the manual save (P.saveToDisk, from the Save game button); New game wipes it.
+  const SAVE_KEY = 'parryperry.manualsave.v1', LEGACY_KEYS = ['parryperry.save.v1'];
+  P.save = () => {};                                           // kept so the game can say "progress changed"; it does not persist anything
+  P.saveToDisk = () => {
+    try { if (!root.localStorage) return false; root.localStorage.setItem(SAVE_KEY, JSON.stringify(Object.assign({}, P.state, { v: 3 }))); return true; }
+    catch (e) { return false; }                                // storage blocked: the save did not happen
   };
-  P.load = () => {
+  const readSave = () => {
     try {
-      const raw = root.localStorage && root.localStorage.getItem(KEY);
-      if (!raw) return;
-      const s = JSON.parse(raw), f = fresh();
-      if (s.v !== f.v) return;                                 // a save from an older layout: start a new game
-      if (Array.isArray(s.unlocked)) {
-        const OLD = { L1: ['energy_kick', 'laser_beam'], L2: ['energy_burst', 'cloud_beam'], R1: ['recover', 'empower_beam'], R2: ['energy_wave', 'fire_beam'] };   // saves from before the unlocks were split
-        const ids = [];
-        for (const id of s.unlocked) for (const n of (OLD[id] || [id])) if (!ids.includes(n)) ids.push(n);
-        f.unlocked = ids.filter(id => byId[id]);
-      }
-      if (Array.isArray(s.keys)) f.keys = s.keys.filter(k => typeof k === 'string');
-      if (Number.isFinite(s.levelsUnlocked)) f.levelsUnlocked = Math.max(1, s.levelsUnlocked | 0);
-      if (Array.isArray(s.cleared)) f.cleared = s.cleared.filter(n => Number.isFinite(n));
-      for (const k of GEM_KINDS) if (s.gems && Number.isFinite(s.gems[k])) f.gems[k] = Math.max(0, Math.min(P.MAX_GEMS, s.gems[k] | 0));
-      for (const k of ['energy', 'empower', 'super']) if (s.meters && Number.isFinite(s.meters[k])) f.meters[k] = Math.max(0, Math.min(200, s.meters[k]));
-      for (const k of ['energy', 'empower', 'super']) if (s.maxes && Number.isFinite(s.maxes[k])) f.maxes[k] = Math.max(P.MAX_START[k], Math.min(P.MAX_CAP, s.maxes[k]));
-      if (f.unlocked.includes('energy_kick') && !f.unlocked.includes('push_kick')) f.unlocked.push('push_kick');   // older saves: the L1 unlock used to include the push kick
-      P.state = f;
-    } catch (e) { P.state = fresh(); }
+      const raw = root.localStorage && root.localStorage.getItem(SAVE_KEY);
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      return s && s.v === 3 ? s : null;
+    } catch (e) { return null; }
   };
-  P.reset = () => { P.state = fresh(); P.save(); };
+  P.hasSave = () => !!readSave();
+  P.loadSave = () => {                                         // Continue: the manual save becomes the current progress
+    const s = readSave();
+    if (!s) return false;
+    const f = fresh();
+    if (Array.isArray(s.unlocked)) f.unlocked = s.unlocked.filter((id, i) => byId[id] && s.unlocked.indexOf(id) === i);
+    if (Array.isArray(s.keys)) f.keys = s.keys.filter(k => typeof k === 'string');
+    if (Number.isFinite(s.levelsUnlocked)) f.levelsUnlocked = Math.max(1, s.levelsUnlocked | 0);
+    if (Array.isArray(s.cleared)) f.cleared = s.cleared.filter(n => Number.isFinite(n));
+    for (const k of GEM_KINDS) if (s.gems && Number.isFinite(s.gems[k])) f.gems[k] = Math.max(0, Math.min(P.MAX_GEMS, s.gems[k] | 0));
+    for (const k of ['energy', 'empower', 'super']) if (s.meters && Number.isFinite(s.meters[k])) f.meters[k] = Math.max(0, Math.min(200, s.meters[k]));
+    for (const k of ['energy', 'empower', 'super']) if (s.maxes && Number.isFinite(s.maxes[k])) f.maxes[k] = Math.max(P.MAX_START[k], Math.min(P.MAX_CAP, s.maxes[k]));
+    P.state = f;
+    return true;
+  };
+  P.wipe = () => {                                             // New game: erase everything the game ever stored in this browser
+    try { if (root.localStorage) for (const k of Object.keys(root.localStorage)) if (k.indexOf('parryperry') === 0) root.localStorage.removeItem(k); } catch (e) {}
+    try { if (root.sessionStorage) for (const k of Object.keys(root.sessionStorage)) if (k.indexOf('parryperry') === 0) root.sessionStorage.removeItem(k); } catch (e) {}
+  };
+  P.reset = () => { P.state = fresh(); };
+  try { if (root.localStorage) for (const k of LEGACY_KEYS) root.localStorage.removeItem(k); } catch (e) {}   // the old automatic save is never read again
 
-  P.load();
   root.BibooProgress = P;
   if (typeof module !== 'undefined' && module.exports) module.exports = P;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -31,9 +31,11 @@ const METER_AT = { empower: 'recover', energy: 'energy_kick', super: 'earthquake
   const fresh = await page.evaluate(() => ({ m: ['energy', 'empower', 'super'].map(k => BibooProgress.meterOn(k)), b: ['L1', 'L2', 'R1', 'R2'].map(b => BibooProgress.buttonOn(b)), u: BibooProgress.state.unlocked.length }));
   check('new game: no meters, no shoulder buttons, no unlocks', !fresh.m.some(Boolean) && !fresh.b.some(Boolean) && fresh.u === 0, fresh);
 
-  // 2b. an old save (version 1) with Earthquake and a 125 super max must not carry over
-  const stale = await page.evaluate(() => { localStorage.setItem('parryperry.save.v1', JSON.stringify({ v: 1, unlocked: ['earthquake', 'recover'], maxes: { energy: 50, empower: 50, super: 125 }, meters: { super: 75 } })); BibooProgress.load(); return { u: BibooProgress.state.unlocked.length, sup: BibooProgress.meterOn('super'), max: BibooProgress.maxOf('super') }; });
-  check('an old version 1 save is discarded (no super meter, max 100)', stale.u === 0 && !stale.sup && stale.max === 100, stale);
+  // 2b. an old automatic save left in the browser is never read
+  await page.evaluate(() => { localStorage.setItem('parryperry.save.v1', JSON.stringify({ v: 2, unlocked: ['earthquake', 'recover'], maxes: { energy: 50, empower: 50, super: 125 }, meters: { super: 75 } })); });
+  await page.reload(); await page.waitForFunction(() => window.bibooGame && window.BibooProgress, null, { timeout: 20000 });
+  const stale = await page.evaluate(() => ({ u: BibooProgress.state.unlocked.length, sup: BibooProgress.meterOn('super'), max: BibooProgress.maxOf('super'), left: Object.keys(localStorage).filter(k => k.startsWith('parryperry')) }));
+  check('an old automatic save is ignored and removed (no unlocks, no super meter, max 100)', stale.u === 0 && !stale.sup && stale.max === 100 && stale.left.length === 0, stale);
   await page.evaluate(() => { bibooGame.resetAll(); });
 
   // 3. collect in order; after each, compare what is on against what the plan allows

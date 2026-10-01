@@ -312,3 +312,9 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 - Nothing is randomized: a golden crate always gives the unlock assigned to its map. If that unlock is already owned (or already floating) the crate drops ordinary loot, with no substitute from a random pool (this replaces the earlier "no redundant unlocks" substitution).
 - Level generator no longer stacks crates on one spot (2.3 had a plain crate under the golden one).
 - web/tests/unlock_walkthrough.test.js (120 checks): walks levels 1 to 4 in order, smashes and collects every golden crate and checks the unlock matches the plan exactly, then re-smashes all 22 with everything owned and checks no substitute appears. Test hook setFloor added.
+
+## st52
+- A golden crate is only built while its unlock is NOT owned (loadMap drops it otherwise) and smashing it always floats exactly that unlock: no substitute, no loot, no random pool. Removed the old save migrations (push_kick auto-add, L1/L2/R1/R2 split).
+- Saving is manual only. Progress is in memory; Save game (in-level and overworld menus) writes localStorage `parryperry.manualsave.v1`; Continue appears on the title only when that save exists and returns to the overworld; New game wipes every `parryperry*` key (confirm press when a save exists) and starts Level 1.1 with nothing. The old automatic save key is deleted and never read. Hard reset button removed.
+- Tests: save_flow.test.js (13), unlock_walkthrough.test.js (164: crate present only while unowned, gone after pickup, none when everything is owned). progression, hazards and unlock_points updated for the new save rules.
+- The dev console cheats (Unlock all moves and buttons, etc.) still exist behind L1+L2+R1+R2; they are the only way to own an unlock without its crate.

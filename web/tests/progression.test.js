@@ -23,7 +23,7 @@ const { chromium } = require('playwright');
   // ---- 1. load, title menu
   let s = await S();
   check('title screen, no errors', s.screen === 'title' && errors.length === 0, { s: s.screen, errors });
-  check('title menu lists Start, Moves, Gems, Fullscreen, Hard reset', JSON.stringify(await labels()) === JSON.stringify(['Start', 'Moves', 'Gems', 'Fullscreen', 'Hard reset (erase save)']), await labels());
+  check('title menu lists New game, Moves, Gems, Fullscreen', JSON.stringify(await labels()) === JSON.stringify(['New game', 'Moves', 'Gems', 'Fullscreen']), await labels());
   check('old controls panel and combo table removed from the page', await ev("!document.querySelector('#pad-section') && document.querySelectorAll('table.moves-table').length === 0"), null);
 
   // ---- 2. moves menu at first launch
@@ -34,7 +34,7 @@ const { chromium } = require('playwright');
   check('moves menu hides locked moves (no Earthquake, no Empowerment)', !/Earthquake|Meteor|Empowerment|Laser|Fire beam/i.test(txt0), rows0);
   check('moves menu says how many are locked', /still locked/.test(await ev("document.getElementById('menu-view').textContent")), null);
   await key('Escape'); await wait(100);
-  check('Escape goes back from Moves to the main list', (await labels())[0] === 'Start', await labels());
+  check('Escape goes back from Moves to the main list', (await labels())[0] === 'New game', await labels());
 
   // ---- 3. gems menu empty
   await clickText('Gems');
@@ -43,9 +43,12 @@ const { chromium } = require('playwright');
   await key('Escape'); await wait(100);
 
   // ---- 4. Start -> overworld
-  await clickText('Start');
+  await clickText('New game');
   s = await S();
-  check('Start goes to the overworld', s.screen === 'overworld' && !(await ev("bibooGame.menuOpen()")), s);
+  check('New game starts Level 1.1 directly', s.screen === 'level' && s.level && s.level.n === 1 && s.level.idx === 0 && !(await ev("bibooGame.menuOpen()")), s);
+  await ev('bibooGame.goOverworld()'); await wait(200);
+  s = await S();
+  check('back to the overworld', s.screen === 'overworld' && !(await ev("bibooGame.menuOpen()")), s);
   await ev("bibooGame.enterLevel(2)"); await wait(100);
   check('level 2 is locked at first', (await S()).screen === 'overworld', await S());
   await ev("bibooGame.enterLevel(1)"); await wait(600);
@@ -102,7 +105,7 @@ const { chromium } = require('playwright');
   await ev('bibooGame.setX(300 - 4)'); await wait(400);
   s = await S();
   check('touching the item unlocks it', s.powerups.length === 0 && (await ev("BibooProgress.has('thrust')")), s.powerups);
-  check('unlock is saved', (await ev("JSON.parse(localStorage.getItem('parryperry.save.v1')).unlocked")).includes('thrust'), null);
+  check('an unlock is NOT written to the browser by itself (saving is manual only)', (await ev("Object.keys(localStorage).filter(k => k.startsWith('parryperry')).length")) === 0, await ev("Object.keys(localStorage)"));
 
   // ---- 8. gating: locked buttons and moves do nothing, unlocked ones work
   await ev('bibooGame.warp(1)'); await wait(600); await ev('bibooGame.setEnemies([])'); await wait(200);
@@ -166,7 +169,7 @@ const { chromium } = require('playwright');
   check('walking over a gem stores it in the bag (+1 health)', s.health === bag0 + 1 && (await S()).fx.gems === 0, s);
   await ev('bibooGame.hurtHer(0)');
   await ev('bibooGame.setHp(100)'); await key('Escape'); await wait(200);
-  check('Escape pauses with the menu (Resume, Moves, Gems, Back to overworld, Fullscreen, Hard reset)', JSON.stringify(await labels()) === JSON.stringify(['Resume', 'Moves', 'Gems', 'Back to the overworld', 'Fullscreen', 'Hard reset (erase save)']), await labels());
+  check('Escape pauses with the menu (Resume, Moves, Gems, Back to overworld, Save game, Fullscreen, New game)', JSON.stringify(await labels()) === JSON.stringify(['Resume', 'Moves', 'Gems', 'Back to the overworld', 'Save game', 'Fullscreen', 'New game (erases save)']), await labels());
   await clickText('Gems');
   let rows = await page.$$eval('#menu-view .gem-row', r => r.map(x => ({ t: x.textContent, dis: x.querySelector('button').disabled })));
   check('Gems menu: health Use is enabled, the rest disabled', !rows[0].dis && rows.slice(1).every(r => r.dis), rows);
@@ -250,13 +253,11 @@ const { chromium } = require('playwright');
   await devClick('Press again to erase the save'); await wait(300);
   check('reset erased progress and returned to the overworld', !(await ev("BibooProgress.has('thrust')")) && (await ev('BibooProgress.state.levelsUnlocked')) === 1 && (await S()).screen === 'overworld' && !(await S()).devOpen && !(await S()).paused, await S());
 
-  // ---- 16. save survives a reload
-  await ev("BibooProgress.unlock('thrust'); BibooProgress.completeLevel(1); BibooProgress.addGem('health', 3); BibooProgress.save()");
+  // ---- 16. unsaved progress does not survive a reload; a manual save does
+  await ev("BibooProgress.unlock('thrust'); BibooProgress.completeLevel(1); BibooProgress.addGem('health', 3)");
   await page.reload(); await page.waitForFunction(() => document.getElementById('btn-start') && window.bibooGame, null, { timeout: 20000 });
-  check('progress persists after reload', await ev("BibooProgress.has('thrust') && BibooProgress.state.levelsUnlocked === 2 && BibooProgress.state.gems.health === 3"), await ev('JSON.stringify(BibooProgress.state)'));
+  check('unsaved progress is gone after a reload', await ev("!BibooProgress.has('thrust') && BibooProgress.state.levelsUnlocked === 1 && BibooProgress.state.gems.health === 0"), await ev('JSON.stringify(BibooProgress.state)'));
   check('title screen again after reload', (await S()).screen === 'title', null);
-  await clickText('Moves');
-  check('moves menu now lists the unlocked Thrust', /Lunging thrust|thrust/i.test(await ev("document.getElementById('menu-view').textContent")), null);
 
   console.log(errors.length ? errors : '');
   console.log(results.filter(x => !x).length ? 'SOME FAILED' : 'ALL PASSED', `${results.filter(Boolean).length}/${results.length}`);

@@ -1,5 +1,5 @@
 /* Walk the whole game in order: every golden crate gives exactly the unlock assigned to its map, nothing is randomized,
- * and a crate whose unlock is already owned gives no substitute.
+ * a golden crate exists only while its unlock is unowned, and it never gives loot or a substitute.
  * Run: NODE_PATH=$(npm root -g) node web/tests/unlock_walkthrough.test.js */
 const path = require('path');
 const { chromium } = require('playwright');
@@ -39,6 +39,7 @@ const PLAN = {
       const golden = crates.map((c, i) => ({ ...c, i })).filter(c => c.item);
       check(`${id}: ${want ? 'one golden crate holding ' + want : 'no golden crate'}`, want ? golden.length === 1 && golden[0].item === want : golden.length === 0, golden);
       const before = await owned();
+      if (want) check(`${id}: ${want} is not owned before the crate is smashed`, !before.includes(want), before);
       if (want) {
         await ev(`bibooGame.smash(${golden[0].i})`); await wait(250);
         let pw = (await S()).powerups;
@@ -48,6 +49,8 @@ const PLAN = {
         const after = await owned();
         const gained = after.filter(x => !before.includes(x));
         check(`${id}: picking it up unlocks only ${want}`, gained.length === 1 && gained[0] === want, gained);
+        await enterMap(n, idx);
+        check(`${id}: once ${want} is owned the golden crate is gone from the map`, (await S()).crates.every(c => !c.item), (await S()).crates);
       }
       // plain crates never hold an unlock
       const plain = crates.map((c, i) => ({ ...c, i })).filter(c => !c.item && !c.chest).slice(0, 3);
@@ -60,18 +63,15 @@ const PLAN = {
   }
   check('all 22 unlocks were collected in order, and nothing else', (await owned()).length === 22, await owned());
 
-  // everything is owned now: golden crates give no substitute
-  await ev('bibooGame.goOverworld()'); await ev('bibooGame.enterLevel(1)'); await wait(700);
-  let extra = [];
+  // everything is owned now: no golden crate is built in any map
+  let present = [];
   for (const id of Object.keys(PLAN)) {
     const [n, m] = id.split('.').map(Number);
     await ev('bibooGame.goOverworld()'); await ev(`bibooGame.enterLevel(${n})`); await wait(300);
     await enterMap(n, m - 1);
-    const crates = (await S()).crates, gi = crates.findIndex(c => c.item);
-    await ev(`bibooGame.smash(${gi})`); await wait(200);
-    if ((await S()).powerups.length) extra.push(id);
+    if ((await S()).crates.some(c => c.item)) present.push(id);
   }
-  check('with every unlock owned, no golden crate floats a substitute', extra.length === 0, extra);
+  check('with every unlock owned, no map has a golden crate', present.length === 0, present);
   check('still exactly 22 unlocks', (await owned()).length === 22, await owned());
   check('no page errors', errors.length === 0, errors);
   console.log(`${results.filter(Boolean).length}/${results.length} passed`);
