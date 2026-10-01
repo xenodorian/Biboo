@@ -1929,7 +1929,7 @@
       return;
     }
     const bgx = camX + (level ? level.idx * MAP_W : 0);          // the scenery carries on from map to map
-    const TH = curMap && curMap.def.theme ? THEMES[curMap.def.theme] : null;
+    const TH = curMap ? THEMES[curMap.def.theme || (level && level.def.bg)] || null : null;       // boss arenas set def.theme; levels 2 to 6 set def.bg
     for (const l of TH ? TH.layers : D.layers) drawLayer(img[l.src].im, -bgx * l.parallax + sx * l.shake, camY * l.parallax + sy * l.shake);
     if (level && level.def.tint && !TH) { g.globalAlpha = level.def.tint.alpha; g.fillStyle = level.def.tint.color; g.fillRect(0, 0, V.w, V.h); g.globalAlpha = 1; }
     if (curMap) { drawPits(sx, sy); drawGeometry(sx, sy); drawCrates(sx, sy); drawBombs(sx, sy); drawPowerups(sx, sy); }
