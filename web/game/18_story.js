@@ -57,15 +57,15 @@
   // Shadows: L says which way the light falls. sx leans the shadow sideways with height (+ right), sy lays it toward the viewer (+) or away (-),
   // a is its darkness. steps: tread lines (screen y, nearest first) a shadow is stepped up across, stepDy px per tread. clip: the ground polygon the
   // shadow may fall on (it is cut at a cliff edge). Sunset island: the sun sits low on the right, so the shadow runs long to the left and front.
-  const LOW_SUN = { sx: -1.3, sy: 0.3, a: 0.6, col: '#2a0a3a', clip: [[0, 148], [150, 148], [160, 184], [168, 200], [182, 216], [0, 216]] };
+  const LOW_SUN = { sx: -1.3, sy: 0.3, a: 1.0, col: '#14041c', clip: [[0, 148], [150, 148], [160, 184], [168, 200], [182, 216], [0, 216]] };
   const SC = {
-    calm:     { pan: 0,    x: 205, gy: 188, s: 1.0, L: { sx: 0.8, sy: 0.28, a: 0.6, col: '#0b1a10' } },     // the path at the foot of the meadow
-    fire:     { pan: 0.8,  x: 78,  gy: 186, s: 0.95, twinX: 338, twinGy: 190, L: { sx: -1.0, sy: 0.28, a: 0.7, col: '#120000', flick: true } },   // the dark lawn in front of the burning house
-    crowd:    { pan: 0.5,  gy: 188, s: 0.95, L: { sx: 0.8, sy: 0.28, a: 0.6, col: '#0b1a10' } },
+    calm:     { pan: 0,    x: 205, gy: 188, s: 1.0, L: { sx: 0.8, sy: 0.28, a: 1.0, col: '#050d08' } },     // the path at the foot of the meadow
+    fire:     { pan: 0.8,  x: 78,  gy: 194, s: 0.95, twinX: 338, twinGy: 190, L: { sx: -1.0, sy: 0.28, a: 1.0, col: '#0a0000', flick: true } },   // the dark lawn in front of the burning house
+    crowd:    { pan: 0.5,  gy: 188, s: 0.95, L: { sx: 0.8, sy: 0.28, a: 1.0, col: '#050d08' } },
     sea:      { pan: 0.35, boatX: 268, boatY: 185 },        // open water, raised so the bow stays clear of the shore
-    double:   { pan: 0.5,  x: 96,  gy: 190, s: 1.1, twinX: 306, twinGy: 194, L: { sx: 0.9, sy: 0.25, a: 0.65, col: '#02050f' } },  // the flagstone yard
+    double:   { pan: 0.5,  x: 96,  gy: 190, s: 1.1, twinX: 306, twinGy: 194, L: { sx: 0.9, sy: 0.25, a: 1.0, col: '#01030a' } },  // the flagstone yard
     altar:    { pan: 0.5,  x: 236, gy: 181, s: 0.8,
-                L: { sx: 0.45, sy: -0.28, a: 0.6, col: '#06063a', steps: [181, 172, 164, 156, 148, 141, 133, 125], stepDy: 3 } },       // the foot of the temple stairs
+                L: { sx: 0.45, sy: -0.4, a: 1.0, col: '#000008', steps: [181, 172, 164, 156, 148, 141, 133, 125], stepDy: 3 } },       // the foot of the temple stairs
     rewind:   { pan: 0.35 },
     meditate: { pan: 0,    x: 104, gy: 178, s: 0.95, L: LOW_SUN },      // the grassy cliff
     sunrise:  { pan: 0,    x: 104, gy: 178, s: 0.95, L: LOW_SUN },
@@ -165,7 +165,7 @@
       g.fillStyle = 'rgba(255,80,20,' + (0.08 + 0.06 * Math.sin(T * 0.01)) + ')';
       g.fillRect(0, 0, W, H);
       drawMax(c.x, c.gy, { s: c.s, L: c.L });
-      drawTwin(c.twinX, c.twinGy, { s: 0.7, L: c.L });
+      drawTwin(c.twinX, c.twinGy, { s: c.s, L: c.L });
     }
     else if (sc === 'crowd') {
       drawMax(60 + ((T * 0.05) % 260), c.gy, { s: c.s, L: c.L });
@@ -193,7 +193,7 @@
     else if (sc === 'double') {
       drawMax(c.x, c.gy, { s: c.s, L: c.L });
       const a = 0.5 + 0.4 * Math.sin(T * 0.012);
-      drawTwin(c.twinX, c.twinGy, { s: 0.78, sit: true, alpha: a, L: c.L });
+      drawTwin(c.twinX, c.twinGy, { s: c.s, sit: true, alpha: a, L: c.L });
       for (let i = 0; i < 14; i++) {
         g.fillStyle = '#ff5060';
         g.fillRect(c.twinX - 20 + (i * 7) % 40, c.twinGy - 20 - ((T * 0.03 + i * 17) % 70), 2, 2);
