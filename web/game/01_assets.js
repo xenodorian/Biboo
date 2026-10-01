@@ -36,6 +36,7 @@
   if (D.training) srcs.push(D.training.bunny.sheet);
   if (D.items) srcs.push(D.items.leaf, D.items.gemSheet, D.items.merchant.src);
   if (window.STORY_BGS) for (const k of Object.keys(window.STORY_BGS)) srcs.push('story:' + k);
+  if (window.STORY_BGS) srcs.push('assets/story/view/boat.png');     // Perry rowing to Miracle Island
   const STILLS = window.ARENA_STILLS || {};                          // boss arenas drawn from one picture
   for (const k of Object.keys(STILLS)) srcs.push('story:arena_' + k);
   if (window.STORY_BGS) for (const k of Object.keys(STILLS)) window.STORY_BGS['arena_' + k] = STILLS[k];

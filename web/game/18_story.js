@@ -48,15 +48,28 @@
   }
 
   const IDLE_SRC = 'assets/moves/idle.png';
-  const IDLE_CW  = 132, IDLE_CH = 93, IDLE_AX = 2, IDLE_AY = 92;
+  const IDLE_CW  = 132, IDLE_CH = 93, IDLE_AX = 40, IDLE_AY = 91;      // the anchor is the middle of her boots
   const MM_SRC = 'assets/enemies/mirrormax.png';
   const MM_CW = 250, MM_CH = 176, MM_AX = 160, MM_AY = 172;
 
+  // Where Perry stands in each scene, picked from the pictures: pan (0 left .. 1 right) says which part of the wide picture shows,
+  // x and gy are where her feet go (gy is the ground line in that picture), s her size there (nearer ground, bigger).
+  const SC = {
+    calm:     { pan: 0,    x: 205, gy: 198, s: 1.05 },     // the path at the foot of the meadow
+    fire:     { pan: 0.8,  x: 78,  gy: 202, s: 1.0, twinX: 338, twinGy: 204 },   // the dark lawn in front of the burning house
+    crowd:    { pan: 0.5,  gy: 198, s: 0.95 },
+    sea:      { pan: 0.35, boatX: 268, boatY: 200 },        // the water below the sun
+    double:   { pan: 0.5,  x: 96,  gy: 202, s: 1.15, twinX: 306, twinGy: 206 },  // the flagstone yard
+    altar:    { pan: 0.5,  x: 236, gy: 180, s: 0.8 },       // the foot of the temple stairs
+    rewind:   { pan: 0.35 },
+    meditate: { pan: 0,    x: 104, gy: 178, s: 0.95 },      // the grassy cliff
+    sunrise:  { pan: 0,    x: 104, gy: 178, s: 0.95 },
+  };
   function drawStoryBg(name) {
     const im = img['story:' + name] && img['story:' + name].im;
     g.imageSmoothingEnabled = false;
-    if (im) {                                                       // the picture is 216 px tall and wider than the view: drift slowly across it
-      const range = Math.max(0, im.width - V.w), u = 0.5 + 0.5 * Math.sin(clock * 0.00012 + name.length);
+    if (im) {                                                       // the picture is 216 px tall and wider than the view: show the part the scene wants
+      const range = Math.max(0, im.width - V.w), u = (SC[name] || {}).pan || 0;
       g.drawImage(im, -Math.round(range * u), 0, im.width, V.h);
     }
     else { g.fillStyle = '#100818'; g.fillRect(0, 0, V.w, V.h); }
@@ -103,40 +116,45 @@
   };
 
   function drawStory() {
-    const sc = story.pages[story.i][0], W = V.w, H = V.h, T = clock, gy = 168;
+    const sc = story.pages[story.i][0], W = V.w, H = V.h, T = clock, c = SC[sc] || SC.sunrise;
     g.imageSmoothingEnabled = false;
     drawStoryBg(sc);
 
     if (sc === 'calm') {
-      drawMax(88, gy, { s: 1.15 });
+      drawMax(c.x, c.gy, { s: c.s });
     }
     else if (sc === 'fire') {
       g.fillStyle = 'rgba(255,80,20,' + (0.08 + 0.06 * Math.sin(T * 0.01)) + ')';
       g.fillRect(0, 0, W, H);
-      drawMax(72, gy, { s: 1.1 });
-      drawTwin(300, gy, { s: 0.7 });
+      drawMax(c.x, c.gy, { s: c.s });
+      drawTwin(c.twinX, c.twinGy, { s: 0.7 });
     }
     else if (sc === 'crowd') {
-      drawMax(70 + ((T * 0.05) % 220), gy, { s: 1.05 });
+      drawMax(60 + ((T * 0.05) % 260), c.gy, { s: c.s });
     }
-    else if (sc === 'sea') {
-      const bob = Math.sin(T * 0.003) * 3;
-      drawMax(70, 150 + bob, { s: 0.95 });
+    else if (sc === 'sea') {                                        // Perry rows toward the island in her boat, rocking on the swell
+      const boat = img['assets/story/view/boat.png'] && img['assets/story/view/boat.png'].im;
+      const bob = Math.sin(T * 0.003) * 2, tilt = Math.sin(T * 0.0021) * 0.025;
+      if (boat) {
+        g.save(); g.translate(Math.round(c.boatX), Math.round(c.boatY + bob)); g.rotate(tilt);
+        g.drawImage(boat, -Math.round(boat.width / 2), -boat.height + 4);
+        g.restore();
+      }
     }
     else if (sc === 'double') {
-      drawMax(90, gy, { s: 1.2 });
+      drawMax(c.x, c.gy, { s: c.s });
       const a = 0.5 + 0.4 * Math.sin(T * 0.012);
-      drawTwin(310, gy + 6, { s: 0.78, sit: true, alpha: a });
+      drawTwin(c.twinX, c.twinGy, { s: 0.78, sit: true, alpha: a });
       for (let i = 0; i < 14; i++) {
         g.fillStyle = '#ff5060';
-        g.fillRect(290 + (i * 7) % 40, gy - 20 - ((T * 0.03 + i * 17) % 70), 2, 2);
+        g.fillRect(c.twinX - 20 + (i * 7) % 40, c.twinGy - 20 - ((T * 0.03 + i * 17) % 70), 2, 2);
       }
     }
     else if (sc === 'altar') {
       const gl = 0.15 + 0.12 * Math.sin(T * 0.004);
       g.fillStyle = `rgba(255,230,140,${gl})`;
-      g.fillRect(160, 90, 64, 50);
-      drawMax(80, gy, { s: 1.15 });
+      g.fillRect(c.x - 34, c.gy - 72, 68, 52);
+      drawMax(c.x, c.gy, { s: c.s });
     }
     else if (sc === 'rewind') {
       g.globalAlpha = 0.15 + 0.1 * Math.sin(T * 0.008);
@@ -145,15 +163,15 @@
       g.globalAlpha = 1;
     }
     else if (sc === 'meditate') {
-      drawMax(192, gy, { s: 1.25, sit: true });
+      drawMax(c.x, c.gy, { s: c.s, sit: true });
       for (let i = 0; i < 14; i++) {
         g.fillStyle = i % 3 ? '#e8fff4' : '#a8e8ff';
-        g.fillRect(150 + (i * 13) % 90, gy - ((T * 0.025 + i * 23) % 150), 2, 2);
+        g.fillRect(c.x - 40 + (i * 13) % 90, c.gy - ((T * 0.025 + i * 23) % 120), 2, 2);
       }
     }
     else {
-      drawMax(90, gy, { s: 1.15 });
-      figure(150, gy + 2, '#b89a7a');
-      figure(172, gy + 2, '#7a6a9a', { s: 0.8 });
+      drawMax(c.x, c.gy, { s: c.s });
+      figure(c.x + 64, c.gy + 2, '#b89a7a');
+      figure(c.x + 86, c.gy + 2, '#7a6a9a', { s: 0.8 });
     }
   }

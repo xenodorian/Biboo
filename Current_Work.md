@@ -442,3 +442,6 @@ Plan and status (each step is pushed on its own; resume from the first unchecked
 
 ## st87 (backgrounds, untested in a browser)
 - web/assets/story.js maps the eight supplied scenes (assets/story/, view-sized copies in assets/story/view/): cutscene pages (calm/crowd village meadow, fire burning house, sea/rewind/meditate/sunrise sunset island, double moonlit courtyard, altar snow temple) and boss arena stills (fungal forest waterfall, crypt cave shrine, bone mine bridge, keep moonlit courtyard). Ogre Chief (tide) and Boar Lord (ember) keep their old arenas. Floor height in the pictures is not matched to the game floor; adjust if it looks off.
+
+## st88 (cutscene layout, not run in a browser)
+- Story text panel now at the top (#start-menu.story). 18_story.js has an SC table: per scene the picture pan, Perry's feet (x, gy) and size, picked from each picture's ground. Drift removed. Idle-sprite anchor fixed to the middle of her boots. Miracle Island pages use the supplied boat picture (assets/story/boat.png, view copy 150 px wide) rocking on the water instead of her idle sprite. Pictures re-cut 3 px inside the borders (removed a leftover white line).
