@@ -452,3 +452,4 @@ Plan and status (each step is pushed on its own; resume from the first unchecked
 - st94: boat reflection mirrored about the keel (touches the hull) and twice as opaque.
 - st95: Perry, evil Perry and the boat are stationary in cutscenes (frame 0, no walk, no bob). Burning-house shadow flicker kept.
 - st96: shadow opacity: meadow 0.8, burning house 1.0, courtyard 0.8, temple 0.8, cliff 1.0 (unchanged).
+- st97: title screen shadow is now a real cast shadow of Perry's outline (was an ellipse under the back foot).

@@ -10,7 +10,8 @@
     const m = D.moves.idle, cw = m.cell[0], ch = m.cell[1], total = m.frames.reduce((a, f) => a + f.ms, 0);
     let t = T % total, k = 0; while (k < m.frames.length - 1 && t >= m.frames[k].ms) { t -= m.frames[k].ms; k++; }
     const sc = 0.85, ax = 78, ay = H - 30;
-    g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.ellipse(ax, ay + 2, 26, 4, 0, 0, 7); g.fill();
+    const tdx = Math.round(ax - m.anchor[0] * sc), tdy = Math.round(ay - m.anchor[1] * sc);   // a real cast shadow: her own outline laid on the grass, away from the sunset glow
+    castShadow(silhouette('title' + k, img[m.sheet].im, k * cw, 0, cw, ch, Math.round(cw * sc), Math.round(ch * sc), '#0a0614'), tdx, tdy, ay, { sx: 1.0, sy: 0.2, a: 0.85 });
     blit(img[m.sheet].im, k * cw, cw, ch, ax - m.anchor[0] * sc, ay - m.anchor[1] * sc, null, sc);
     // the logo
     g.save(); g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
