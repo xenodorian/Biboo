@@ -2,8 +2,8 @@
 Output: web/assets/enemies/<name>.png and web/assets/creatures.js (merged into BIBOO.enemies at load).
 Sheets are horizontal strips, art faces LEFT, anchor = ground point under the body centre.
 Run: python3 build.py   (from tools/creatures)"""
-import json, math, os
-from PIL import Image
+import json, math, os, sys
+from PIL import Image, ImageChops, ImageDraw
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', '..', 'web', 'assets')
 FLIP = {2, 4, 6}           # source art faces right
@@ -43,9 +43,9 @@ C = {
      dict(name='club', style='slam', dmg=26, knock=[100, 400], hit=(-0.55, 0.45, 0.0, 0.70)),
      dict(name='swat', style='sweep', dmg=24, knock=[90, 350], hit=(-0.60, 0.40, 0.25, 0.85)),
      dict(name='quake', style='stomp', dmg=30, knock=[110, 400], hit=(-0.50, 0.50, 0.0, 0.40))]),
- 'boarlord': dict(title='Boar Lord', src=8, H=112, speed=44, hp=1400, rest=[450, 750], knock=[12, 150], parried=[30, 400], boss=True, atk=[
+ 'boarlord': dict(title='Boar Lord', src=8, rig=True, H=112, speed=44, hp=1400, rest=[450, 750], knock=[12, 150], parried=[30, 400], boss=True, atk=[
      dict(name='charge', style='lunge', dmg=31, knock=[120, 350], hit=(-0.60, 0.30, 0.05, 0.60)),
-     dict(name='spear', style='sweep', dmg=29, knock=[100, 350], hit=(-0.90, 0.40, 0.55, 1.00)),
+     dict(name='spear', style='rig', dmg=29, knock=[100, 350], hit=None),
      dict(name='trample', style='stomp', dmg=34, knock=[130, 400], hit=(-0.45, 0.45, 0.0, 0.45))]),
 }
 # frame recipe: (dx frac of w (neg = forward), dy frac of h (up), sx, sy, rot deg (+ = lean forward), ms, hit?)
@@ -62,22 +62,40 @@ def attack(style):
         return [(0.05, 0, 1.0, 1.0, -10, 130, 0), (0.09, 0, 1.0, 1.02, -15, 180, 0), (-0.12, 0, 1.03, 0.98, 5, 80, 1), (-0.22, 0, 1.04, 0.97, 12, 100, 1), (-0.08, 0, 1.0, 1.0, 4, 110, 0), (0, 0, 1, 1, 0, 110, 0)]
     if style == 'stomp':
         return [(0, 0.10, 0.97, 1.08, -4, 150, 0), (0, 0.17, 0.95, 1.14, -6, 210, 0), (-0.05, -0.04, 1.08, 0.90, 10, 90, 1), (-0.08, -0.06, 1.12, 0.86, 8, 150, 1), (-0.03, -0.02, 1.04, 0.95, 3, 110, 0), (0, 0, 1, 1, 0, 110, 0)]
+# The Boar Lord's spear thrust, drawn from the split arm and spear (boar_rig.py).
+# (body dx, dy, sx, sy, lean rot, ms, hit?, arm turn in degrees (+ = tip swings back, - = tip swings forward and up), arm slide x, arm slide y in still pixels)
+def _mix(a, b, t): return tuple(x + (y - x) * t for x, y in zip(a, b))
+_WIND = [(0.03, 0, 1.0, 1.0, -8, 120, 0, 10, 4, 0), (0.07, 0, 1.0, 1.01, -13, 190, 0, 38, 12, 4)]
+_A, _B, _C = ((-0.08, 0, 1.02, 0.99, 2, 30, 1, -8, -30, -4), (-0.20, 0, 1.03, 0.98, 7, 30, 1, -34, -70, -10), (-0.28, 0, 1.04, 0.97, 10, 130, 1, -40, -85, -8))
+_REC = [(-0.14, 0, 1.0, 1.0, 5, 110, 0, -25, -45, -6), (-0.05, 0, 1.0, 1.0, 2, 110, 0, -8, -15, -2), (0, 0, 1, 1, 0, 110, 0, 0, 0, 0)]
+# the thrust is drawn in small steps so the tip's box travels with it and never skips over her
+SPEAR = _WIND + [_A, _mix(_A, _B, 1 / 3)[:5] + (30, 1) + _mix(_A, _B, 1 / 3)[7:], _mix(_A, _B, 2 / 3)[:5] + (30, 1) + _mix(_A, _B, 2 / 3)[7:],
+                 _B, _mix(_B, _C, 0.5)[:5] + (30, 1) + _mix(_B, _C, 0.5)[7:], _C] + _REC
+TIP_HALF = 14                                              # the spear tip's damage box is this many sheet pixels each way
+
+
 def hurt(): return [(0.06, 0, 0.98, 1.0, -9, 130), (0.10, 0, 0.97, 1.0, -14, 130)]
 def death(boss):
     seq = [(0.06, 0, 1.0, 0.95, -10, 120), (0.12, 0, 1.08, 0.80, -20, 150), (0.18, 0, 1.16, 0.62, -30, 170), (0.22, 0, 1.22, 0.46, -34, 400)]
     return seq[:3] if boss else seq
 
-def render(S, w, h, pf, pb, pt, pbot, cw, ch, cx, by, dx, dy, sx, sy, rot):
+def render(S, w, h, pf, pb, pt, pbot, cw, ch, cx, by, dx, dy, sx, sy, rot, pad=0):
+    # pad: S carries `pad` extra sheet pixels on every side (the swinging arm); w and h stay the plain body size
     sw, sh = max(1, round(w * sx)), max(1, round(h * sy))
-    s = S.resize((sw, sh), Image.NEAREST)
+    s = S.resize((max(1, round(S.width * sx)), max(1, round(S.height * sy))), Image.NEAREST)
     big = Image.new('RGBA', (cw, ch), (0, 0, 0, 0))
-    px = round(cx + dx * w - sw / 2); py = round(by - dy * h - sh)
+    px = round(cx + dx * w - sw / 2 - pad * sx); py = round(by - dy * h - sh - pad * sy)
+    sw, sh = s.size
     big.alpha_composite(s, (px, py)) if 0 <= px and 0 <= py and px + sw <= cw and py + sh <= ch else big.paste(s, (px, py), s)
     if rot: big = big.rotate(rot, resample=Image.NEAREST, center=(cx + dx * w, by - dy * h))
     return big
 
 def build(name, c):
     im = Image.open(os.path.join(HERE, 'clean', f"creature{c['src']}.png")).convert('RGBA')
+    if c.get('rig'):                                                    # white removed from the rider, arm and spear split out (boar_rig.py)
+        import boar_rig
+        fixed, body_n, arm_n = boar_rig.make()
+        im = fixed
     if c['src'] in FLIP: im = im.transpose(Image.FLIP_LEFT_RIGHT)
     if c.get('hue'):                                                    # recolour a reused sprite
         import colorsys
@@ -112,12 +130,54 @@ def build(name, c):
         i = len(cells); cells.append(fr)
         frames.append({'src': i, 'ms': ms, 'hurt': hurtb, 'hit': hitb, 'ground': 0})
         return i
+    def scaled(T):                                                      # a still-sized image -> sheet size, like S
+        out = T.resize((max(1, round(T.width * k)), max(1, round(T.height * k))), Image.LANCZOS if k < 1 else Image.NEAREST)
+        out.putalpha(out.getchannel('A').point(lambda v: 255 if v > 110 else 0)); return out
+    if c.get('rig'):
+        import boar_rig
+        PADN = 150                                                      # still pixels of room around the still for the swinging arm
+        S_body = scaled(body_n)
+        px0, py0 = boar_rig.PIVOT
+        prev = {'tip': None}
+        def add_rig(rec):
+            dx, dy, sx, sy, rot, ms, hit, th, tx, ty = rec
+            T = Image.new('RGBA', (im.width + 2 * PADN, im.height + 2 * PADN), (0, 0, 0, 0))
+            T.alpha_composite(body_n, (PADN, PADN))
+            A = Image.new('RGBA', T.size, (0, 0, 0, 0)); A.alpha_composite(arm_n, (PADN, PADN))
+            A = A.rotate(th, resample=Image.NEAREST, center=(PADN + px0, PADN + py0))
+            A = ImageChops.offset(A, round(tx), round(ty)); T.alpha_composite(A)
+            # the spear tip, found by turning and sliding a marker the same way
+            t = math.radians(th); ddx, ddy = boar_rig.TIP[0] - px0, boar_rig.TIP[1] - py0
+            tipx = px0 + ddx * math.cos(t) + ddy * math.sin(t) + tx; tipy = py0 - ddx * math.sin(t) + ddy * math.cos(t) + ty
+            args = (w, h, pf, pb, pt, pbot, cw, ch, cx, by, dx, dy, sx, sy, rot)
+            fr = render(scaled(T), *args, pad=PADN * k)
+            bb = render(S_body, *args).getchannel('A').getbbox()        # the body only, so the swinging arm does not stretch its hitbox
+            L, T0, R, B = bb
+            hurtb = [round((L + (R - L) * 0.12) - cx), 0, round((R - (R - L) * 0.12) - cx), max(2, round(by - T0))]
+            # the tip through the same steps the picture takes: still pixels -> sheet pixels -> squash and place -> lean about the anchor
+            swb, shb = max(1, round(w * sx)), max(1, round(h * sy))
+            qx = cx + dx * w - swb / 2 + (PADN + tipx) * k * sx - PADN * k * sx; qy = by - dy * h - shb + (PADN + tipy) * k * sy - PADN * k * sy
+            ox, oy = cx + dx * w, by - dy * h; rr = math.radians(rot)
+            tx_ = ox + (qx - ox) * math.cos(rr) + (qy - oy) * math.sin(rr); ty_ = oy - (qx - ox) * math.sin(rr) + (qy - oy) * math.cos(rr)
+            tipc = (tx_ - cx, by - ty_)                                  # sheet pixels from the anchor, y up
+            hitb = None
+            if hit:
+                xs = [tipc[0]]; ys = [tipc[1]]                              # a small box on the tip itself
+                hitb = [round(min(xs) - TIP_HALF), max(-4, round(min(ys) - TIP_HALF)), round(max(xs) + TIP_HALF), round(max(ys) + TIP_HALF)]
+            prev['tip'] = tipc if hit else None                          # the sweep only joins consecutive striking frames, never the wind-up
+            i = len(cells); cells.append(fr)
+            frames.append({'src': i, 'ms': ms, 'hurt': hurtb, 'hit': hitb, 'ground': 0, 'rig': True})
+            return i
     anims['idle'] = {'frames': [add(r, None, r[5]) for r in idle(2 if boss else 4)], 'loop': True}
     anims['walk'] = {'frames': [add(r, None, r[5]) for r in walk(boss)], 'loop': True}
     stats = {}
     for a in c['atk']:
         ids = []
-        for r in attack(a['style']):
+        if a['style'] == 'rig':
+            prev['tip'] = None
+            ids = [add_rig(r) for r in SPEAR]
+        else:
+          for r in attack(a['style']):
             ids.append(add(r, a['hit'] if r[6] else None, r[5]))
         anims[a['name']] = {'frames': ids, 'loop': False}
         stats[a['name']] = {'dmg': a['dmg'], 'knock': a['knock']}
@@ -133,9 +193,15 @@ def build(name, c):
     return {'title': name, 'sheet': f'assets/enemies/{name}.png', 'cell': [cw, ch], 'anchor': [cx, by], 'frames': frames, 'anims': anims, 'ai': ai}, (cw, ch, len(cells))
 
 if __name__ == '__main__':
+    only = sys.argv[1:]                                                  # python3 build.py boarlord   rebuilds just that one and keeps the rest of creatures.js
     data = {}
+    if only:
+        old = open(os.path.join(OUT, 'creatures.js')).read(); i = old.index('{"hobgoblin"'); j = old.rindex('}')
+        data = json.loads(old[i:j + 1])
     for n, c in C.items():
+        if only and n not in only: continue
         data[n], info = build(n, c); print(n, info)
-    import mirror
-    data['mirrormax'], info = mirror.build(); print('mirrormax', info)
+    if not only:
+        import mirror
+        data['mirrormax'], info = mirror.build(); print('mirrormax', info)
     open(os.path.join(OUT, 'creatures.js'), 'w').write('// generated by tools/creatures/build.py\nwindow.BIBOO.enemies = Object.assign(window.BIBOO.enemies || {}, ' + json.dumps(data, separators=(',', ':')) + ');\n')

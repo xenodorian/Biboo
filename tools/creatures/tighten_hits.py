@@ -39,7 +39,7 @@ def tighten(name, T, base):
     n = 0
     for f in T['frames']:
         h = f.get('hit')
-        if not h: continue
+        if not h or f.get('rig'): continue                 # rig frames (the Boar Lord's spear) carry boxes placed on the weapon tip by build.py: leave them
         a = mask(im, cw, ch, f['src'])
         # the old box as a pixel window (x grows right, y grows down; the art faces left, so forward is -x)
         wx0, wx1, wy0, wy1 = ax + h[0], ax + h[2], ay - h[3], ay - h[1]
