@@ -1,0 +1,42 @@
+/* Music: every screen picks its track, the files exist and decode, volume cycles. Run: NODE_PATH=$(npm root -g) node web/tests/music.test.js */
+const path = require('path'), fs = require('fs'), http = require('http');
+const { chromium } = require('playwright');
+const root = path.resolve(__dirname, '..');
+(async () => {
+  const server = http.createServer((q, r) => { const f = path.join(root, decodeURIComponent(q.url.split('?')[0].replace(/^\/Biboo\/web\//, '/'))); fs.readFile(f, (e, d) => { if (e) { r.writeHead(404); r.end(); } else { r.writeHead(200, { 'content-type': f.endsWith('.js') ? 'text/javascript' : f.endsWith('.html') ? 'text/html' : f.endsWith('.ogg') ? 'audio/ogg' : f.endsWith('.png') ? 'image/png' : 'application/octet-stream' }); r.end(d); } }); }).listen(0);
+  const port = server.address().port;
+  const b = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] }), page = await b.newPage({ viewport: { width: 1000, height: 640 } });
+  const errors = []; page.on('pageerror', e => errors.push(String(e)));
+  await page.goto(`http://localhost:${port}/index.html`);
+  await page.waitForFunction(() => document.getElementById('btn-start') && window.bibooGame, null, { timeout: 20000 });
+  const ev = j => page.evaluate(j), wait = ms => page.waitForTimeout(ms), res = [];
+  const check = (n, ok, d) => { res.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${n}${ok ? '' : '  ' + JSON.stringify(d)}`); };
+  const m = JSON.parse(fs.readFileSync(path.join(root, 'assets/music.js'), 'utf8').match(/music = (\{.*\});/)[1]);
+  const need = ['level1','level2','level3','level4','level5','level6','boss1','boss2','boss3','boss4','boss5','boss6','training','shop','prologue','ending','overworld'];
+  check('every required track is listed and has ogg, mp3 and mid files', need.every(t => t in m.tracks && ['ogg','mp3','mid'].every(x => fs.existsSync(path.join(root, 'assets/music', t + '.' + x)))), need.filter(t => !(t in m.tracks)));
+  check('the title screen plays the overworld song', (await ev('bibooGame.music().track')) === 'overworld');
+  await page.click('#btn-start'); await wait(300);
+  await page.keyboard.press('Space');
+  await wait(1500);
+  check('audio starts after a gesture and the opening song plays', (await ev('bibooGame.music().playing')) === 'prologue', await ev('bibooGame.music()'));
+  await ev('bibooGame.skipStory()'); await wait(1200); await ev('BibooProgress.state.levelsUnlocked = 6');
+  for (const [lv, tr] of [[1,'level1'],[3,'level3'],[6,'level6']]) { await ev(`bibooGame.enterLevel(${lv})`); await wait(200); check(`level ${lv} plays ${tr}`, (await ev('bibooGame.music().track')) === tr, await ev('bibooGame.music()')); }
+  const names = await ev('bibooGame.state().level'); void names;
+  await ev('bibooGame.enterLevel(2)'); await wait(200); await ev('bibooGame.warp(BIBOO_LEVELS.levels[1].maps.length - 1)'); await wait(300);
+  check('a boss arena plays that boss song', (await ev('bibooGame.music().track')) === 'boss2', await ev('bibooGame.music()'));
+  await ev('bibooGame.enterTraining()'); await wait(200);
+  check('training plays its song', (await ev('bibooGame.music().track')) === 'training');
+  await ev('bibooGame.goOverworld()'); await wait(200);
+  await ev('bibooGame.playStory("ending")'); await wait(200);
+  check('the epilogue plays its song', (await ev('bibooGame.music().track')) === 'ending');
+  await ev('bibooGame.skipStory()'); await wait(200);
+  await ev('bibooGame.playStory("prologue")'); await wait(200);
+  check('the opening plays its song', (await ev('bibooGame.music().track')) === 'prologue');
+  await ev('bibooGame.skipStory()'); await wait(200);
+  const dec = await page.evaluate(async () => { const out = {}; const C = new AudioContext(); for (const t of ['level1','boss6','shop']) { const ab = await (await fetch('assets/music/' + t + '.ogg')).arrayBuffer(); const buf = await C.decodeAudioData(ab); out[t] = Math.round(buf.duration); } return out; });
+  check('ogg files decode in the browser', dec.level1 > 30 && dec.boss6 > 30 && dec.shop > 30, dec);
+  const v0 = await ev('BibooMusic.volume'); await ev('BibooMusic.cycle()');
+  check('volume cycles', (await ev('BibooMusic.volume')) !== v0);
+  check('no page errors', errors.length === 0, errors);
+  await b.close(); server.close(); process.exit(res.every(Boolean) ? 0 : 1);
+})();

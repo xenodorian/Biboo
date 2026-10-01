@@ -50,7 +50,7 @@ const { chromium } = require('playwright');
   await clickId('btn-new-game'); await wait(500);
   await page.click('button:has-text("Skip story")'); await wait(500);       // the prologue
   const nw = await ev("({ u: BibooProgress.state.unlocked.length, lv: BibooProgress.state.levelsUnlocked, gems: BibooProgress.state.gems.health, lvl: bibooGame.state().level, screen: bibooGame.state().screen })");
-  check('New game starts Level 1.1 with nothing unlocked', nw.u === 0 && nw.lv === 1 && nw.gems === 0 && nw.screen === 'level' && nw.lvl && nw.lvl.n === 1 && nw.lvl.idx === 0, nw);
+  check('New game goes to the overworld with nothing unlocked', nw.u === 0 && nw.lv === 1 && nw.gems === 0 && nw.screen === 'overworld', nw);
   check('New game wiped the saved data', (await keys()).length === 0, await keys());
   await page.reload(); await ready();
   check('and a reload afterwards shows no Continue', !(await labels()).includes('Continue'), await labels());

@@ -154,7 +154,7 @@ A (key Z) is the attack button again (slash and every combo). Jump is the Up but
 Y (key S) is the spin attack, and X+Y is the taunt. Sky Dash is Down then Up. A is also the accept button in menus. Holding Up still charges once she has landed.
 | L1 L2 R1 R2 | Q 1 W 2 | shoulders or triggers |
 
-Unlocks: a new game has only the d-pad and A, B, X, Y. Saving is manual only: the main menu has New game (wipes the saved data and starts Level 1.1), Continue (only when a manual save exists) and Save game (in-level and overworld menus). Nothing is saved automatically, and closing or reloading the page loses unsaved progress (Retry this map after a K.O. still works). Golden crates (marked "?") hold unlocks, each one exactly the unlock assigned to its map; a golden crate is only built while that unlock is not owned, and it never gives loot or a substitute: combos and the
+Unlocks: a new game has only the d-pad and A, B, X, Y. Saving is manual only: the main menu has New game (wipes the saved data and goes to the overworld with 100 Leaves), Continue (only when a manual save exists) and Save game (in-level and overworld menus). Nothing is saved automatically, and closing or reloading the page loses unsaved progress (Retry this map after a K.O. still works). Golden crates (marked "?") hold unlocks, each one exactly the unlock assigned to its map; a golden crate is only built while that unlock is not owned, and it never gives loot or a substitute: combos and the
 L1, L2, R1, R2 buttons. Smash the crate and touch the item. Energy, Empowerment and Super meters appear once a move that
 uses them is unlocked; the health bar is always shown. Unlock definitions: `web/progress.js` (UNLOCKS); where each
 crate sits: `web/levels.js` (`whereIs`).
@@ -320,3 +320,7 @@ No keys or key chests: every locked-door level (1 to 4) has its door at the righ
 Enemies leap pits: a chasing ground enemy that reaches a pit edge with her on the far side jumps the gap (22 px arc, gaps up to 140 px) and carries on; patrols and enemies on platforms are unchanged. The dash, dash thrust and energy dash thrust hop 5 px (a short arc over the move, `dashHop` in game.js).
 
 Max HP starts at 50. A +25 Max HP gem (green diamond with a ring and plus) drops from crates and kills alongside health gems; a health gem heals 25 percent of Max HP. The push kick and energy kick hop 5 px like the dash.
+
+
+## Leaves and the Bone Merchant
+Leaves are the gold coin currency (start with 100). They lie along the maps and some crates hold large caches. Ankhs now come only from crates. Each map's right door stays barred until every enemy on that map is defeated, and the left edge is a wall. The Bone Merchant on the overworld sells Bones (health), Bone Powder (+25 max HP), Quartz, Garnet and Diamonds (meter refills), Mutagens (meter based unlocks) and Warrior Scrolls (all other unlocks). An unlock is on sale once the level before the one that used to hold it is beaten. Gems still drop from crates and enemies as before.

@@ -23,7 +23,7 @@ const { chromium } = require('playwright');
   // ---- 1. load, title menu
   let s = await S();
   check('title screen, no errors', s.screen === 'title' && errors.length === 0, { s: s.screen, errors });
-  check('title menu lists New game, both Moves lists, Gems, Fullscreen', JSON.stringify(await labels()) === JSON.stringify(['New game', 'Moves: Gamepad', 'Moves: Keyboard', 'Gems', 'Fullscreen']), await labels());
+  check('title menu lists New game, both Moves lists, Gems, Fullscreen', JSON.stringify(await labels()) === JSON.stringify(['New game', 'Moves: Gamepad', 'Moves: Keyboard', 'Music: 60%', 'Gems', 'Bone Merchant', 'Fullscreen']), await labels());
   check('old controls panel and combo table removed from the page', await ev("!document.querySelector('#pad-section') && document.querySelectorAll('table.moves-table').length === 0"), null);
 
   // ---- 2. moves menu at first launch
@@ -47,7 +47,8 @@ const { chromium } = require('playwright');
   check('New game opens the prologue first', !!(await ev('bibooGame.story()')), await S());
   await clickText('Skip story'); await wait(300);
   s = await S();
-  check('Skipping the prologue starts Level 1.1', s.screen === 'level' && s.level && s.level.n === 1 && s.level.idx === 0 && !(await ev("bibooGame.menuOpen()")), s);
+  check('Skipping the prologue lands on the overworld', s.screen === 'overworld' && !(await ev("bibooGame.menuOpen()")), s);
+  await ev('bibooGame.enterLevel(1)'); await wait(500); s = await ev('bibooGame.state()');
   await ev('bibooGame.goOverworld()'); await wait(200);
   s = await S();
   check('back to the overworld', s.screen === 'overworld' && !(await ev("bibooGame.menuOpen()")), s);
@@ -101,16 +102,9 @@ const { chromium } = require('playwright');
   s = await S();
   check('walking off the edge drops her back to the ground', s.floorY === 0 && s.px > 214, { fy: s.floorY, px: s.px });
 
-  // ---- 7. crates: smash with a slash, golden crate leaves an unlock, touching it unlocks the move
+  // ---- 7. unlocks come from the Bone Merchant; owning one is not written to the browser by itself
   await ev('bibooGame.warp(1)'); await wait(700); await ev('bibooGame.setEnemies([])');
-  let before = (await S()).crates.filter(c => c.broken).length;
-  await ev('bibooGame.setX(300 - 40)'); await wait(100);
-  await key('KeyZ', 60); await wait(900);
-  s = await S();
-  check('slash smashes the golden crate and leaves the item', s.crates.find(c => c.item).broken && ((s.powerups.length === 1 && s.powerups[0].item === 'thrust') || (await ev("BibooProgress.has('thrust')"))), { c: s.crates, p: s.powerups });
-  await ev('bibooGame.setX(300 - 4)'); await wait(400);
-  s = await S();
-  check('touching the item unlocks it', s.powerups.length === 0 && (await ev("BibooProgress.has('thrust')")), s.powerups);
+  await ev("bibooGame.unlock('thrust')");
   check('an unlock is NOT written to the browser by itself (saving is manual only)', (await ev("Object.keys(localStorage).filter(k => k.startsWith('parryperry')).length")) === 0, await ev("Object.keys(localStorage)"));
 
   // ---- 8. gating: locked buttons and moves do nothing, unlocked ones work
@@ -176,7 +170,7 @@ const { chromium } = require('playwright');
   check('walking over a gem stores it in the bag (+1 health)', s.health === bag0 + 1, s);
   await ev('bibooGame.hurtHer(0)');
   await ev('bibooGame.setHp(100)'); await key('Escape'); await wait(200);
-  check('Escape pauses with the menu (Resume, Moves, Cheats, Gems, Back to overworld, Save game, Fullscreen, New game)', JSON.stringify(await labels()) === JSON.stringify(['Resume', 'Moves: Gamepad', 'Moves: Keyboard', 'Cheats', 'Gems', 'Back to the overworld', 'Save game', 'Fullscreen', 'New game (erases save)']), await labels());
+  check('Escape pauses with the menu (Resume, Moves, Cheats, Gems, Back to overworld, Save game, Fullscreen, New game)', JSON.stringify(await labels()) === JSON.stringify(['Resume', 'Moves: Gamepad', 'Moves: Keyboard', 'Music: 60%', 'Cheats', 'Gems', 'Back to the overworld', 'Save game', 'Fullscreen', 'New game (erases save)']), await labels());
   await clickText('Gems');
   let rows = await page.$$eval('#menu-view .gem-row', r => r.map(x => ({ t: x.textContent, dis: x.querySelector('button').disabled })));
   check('Gems menu: health Use is enabled, the rest disabled', !rows[0].dis && rows.slice(1).every(r => r.dis), rows);
@@ -204,20 +198,19 @@ const { chromium } = require('playwright');
   check('walking off the right edge loads 1.2 at the left door', s.level.id === '1.2' && s.px < 60, s.level);
   await ev('bibooGame.setX(50)'); await page.keyboard.down('ArrowLeft'); for (let i = 0; i < 40 && (await S()).level.id === '1.2'; i++) await wait(200); await page.keyboard.up('ArrowLeft'); await wait(300);
   s = await S();
-  check('walking off the left edge goes back to 1.1 at the right door', s.level.id === '1.1' && s.px > 300, { l: s.level, px: s.px });
+  check('the left edge is a wall: no walking back into the previous map', s.level.id === '1.2' && s.px < 30, { l: s.level, px: s.px });
   await ev('bibooGame.warp(8)'); await wait(700);
   s = await S();
   check('1.9 has 2 enemies', s.foes.length === 2 && s.level.id === '1.9', s.foes.length);
   await ev('bibooGame.setX(290)');
   await page.keyboard.down('ArrowRight'); await wait(3500); await page.keyboard.up('ArrowRight');
   s = await S();
-  check('the last map is a locked door (moves missing)', s.screen === 'level' && !s.levelDone && s.level.id === '1.9', s);
+  check('the door stays barred while enemies live', s.screen === 'level' && !s.levelDone && s.level.id === '1.9', s);
   await ev('bibooGame.setHp(200)');
-  await ev('for (let i = 0; i < 2; i++) bibooGame.killFoe(0)'); await wait(200);
-  await ev("Object.keys(BIBOO_LEVELS.whereIs).filter(i => BIBOO_LEVELS.whereIs[i].split('.')[0] === '1').forEach(i => bibooGame.unlock(i))");
+  await ev('bibooGame.setEnemies([])'); await wait(200);
   await ev('bibooGame.setX(300)'); await page.keyboard.down('ArrowRight'); await wait(3000); await page.keyboard.up('ArrowRight'); await wait(300);
   s = await S();
-  check('with every move, the door leads into the boss arena', s.level.id === '1.10', s.level);
+  check('with every enemy defeated, the door leads into the boss arena', s.level.id === '1.10', s.level);
   await ev('bibooGame.killFoe(0)'); await wait(600);
   await ev('bibooGame.setX(300)'); await page.keyboard.down('ArrowRight'); await wait(3000); await page.keyboard.up('ArrowRight'); await wait(300);
   s = await S();

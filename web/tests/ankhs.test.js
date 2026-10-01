@@ -1,4 +1,4 @@
-/* Ankhs: pickups on maps, the counter, a retry costs one, none left restarts the level. Run: NODE_PATH=$(npm root -g) node web/tests/ankhs.test.js */
+/* Ankhs: crate drops only, the counter, a retry costs one, none left restarts the level. Run: NODE_PATH=$(npm root -g) node web/tests/ankhs.test.js */
 const path = require('path');
 const { chromium } = require('playwright');
 (async () => {
@@ -12,15 +12,12 @@ const { chromium } = require('playwright');
   await ev('bibooGame.resetAll(); bibooGame.goOverworld(); bibooGame.enterLevel(1)'); await wait(700);
   check('a new level starts with 3 ankhs', (await ev('bibooGame.ankhs()')) === 3, null);
   await ev('bibooGame.warp(1)'); await wait(500); await ev('bibooGame.setEnemies([])');
-  const list = await ev("bibooGame.gems().filter(g => g.kind === 'ankh')");
-  check('map 1.2 has ankhs lying on it', list.length >= 1, list);
-  const a = list[0]; await ev(`bibooGame.setX(${a.x - 34})`); await wait(700);
-  check('walking into an ankh picks it up (+1)', (await ev('bibooGame.ankhs()')) === 4 && (await ev("bibooGame.gems().filter(g => g.kind === 'ankh')")).length === list.length - 1, await ev('bibooGame.ankhs()'));
-  await ev('bibooGame.warp(2)'); await wait(400); await ev('bibooGame.warp(1)'); await wait(400);
-  check('a collected ankh stays gone when the map is re-entered', (await ev("bibooGame.gems().filter(g => g.kind === 'ankh')")).length === list.length - 1, null);
-  await ev('bibooGame.setAnkhs(9)'); const l2 = await ev("bibooGame.gems().filter(g => g.kind === 'ankh')");
-  if (l2.length) { await ev(`bibooGame.setX(${l2[0].x - 34})`); await wait(600); }
+  check('no ankhs lie loose on the map any more', (await ev("bibooGame.gems().filter(g => g.kind === 'ankh')")).length === 0, null);
+  await ev("bibooGame.dropGem(0, 'ankh')"); await wait(900);
+  check('an ankh dropped from a crate is picked up (+1)', (await ev('bibooGame.ankhs()')) === 4, await ev('bibooGame.ankhs()'));
+  await ev('bibooGame.setAnkhs(9)'); await ev("bibooGame.dropGem(0, 'ankh')"); await wait(900);
   check('the counter stops at 9', (await ev('bibooGame.ankhs()')) === 9, null);
+  await ev('bibooGame.warp(1)'); await wait(500);
   // K.O. and retry
   await ev('bibooGame.setX(20)'); await wait(300); await ev('bibooGame.setAnkhs(2); bibooGame.setHp(50); bibooGame.hurtHer(500)'); await wait(1800);
   let s = await S();

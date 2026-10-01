@@ -20,7 +20,7 @@ const { chromium } = require('playwright');
   s = await ev('bibooGame.story()');
   check('pages advance', s && s.id === 'prologue' && s.i === 5, s);
   await next(); await wait(300);
-  check('the last page starts level 1', !(await ev('bibooGame.story()')) && (await ev('bibooGame.state().screen')) === 'level', await ev('bibooGame.state().screen'));
+  check('the last page ends on the overworld', !(await ev('bibooGame.story()')) && (await ev('bibooGame.state().screen')) === 'overworld', await ev('bibooGame.state().screen'));
   // skip
   await ev('bibooGame.playStory("ending")'); await wait(200);
   await page.click('button:has-text("Skip story")'); await wait(200);

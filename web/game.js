@@ -11,7 +11,7 @@
  *
  * Game structure: title menu -> overworld -> level (10 one-screen maps, "Level 1.1" and so on). Progress
  * (unlocked moves and buttons, gems, meters, open levels) is in progress.js; map data is in levels.js; the
- * menus are in ui.js. Only A, B, X, Y and the d-pad work at first; golden crates hold unlocks. Meters show once
+ * menus are in ui.js. Only A, B, X, Y and the d-pad work at first; buy unlocks from the Bone Merchant with Leaves. Meters show once
  * a move that uses them is unlocked. Enemies (goblin, orc) patrol a set path and chase when hit or when she is
  * within their sight range. Max and the enemies have HP: her hit shapes (blade, foot, energy, beams) take HP off
  * an enemy's hurtbox they touch. Enemies drop gems into a bag (Gems menu). An enemy attack that reaches her: a
@@ -106,7 +106,7 @@
   D.input.bindings.push({ input: 'A-A-A-A-R1+R2+L1+L2', type: 'sequence', move: 'ultimate' });   // the Ultimate Chain
   const V = D.view;
   const P = window.BibooProgress;
-  // The player starts with the d-pad and A, B, X, Y only. Every other move is an unlock found in a golden crate
+  // The player starts with the d-pad and A, B, X, Y only. Every other move is an unlock bought from the Bone Merchant
   // (web/progress.js). A move that is not open is not in the input reader at all, so the button that would have
   // triggered it falls back to the plain move (Down+A is just a slash until the upswing is unlocked).
   const BASE_MOVES = new Set(['idle', 'walk_right', 'walk_left', 'duck', 'block', 'parry', 'jump', 'dash', 'slash', 'spin_attack']);
@@ -161,7 +161,7 @@
     if (!had.super && P.meterOn('super')) superMeter = Math.max(superMeter, maxOf('super'));
   }
   const meterState = () => ({ energy: P.meterOn('energy'), empower: P.meterOn('empower'), super: P.meterOn('super') });
-  function unlockItem(id) {                          // from a golden crate or the dev console
+  function unlockItem(id) {                          // from the shop or the dev console
     const had = meterState();
     if (!P.unlock(id)) return false;
     meterStarts(had); refreshUnlocks(); syncProgress();
@@ -934,7 +934,7 @@
   const TIPS = [
     "Hi, I'm Slime Bunny! Welcome to Sunset Training. Hit the heavy bag with any move you own.",
     "To see your moves: press Start (pad) or Enter, Space or Escape (keyboard), then pick Moves: Gamepad or Moves: Keyboard.",
-    "The lists only show moves you have found. Smash golden crates in the levels to unlock more.",
+    "The lists only show moves you own. Buy more from the Bone Merchant on the overworld with Leaves.",
     "The bag never breaks. Your last hit, total damage, hits and combo are at the top right.",
     "Your meters and health refill here, so try everything, even the beams.",
     "Tap B to parry, hold B to block. A parry pushes enemies back and reflects shards.",
@@ -2777,8 +2777,20 @@
     else if (sc === 'meditate') { sky('#16304a', '#7fc4a8'); ground('#2f5a38'); const gl = 0.25 + 0.15 * Math.sin(T * 0.003); g.fillStyle = `rgba(190,255,230,${gl})`; g.beginPath(); g.arc(192, gy - 20, 46, 0, 7); g.fill(); figure(192, gy + 2, MAXC, { sit: true, s: 1.5 }); for (let i = 0; i < 18; i++) { g.fillStyle = i % 3 ? '#e8fff4' : '#a8e8ff'; g.fillRect(150 + (i * 13) % 90, gy - ((T * 0.025 + i * 23) % 150), 2, 2); } }
     else { sky('#3a2a60', '#ffb870'); g.fillStyle = '#ffe9a0'; g.beginPath(); g.arc(192, 140 - Math.min(40, T * 0.01 % 60), 26, 0, 7); g.fill(); ground('#2f5a38'); house(250, true); figure(120, gy + 2, MAXC, {}); figure(150, gy + 4, '#b89a7a', {}); figure(172, gy + 4, '#7a6a9a', { s: 0.8 }); }
   }
+  // ---- music: which track belongs to what is on screen (BibooMusic crossfades when it changes)
+  function wantedTrack() {
+    if (story) return story.id === 'ending' ? 'ending' : 'prologue';
+    if (UI && UI.isOpen() && UI.view === 'shop') return 'shop';
+    if (screen === 'title' || screen === 'overworld') return 'overworld';
+    if (screen === 'level' && level) {
+      if (level.n === 0) return 'training';
+      return curMap && curMap.def && curMap.def.boss ? 'boss' + level.n : 'level' + level.n;
+    }
+    return null;
+  }
   function frame(t) {
     pollPad();
+    if (window.BibooMusic) { BibooMusic.pollPad(); BibooMusic.want(gameOver ? null : wantedTrack()); }
     navPoll(t);
     const dt = Math.min(100, last ? t - last : 16);
     last = t;
@@ -2991,6 +3003,7 @@
     else items.push({ label: 'Resume', fn: () => togglePause(), primary: true, id: 'btn-start' });
     items.push({ label: 'Moves: Gamepad', fn: () => UI.open('moves', { msg: UI.opts.msg, device: 'pad' }) });
     items.push({ label: 'Moves: Keyboard', fn: () => UI.open('moves', { msg: UI.opts.msg, device: 'keys' }) });
+    if (window.BibooMusic) items.push({ label: 'Music: ' + BibooMusic.label(), id: 'btn-music', fn: () => { BibooMusic.cycle(); UI.refresh(); } });
     if (cheatsShown) items.push({ label: 'Cheats', fn: () => openDev() });
     items.push({ label: 'Gems', fn: () => UI.open('gems', { msg: UI.opts.msg }) });
     if (screen === 'overworld' || screen === 'title') items.push({ label: 'Bone Merchant', fn: () => UI.open('shop', { msg: 'Spend your Leaves. Press B to go back.', back: () => UI.open('main', { msg: '' }) }), id: 'btn-shop' });
@@ -3087,6 +3100,7 @@
     heavy: () => cur && (cur.id === 'heavy' || cur.id === 'jump_crash') ? { id: cur.id, lite: !!cur.lite, charged: cur.charged, height: cur.height } : null,
     herBox: () => herBox(),
     story: () => story ? { id: story.id, i: story.i } : null, skipStory: () => { if (story) storyEnd(); }, playStory: id => playStory(id, () => { paused = false; }),
+    music: () => ({ want: window.BibooMusic ? BibooMusic.wanted : null, track: wantedTrack(), playing: window.BibooMusic ? BibooMusic.current : null, volume: window.BibooMusic ? BibooMusic.volume : 0 }),
     fx: () => ({ freeze, flashes: flashes.length, flash: !!screenFlash, shake: !!rumble }),
     powers: () => ({ flying: !!flight, rainbow: rainbowOn(), ult: !!ult, y: herY(), hp }),
     combat: () => ({ stun: !!stun, hits, blocks, parries, tint: tint && clock < tint.until ? tint.color : null }),

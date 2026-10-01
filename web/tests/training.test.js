@@ -25,10 +25,10 @@ const { chromium } = require('playwright');
   check('gamepad rows use pad button names', rowsPad.length > 5 && rowsPad.some(r => r === 'B' || r === 'A'), rowsPad);
   // overworld node
   await ev('bibooGame.goOverworld()'); await wait(300);
-  await hold('ArrowLeft', 120); await wait(150);
+  await hold('ArrowLeft', 120); await wait(150); await hold('ArrowLeft', 120); await wait(150);
   await hold('KeyZ', 80); await wait(900);
   let t = await ev('bibooGame.training()');
-  check('Left from level 1 selects Sunset Training and A enters it', t.on, t);
+  check('Left twice from level 1 selects Sunset Training and A enters it', t.on, t);
   check('the training level is outside progress (level 0)', (await ev('bibooGame.state().level.n')) === 0, await ev('bibooGame.state().level'));
   check('the bag is the only foe', (await ev('bibooGame.state().foes.map(f => f.type)')).join() === 'heavybag', await ev('bibooGame.state().foes'));
   check('Slime Bunny greets first', /Slime Bunny/.test(t.tip), t.tip);
