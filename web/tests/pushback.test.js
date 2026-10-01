@@ -37,7 +37,7 @@ const { chromium } = require('playwright');
   let early = null, end = null, start = null;
   for (let i = 0; i < 80; i++) { await wait(25); const t = await S(); if (t.pitFall && !start) start = { px: t.px }; if (t.pitFall && t.gameOver && t.feetNow > -70) early = { feet: t.feetNow }; if (t.gameOver) { end = { feet: t.feetNow, hp: t.hp }; break; } }
   check('knocked into a pit: she falls', !!(await S()).pitFall);
-  check('the fall starts only with her whole body over the gap (centre at least 30 px inside an edge)', !!start && start.px > 150 + 30 - 10 && start.px < 260 - 30, start);
+  check('the fall starts only with both feet over the gap', !!start && start.px - 1 >= 149 && start.px + 38 <= 261 || (!!start && start.px - 38 >= 149 && start.px + 1 <= 261), start);
   check('no Game Over while she is still visible (feet above -70; she leaves the view at about -81)', !early, early);
   check('Game Over comes once she has fallen to the bottom', !!end && end.hp === 0, end);
   // walking in on purpose still falls
@@ -46,6 +46,14 @@ const { chromium } = require('playwright');
   for (let i = 0; i < 60 && !(await S()).pitFall; i++) await wait(50);
   await page.keyboard.up('ArrowRight');
   check('walking into the pit still falls', !!(await S()).pitFall);
+  // she keeps standing with one foot over the edge and falls only when both feet are over the gap
+  await custom({ pits: [{ x0: 150, x1: 260 }], enemies: [] }); await ev('bibooGame.setX(100)'); await wait(200);
+  await page.keyboard.down('ArrowRight');
+  let atFall = null, maxStanding = 0;
+  for (let i = 0; i < 120 && !atFall; i++) { await wait(15); const t = await S(); if (t.pitFall) atFall = t.px; else maxStanding = Math.max(maxStanding, t.px); }
+  await page.keyboard.up('ArrowRight');
+  check('walking right: she stands with the front foot over the edge (anchor past x 112) before falling', maxStanding > 112, maxStanding);
+  check('walking right: she falls only once both feet are over the gap (anchor at 151 or more)', atFall !== null && atFall >= 150, atFall);
   check('no page errors', errors.length === 0, errors);
   console.log(`${res.filter(Boolean).length}/${res.length} passed`); await b.close(); process.exit(res.every(Boolean) ? 0 : 1);
 })();

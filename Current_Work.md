@@ -301,3 +301,6 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 
 ## st48
 - Blocked hits and landed or blocked goblin shots also lift her 5 px (the same hop as a knockback hit). Tests in turn_stun.test.js (16).
+
+## st49
+- Pits: she falls only when BOTH feet are over the gap (feet span 1 px behind to 38 px ahead of the anchor, mirrored when facing left). One foot over the edge is safe. A pit narrower than her feet falls on the point between her legs. This replaces the earlier center-point rule for walking and the push-only rule (no more snap back). Tests in pushback.test.js (12).

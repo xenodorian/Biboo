@@ -1213,27 +1213,29 @@
   // Pitfalls: gaps in the ground. Her feet on the ground inside one mean instant death (she falls out of sight, then Game Over).
   // Enemies stop at the edge instead of walking in; only a push (a hit, a beam, a blast) can send one over, and then it falls.
   const inPit = px => (curMap && curMap.pits.find(p => px > p.x0 + 2 && px < p.x1 - 2)) || null;
-  const PIT_BODY_MARGIN = 14;            // px of sprite beyond the hurtbox on each side
   let lastPushT = -1e9;                  // when she was last pushed by an enemy or shot
   let pitFall = null;                    // {t0}: she is falling
   const PIT_GRAV = 0.0006;                // px/ms^2: she drops out of the bottom of the view; only then does the run end
   const pitSink = () => pitFall ? PIT_GRAV * (clock - pitFall.t0) * (clock - pitFall.t0) : 0;
   const pitOffScreen = () => pitSink() > V.h - V.feetRow + herTop() * SPRITE_SCALE + 8;   // her head has left the bottom of the view
+  // She falls only when BOTH feet are over the gap: the feet span from 1 px behind to 38 px ahead of the anchor (measured from
+  // the sprite, mirrored when she faces left). Standing with one foot over the edge is safe. A pit narrower than her feet
+  // cannot hold both, so there the point between her legs decides.
+  const FEET_BACK = 1, FEET_FRONT = 38;
+  function feetSpan() { const px = playerX(), f = hf(); return f > 0 ? [px - FEET_BACK, px + FEET_FRONT] : [px - FEET_FRONT, px + FEET_BACK]; }
+  function pitUnderFeet() {
+    const fs = feetSpan(), lx = legsX();
+    for (const p of curMap.pits) {
+      if (p.x1 - p.x0 < FEET_BACK + FEET_FRONT + 4) { if (lx > p.x0 + 2 && lx < p.x1 - 2) return p; }
+      else if (fs[0] >= p.x0 - 1 && fs[1] <= p.x1 + 1) return p;
+    }
+    return null;
+  }
   function checkPit() {
     if (pitFall || !curMap || !curMap.pits.length || floorY !== 0 || herY() > 1.5) return;
-    const p = inPit(legsX());
+    if (stun || slide) return;                                     // still being pushed: wait and see where it ends
+    const p = pitUnderFeet();
     if (!p) return;
-    // A push (hit, slide, stun) only drops her when she is carried fully over the edge: her whole body inside the gap.
-    // Otherwise she is set back on the ground at the nearer edge.
-    if (stun || slide || clock - lastPushT < 300) return;                        // still being pushed: wait and see where it ends
-    if (clock - lastPushT < 1200) {
-      const b = herBox();
-      if (!(b[0] - PIT_BODY_MARGIN > p.x0 && b[2] + PIT_BODY_MARGIN < p.x1)) {     // the drawn body is wider than the hurtbox: all of it must be over the gap
-        const px = legsX();
-        x += (px - p.x0 < p.x1 - px) ? p.x0 - px : p.x1 - px;
-        return;
-      }
-    }
     if (cheats.invincible) {                                       // the cheat keeps her out of the hole: back to the nearer edge
       const px = legsX();
       x += (px - p.x0 < p.x1 - px) ? p.x0 - 4 - px : p.x1 + 4 - px;
