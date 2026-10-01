@@ -287,3 +287,10 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 - st44: image loads retry up to 4 times before the "missing asset" message (a build being published or a dropped phone connection); test asset_retry.test.js. The cloud beam file exists on the live site.
 
 - st45: platforms and blocks use her whole drawn body (hurtbox plus 6 px each side) for support, landing and drop-through, not just the anchor point. web/tests/platform_edge.test.js.
+
+## st46
+- Turning keeps her body where it was: the sprite mirrors about the anchor, so the anchor now moves 2 x BODY (64 px) on a turn instead of the body and feet swinging across (skipped if it would push the anchor into a block or the map edge). Pit falls now use the body centre, not the anchor.
+- A hit taken in the air over a platform or block now lands on it (before, she dropped through to the floor she left from).
+- Coming down onto a crate (any part of her over it, feet crossing its top) smashes it.
+- Tests: turn_stun.test.js (10). progression test expectations include the Hard reset button.
+- Not reproduced: a hit near a pit edge that clips her through the ground. I ran 40 hit/pit/platform/block combinations and found no unexpected fall; the changes above are the cases I could find.

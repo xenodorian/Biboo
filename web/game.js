@@ -936,7 +936,7 @@
     }
     x = side === 'left' ? 26 : MAP_W - 26; facing = side === 'left' ? 1 : -1;
     floorY = 0; fall = null; stun = null; slide = null; cur = null; queued = null; hold = null; rumble = null; tint = null;
-    invuln = clock + 600; prevFeet = null; lastCx = null; camX = V.anchorX; camY = 0; fadeUntil = clock + FADE_MS;
+    visFace = facing; invuln = clock + 600; prevFeet = null; lastCx = null; camX = V.anchorX; camY = 0; fadeUntil = clock + FADE_MS;
     if (killsEl) killsEl.textContent = '';
   }
   function exitMap(dir) {                        // true when the map changed (or the level ended)
@@ -975,6 +975,12 @@
     const feet = herY();
     const flying = !stun && cur && (fall || cur.kind === 'fall' || (cur.kind === 'action' && cur.id === 'jump'));
     if (flying && prevFeet !== null && feet < prevFeet) {
+      const sp = span(px);                                         // coming down onto a crate smashes it (any part of her over it)
+      for (const c of curMap.crates) {
+        if (c.broken) continue;
+        const bx = crateBox(c);
+        if (sp[1] >= bx[0] && sp[0] <= bx[2] && prevFeet > bx[3] - 2 && feet <= bx[3] + 1) breakCrate(c);
+      }
       let T = -1;
       for (const sf of surfaces(curMap)) if (sf.top > floorY && overSurf(sf, span(px)) && prevFeet > sf.top && feet <= sf.top && sf.top > T) T = sf.top;
       if (T >= 0) {
@@ -1213,7 +1219,7 @@
   const pitOffScreen = () => pitSink() > V.h - V.feetRow + herTop() * SPRITE_SCALE + 8;   // her head has left the bottom of the view
   function checkPit() {
     if (pitFall || !curMap || !curMap.pits.length || floorY !== 0 || herY() > 1.5) return;
-    const p = inPit(playerX());
+    const p = inPit(bodyX());
     if (!p) return;
     // A push (hit, slide, stun) only drops her when she is carried fully over the edge: her whole body inside the gap.
     // Otherwise she is set back on the ground at the nearer edge.
@@ -1221,13 +1227,13 @@
     if (clock - lastPushT < 1200) {
       const b = herBox();
       if (!(b[0] - PIT_BODY_MARGIN > p.x0 && b[2] + PIT_BODY_MARGIN < p.x1)) {     // the drawn body is wider than the hurtbox: all of it must be over the gap
-        const px = playerX();
+        const px = bodyX();
         x += (px - p.x0 < p.x1 - px) ? p.x0 - px : p.x1 - px;
         return;
       }
     }
     if (cheats.invincible) {                                       // the cheat keeps her out of the hole: back to the nearer edge
-      const px = playerX();
+      const px = bodyX();
       x += (px - p.x0 < p.x1 - px) ? p.x0 - 4 - px : p.x1 + 4 - px;
       floater(bodyX(), 40, 'Saved', '#ffd24a');
       return;
@@ -1620,7 +1626,15 @@
     x += stun.v * dt;
     const v = stun.v - Math.sign(stun.v) * stun.a * dt;
     stun.v = Math.sign(v) === Math.sign(stun.v) ? v : 0;
-    if (stun.y > 0) { stun.vy += 0.0018 * dt; stun.y = Math.max(0, stun.y - stun.vy * dt); }
+    if (stun.y > 0) {
+      const f0 = floorY + stun.y;
+      stun.vy += 0.0018 * dt; stun.y = Math.max(0, stun.y - stun.vy * dt);
+      if (curMap) {                                   // knocked while in the air: land on a platform or block she falls through, not below it
+        let T = -1; const sp = span(playerX());
+        for (const sf of surfaces(curMap)) if (sf.top > floorY && overSurf(sf, sp) && f0 > sf.top && floorY + stun.y <= sf.top && sf.top > T) T = sf.top;
+        if (T >= 0) { floorY = T; stun.y = 0; }
+      }
+    }
     if (stun.v === 0 && stun.y === 0 && (!stun.until || clock >= stun.until)) {
       if (stun.until) { if (typeof gameOver !== 'undefined' && gameOver) { stun = null; cur = null; return; } hp = MAX_HP; floater(bodyX(), herY() + herTop() + 6, '+' + MAX_HP, GREEN); }
       stun = null; cur = null; holdState(clock);
@@ -2191,6 +2205,16 @@
   const ignoreUntilUp = new Set();
   function ignoreHeldButtons() { for (const b of BUTTONS) if (btnHeld(b)) ignoreUntilUp.add(b); }
 
+  // Turning mirrors the sprite about her anchor, but her body sits BODY px ahead of it, so a bare flip would swing the body
+  // (and her feet) 2*BODY px across. Instead the anchor moves so her body stays where it was. Skipped where that would
+  // push the anchor into a block or a map edge.
+  let visFace = 1;
+  function turnShift(from, to) {
+    const shift = (from - to) * BODY, ax = playerX() + shift, feet = herY();
+    if (ax < EDGE + 2 || ax > MAP_W - EDGE - 2) return;
+    if (curMap && curMap.solids.some(sd => feet < sd.top - 2 && ax + FOOT > sd.x0 && ax - FOOT < sd.x1)) return;
+    x += shift;
+  }
   function tickLevel(t, dt) {
     clock += dt;                                      // game time: it does not run while a menu is open
     if (pitFall) {                                    // she fell into a pit: the rest of the world goes on while she drops out of sight
@@ -2203,6 +2227,7 @@
     for (const e of reader.update(t)) request(e.move, e.move === 'slash' && e.via === 'tap' ? 'press' : e.via);
     const before = cur && BLOCKED.has(cur.id) ? playerX() : null;
     step(dt, t);
+    { const vf = hf(); if (vf !== visFace) { if (!stun) turnShift(visFace, vf); visFace = vf; } }
     if (cur && cur.crash && cur.id === 'jump' && rootOf(cur)[1] > 0) airCrash('air');
     blockMove(before);
     physics();

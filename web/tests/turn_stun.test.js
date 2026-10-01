@@ -1,0 +1,58 @@
+/* Turning keeps her body where it was (the anchor moves, not the feet), and a hit taken in the air over a platform lands on it.
+ * Run: NODE_PATH=$(npm root -g) node web/tests/turn_stun.test.js */
+const path = require('path');
+const { chromium } = require('playwright');
+(async () => {
+  const b = await chromium.launch(), page = await b.newPage({ viewport: { width: 1200, height: 900 } });
+  const errors = []; page.on('pageerror', e => errors.push(String(e)));
+  await page.goto('file://' + path.resolve(__dirname, '../index.html'));
+  await page.waitForFunction(() => document.getElementById('btn-start') && window.bibooGame, null, { timeout: 20000 });
+  const ev = j => page.evaluate(j), wait = ms => page.waitForTimeout(ms), res = [];
+  const check = (n, ok, d) => { res.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${n}${ok ? '' : '  ' + JSON.stringify(d)}`); };
+  const S = () => ev('bibooGame.state()');
+  const tap = async (k, ms = 60) => { await page.keyboard.down(k); await wait(ms); await page.keyboard.up(k); };
+  const body = async () => { const s = await S(); const f = await ev('bibooGame.facing()'); return { b: s.px + f * 32, f, px: s.px, fy: s.floorY }; };
+
+  // ---- turning on open ground: the body stays put
+  await ev(`bibooGame.custom(${JSON.stringify({ enemies: [] })})`); await wait(900);
+  await ev('bibooGame.setX(200)'); await wait(500);
+  let a = await body();
+  await tap('ArrowLeft', 40); await wait(500);
+  let c = await body();
+  check('turning left flips her without moving her body', a.f === 1 && c.f === -1 && Math.abs(c.b - a.b) < 12, { a, c });
+  await tap('ArrowRight', 40); await wait(500);
+  let d = await body();
+  check('turning back right keeps the body in place too', d.f === 1 && Math.abs(d.b - c.b) < 12, { c, d });
+
+  // ---- turning on a narrow ledge does not carry her feet off it
+  await ev(`bibooGame.custom(${JSON.stringify({ plats: [{ x0: 150, x1: 200, top: 60 }], enemies: [] })})`); await wait(900);
+  await ev('bibooGame.setX(175)'); await wait(300);
+  await tap('ArrowUp', 50); await wait(1400);
+  let s = await S();
+  check('set up: standing on the 50 px ledge', s.floorY === 60, s);
+  for (let i = 0; i < 6; i++) { await tap(i % 2 ? 'ArrowRight' : 'ArrowLeft', 40); await wait(350); }
+  s = await S();
+  check('after six quick turns she is still standing on the ledge', s.floorY === 60, { fy: s.floorY, px: s.px });
+
+  // ---- a hit taken in the air above a platform lands on the platform, not through it
+  await ev(`bibooGame.custom(${JSON.stringify({ plats: [{ x0: 150, x1: 330, top: 30 }], enemies: [{ type: 'goblin', x: 235, fy: 30, path: [235, 235], sight: 0 }] })})`); await wait(900);
+  await ev('bibooGame.setX(200)'); await wait(600);
+  let minFloor = 1e9, hit = false, landed = null, tries = 0;
+  await tap('ArrowUp', 40); await wait(300);
+  await ev("bibooGame.setRespawn(false); bibooGame.attack(0, 'slash')");
+  for (let i = 0; i < 70; i++) { await wait(30); const t = await S(); minFloor = Math.min(minFloor, t.floorY); landed = t.floorY; }
+  hit = (await ev('bibooGame.combat()')).hits >= 1;
+  check('(she was hit in the air)', hit, await ev('bibooGame.combat()'));
+  check('after the hit she is standing on the platform (floor 30)', landed === 30, { landed, minFloor });
+  // ---- jumping down onto a crate smashes it
+  await ev(`bibooGame.custom(${JSON.stringify({ enemies: [], crates: [{ x: 200, fy: 0 }, { x: 330, fy: 0 }] })})`); await wait(900);
+  await ev('bibooGame.setX(190)'); await wait(400);
+  let cr = (await S()).crates;
+  check('set up: two whole crates', cr.length === 2 && cr.every(c => !c.broken), cr);
+  await tap('ArrowUp', 40); await wait(1200);
+  cr = (await S()).crates;
+  check('jumping on the crate (straight up and down) smashes it', cr[0].broken, cr);
+  check('the far crate is untouched', !cr[1].broken, cr);
+  check('no page errors', errors.length === 0, errors);
+  console.log(`${res.filter(Boolean).length}/${res.length} passed`); await b.close(); process.exit(res.every(Boolean) ? 0 : 1);
+})();

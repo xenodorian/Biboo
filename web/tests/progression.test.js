@@ -23,7 +23,7 @@ const { chromium } = require('playwright');
   // ---- 1. load, title menu
   let s = await S();
   check('title screen, no errors', s.screen === 'title' && errors.length === 0, { s: s.screen, errors });
-  check('title menu lists Start, Moves, Gems, Fullscreen', JSON.stringify(await labels()) === JSON.stringify(['Start', 'Moves', 'Gems', 'Fullscreen']), await labels());
+  check('title menu lists Start, Moves, Gems, Fullscreen, Hard reset', JSON.stringify(await labels()) === JSON.stringify(['Start', 'Moves', 'Gems', 'Fullscreen', 'Hard reset (erase save)']), await labels());
   check('old controls panel and combo table removed from the page', await ev("!document.querySelector('#pad-section') && document.querySelectorAll('table.moves-table').length === 0"), null);
 
   // ---- 2. moves menu at first launch
@@ -166,7 +166,7 @@ const { chromium } = require('playwright');
   check('walking over a gem stores it in the bag (+1 health)', s.health === bag0 + 1 && (await S()).fx.gems === 0, s);
   await ev('bibooGame.hurtHer(0)');
   await ev('bibooGame.setHp(100)'); await key('Escape'); await wait(200);
-  check('Escape pauses with the menu (Resume, Moves, Gems, Back to overworld, Fullscreen)', JSON.stringify(await labels()) === JSON.stringify(['Resume', 'Moves', 'Gems', 'Back to the overworld', 'Fullscreen']), await labels());
+  check('Escape pauses with the menu (Resume, Moves, Gems, Back to overworld, Fullscreen, Hard reset)', JSON.stringify(await labels()) === JSON.stringify(['Resume', 'Moves', 'Gems', 'Back to the overworld', 'Fullscreen', 'Hard reset (erase save)']), await labels());
   await clickText('Gems');
   let rows = await page.$$eval('#menu-view .gem-row', r => r.map(x => ({ t: x.textContent, dis: x.querySelector('button').disabled })));
   check('Gems menu: health Use is enabled, the rest disabled', !rows[0].dis && rows.slice(1).every(r => r.dis), rows);
