@@ -40,9 +40,11 @@
   D.input.bindings.push({ input: 'Y', type: 'press', move: 'spin_attack' });
   D.moves.spin_attack.input = 'Y'; D.moves.spin_attack.inputType = 'press';
   D.moves.heavy.input = 'A (release)';
-  // The push kick's hurtbox (the part that damages) is a box from her pivot (38 px in the sheet) forward to 102.9 px, from 1 px above the
+  // The push kick's hurtbox (the part that damages) is a box from her pivot (38 px in the sheet) forward to 95 px, from 1 px above the
   // bottom of the frame (y -1) up to 34.8 px, on both active frames. It replaces the small capsule around the foot.
-  for (const k of [1, 2]) D.moves.push_kick.frames[k].hits = [{ shape: 'box', a: [38, -1], b: [102.9, 34.8] }];
+  for (const k of [1, 2]) D.moves.push_kick.frames[k].hits = [{ shape: 'box', a: [38, -1], b: [95, 34.8] }];            // ends on the last white arc (sheet x 95 from the anchor)
+  // The energy kick uses the same box, 38 to 102.9 from its own anchor (its arcs end at 101).
+  for (const k of [1, 2]) D.moves.energy_kick.frames[k].hits = [{ shape: 'box', a: [38, -1], b: [102.9, 34.8] }];
   // sky dash is Down then Up (taunt stays X+Y)
   D.input.bindings = D.input.bindings.filter(b => b.move !== 'sky_dash');
   D.input.bindings.push({ input: 'Down-Up', type: 'sequence', move: 'sky_dash' });
