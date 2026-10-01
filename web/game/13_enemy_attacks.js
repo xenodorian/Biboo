@@ -123,6 +123,7 @@
         e.landAt = clock + HIT_DELAY;   // contact: the hit lands shortly, parry still possible
       }
       if (clock < e.landAt) continue;
+      { const h = boxOf(e, frameOf(e).hit); if (!h || !overlap(h, me)) { e.hitDone = true; continue; } }   // she slipped out of the held strike: a miss
       e.hitDone = true;
       if (blocking()) blocked(e);
       else if (clock >= invuln && !stun) knocked(e);

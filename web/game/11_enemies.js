@@ -242,6 +242,7 @@
     let A = T.anims[e.anim], ended = false;
     dt *= (e.speedMul || 1);            // taunted: everything it does, walking, swinging and resting, runs 2x as fast
     if (e.taunted && (!e.tint || clock >= e.tint.until)) e.tint = TAUNT_TINT;   // back to red after a flash
+    if (e.state === 'attack' && e.landAt && !e.hitDone && clock < e.landAt) dt = 0;   // it touched her: hold the striking pose until the hit lands (or she parries), so the damage always lands on a frame that is touching her
     e.t += dt;
     while (e.t >= T.frames[A.frames[e.k]].ms) {
       e.t -= T.frames[A.frames[e.k]].ms;
