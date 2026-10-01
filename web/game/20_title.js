@@ -26,7 +26,7 @@
       }
     };
     const intro = Math.min(1, T / 700);
-    g.globalAlpha = intro; draw('PERRY', 200, 52 - (1 - intro) * 14, 34); draw('RIPOSTE', 200, 88 - (1 - intro) * 14, 34); g.globalAlpha = 1;
+    g.globalAlpha = intro; draw('PARRYING', 200, 52 - (1 - intro) * 14, 34); draw('PERRY', 200, 88 - (1 - intro) * 14, 34); g.globalAlpha = 1;
     // a sword slash sweeping across the logo, now and then
     const sweep = (T % 4200) / 4200, sx0 = 60 + sweep * 3 * 360;
     if (sweep < 0.34) { g.globalAlpha = 0.85 * Math.sin(sweep / 0.34 * Math.PI); g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(sx0 - 40, 120); g.lineTo(sx0 + 10, 28); g.stroke(); g.lineWidth = 1; g.beginPath(); g.moveTo(sx0 - 30, 120); g.lineTo(sx0 + 20, 28); g.stroke(); g.globalAlpha = 1; }

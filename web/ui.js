@@ -106,7 +106,7 @@
     if (hero) hero.style.display = (UI.view === 'main' && !(api.isTitle && api.isTitle())) || (UI.view === 'message' && !UI.opts.story) ? '' : 'none';
     const o = UI.opts;
     if (UI.view === 'main') {
-      title.textContent = o.title || 'Perry Riposte';
+      title.textContent = o.title || 'Parrying Perry';
       msg.textContent = o.msg != null ? o.msg : 'Defeat the goblins and orcs';
       const list = h('div', 'actions');
       for (const it of api.mainItems()) list.appendChild(button(it.label, it.fn, it.primary ? 'primary' : '', it.id));

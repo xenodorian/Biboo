@@ -64,3 +64,4 @@ See repository history for full rules. Work on main, claim steps.
 - st89 to st91: boat halved, then raised and lowered to clear the shore (boatY 185).
 - st92 to st96: cutscene shadows and boat reflection, darker shadows, burning-house Perry lowered 8 px, evil Perry matched to Perry's size, reflection attached to the hull and doubled in opacity, sprites made stationary, per-scene shadow opacity set by the owner.
 - st97: title screen disc shadow replaced with a real cast shadow.
+- st98: title screen logo reads PARRYING over PERRY (menu title Parrying Perry); subtitle still A PERRY RIPOSTE ADVENTURE; page title, h1 and final card text still say Perry Riposte.
