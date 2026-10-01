@@ -174,12 +174,12 @@
       const boat = img['assets/story/view/boat.png'] && img['assets/story/view/boat.png'].im;
       const bob = Math.sin(T * 0.003) * 2, tilt = Math.sin(T * 0.0021) * 0.025;
       if (boat) {                                                   // her reflection first: the boat mirrored in the water, rippled and fading with depth
-        const left0 = c.boatX - 75, base = c.boatY + 4 + bob, bw = boat.width, bh = boat.height;
+        const left0 = c.boatX - 75, bw = boat.width, bh = boat.height, hb = bh - 5, hull = c.boatY + 4 + bob - 5;   // mirrored about the keel, so it touches the hull
         g.save();
-        for (let r = 0; r < bh; r++) {
-          const depth = r / bh, off = Math.round(Math.sin(r * 0.9 + T * 0.004) * (0.7 + depth * 2.6));
-          g.globalAlpha = 0.5 * (1 - depth) * (Math.sin(r * 1.7 + T * 0.006) > -0.5 ? 1 : 0.45);   // gaps in the lines of reflection, as water breaks them up
-          g.drawImage(boat, 0, bh - 1 - r, bw, 1, left0 + off, Math.round(base + r * 0.85), bw, 1);
+        for (let r = 0; r < hb; r++) {
+          const depth = r / hb, off = Math.round(Math.sin(r * 0.9 + T * 0.004) * (0.4 + depth * 2.6));
+          g.globalAlpha = Math.min(1, 1.0 * (1 - depth * 0.85) * (Math.sin(r * 1.7 + T * 0.006) > -0.5 ? 1 : 0.6));
+          g.drawImage(boat, 0, hb - r, bw, 1, left0 + off, Math.round(hull + r), bw, 1);
         }
         g.restore();
       }

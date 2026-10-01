@@ -449,3 +449,4 @@ Plan and status (each step is pushed on its own; resume from the first unchecked
 ## st92 (cutscene shadows and reflection, not run in a browser)
 - 18_story.js: castShadow() lays a silhouette of Perry (and the twin) on the ground along each scene's light (SC[...].L: sx, sy, a, col). Altar scene steps the shadow up the stair treads (L.steps); the cliff scene clips it to the grass (L.clip). Miracle Island draws a rippled, fading mirror image of the boat and Perry in the water instead of a shadow. Scene feet lines were raised a little (calm, fire, double) so shadows stay on screen.
 - st93: shadows doubled (alpha 1.0, darker colours), temple shadow longer and near-black, burning-house Perry lowered 8 px, evil Perry now drawn at Perry's scale in both scenes.
+- st94: boat reflection mirrored about the keel (touches the hull) and twice as opaque.
