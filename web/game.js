@@ -1387,9 +1387,7 @@
   }
   function stepEnemy(e, dt) {
     stepEnemyCore(e, dt);
-    if (e.anim === 'dive' && e.state === 'attack') {          // the backflip throws its shards
-      while (e.shotK < e.k) { e.shotK++; if (SHOT_AT.includes(e.shotK)) fireShot(e); }
-    }
+    // the goblin's roll (its 'dive' animation) is a melee attack: its low hit box on frames 19 and 20 does the damage, and it throws nothing
     if (e.state === 'dying') return;
     let free = false;
     if (e.jump) return;

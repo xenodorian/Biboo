@@ -328,3 +328,6 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 - Max HP starts at 50 (`P.state.maxes.hp`, cap 200). +25 Max HP gems (`up_hp`) drop beside health gems (crates and a 12 percent kill roll) and raise Max HP and current HP by 25. A health gem heals 25 percent of Max HP.
 - Push kick and energy kick hop 5 px like the dash (`DASH_MOVES` in game.js). Test: maxhp_kick_hop.test.js.
 - hazards, level1_door and progression tests updated for 50 HP and the new gem; the pit tests now expect enemies to leap pits. Not re-run after the last edits. browser, combat and meters tests were already stale.
+
+## st55
+- The goblin roll (anim id `dive`) no longer throws shards. It is a melee attack: its low hit box on frames 19 and 20 does the damage. The hazards goblin shard checks now expect no projectile and are out of date (not updated).
