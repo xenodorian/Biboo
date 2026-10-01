@@ -936,7 +936,7 @@
       const sf = d.fy > 0 ? surfaceAt(curMap, d.x, d.fy) : null;    // an enemy on a platform never leaves it
       let lo = sf ? sf.x0 + 8 : 8, hi = sf ? sf.x1 - 8 : MAP_W - 8;
       const lo0 = lo, hi0 = hi;
-      if (!sf) for (const p of curMap.pits) { if (p.x1 <= d.x) lo = Math.max(lo, p.x1 + 8); else if (p.x0 >= d.x) hi = Math.min(hi, p.x0 - 8); }   // a ground enemy stays between the pits
+      if (!sf) for (const p of curMap.pits) { if (p.x1 <= d.x) lo = Math.max(lo, p.x1 + 2); else if (p.x0 >= d.x) hi = Math.min(hi, p.x0 - 2); }   // a ground enemy stays between the pits
       spawn(d.type, d.x, { fy: d.fy, path: d.path, sight: d.sight, key, lo, hi, lo0, hi0 });
     });
     for (const c of curMap.crates) {                                 // a golden crate smashed earlier whose item was not picked up
@@ -1456,14 +1456,16 @@
     }
     return null;
   }
-  const ENEMY_JUMP_H = 22, ENEMY_JUMP_MAX = 140;     // arc height, widest gap an enemy will leap
+  // They try any gap up to ENEMY_JUMP_MAX wide, but the orc's jump only carries ENEMY_JUMP_DIST px, so wherever that falls short of
+  // the far edge it lands in the pit and is lost (a goblin always makes the 140 it attempts).
+  const ENEMY_JUMP_H = 22, ENEMY_JUMP_MAX = 140, ENEMY_JUMP_DIST = { goblin: 200, orc: 60 }, ENEMY_LAND_OFF = { goblin: 10, orc: 4 };     // arc height, widest gap an enemy will leap
   function setRange(e) {                          // the stretch of surface that holds the enemy where it stands: a platform, or the ground between pits
     if ((e.fy || 0) > 0) {
       const sf = surfaceAt(curMap, e.x, e.fy);
       if (sf) { e.lo = e.lo0 = sf.x0 + 8; e.hi = e.hi0 = sf.x1 - 8; return; }
     }
     let lo = 8, hi = MAP_W - 8;
-    for (const p of curMap.pits) { if (p.x1 <= e.x) lo = Math.max(lo, p.x1 + 8); else if (p.x0 >= e.x) hi = Math.min(hi, p.x0 - 8); }
+    for (const p of curMap.pits) { if (p.x1 <= e.x) lo = Math.max(lo, p.x1 + 2); else if (p.x0 >= e.x) hi = Math.min(hi, p.x0 - 2); }
     e.lo = lo; e.hi = hi; e.lo0 = 8; e.hi0 = MAP_W - 8;
   }
   function clampEnemy(e, free) {                 // free: it was pushed, so only the walls of the map hold it (pits can take it)
@@ -1514,6 +1516,7 @@
         e.jy = j.fall ? dy * u * u : dy * u + 4 * j.H * u * (1 - u);          // a jump arcs, a drop falls
         if (u >= 1) {
           e.jump = null; e.jy = 0; e.fy = j.fy1; setRange(e); e.prevX = e.x;
+          if (j.doom) { plunge(e); return; }                                       // it came down in the pit
           if (e.path && j.fy1 !== j.fy0) e.path = [e.lo + 6, Math.max(e.lo + 6, e.hi - 6)];   // a patrol resumes on the surface it landed on
         }
         return;
@@ -1591,12 +1594,16 @@
     } else {
       if (e.anim !== 'walk') play(e, 'walk');
       if ((e.fy || 0) === 0 && curMap && curMap.pits.length) {       // a pit between it and her: jump it when it reaches the edge
-        const q = curMap.pits.find(p => e.face > 0 ? (p.x0 - e.x >= -2 && p.x0 - e.x < 12 && bodyX() > p.x1)
-                                                    : (e.x - p.x1 >= -2 && e.x - p.x1 < 12 && bodyX() < p.x0));
+        if (e.hopAt == null) e.hopAt = 3 + Math.random() * 10;                 // how close to the edge it takes off (rerolled after each jump)
+        const q = curMap.pits.find(p => e.face > 0 ? (p.x0 - e.x >= -2 && p.x0 - e.x < e.hopAt && bodyX() > p.x1)
+                                                    : (e.x - p.x1 >= -2 && e.x - p.x1 < e.hopAt && bodyX() < p.x0));
         if (q && q.x1 - q.x0 <= ENEMY_JUMP_MAX && Math.abs(herY() - e.fy) < 40) {
-          const tx = e.face > 0 ? q.x1 + 10 : q.x0 - 10;
-          if (!curMap.pits.some(o => tx > o.x0 - 4 && tx < o.x1 + 4)) {
-            e.jump = { x0: e.x, x1: tx, fy0: e.fy || 0, fy1: e.fy || 0, H: ENEMY_JUMP_H, t: 0, dur: 420 + Math.abs(tx - e.x) * 4 };
+          const off = ENEMY_LAND_OFF[e.type] || 10, want = e.face > 0 ? q.x1 + off : q.x0 - off;     // where it means to land
+          if (!curMap.pits.some(o => want > o.x0 - 4 && want < o.x1 + 4)) {
+            const far = ENEMY_JUMP_DIST[e.type] || 200, reach = Math.min(Math.abs(want - e.x), far), tx = e.x + e.face * reach;
+            const doom = curMap.pits.some(o => tx > o.x0 && tx < o.x1);                          // a jump that is too short drops it into the pit
+            e.jump = { x0: e.x, x1: tx, fy0: e.fy || 0, fy1: e.fy || 0, H: ENEMY_JUMP_H, t: 0, dur: 420 + reach * 4, doom };
+            e.hopAt = null;
             return;
           }
         }
