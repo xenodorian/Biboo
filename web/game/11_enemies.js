@@ -27,8 +27,12 @@
     }
     ENEMY_REACH[t] = r;
   }
+  const SIGHT_MUL = 2;                  // every enemy sees twice as far as its level data says (and spots her up to twice as far above or below)
   const DIE_MS = 900;                   // death: animation or flicker, then fade
 
+  // Enemies only ever look at two things of hers: her hurtbox (herBox, where she takes damage) and the hit shapes of her own attacks.
+  // Where she is, for sight, chasing, facing and hopping, is the middle of that hurtbox: no other body point or collision box counts.
+  const herMidX = () => { const b = herBox(); return (b[0] + b[2]) / 2; };
   function playerX() {
     if (!cur || fall || cur.kind === 'fall' || cur.kind === 'land') return x;
     return x + rootOf(cur)[0];
@@ -40,7 +44,7 @@
     const hp0 = hpOverride || ENEMY_HP[type] || (EN[type] && EN[type].ai.hp) || 60;
     const e = { type, hp: hp0, maxHp: hp0, x: wx, base: wx, face: -1, anim: 'walk', k: 0, t: 0, state: 'walk', rest: 0, dead: 0, dive: Math.random() < 0.5, scale: 1,   // scale 1 = the normal (already scaled down) size; only the Empowerment Beam makes one larger
                 fy: o.fy || 0, lo: o.lo != null ? o.lo : 8, hi: o.hi != null ? o.hi : MAP_W - 8, lo0: o.lo0 != null ? o.lo0 : 8, hi0: o.hi0 != null ? o.hi0 : MAP_W - 8, shotK: 0, key: o.key || null,
-                path: o.path || null, sight: o.sight || 100, pause: 0, far: 0, prevX: wx, dir: 1, comboReady: true, meleeSeen: false };
+                path: o.path || null, sight: (o.sight || 100) * SIGHT_MUL, pause: 0, far: 0, prevX: wx, dir: 1, comboReady: true, meleeSeen: false };
     enemies.push(e);
     if (EN[type] && EN[type].ai.prop) { e.anim = 'idle'; e.state = 'idle'; e.face = -1; return e; }          // a training prop (the heavy bag): no walking, no attacks
     if (e.path) {                                    // patrol: walk between the two ends until hit or until she comes into view
@@ -111,9 +115,9 @@
   const espeed = (e, ai) => ai.speed * (ai.boss && e.hp < e.maxHp / 2 ? 1.45 : 1);     // a boss below half HP is enraged: faster
   function sees(e) {
     if (!curMap) return false;
-    const bxp = bodyX(), dx = bxp - e.x;
+    const bxp = herMidX(), dx = bxp - e.x;
     if (dx * e.face <= 0 || Math.abs(dx) > e.sight) return false;      // only in front of it, and only within sight
-    if (Math.abs(herY() - e.fy) > 60) return false;                    // she is on another level
+    if (Math.abs(herY() - e.fy) > 60 * SIGHT_MUL) return false;        // she is too far above or below
     for (const s of curMap.solids)                                     // a barrier taller than its eyes and than her blocks the view
       if (s.x1 > Math.min(e.x, bxp) && s.x0 < Math.max(e.x, bxp) && s.top > e.fy + 36 && s.top > herY() + 20) return false;
     return true;
@@ -142,9 +146,9 @@
   // keep an enemy inside its range and out of barriers taller than the surface it stands on
   // The goblin climbs: it jumps up onto a platform up to HOP_UP px above it, drops off a platform edge toward her, and hops a gap
   // between two platforms of the same height. planHop picks the launch point and the landing (null when there is nothing to do).
-  const CLIMBERS = new Set(['goblin']), HOP_UP = 70, HOP_X = 130;
+  const HOP_UP = 70, HOP_X = 130;           // every enemy climbs, drops and hops like this once it has noticed her
   function planHop(e) {
-    const fy = e.fy || 0, her = floorY, bx = bodyX(), surf = surfaces(curMap);
+    const fy = e.fy || 0, her = floorY, bx = herMidX(), surf = surfaces(curMap);
     const inPit = x => curMap.pits.some(p => x > p.x0 - 2 && x < p.x1 + 2);
     if (her > fy + 1) {                                                   // she is higher: jump up
       let best = null;
@@ -222,6 +226,17 @@
     }
     clampEnemy(e, free);
   }
+  // The attacks whose damage box would touch her hurtbox on one of its hitting frames, from where the enemy stands now.
+  function strikeAttacks(e, me) {
+    const T = EN[e.type], out = [];
+    for (const a of T.ai.attacks) {
+      if (a === 'combo') continue;
+      const fr = T.anims[a].frames, g0 = T.frames[fr[0]].ground || 0;
+      const probe = { face: e.face, scale: e.scale, fy: e.fy, jy: e.jy, base: e.x - (e.face < 0 ? g0 : -g0) };
+      if (fr.some(k => { const h = boxOf(probe, T.frames[k].hit); return h && overlap(h, me); })) out.push(a);
+    }
+    return out;
+  }
   function stepEnemyCore(e, dt) {
     const T = EN[e.type], ai = T.ai;
     let A = T.anims[e.anim], ended = false;
@@ -259,9 +274,9 @@
       return;
     }
     if (e.state === 'patrol') { patrol(e, dt); return; }
-    const d = bodyX() - e.x, dist = Math.abs(d);
+    const d = herMidX() - e.x, dist = Math.abs(d);
     if (e.path && (e.state === 'idle' || e.state === 'walk')) {       // chasing: give up when she is gone for a while
-      e.far = dist > e.sight * 2.5 || Math.abs(herY() - e.fy) > 110 ? e.far + dt : 0;
+      e.far = dist > e.sight * 2.5 || Math.abs(herY() - e.fy) > 110 * SIGHT_MUL ? e.far + dt : 0;
       if (e.far > 3500) { e.state = 'patrol'; e.far = 0; e.pause = 0; e.dir = e.x < (e.path[0] + e.path[1]) / 2 ? 1 : -1; play(e, 'walk'); return; }
     }
     // wait behind another enemy that is already closer to her
@@ -293,29 +308,34 @@
         e.comboReady = false; e.meleeSeen = false; e.state = 'attack'; play(e, 'combo');
         return;
       }
-      if (CLIMBERS.has(e.type) && curMap && (!sameLevel || (e.fy || 0) > 0)) {
-        const plan = planHop(e);
-        if (plan) {
-          const dir = plan.launch >= e.x ? 1 : -1;
-          const at = Math.abs(e.x - plan.launch) <= 3 || (dir > 0 && e.x >= e.hi - 1 && plan.launch >= e.hi - 1) || (dir < 0 && e.x <= e.lo + 1 && plan.launch <= e.lo + 1);
-          if (at) {
-            const dy = plan.fy1 - (e.fy || 0), fall = plan.kind === 'drop';
-            e.jump = { x0: e.x, x1: plan.land, fy0: e.fy || 0, fy1: plan.fy1, fall, H: plan.kind === 'up' ? 16 : ENEMY_JUMP_H,
-                       t: 0, dur: fall ? Math.sqrt(2 * Math.abs(dy) / 0.0018) + 80 : 420 + Math.abs(plan.land - e.x) * 3 + Math.max(0, dy) * 2 };
-            return;
-          }
-          turn(e, dir); if (e.anim !== 'walk') play(e, 'walk');
-          const mv = dir * Math.min(espeed(e, ai) * dt / 1000, Math.abs(plan.launch - e.x));
-          e.x += mv; e.base += mv;
+    }
+    // An attack goes out as soon as the damage box of one of its attacks would reach her hurtbox from where the enemy stands.
+    const strike = strikeAttacks(e, me);
+    if (strike.length) {
+      e.state = 'attack'; e.meleeSeen = true;
+      play(e, strike[Math.floor(Math.random() * strike.length)]);
+      return;
+    }
+    // Every enemy that has noticed her climbs up onto a platform she is on, drops off the edge of its own toward her,
+    // and hops the gap between two platforms of the same height.
+    if (curMap && (!sameLevel || (e.fy || 0) > 0)) {
+      const plan = planHop(e);
+      if (plan) {
+        const dir = plan.launch >= e.x ? 1 : -1;
+        const at = Math.abs(e.x - plan.launch) <= 3 || (dir > 0 && e.x >= e.hi - 1 && plan.launch >= e.hi - 1) || (dir < 0 && e.x <= e.lo + 1 && plan.launch <= e.lo + 1);
+        if (at) {
+          const dy = plan.fy1 - (e.fy || 0), fall = plan.kind === 'drop';
+          e.jump = { x0: e.x, x1: plan.land, fy0: e.fy || 0, fy1: plan.fy1, fall, H: plan.kind === 'up' ? 16 : ENEMY_JUMP_H,
+                     t: 0, dur: fall ? Math.sqrt(2 * Math.abs(dy) / 0.0018) + 80 : 420 + Math.abs(plan.land - e.x) * 3 + Math.max(0, dy) * 2 };
           return;
         }
+        turn(e, dir); if (e.anim !== 'walk') play(e, 'walk');
+        const mv = dir * Math.min(espeed(e, ai) * dt / 1000, Math.abs(plan.launch - e.x));
+        e.x += mv; e.base += mv;
+        return;
       }
     }
-    if (gap <= reach - 1 && !pitBetween && sameLevel) {
-      e.state = 'attack'; e.meleeSeen = true;
-      const melee = ai.attacks.filter(a => a !== 'combo');
-      play(e, (melee.length ? melee : ai.attacks)[Math.floor(Math.random() * (melee.length ? melee : ai.attacks).length)]);
-    } else if (ai.dive && e.dive && !blocked && sameLevel && dist >= ai.dive.min && dist <= ai.dive.max) {
+    if (ai.dive && e.dive && !blocked && sameLevel && dist >= ai.dive.min && dist <= ai.dive.max) {
       e.state = 'attack'; e.dive = false;
       play(e, ai.dive.anim);
     } else if (blocked) {
@@ -324,8 +344,8 @@
       if (e.anim !== 'walk') play(e, 'walk');
       if ((e.fy || 0) === 0 && curMap && curMap.pits.length) {       // a pit between it and her: jump it when it reaches the edge
         if (e.hopAt == null) e.hopAt = 3 + Math.random() * 10;                 // how close to the edge it takes off (rerolled after each jump)
-        const q = curMap.pits.find(p => e.face > 0 ? (p.x0 - e.x >= -2 && p.x0 - e.x < e.hopAt && bodyX() > p.x1)
-                                                    : (e.x - p.x1 >= -2 && e.x - p.x1 < e.hopAt && bodyX() < p.x0));
+        const q = curMap.pits.find(p => e.face > 0 ? (p.x0 - e.x >= -2 && p.x0 - e.x < e.hopAt && herMidX() > p.x1)
+                                                    : (e.x - p.x1 >= -2 && e.x - p.x1 < e.hopAt && herMidX() < p.x0));
         if (q && q.x1 - q.x0 <= ENEMY_JUMP_MAX && Math.abs(herY() - e.fy) < 40) {
           const off = ENEMY_LAND_OFF[e.type] || 10, want = e.face > 0 ? q.x1 + off : q.x0 - off;     // where it means to land
           if (!curMap.pits.some(o => want > o.x0 - 4 && want < o.x1 + 4)) {
@@ -339,6 +359,11 @@
       }
       const eb = hurtOf(e), room = eb ? (e.face < 0 ? eb[0] - me[2] : me[0] - eb[2]) : gap;   // free ground until its hitbox meets hers
       const mv = e.face * Math.max(0, Math.min(espeed(e, ai) * dt / 1000, room));
+      if (mv === 0 && sameLevel && !pitBetween) {                    // its body is against hers and nothing reached: swing anyway
+        const melee = ai.attacks.filter(a => a !== 'combo'), pool = melee.length ? melee : ai.attacks;
+        e.state = 'attack'; e.meleeSeen = true; play(e, pool[Math.floor(Math.random() * pool.length)]);
+        return;
+      }
       if (mv === 0 && e.anim !== 'idle') play(e, 'idle');
       e.x += mv; e.base += mv;
     }

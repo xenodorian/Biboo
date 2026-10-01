@@ -48,7 +48,7 @@
     if (!alive(e)) { parries++; return; }
     e.state = 'stunned';
     play(e, T.ai.stun || 'idle');
-    e.push = { v: p.v * (e.x >= bodyX() ? 1 : -1), a: p.a };
+    e.push = { v: p.v * (e.x >= herMidX() ? 1 : -1), a: p.a };
     e.tint = { color: WHITE, alpha: 0.75, until: clock + ms };
     parries++;
     flashes.push({ wx: (bodyX() + e.x) / 2, wy: herY() + 24, t0: clock, ms: 240, r: 22, c: '#bfe8ff' }); hitStop(90); screenFlash = { c: '#ffffff', a: 0.3, t0: clock, ms: 110 };
@@ -58,7 +58,7 @@
   function knocked(e) {                 // a clean hit: red, pushed away from the enemy, stunned
     const AT = (EN[e.type].ai.atk || {})[e.anim];                      // per-attack damage and knockback (new creatures)
     const [d, ms] = (AT && AT.knock) || EN[e.type].ai.knock, p = push(d, ms);
-    const dir = bodyX() >= e.x ? 1 : -1;
+    const dir = herMidX() >= e.x ? 1 : -1;
     const y = heightAbove();
     if (cur && !fall && cur.kind !== 'fall') x += rootOf(cur)[0];
     fall = null; queued = null; slide = null;
@@ -72,7 +72,7 @@
     if (hp <= 0) { stun.until = clock + KO_MS; floater(bodyX(), herY() + herTop() + 18, 'K.O.', RED); if (typeof triggerGameOver === 'function') triggerGameOver(); }
   }
   function blocked(e) {                 // white, a small slide back, no stun
-    const dir = bodyX() >= e.x ? 1 : -1, p = push(8, 120);
+    const dir = herMidX() >= e.x ? 1 : -1, p = push(8, 120);
     slide = newSlide(p, dir); lastPushT = clock;
     tint = { color: WHITE, alpha: 0.75, until: clock + 150 };
     blocks++;

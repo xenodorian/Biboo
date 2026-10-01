@@ -17,14 +17,14 @@
   }
   function fireShot(e) {
     const ox = e.x + e.face * 14, oy = (e.fy || 0) + 40;
-    const dx = bodyX() - ox, dy = herY() + herTop() * SPRITE_SCALE * 0.5 - oy, L = Math.hypot(dx, dy) || 1;
+    const dx = herMidX() - ox, dy = herY() + herTop() * SPRITE_SCALE * 0.5 - oy, L = Math.hypot(dx, dy) || 1;
     shots.push({ x: ox, y: oy, vx: SHOT_SPEED * dx / L, vy: SHOT_SPEED * dy / L, from: 'foe', t0: clock });
   }
   function stepShots(dt) {
     for (let i = shots.length - 1; i >= 0; i--) {
       const sh = shots[i];
       if (sh.home && sh.from === 'foe' && clock - sh.t0 > HOME_DELAY && !sh.contactAt) {          // after the delay: curve toward her body
-        const ta = Math.atan2(herY() + herTop() * SPRITE_SCALE * 0.5 - sh.y, bodyX() - sh.x), ca = Math.atan2(sh.vy, sh.vx);
+        const ta = Math.atan2(herY() + herTop() * SPRITE_SCALE * 0.5 - sh.y, herMidX() - sh.x), ca = Math.atan2(sh.vy, sh.vx);
         let d = ta - ca; d = Math.atan2(Math.sin(d), Math.cos(d));
         const na = ca + Math.max(-HOME_TURN * dt, Math.min(HOME_TURN * dt, d));
         sh.vx = Math.cos(na) * HOME_SPEED; sh.vy = Math.sin(na) * HOME_SPEED;
