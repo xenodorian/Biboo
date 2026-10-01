@@ -1301,6 +1301,18 @@
   // that its swing overlaps the body on the first hitting frames, not just the last ones (0.65 left the
   // orc 3 px inside and the goblin's first slash frames out of reach).
   const APPROACH = 0.5;
+  // Enemy reach: how far ahead of its ground point the longest attack hurtbox (the damaging box) of an enemy's attack animations
+  // extends, measured from where it stands when the attack starts (goblin slash 63.5, orc 39). An enemy starts attacking once the
+  // gap from its ground point to her hitbox is under that reach (by 1 px), and until then walks on until its hitbox touches hers.
+  const ENEMY_REACH = {};
+  for (const t of Object.keys(EN)) {
+    let r = 0;
+    for (const a of EN[t].ai.attacks) {
+      const fr = EN[t].anims[a].frames, g0 = EN[t].frames[fr[0]].ground || 0;
+      for (const k of fr) { const h = EN[t].frames[k].hit; if (h) r = Math.max(r, g0 - h[0] * SPRITE_SCALE); }
+    }
+    ENEMY_REACH[t] = r;
+  }
   const DIE_MS = 900;                   // death: animation or flicker, then fade
 
   function playerX() {
@@ -1483,8 +1495,12 @@
       if (e.rest > 0) return;
       e.state = 'walk';
     }
-    const stop = ai.reach * APPROACH * (e.scale || 1);
-    if (dist <= stop) {
+    const me = herBox(), edge = d < 0 ? me[2] : me[0];              // the near edge of her hitbox
+    const gap = d < 0 ? e.x - edge : edge - e.x;                     // from its ground point to her hitbox
+    const lo = Math.min(e.x, edge), hi = Math.max(e.x, edge);
+    const pitBetween = (e.fy || 0) === 0 && curMap && curMap.pits.some(q => q.x1 > lo && q.x0 < hi);
+    const reach = ENEMY_REACH[e.type] * (e.scale || 1);
+    if (gap <= reach - 1 && !pitBetween) {
       e.state = 'attack';
       play(e, ai.attacks[Math.floor(Math.random() * ai.attacks.length)]);
     } else if (ai.dive && e.dive && !blocked && dist >= ai.dive.min && dist <= ai.dive.max) {
@@ -1505,7 +1521,9 @@
           }
         }
       }
-      const mv = e.face * Math.min(ai.speed * dt / 1000, dist - stop);
+      const eb = hurtOf(e), room = eb ? (e.face < 0 ? eb[0] - me[2] : me[0] - eb[2]) : gap;   // free ground until its hitbox meets hers
+      const mv = e.face * Math.max(0, Math.min(ai.speed * dt / 1000, room));
+      if (mv === 0 && e.anim !== 'idle') play(e, 'idle');
       e.x += mv; e.base += mv;
     }
   }

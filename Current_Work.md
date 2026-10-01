@@ -348,3 +348,6 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 
 ## st59
 - Push kick hurtbox now ends at sheet x 95 from the anchor (the outer edge of the last white arc), 7.9 sheet px (about 4 game px) shorter than before. Energy kick hurtbox is the same box as the first push kick version (x 38 to 102.9, y -1 to 34.8) on frames 1 and 2. Not play-tested.
+
+## st60
+- Enemy approach and attack range now use hitboxes. `ENEMY_REACH` (computed from each enemy attack animation hurtbox: goblin 63.5, orc 39) sets when an attack starts: once the gap from the enemy ground point to the near edge of her hitbox is at most reach minus 1 (goblin 62, orc 38) and no pit lies between. Before that it walks on until its own hitbox touches hers (`room`), unless a pit, solid or knockback stops it. The goblin roll still starts at 110 to 170 px. The old APPROACH x ai.reach rule is no longer used for stopping. Test: enemy_reach.test.js.
