@@ -304,3 +304,6 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 
 ## st49
 - Pits: she falls only when BOTH feet are over the gap (feet span 1 px behind to 38 px ahead of the anchor, mirrored when facing left). One foot over the edge is safe. A pit narrower than her feet falls on the point between her legs. This replaces the earlier center-point rule for walking and the push-only rule (no more snap back). Tests in pushback.test.js (12).
+
+## st50
+- Pits are at least 50 px wide (the generator widens 40 px pits; level 1 pits were already 50 or more) so both feet always fit, and the narrow-pit fallback in the fall rule is removed. pushback.test.js checks every pit in every level.

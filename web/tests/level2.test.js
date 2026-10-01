@@ -34,6 +34,7 @@ const { chromium } = require('playwright');
   check('Energy Kick turns on the energy meter', await ev("BibooProgress.meterOn('energy') && BibooProgress.hasMove('energy_kick')"), null);
 
   // the door at the end of 2.9
+  await ev('bibooGame.resetAll(); BibooProgress.completeLevel(1); bibooGame.goOverworld(); bibooGame.enterLevel(2)'); await wait(600);
   await ev('bibooGame.warp(8)'); await wait(400); await ev('bibooGame.setEnemies([])'); await wait(200);
   await ev('bibooGame.setX(376)'); await wait(700);
   let s = await S();

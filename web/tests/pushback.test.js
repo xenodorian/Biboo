@@ -21,6 +21,8 @@ const { chromium } = require('playwright');
     const s = await S();
     return { moved: x0 - s.px, hurt: h0 - await ev('bibooGame.hp()'), pitFall: !!s.pitFall, px: s.px, c: await ev('bibooGame.combat()') };
   }
+  const narrow = await ev("(() => { const o = []; BIBOO_LEVELS.levels.forEach(l => l.maps.forEach(m => m.pits.forEach(p => { if (p.x1 - p.x0 < 50) o.push(m.id + ':' + (p.x1 - p.x0)); }))); return o; })()");
+  check('every pit in every level is at least 50 px wide (both feet fit)', narrow.length === 0, narrow);
   const gob = await hit('goblin', 'slash', 100);
   check('a goblin hit pushes her back about 40 px', gob.hurt > 0 && Math.abs(gob.moved - 40) <= 12, gob);
   const orc = await hit('orc', 'attack', 100);

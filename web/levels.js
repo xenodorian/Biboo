@@ -7,7 +7,7 @@
  * Coordinates: x is px from the left of the screen, heights are px above the ground line (0).
  *   solids   {x0, x1, top}   barriers. None are used any more (a block she could stand on let her hit enemies in safety), but the
  *                            engine still supports them.
- *   pits     {x0, x1}        a gap in the ground: her feet on the ground inside it mean instant death. Keep them 40 to 75 px
+ *   pits     {x0, x1}        a gap in the ground: her feet on the ground inside it mean instant death. Keep them 50 to 75 px
  *                            wide (a jump with Left or Right held covers about 107 px) and away from the first and last 40 px.
  *   bombs    {x, fy}         sits on the ground or a platform; only she sets it off (touch or damage): 50 damage within 50 px to
  *                            her and to enemies.
@@ -78,11 +78,11 @@
     const chance = p => r() < p;
     const final = i === (COUNT[n] || MAPS_PER_LEVEL) - 1;
     const m = map({});
-    // pits: centred on distinct slots 80 px apart, 40 to 70 px wide (none on the first map of a level)
+    // pits: centred on distinct slots 80 px apart, 50 to 70 px wide (none on the first map of a level)
     const slots = [110, 190, 270];
     for (let k = slots.length - 1; k > 0; k--) { const j = pick(0, k); [slots[k], slots[j]] = [slots[j], slots[k]]; }
     const nb = i === 0 ? 0 : final ? 1 : pick(0, n > 2 ? 2 : 1);
-    for (const c of slots.slice(0, nb).sort((a, b) => a - b)) { const w = pick(4, 7) * 10; m.pits.push(X(c - w / 2, c + w / 2)); }
+    for (const c of slots.slice(0, nb).sort((a, b) => a - b)) { const w = Math.max(50, pick(4, 7) * 10); m.pits.push(X(c - w / 2, c + w / 2)); }
     // platforms: 60 to 100 px wide, 40 to 100 px high, not overlapping each other
     const np = final ? 1 : pick(0, 2);
     for (let k = 0; k < np; k++) {

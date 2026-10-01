@@ -1219,16 +1219,13 @@
   const pitSink = () => pitFall ? PIT_GRAV * (clock - pitFall.t0) * (clock - pitFall.t0) : 0;
   const pitOffScreen = () => pitSink() > V.h - V.feetRow + herTop() * SPRITE_SCALE + 8;   // her head has left the bottom of the view
   // She falls only when BOTH feet are over the gap: the feet span from 1 px behind to 38 px ahead of the anchor (measured from
-  // the sprite, mirrored when she faces left). Standing with one foot over the edge is safe. A pit narrower than her feet
-  // cannot hold both, so there the point between her legs decides.
+  // the sprite, mirrored when she faces left). Standing with one foot over the edge is safe. Pits are at least 50 px wide
+  // (levels.js) so both feet always fit.
   const FEET_BACK = 1, FEET_FRONT = 38;
   function feetSpan() { const px = playerX(), f = hf(); return f > 0 ? [px - FEET_BACK, px + FEET_FRONT] : [px - FEET_FRONT, px + FEET_BACK]; }
   function pitUnderFeet() {
-    const fs = feetSpan(), lx = legsX();
-    for (const p of curMap.pits) {
-      if (p.x1 - p.x0 < FEET_BACK + FEET_FRONT + 4) { if (lx > p.x0 + 2 && lx < p.x1 - 2) return p; }
-      else if (fs[0] >= p.x0 - 1 && fs[1] <= p.x1 + 1) return p;
-    }
+    const fs = feetSpan();
+    for (const p of curMap.pits) if (fs[0] >= p.x0 - 1 && fs[1] <= p.x1 + 1) return p;
     return null;
   }
   function checkPit() {
