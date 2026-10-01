@@ -683,7 +683,9 @@
     if (slide) {
       x += slide.v * dt;
       const v = slide.v - Math.sign(slide.v) * slide.a * dt;
-      slide = Math.sign(v) === Math.sign(slide.v) ? Object.assign(slide, { v }) : null;
+      slide.v = Math.sign(v) === Math.sign(slide.v) ? v : 0;
+      slide.vy += 0.0018 * dt; slide.y = Math.max(0, slide.y - slide.vy * dt);      // the KNOCK_UP hop
+      if (slide.v === 0 && slide.y === 0 && slide.vy >= 0) slide = null;
     }
     // steering in the air: hold Left or Right while a jump is up or she is falling
     const steer = (isDown.has('Right') ? 1 : 0) - (isDown.has('Left') ? 1 : 0);
@@ -1128,13 +1130,13 @@
           floater(bodyX(), herY() + herTop() * SPRITE_SCALE + 10, 'Reflect', '#8fd0ff');
           burst(sh.x, sh.y, 8, ['#ffffff', '#8fd0ff']);
         } else if (blocking()) {                                   // blocked: no damage
-          const p = push(8, 120); slide = { v: p.v * dir, a: p.a }; lastPushT = clock;
+          const p = push(8, 120); slide = newSlide(p, dir); lastPushT = clock;
           tint = { color: WHITE, alpha: 0.75, until: clock + 150 }; blocks++;
           burst(sh.x, sh.y, 6, ['#ffffff', '#8fd0ff']);
           shots.splice(i, 1);
         } else if (clock >= invuln && !stun) {                     // a hit: damage, a short red flash and a small flinch
           hurtHer(SHOT_DMG);
-          const p = push(14, 180); slide = { v: p.v * dir, a: p.a }; lastPushT = clock;
+          const p = push(14, 180); slide = newSlide(p, dir); lastPushT = clock;
           tint = { color: RED, alpha: 0.6, until: clock + 220 }; invuln = clock + 500; hits++;
           burst(sh.x, sh.y, 8, ['#ff2b2b', '#8fd0ff']);
           shots.splice(i, 1);
@@ -1572,7 +1574,7 @@
     return cur.id === 'duck' ? top - DUCK_TRIM : top;
   }
   const RED = '#ff2b2b', WHITE = '#ffffff';
-  const heightAbove = () => stun ? stun.y : fall ? fall.y : (cur && cur.kind !== 'fall' ? rootOf(cur)[1] : 0);   // above the surface she stands on
+  const heightAbove = () => (stun ? stun.y : (fall ? fall.y : (cur && cur.kind !== 'fall' ? rootOf(cur)[1] : 0)) + (slide ? slide.y : 0));   // above the surface she stands on
   function herY() { return floorY + heightAbove() - pitSink(); }                                                              // world height of her feet
   const hf = () => cur ? cur.face : facing;
   const legsX = () => playerX() + hf() * LEGS;          // between her feet
@@ -1605,6 +1607,7 @@
     parries++;
   }
   const KNOCK_UP = 5;
+  const newSlide = (p, dir) => ({ v: p.v * dir, a: p.a, y: 0, vy: -Math.sqrt(2 * 0.0018 * KNOCK_UP) });   // a block or a shot hit: slid back and up KNOCK_UP px
   function knocked(e) {                 // a clean hit: red, pushed away from the enemy, stunned
     const [d, ms] = EN[e.type].ai.knock, p = push(d, ms);
     const dir = bodyX() >= e.x ? 1 : -1;
@@ -1621,7 +1624,7 @@
   }
   function blocked(e) {                 // white, a small slide back, no stun
     const dir = bodyX() >= e.x ? 1 : -1, p = push(8, 120);
-    slide = { v: p.v * dir, a: p.a }; lastPushT = clock;
+    slide = newSlide(p, dir); lastPushT = clock;
     tint = { color: WHITE, alpha: 0.75, until: clock + 150 };
     blocks++;
   }

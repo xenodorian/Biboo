@@ -55,6 +55,20 @@ const { chromium } = require('playwright');
   const after = await S();
   check('and she is back on the ground afterwards', after.feetNow === 0 && after.floorY === 0, after.feetNow);
 
+  // ---- shot hits and blocked hits hop her up 5 px as well
+  for (const blocking of [false, true]) {
+    await ev(`bibooGame.custom(${JSON.stringify({ enemies: [] })})`); await wait(900);
+    await ev('bibooGame.setX(150)'); await wait(400); await ev('bibooGame.setHp(200)');
+    if (blocking) { await page.keyboard.down('KeyX'); await wait(250); }
+    await ev('bibooGame.addShot(200, 20, -0.24, 0)');
+    let pk = 0;
+    for (let i = 0; i < 30; i++) { await wait(20); const t = await S(); pk = Math.max(pk, t.feetNow); }
+    if (blocking) { await page.keyboard.up('KeyX'); await wait(300); }
+    const t2 = await S();
+    check(`a ${blocking ? 'blocked' : 'landed'} shard lifts her about 5 px (peak 3 to 7)`, pk >= 3 && pk <= 7.5, pk);
+    check(`and she is back on the ground (${blocking ? 'blocked' : 'landed'})`, t2.feetNow === 0, t2.feetNow);
+  }
+
   // ---- jumping down onto a crate smashes it
   await ev(`bibooGame.custom(${JSON.stringify({ enemies: [], crates: [{ x: 200, fy: 0 }, { x: 330, fy: 0 }] })})`); await wait(900);
   await ev('bibooGame.setX(190)'); await wait(400);

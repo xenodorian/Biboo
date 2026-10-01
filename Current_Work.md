@@ -298,3 +298,6 @@ Main menu (title and pause) has "Hard reset (erase save)", two presses: erases e
 ## st47
 - Turning pivots about the point between her legs (19 px ahead of the anchor, measured from the sprite: feet at -1..8 and 27..38) instead of 32. Pit falls use the same point.
 - Every landed enemy hit also knocks her up 5 px (KNOCK_UP), so she clears the ground and ledge edges.
+
+## st48
+- Blocked hits and landed or blocked goblin shots also lift her 5 px (the same hop as a knockback hit). Tests in turn_stun.test.js (16).
