@@ -41,9 +41,23 @@ static const char *banner; static float banner_until;
 #define MAX_HP_START 50.0f              /* web/progress.js MAX_START.hp; +25 per Bone Powder, capped at 200 */
 static float max_hp = MAX_HP_START;
 static int ankhs = 3, leaves = 100;     /* leaves start at 100 (web/progress.js) */
-enum { SCN_TITLE, SCN_OVERWORLD, SCN_LEVEL };
+enum { SCN_TITLE, SCN_OVERWORLD, SCN_LEVEL, SCN_SHOP, SCN_STORY };
 static int screen, paused, gameover_on, level_done, ow_sel, levels_unlocked = 1;
 static u8 cleared;                      /* bit n set: level n+1 beaten */           /* ankhs: retries (web/progress.js ANKH_START); leaves: the purse */
+static int has_save;                    /* a readable VMU record was loaded at boot */
+static int story_double, story_ending; /* web/progress.js story flags: confession and ending already shown */
+static float story_at;                  /* when to play Mirror Perry's confession (0 = none) */
+static int training_on;                 /* Sunset Training: a closed map, not a level */
+enum { ST_PROLOGUE, ST_DOUBLE, ST_ENDING };
+enum { ST_AFTER_OW, ST_AFTER_LEVEL, ST_AFTER_COMPLETE };
+static int story_id, story_page, story_after;
+static int title_menu, title_pick;      /* title: 0 splash, 1 continue / new game */
+static int menu_page, item_i;           /* pause: 0 the pause list, 1 the Items menu */
+static void begin_story(int id, int after) {
+    story_id = id; story_page = 0; story_after = after; screen = SCN_STORY; paused = 1;
+    if(id == ST_DOUBLE) story_double = 1;
+    if(id == ST_ENDING) story_ending = 1;
+}
 static float last_parry_t = -1e9f;
 #define BODY_W 16.5f
 #define HURT_X0 5.0f

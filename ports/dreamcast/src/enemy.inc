@@ -49,6 +49,7 @@ static void kill_q(Enemy *e, int quiet) {
     const EnemyDef *d = &ENEMIES[e->type];
     e->state = S_DYING; e->dead = 0; e->hp = 0;
     if(d->a_death >= 0) play(e, d->a_death);
+    if(streq_(d->id, "mirrormax") && !story_double) story_at = now + 2600.0f;   /* web/game/11_enemies.js: her confession a moment after she falls */
     if(quiet) return;
     if(d->boss) {                                       /* a bunch of gems, three ankhs and a bone powder; the way on opens */
         int k, kinds[8], nk = 0, m;

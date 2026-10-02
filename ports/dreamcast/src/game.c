@@ -15,6 +15,7 @@
 #include "player.inc"
 #include "body.inc"
 #include "enemy.inc"
+#include "training.inc"
 #include "combat.inc"
 #include "world.inc"
 #include "maps.inc"

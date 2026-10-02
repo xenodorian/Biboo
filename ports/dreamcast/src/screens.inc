@@ -22,6 +22,7 @@ static void draw_scene(void) {
     draw_layers(camY);
     draw_geometry();
     draw_items();
+    if(training_on) draw_bag();
     draw_enemies();
     draw_player();
     draw_beam();
@@ -82,7 +83,7 @@ static void draw_title(void) {
         gfx_text2(x + 1, 70 + bob + 2, (char[]){w2[i], 0}, RGB(58, 22, 8), 3); gfx_text2(x, 70 + bob, (char[]){w2[i], 0}, RGB(255, 200, 58), 3);
     }
     ctext(102, "A PERRY RIPOSTE ADVENTURE", RGB(232, 224, 255), 1);
-    if(((int)(now / 500.0f)) & 1) ctext(180, "PRESS START", RGB(255, 255, 255), 1);
+    if(!title_menu && (((int)(now / 500.0f)) & 1)) ctext(180, "PRESS START", RGB(255, 255, 255), 1);
     ctext(222, save_msg, RGB(160, 180, 230), 1);                          /* what the memory card held at boot */
 }
 static const short OW_NODES[7][2] = {{36, 150}, {90, 112}, {144, 146}, {198, 106}, {252, 144}, {306, 108}, {348, 60}};
@@ -114,7 +115,7 @@ static void draw_overworld(void) {
       buf[p] = 0; gfx_text(24, 178, buf, RGB(255, 255, 255)); }
     if(open) wrap_text(24, 187, L->blurb, RGB(230, 230, 236), 34, 3);
     else { char buf[40] = "LOCKED. BEAT LEVEL N FIRST."; buf[19] = (char)('0' + ow_sel); gfx_text(24, 187, buf, RGB(230, 230, 236)); }
-    gfx_text(24, 220, open ? "A: PLAY  LEFT/RIGHT: CHOOSE" : "LEFT/RIGHT: CHOOSE", RGB(154, 154, 168));
+    gfx_text(24, 220, "A PLAY  Y SHOP  X TRAIN", RGB(154, 154, 168));
     if(now < banner_until) ctext(130, banner, RGB(255, 210, 74), 1);
     if(now < save_msg_until) ctext(2, save_msg, RGB(160, 180, 230), 1);
 }
@@ -126,7 +127,8 @@ static void enter_level(int n) {                /* n is 0-based */
     say(LEVELS[n].name, 3200.0f);
 }
 static void go_overworld(void) {
-    if(screen == SCN_LEVEL) save_game();                    /* web: goOverworld syncs and saves the progress */
+    training_on = 0;
+    if(screen == SCN_LEVEL || screen == SCN_STORY) save_game();                    /* web: goOverworld syncs and saves the progress */
     screen = SCN_OVERWORLD; paused = gameover_on = level_done = 0;
     ow_sel = (levels_unlocked < NUM_LEVELS ? levels_unlocked : NUM_LEVELS) - 1;
     banner_until = 0;
@@ -138,6 +140,142 @@ static void overlay(const char *l0, const char *l1, const char *l2) {
     ctext(112, l1, RGB(255, 255, 255), 1);
     ctext(128, l2, RGB(154, 154, 168), 1);
 }
+
+/* ------------------------------------------------------------------ story (web/game/18_story.js): the words, on a panel. The wide scene pictures are not in the art pack. */
+typedef struct { int id; const char *title, *body; } StoryPage;
+static const StoryPage STORY[] = {
+    { ST_PROLOGUE, "PERRY", "Peregrine \"Perry\" Riposte was ten years old. She had a mom, a dad, and a little brother. The house was small and loud. It was home." },
+    { ST_PROLOGUE, "THE FIRE", "One night the house went up in flames. Perry saw a figure on the lawn, lit by the fire. The figure looked exactly like her." },
+    { ST_PROLOGUE, "THE FIRE", "Her parents and her little brother never came out." },
+    { ST_PROLOGUE, "THE VILLAGE", "The village came running. They saw the smoke, and they saw Perry. \"She did it,\" they said. Nobody would listen. Perry ran." },
+    { ST_PROLOGUE, "MIRACLE ISLAND", "She found a boat and sailed to Miracle Island. It is full of monsters. At its center lies the Legendary Wish Scroll, which can grant any wish." },
+    { ST_PROLOGUE, "MIRACLE ISLAND", "Perry gripped her sword. She would fight her way to the center." },
+    { ST_DOUBLE, "PERRY, FALLEN", "The other Perry drops to one knee. Her body flickers like a candle in the wind." },
+    { ST_DOUBLE, "THE DOUBLE", "\"You still do not get it,\" she says. \"I am not a stranger. I came from you.\"" },
+    { ST_DOUBLE, "THE DOUBLE", "\"I was born from your magic and your worst feelings. I am every angry thought you ever had, with a body.\"" },
+    { ST_DOUBLE, "THE DOUBLE", "\"You can beat me. It will not last. Unless you let your anger out in a healthy way, I will rise again.\"" },
+    { ST_DOUBLE, "PERRY", "The double fades into red sparks. The way to the center of the island is open." },
+    { ST_ENDING, "THE CENTER", "Perry walked on, past the last of the monsters, to the very center of the island." },
+    { ST_ENDING, "THE SCROLL", "Behind a ring of old stones lay the Legendary Wish Scroll. It glowed softly. Perry opened it. \"Take me back,\" she said. \"To before the fire.\"" },
+    { ST_ENDING, "BACK IN TIME", "The world spun backward. Days and nights blurred past, until the sky settled on that last evening." },
+    { ST_ENDING, "HOME", "Perry stood outside her house. Through the window she saw her mom, her dad, and her little brother, laughing at supper. They were alive." },
+    { ST_ENDING, "HOME", "All that hatred had never made her strong. It had only made her alone. It had hurt her far more than it ever helped." },
+    { ST_ENDING, "PERRY", "Perry sat down in the grass. She took a deep breath. In, and out. Again. She let the anger go a little at a time." },
+    { ST_ENDING, "PERRY", "\"Holding on to anger is self-destructive,\" Perry said. \"I have to appreciate what I have, before it is all gone.\"" },
+    { ST_ENDING, "THE END", "Thank you for playing Perry Riposte." },
+};
+static int story_len(void) { int i, n = 0; for(i = 0; i < (int)(sizeof STORY / sizeof STORY[0]); i++) if(STORY[i].id == story_id) n++; return n; }
+static const StoryPage *story_cur(void) {
+    int i, n = 0;
+    for(i = 0; i < (int)(sizeof STORY / sizeof STORY[0]); i++) if(STORY[i].id == story_id) { if(n == story_page) return &STORY[i]; n++; }
+    return &STORY[0];
+}
+static void story_finish(void) {
+    int after = story_after;
+    if(after == ST_AFTER_OW) { go_overworld(); say("YOU START WITH 100 LEAVES", 4200); }
+    else if(after == ST_AFTER_COMPLETE) { screen = SCN_LEVEL; paused = 0; level_done = 1; }
+    else { screen = SCN_LEVEL; paused = 0; }
+}
+static void draw_story(void) {
+    const StoryPage *p = story_cur();
+    int last = story_page + 1 >= story_len();
+    gfx_clear(RGB(8, 6, 14));
+    gfx_clip(0, SCR_H);
+    box(12, 28, SCR_W - 24, 176);
+    ctext(40, p->title, RGB(255, 225, 77), 2);
+    wrap_text(24, 68, p->body, RGB(230, 230, 236), 34, 12);
+    ctext(214, last ? "A: CONTINUE" : "A: NEXT    B: SKIP", RGB(154, 154, 168), 1);
+}
+
+/* ------------------------------------------------------------------ Bone Merchant (web/game/00_core.js shopRows / buy) */
+enum { SK_BONE, SK_QUARTZ, SK_GARNET, SK_DIAMOND, SK_POWDER, SK_UNLOCK };
+typedef struct { int kind, ul, price, can; const char *name; } ShopRow;
+static ShopRow shop_rows[40];
+static int shop_n, shop_i;
+static int gem_heal(void) { int h = (int)(max_hp + 0.5f); return h < 1 ? 1 : (h + 3) / 4; }
+#define GEM_FILL 25
+static void shop_add(int kind, int ul, int price, int can, const char *name) {
+    if(shop_n >= 40) return;
+    shop_rows[shop_n].kind = kind; shop_rows[shop_n].ul = ul; shop_rows[shop_n].price = price; shop_rows[shop_n].can = can; shop_rows[shop_n].name = name;
+    shop_n++;
+}
+static void shop_build(void) {
+    int i;
+    shop_n = 0;
+    shop_add(SK_BONE, -1, 8, gem_bag[0] < MAX_GEM_BAG && leaves >= 8, "BONE");
+    if(meter_on(M_ENERGY)) shop_add(SK_QUARTZ, -1, 12, gem_bag[1] < MAX_GEM_BAG && leaves >= 12, "QUARTZ");
+    if(meter_on(M_EMPOWER)) shop_add(SK_GARNET, -1, 12, gem_bag[2] < MAX_GEM_BAG && leaves >= 12, "GARNET");
+    if(meter_on(M_SUPER)) shop_add(SK_DIAMOND, -1, 30, gem_bag[3] < MAX_GEM_BAG && leaves >= 30, "DIAMOND");
+    if(max_hp < 200.0f) shop_add(SK_POWDER, -1, 90, leaves >= 90, "BONE POWDER");
+    for(i = 0; i < UL_COUNT; i++) {
+        if(has(i) || UNLOCKS[i].level > levels_unlocked) continue;
+        shop_add(SK_UNLOCK, i, UNLOCKS[i].price, leaves >= UNLOCKS[i].price, UNLOCKS[i].name);
+    }
+    if(shop_i >= shop_n) shop_i = shop_n ? shop_n - 1 : 0;
+    if(shop_i < 0) shop_i = 0;
+}
+static void shop_buy(void) {
+    ShopRow *r;
+    if(!shop_n) return;
+    r = &shop_rows[shop_i];
+    if(!r->can || leaves < r->price) { say("CANNOT BUY THAT", 1600); return; }
+    leaves -= r->price;
+    if(r->kind == SK_BONE && gem_bag[0] < MAX_GEM_BAG) gem_bag[0]++;
+    else if(r->kind == SK_QUARTZ && gem_bag[1] < MAX_GEM_BAG) gem_bag[1]++;
+    else if(r->kind == SK_GARNET && gem_bag[2] < MAX_GEM_BAG) gem_bag[2]++;
+    else if(r->kind == SK_DIAMOND && gem_bag[3] < MAX_GEM_BAG) gem_bag[3]++;
+    else if(r->kind == SK_POWDER) { max_hp += 25.0f; if(max_hp > 200.0f) max_hp = 200.0f; if(hp > max_hp) hp = max_hp; }
+    else if(r->kind == SK_UNLOCK && r->ul >= 0) { unlocked |= 1u << r->ul; recompute_unlocks(); }
+    say("BOUGHT", 1200);
+    shop_build();
+}
+static void draw_shop(void) {
+    int i, first, y, shown = 0;
+    draw_drifting(0.008f);
+    gfx_clip(0, SCR_H);
+    ctext(4, "BONE MERCHANT", RGB(255, 225, 77), 2);
+    gfx_text(8, 24, "LEAVES", RGB(255, 210, 74)); gfx_num(64, 24, (u32)leaves, RGB(255, 255, 255));
+    first = shop_i - 7; if(first < 0) first = 0;
+    if(shop_n > 16 && first + 16 > shop_n) first = shop_n - 16;
+    y = 40;
+    for(i = first; i < shop_n && shown < 16; i++, shown++) {
+        u16 c = i == shop_i ? RGB(255, 225, 77) : shop_rows[i].can ? RGB(230, 230, 236) : RGB(120, 120, 130);
+        if(i == shop_i) gfx_text(4, y, ">", c);
+        gfx_text(16, y, shop_rows[i].name, c);
+        gfx_num(250, y, (u32)shop_rows[i].price, c);
+        y += 10;
+    }
+    if(!shop_n) gfx_text(16, 48, "NOTHING FOR SALE", RGB(154, 154, 168));
+    gfx_text(8, 224, "A: BUY    B: LEAVE", RGB(154, 154, 168));
+    if(now < banner_until) ctext(200, banner, RGB(255, 210, 74), 1);
+}
+static int use_item(int k) {
+    int m;
+    if(k == 0) {
+        if(gem_bag[0] < 1 || hp >= max_hp) return 0;
+        gem_bag[0]--; hp += (float)gem_heal(); if(hp > max_hp) hp = max_hp; return 1;
+    }
+    m = k - 1;
+    if(k < 1 || k > 3 || gem_bag[k] < 1 || !meter_on(m) || meter[m] >= meter_max[m]) return 0;
+    gem_bag[k]--; meter[m] += GEM_FILL; if(meter[m] > meter_max[m]) meter[m] = meter_max[m];
+    meter_flash[m] = now + 400.0f;
+    return 1;
+}
+static void draw_item_menu(void) {
+    static const char *nm[4] = {"BONE", "QUARTZ", "GARNET", "DIAMOND"};
+    int i;
+    gfx_dim(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
+    box(20, 36, SCR_W - 40, 150);
+    ctext(44, "ITEMS", RGB(255, 225, 77), 2);
+    for(i = 0; i < 4; i++) {
+        u16 c = i == item_i ? RGB(255, 225, 77) : RGB(230, 230, 236);
+        if(i == item_i) gfx_text(32, 72 + i * 16, ">", c);
+        gfx_text(48, 72 + i * 16, nm[i], c);
+        gfx_num(200, 72 + i * 16, (u32)gem_bag[i], c);
+    }
+    ctext(168, "A: USE    B: BACK", RGB(154, 154, 168), 1);
+}
+static void new_game(void) { reset_progress(); title_menu = 0; begin_story(ST_PROLOGUE, ST_AFTER_OW); }
 
 void game_init(void) {
     int i;
@@ -210,23 +348,55 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
     if(hp < max_hp * 0.5f) hp = max_hp;
 #endif
 #ifdef MOVETEST
-    if(screen == SCN_LEVEL) { if(meter[0] < 30) meter[0] = 50; if(meter[1] < 30) meter[1] = 50; }       /* test: the energy and empower meters never run dry */
+    if(screen == SCN_LEVEL && !training_on) { if(meter[0] < 30) meter[0] = 50; if(meter[1] < 30) meter[1] = 50; }       /* test: the energy and empower meters never run dry */
 #endif
+    if(training_on && screen == SCN_LEVEL) { hp = max_hp; meter[0] = meter_max[0]; meter[1] = meter_max[1]; meter[2] = meter_max[2]; }
+    if(screen == SCN_STORY) {
+        draw_story();
+        if(pressed_now(PAD_A) || pressed_now(PAD_START)) { if(story_page + 1 >= story_len()) story_finish(); else story_page++; }
+        else if(pressed_now(PAD_B)) story_finish();
+        return;
+    }
     if(screen == SCN_TITLE) {
         draw_title();
-        if(pressed_now(PAD_START) || pressed_now(PAD_A)) go_overworld();
+        if(!title_menu) {
+            if((pressed_now(PAD_START) || pressed_now(PAD_A))) { if(has_save) { title_menu = 1; title_pick = 0; } else new_game(); }
+        } else {
+            if(pressed_now(PAD_UP) || pressed_now(PAD_DOWN)) title_pick ^= 1;
+            if(pressed_now(PAD_A) || pressed_now(PAD_START)) { if(title_pick == 0) go_overworld(); else new_game(); }
+            if(pressed_now(PAD_B)) title_menu = 0;
+            ctext(168, title_pick == 0 ? "> CONTINUE" : "  CONTINUE", RGB(255, 255, 255), 1);
+            ctext(180, title_pick == 1 ? "> NEW GAME" : "  NEW GAME", RGB(255, 255, 255), 1);
+        }
+        return;
+    }
+    if(screen == SCN_SHOP) {
+        if(pressed_now(PAD_UP) && shop_i > 0) shop_i--;
+        if(pressed_now(PAD_DOWN) && shop_i + 1 < shop_n) shop_i++;
+        if(pressed_now(PAD_A)) shop_buy();
+        if(pressed_now(PAD_B) || pressed_now(PAD_START)) screen = SCN_OVERWORLD;
+        draw_shop();
         return;
     }
     if(screen == SCN_OVERWORLD) {
         if(pressed_now(PAD_RIGHT) && ow_sel < NUM_LEVELS - 1) ow_sel++;
         if(pressed_now(PAD_LEFT) && ow_sel > 0) ow_sel--;
+        if(pressed_now(PAD_Y)) { shop_build(); shop_i = 0; screen = SCN_SHOP; draw_shop(); return; }
+        if(pressed_now(PAD_X)) { enter_training(); return; }
         if(pressed_now(PAD_A) || pressed_now(PAD_START)) enter_level(ow_sel);
         draw_overworld();
         return;
     }
+    if(screen == SCN_LEVEL && story_at > 0 && now >= story_at) { story_at = 0; begin_story(ST_DOUBLE, ST_AFTER_LEVEL); draw_story(); return; }
     if(paused || gameover_on || level_done) {                                  /* the world holds still under a menu */
         if(level_done) { if(pressed_now(PAD_A) || pressed_now(PAD_START)) { go_overworld(); return; } }
         else if(gameover_on) { if(pressed_now(PAD_A) || pressed_now(PAD_START)) { gameover_on = 0; retry_map(); return; } if(pressed_now(PAD_B)) { go_overworld(); return; } }
+        else if(menu_page == 1) {
+            if(pressed_now(PAD_UP) && item_i > 0) item_i--;
+            if(pressed_now(PAD_DOWN) && item_i < 3) item_i++;
+            if(pressed_now(PAD_A)) use_item(item_i);
+            if(pressed_now(PAD_B)) menu_page = 0;
+        } else if(pressed_now(PAD_Y)) { menu_page = 1; item_i = 0; }
         else { if(pressed_now(PAD_START) || pressed_now(PAD_A)) paused = 0; if(pressed_now(PAD_B)) { go_overworld(); return; } }
         draw_scene(); draw_hud(frame_us, draw_us);
         if(level_done) {
@@ -234,10 +404,11 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
             buf[6] = (char)('1' + level_idx);
             overlay(buf, level_idx + 1 < NUM_LEVELS ? "THE NEXT LEVEL IS NOW OPEN" : "YOU BEAT THE LAST LEVEL", "A: BACK TO THE OVERWORLD");
         } else if(gameover_on) overlay("GAME OVER", ankhs < 1 ? "NO ANKHS: THE LEVEL STARTS OVER" : "A: RETRY (USES 1 ANKH)", "B: OVERWORLD");
-        else overlay("PAUSED", "A OR START: RESUME", "B: OVERWORLD");
+        else if(menu_page == 1) draw_item_menu();
+        else overlay("PAUSED", "A: RESUME   Y: ITEMS", "B: OVERWORLD");
         return;
     }
-    if(pressed_now(PAD_START)) { paused = 1; ignore_until_up = 0; return; }
+    if(pressed_now(PAD_START)) { paused = 1; menu_page = 0; ignore_until_up = 0; return; }
     if(freeze_ms > 0) {                                                        /* hit-stop: the world holds still (presses made now are still read) */
         freeze_ms -= dt; read_buttons(now); draw_scene(); draw_hud(frame_us, draw_us);
         return;
@@ -279,6 +450,7 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
     }
     ko_check();
     if(!pit_fall_on) { beam_hits(); step_heal(dt); }
+    if(training_on) step_bag(dt);
     step_effects(dt);
     step_shots(dt);
     if(!pit_fall_on) step_bombs();

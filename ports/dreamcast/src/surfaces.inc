@@ -1,5 +1,6 @@
 /* ------------------------------------------------------------------ small helpers */
 static int strlen_(const char *p) { int n = 0; while(p[n]) n++; return n; }
+static int streq_(const char *a, const char *b) { while(*a && *a == *b) { a++; b++; } return *a == *b; }
 static float fabsf_(float v) { return v < 0 ? -v : v; }
 static float minf_(float a, float b) { return a < b ? a : b; }
 static float maxf_(float a, float b) { return a > b ? a : b; }

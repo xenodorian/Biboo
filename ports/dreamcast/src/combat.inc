@@ -59,6 +59,7 @@ static void wave_blast(int side, float wx, float wy) {                    /* the
     cur.blast[si] = 1;
     ring_boom(wx, wy, 75.0f); crate_blast(wx, wy, 75.0f); rumble_set(350.0f, 5.0f);
     for(i = 0; i < MAX_ENEMIES; i++) { float b[4]; if(alive(&en[i]) && hurt_of(&en[i], b) && dist_box2(wx, wy, b) <= 75.0f * 75.0f) hurt_enemy(&en[i], (int)(50.0f * (cur.power > 0 ? cur.power : 1.0f) + 0.5f)); }
+    if(training_on) { float b[4]; bag_box(b); if(dist_box2(wx, wy, b) <= 75.0f * 75.0f) bag_hit((int)(50.0f * (cur.power > 0 ? cur.power : 1.0f) + 0.5f), (b[0] + b[2]) * 0.5f, (b[1] + b[3]) * 0.5f, 0); }
 }
 static void resolve_hits_one(const MoveFrame *f, float px, float py, int face) {
     int s, i;
@@ -82,6 +83,14 @@ static void resolve_hits_one(const MoveFrame *f, float px, float py, int face) {
                 e->push_v = 2.0f * dist / ms * dir; e->push_a = 2.0f * dist / (ms * ms);
             }
             if(cur.id == MV_energy_wave) { float b2[4]; if(!hurt_of(e, b2)) { b2[0] = b2[2] = e->x; b2[1] = b2[3] = 20; } wave_blast(face, (b2[0] + b2[2]) * 0.5f, (b2[1] + b2[3]) * 0.5f); }
+        }
+        if(training_on) {
+            float box[4];
+            bag_box(box);
+            if(touches(h, px, py, face, box) && !(bag_seen == cur.serial && !(gap > 0 && now - bag_seen_t >= gap))) {
+                bag_seen = cur.serial; bag_seen_t = now;
+                bag_hit(dmg_of_cur(), (box[0] + box[2]) * 0.5f, (box[1] + box[3]) * 0.5f, 0);
+            }
         }
     }
     if(cur.id == MV_heavy && f->name[0] == 'i' && frame_named(MV_heavy, "impact") == cur.k && !cur.aoe_done && f->nhit) {   /* the chop lands: a blast where the blade meets the ground */
@@ -167,6 +176,7 @@ static void beam_hits(void) {
         if(was && !alive(e)) loot_gem(e->x, G_SUPER, e->fy);                 /* killed by a beam: a Super Gem */
         if(BEAM_PUSH[b.kind] != 0 && alive(e)) { e->x += (float)b.face * BEAM_PUSH[b.kind]; e->base += (float)b.face * BEAM_PUSH[b.kind]; }
     }
+    if(training_on) { float box[4]; bag_box(box); if(overlap(box, b.box)) bag_hit(BEAM_DMG[b.kind], (box[0] + box[2]) * 0.5f, (box[1] + box[3]) * 0.5f, 1); }
     for(i = 0; i < cur_map->ncrate; i++) { float cb[4]; if(crate_broken[i]) continue; crate_box(i, cb); if(overlap(cb, b.box)) break_crate(i); }
     for(i = 0; i < cur_map->nbomb; i++) { float bb[4]; if(bomb_state[i] == 1) continue; bomb_box(i, bb); if(overlap(bb, b.box)) detonate(i); }
 }

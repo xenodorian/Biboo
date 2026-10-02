@@ -44,12 +44,31 @@ static void retry_map(void) {               /* after a K.O. the same map can be 
     if(ankhs < 1) { ankhs = 3; start_level(level_idx); return; }
     ankhs--; hp = max_hp; load_map(level_idx, map_idx, 1);
 }
+static const MapDef TRAIN_MAP = { "T", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, SC_SHORE };   /* closed practice map; shore stands in for the unbaked training backdrop */
+static void enter_training(void) {      /* web enterTraining: not a level, so it never marks one cleared */
+    int i;
+    training_on = 1; screen = SCN_LEVEL; paused = gameover_on = level_done = 0; menu_page = 0;
+    cur_map = &TRAIN_MAP; level_idx = 0; map_idx = 0;
+    for(i = 0; i < MAX_ENEMIES; i++) en[i].on = 0;
+    for(i = 0; i < MAX_GEMS_ON; i++) gems[i].on = 0;
+    for(i = 0; i < MAX_SHOTS; i++) shots[i].on = 0;
+    for(i = 0; i < MAX_PARTS; i++) parts[i].on = 0;
+    for(i = 0; i < MAX_BOOMS; i++) booms[i].r = 0;
+    effects_clear();
+    bag_a = bag_v = 0; bag_seen = 0; train_last = train_total = train_hits = train_combo = 0; train_combo_at = -1.0e9f; train_t0 = now;
+    X = 70.0f; facing = 1; floor_y = 0; pit_fall_on = 0; prev_ok = 0;
+    fall_on = 0; stun_on = 0; slide_v = 0; has_cur = 0; queued = -1; camY = 0; invuln = now + 600.0f; ko_until = 0;
+    hp = max_hp; meter[0] = meter_max[0]; meter[1] = meter_max[1]; meter[2] = meter_max[2];
+    start(MV_idle, K_HOLD, VIA_PRESS);
+    say("SUNSET TRAINING", 3200.0f);
+}
 static void save_game(void);
 static void level_complete(void) {         /* web/game/09_maps.js levelComplete, progress.js completeLevel */
     cleared |= (u8)(1 << level_idx);
     if(levels_unlocked < level_idx + 2) levels_unlocked = level_idx + 2 > NUM_LEVELS ? NUM_LEVELS : level_idx + 2;
-    level_done = 1;
     save_game();
+    if(level_idx + 1 >= NUM_LEVELS && !story_ending) { begin_story(ST_ENDING, ST_AFTER_COMPLETE); return; }
+    level_done = 1;
 }
 static int door_open(void) {
     int i;
@@ -59,10 +78,15 @@ static int door_open(void) {
 static void say(const char *s, float ms) { banner = s; banner_until = now + ms; }
 static int edges(void) {
     float px = player_x();
+    if(training_on) {                       /* one closed room, no door (web arena maps) */
+        if(px >= VIEW_W - EDGE) X -= px - (VIEW_W - EDGE);
+        else if(px <= EDGE) X += EDGE - px;
+        return 0;
+    }
     if(px >= VIEW_W - EDGE) {
         if(!stun_on && door_open()) {
             if(map_idx + 1 < LEVELS[level_idx].nmaps) load_map(level_idx, map_idx + 1, 1);
-            else level_complete();       /* TODO: the level-complete screen and the overworld */
+            else level_complete();
             return 1;
         }
         if(!stun_on) say("DEFEAT EVERY ENEMY", 2200);

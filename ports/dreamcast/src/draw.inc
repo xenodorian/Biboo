@@ -211,14 +211,19 @@ static void draw_enemies(void) {
         int vx, vy;
         if(!e->on) continue;
         d = &ENEMIES[e->type];
-        if(e->state == S_DYING && d->a_death < 0 && e->dead < DIE_MS - 400.0f && ((int)(e->dead / 60.0f) & 1)) continue;        /* no death animation: it flickers */
-        if(e->state == S_DYING && e->dead > DIE_MS - (d->a_death >= 0 ? 500.0f : 400.0f) && ((int)(e->dead / 40.0f) & 1)) continue;   /* then it fades (here: a fast blink out) */
+        if(e->state == S_DYING && d->a_death < 0 && e->dead < DIE_MS - 400.0f && ((int)(e->dead / 60.0f) & 1)) continue;        /* no death animation: it flickers, then fades */
         f = frame_of(e);
         vx = iround(e->base); vy = FEET_ROW - iround(e->fy + e->jy - camY);
         {
             int tint = now < e->tint_until, flip = e->face > 0, sx = v2s(vx), sy = VIEW_TOP + v2s(vy);
             const Sprite *sp = art_sprite(f->sprite);
-            if(e->scale != 1.0f) gfx_blit_scaled(sp, sx, sy, flip, e->scale, tint ? e->tint_c : 0, tint ? e->tint_a : 0);
+            int fade = 255;
+            if(e->state == S_DYING) {                               /* web/game/15_draw_scenery.js: alpha = (DIE_MS - dead) / fade window */
+                float window = d->a_death >= 0 ? 500.0f : 400.0f;
+                if(e->dead > DIE_MS - window) { fade = (int)(255.0f * (DIE_MS - e->dead) / window); if(fade < 0) fade = 0; if(fade > 255) fade = 255; }
+            }
+            if(fade < 255) gfx_blit_fade(sp, sx, sy, flip, fade);
+            else if(e->scale != 1.0f) gfx_blit_scaled(sp, sx, sy, flip, e->scale, tint ? e->tint_c : 0, tint ? e->tint_a : 0);
             else if(tint) gfx_blit_tint(sp, sx, sy, flip, e->tint_c, e->tint_a);
             else gfx_blit(sp, sx, sy, flip);                                    /* the art faces left */
         }

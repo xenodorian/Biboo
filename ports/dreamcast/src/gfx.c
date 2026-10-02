@@ -109,6 +109,42 @@ static u32 blend565(u32 src, u32 dst, u32 a5) {                   /* a5 0..32: h
     u32 r = (d + (((s - d) * a5) >> 5)) & 0x07e0f81fu;
     return (r | (r >> 16)) & 0xffffu;
 }
+/* a colour-keyed sprite (the same rows as gfx_blit) mixed over the framebuffer. fade 0 is invisible, 255 is opaque.
+ * Enemy death uses this. Do not pass an alpha-baked sprite: that format is gfx_blit_alpha. */
+void gfx_blit_fade(const Sprite *sp, int x, int y, int flip, int fade) {
+    int r, i;
+    u32 a5;
+    if(!sp) return;
+    if(fade >= 255) { gfx_blit(sp, x, y, flip); return; }
+    a5 = ((u32)fade + 4) >> 3;
+    if(a5 == 0) return;
+    for(r = 0; r < sp->h; r++) {
+        int sy = y + sp->oy + r, ns;
+        const u16 *p;
+        u16 *row;
+        if(sy < clip_y0 || sy >= clip_y1) continue;
+        p = (const u16 *)((const u8 *)sp + sp->rowoff[r]);
+        ns = *p++;
+        row = scr + sy * SCR_W;
+        while(ns--) {
+            int sx0 = p[0], len = p[1];
+            const u16 *px = p + 2;
+            p += 2 + len;
+            if(!flip) {
+                int dx = x + sp->ox + sx0, i0 = 0, i1 = len;
+                if(dx < 0) i0 = -dx;
+                if(dx + len > SCR_W) i1 = SCR_W - dx;
+                for(i = i0; i < i1; i++) row[dx + i] = (u16)blend565(px[i], row[dx + i], a5);
+            } else {
+                int dx = x - (sp->ox + sx0) - 1;
+                int i0 = 0, i1 = len;
+                if(dx >= SCR_W) i0 = dx - SCR_W + 1;
+                if(dx - (len - 1) < 0) i1 = dx + 1;
+                for(i = i0; i < i1; i++) row[dx - i] = (u16)blend565(px[i], row[dx - i], a5);
+            }
+        }
+    }
+}
 /* a sprite baked with per-pixel alpha (tools/bake_game.py encode_alpha): spans of (x, len) pairs, then one u32 per pixel, alpha in bits 16-23.
  * `fade` 0..255 scales the alpha of the whole sprite. */
 void gfx_blit_alpha(const Sprite *sp, int x, int y, int flip, int fade) {

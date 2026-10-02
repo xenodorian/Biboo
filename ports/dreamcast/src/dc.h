@@ -39,6 +39,7 @@ void gfx_clip(int y0, int y1);                                      /* rows y0 <
 void gfx_clear(u16 c);
 void gfx_rect(int x, int y, int w, int h, u16 c);
 void gfx_blit(const Sprite *s, int x, int y, int flip);            /* (x, y) is the sprite's anchor on the screen; flip mirrors about it */
+void gfx_blit_fade(const Sprite *s, int x, int y, int flip, int fade); /* colour-keyed sprite, fade 0..255 (not for alpha-baked sprites) */
 void gfx_text(int x, int y, const char *s, u16 c);
 void gfx_num(int x, int y, u32 v, u16 c);
 void gfx_shift(int y0, int y1, int dx, int dy);
