@@ -11,6 +11,13 @@ for (const f of ['assets/data.js', 'assets/moves_extra.js', 'assets/creatures.js
 }
 for (const f of ['progress.js', 'levels.js']) { try { run(f); } catch (e) { console.error('skipped', f, String(e).split('\n')[0]); } }
 const B = win.BIBOO;
+// web/game/00_core.js rewrites the pad bindings and a few move tables at start-up (spin on Y, the charged chop on A, the beams on shoulder
+// buttons, the heavy horizontal copy of the slash, new push-kick hit boxes ...). Run exactly that section so the port starts from the final tables.
+{
+  const core = fs.readFileSync(path.join(WEB, 'game/00_core.js'), 'utf8').split('\n');
+  const a = core.findIndex(l => l.includes("const D = window.BIBOO;")), b = core.findIndex(l => l.includes("A-A-A-A-R1+R2+L1+L2"));
+  vm.runInContext("(function(){'use strict';\n" + core.slice(a, b + 1).join('\n') + "\n})()", win, { filename: 'game/00_core.js (bindings)' });
+}
 const dump = { view: B.view, layers: B.layers, fringe: B.fringe, moves: B.moves, input: B.input, enemies: B.enemies || {}, items: B.items || {}, themes: B.themes || {} };
 if (win.BIBOO_LEVELS) {
   const L = win.BIBOO_LEVELS;

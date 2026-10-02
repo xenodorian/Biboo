@@ -37,7 +37,7 @@ src/hw.o: src/hw.c src/dc.h
 src/gfx.o: src/gfx.c src/dc.h src/font8x8_basic.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-src/game.o: src/game.c src/dc.h src/gen/game_data.h
+src/game.o: src/game.c $(wildcard src/*.inc) src/dc.h src/gen/game_data.h src/gen/music_data.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 src/audio.o: src/audio.c src/dc.h src/gen/music_data.h
