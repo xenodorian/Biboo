@@ -310,6 +310,145 @@ static void pick_music(void) {                 /* which track belongs to what is
     audio_want(t);
 }
 
+static int menu_i, move_i, move_show, move_n;
+typedef struct { short move; char pad[32], title[18], how[16]; } MoveRow;
+static MoveRow move_rows[40];
+static int str_eq(const char *a, const char *b) { while(*a && *a == *b) { a++; b++; } return *a == 0 && *b == 0; }
+static void str_put(char *d, int cap, const char *s) { int i = 0; if(cap < 1) return; while(s[i] && i < cap - 1) { d[i] = s[i]; i++; } d[i] = 0; }
+static void step_text(unsigned mask, char *d, int cap) {
+    static const unsigned bits[10] = {BTN_UP, BTN_DOWN, BTN_LEFT, BTN_RIGHT, BTN_A, BTN_B, BTN_X, BTN_Y, BTN_L, BTN_R};
+    static const char *nm[10] = {"UP", "DOWN", "LEFT", "RIGHT", "A", "B", "X", "Y", "L", "R"};
+    int i, p = 0, any = 0;
+    for(i = 0; i < 10; i++) if(mask & bits[i]) {
+        const char *s = nm[i];
+        if(any && p < cap - 1) d[p++] = '+';
+        while(*s && p < cap - 1) d[p++] = *s++;
+        any = 1;
+    }
+    d[p] = 0;
+}
+static void seq_text(const Binding *b, char *out, int cap) {
+    char tok[6][12];
+    int i, p = 0;
+    for(i = 0; i < b->nsteps && i < 6; i++) step_text(b->steps[i], tok[i], 12);
+    i = 0;
+    while(i < b->nsteps && i < 6) {
+        int run = 1;
+        const char *s;
+        while(i + run < b->nsteps && i + run < 6 && str_eq(tok[i], tok[i + run])) run++;
+        if(p && p < cap - 1) out[p++] = ',';
+        s = tok[i]; while(*s && p < cap - 1) out[p++] = *s++;
+        if(run > 1 && p < cap - 3) { out[p++] = ' '; out[p++] = 'x'; out[p++] = (char)('0' + run); }
+        i += run;
+    }
+    out[p] = 0;
+}
+static void fold_dir(const char *s, char *d, int cap) {
+    int o = 0;
+    while(*s && o < cap - 1) {
+        if(s[0] == 'L' && s[1] == 'E' && s[2] == 'F' && s[3] == 'T') { d[o++] = '#'; s += 4; }
+        else if(s[0] == 'R' && s[1] == 'I' && s[2] == 'G' && s[3] == 'H' && s[4] == 'T') { d[o++] = '#'; s += 5; }
+        else d[o++] = *s++;
+    }
+    d[o] = 0;
+}
+static void unify_dir(char *s) {
+    char tmp[32];
+    int o = 0;
+    const char *p = s;
+    while(*p && o < 31) {
+        if(p[0] == 'L' && p[1] == 'E' && p[2] == 'F' && p[3] == 'T') { tmp[o++] = 'L'; tmp[o++] = '/'; tmp[o++] = 'R'; p += 4; }
+        else if(p[0] == 'R' && p[1] == 'I' && p[2] == 'G' && p[3] == 'H' && p[4] == 'T') { tmp[o++] = 'L'; tmp[o++] = '/'; tmp[o++] = 'R'; p += 5; }
+        else tmp[o++] = *p++;
+    }
+    tmp[o] = 0;
+    str_put(s, 32, tmp);
+}
+static void short_title(int mv, const char *over, char *d) {
+    const char *s = over ? over : mv == MV_ULTIMATE ? "ULTIMATE" : MOVES[mv].title;
+    int i = 0;
+    for(; s[i] && s[i] != '(' && i < 16; i++) { char c = s[i]; if(c >= 'a' && c <= 'z') c = (char)(c - 32); d[i] = c; }
+    while(i > 0 && d[i - 1] == ' ') i--;
+    d[i] = 0;
+}
+static const char *how_of(const Binding *b) {
+    if(b->move == MV_energy_burst || b->move == MV_energy_wave || b->move == MV_energy_kick || b->move == MV_energy_dash_thrust) return "HOLD, LET GO";
+    if(b->release_into >= 0) return "HOLD, LET GO";
+    if(b->type == BT_TAP) return "TAP";
+    if(b->type == BT_HOLD) return "HOLD";
+    if(b->type == BT_AIR) return "IN AIR";
+    if(b->type == BT_CHORD) return "TOGETHER";
+    if(b->type == BT_SEQ) return "IN ORDER";
+    return "PRESS";
+}
+static void add_move_row(int mv, const char *pad, const char *title, const char *how) {
+    int i;
+    char fa[32], fb[32];
+    if(move_n >= 40) return;
+    if(mv >= 0) for(i = 0; i < move_n; i++) if(move_rows[i].move == mv) {
+        fold_dir(move_rows[i].pad, fa, 32); fold_dir(pad, fb, 32);
+        if(str_eq(fa, fb)) { str_put(move_rows[i].pad, 32, pad); unify_dir(move_rows[i].pad); }
+        return;
+    }
+    move_rows[move_n].move = (short)mv;
+    str_put(move_rows[move_n].pad, 32, pad);
+    short_title(mv, title, move_rows[move_n].title);
+    str_put(move_rows[move_n].how, 16, how);
+    move_n++;
+}
+static void add_binding(const Binding *b) {
+    char pad[32];
+    if(b->type == BT_IDLE || b->nsteps < 1 || !bind_open(b)) return;
+    if(b->move == MV_jump) { add_move_row(MV_jump, "UP", 0, "PRESS"); return; }
+    if(b->type == BT_SEQ) seq_text(b, pad, 32); else step_text(b->steps[0], pad, 32);
+    add_move_row(b->move, pad, 0, how_of(b));
+}
+static void build_moves(void) {
+    int i;
+    move_n = 0;
+    for(i = 0; i < N_BIND_OTHER; i++) add_binding(&BIND_OTHER[i]);
+    for(i = 0; i < N_BIND_CHORDS; i++) add_binding(&BIND_CHORDS[i]);
+    for(i = 0; i < N_BIND_SEQS; i++) add_binding(&BIND_SEQS[i]);
+    if(has(UL_METER_CHARGE)) add_move_row(-2, "DOWN+L+R", "METER CHARGE", "HOLD");
+    if(has(UL_CHAIN)) add_move_row(-3, "A x5", "CHAIN", "PRESS");
+    if(has(UL_CHAIN_BURST)) add_move_row(-4, "A x4, B", "BURST CHAIN", "IN ORDER");
+    if(has(UL_FLY)) add_move_row(-5, "A,B,A,B,UP", "FLIGHT", "IN ORDER");
+    if(has(UL_RAINBOW)) add_move_row(-6, "A,B,A,B,A,B", "RAINBOW", "IN ORDER");
+    if(has(UL_DOUBLE_JUMP)) add_move_row(-7, "UP,UP", "DOUBLE JUMP", "IN AIR");
+}
+static void draw_moves(void) {
+    int i, first, shown = 0, y;
+    gfx_dim(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
+    box(8, 24, SCR_W - 16, 188);
+    ctext(28, "MOVES", RGB(255, 225, 77), 2);
+    first = move_i - 6; if(first < 0) first = 0;
+    if(move_n > 13 && first + 13 > move_n) first = move_n - 13;
+    y = 48;
+    for(i = first; i < move_n && shown < 13; i++, shown++) {
+        u16 c = i == move_i ? RGB(255, 225, 77) : RGB(230, 230, 236);
+        if(i == move_i) gfx_text(12, y, ">", c);
+        gfx_text(24, y, move_rows[i].pad, c);
+        gfx_text(168, y, move_rows[i].title, c);
+        y += 10;
+    }
+    if(!move_n) gfx_text(16, 56, "NO MOVES", RGB(154, 154, 168));
+    else if(move_show) gfx_text(16, 188, move_rows[move_i].how, RGB(255, 210, 74));
+    gfx_text(16, 200, "B: BACK    Y: HOW", RGB(154, 154, 168));
+}
+static void draw_pause_list(void) {
+    static const char *items[4] = {"RESUME", "MOVES", "ITEMS", "SAVE"};
+    int i;
+    gfx_dim(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
+    box(48, 48, SCR_W - 96, 120);
+    ctext(56, "PAUSED", RGB(255, 225, 77), 2);
+    for(i = 0; i < 4; i++) {
+        u16 c = i == menu_i ? RGB(255, 225, 77) : RGB(230, 230, 236);
+        if(i == menu_i) gfx_text(72, 84 + i * 16, ">", c);
+        gfx_text(88, 84 + i * 16, items[i], c);
+    }
+    gfx_text(64, 152, "A: PICK  START: RESUME", RGB(154, 154, 168));
+}
+
 void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
     float rx, ry, before, dt = FRAME_MS;
     int i;
@@ -392,24 +531,42 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
     if(paused || gameover_on || level_done) {                                  /* the world holds still under a menu */
         if(level_done) { if(pressed_now(PAD_A) || pressed_now(PAD_START)) { go_overworld(); return; } }
         else if(gameover_on) { if(pressed_now(PAD_A) || pressed_now(PAD_START)) { gameover_on = 0; retry_map(); return; } if(pressed_now(PAD_B)) { go_overworld(); return; } }
-        else if(menu_page == 1) {
+        else if(pressed_now(PAD_START)) { paused = 0; menu_page = 0; }
+        else if(menu_page == 2) {
+            if(pressed_now(PAD_UP) && move_i > 0) move_i--;
+            if(pressed_now(PAD_DOWN) && move_i + 1 < move_n) move_i++;
+            if(pressed_now(PAD_Y)) move_show ^= 1;
+            if(pressed_now(PAD_B)) { menu_page = 0; move_show = 0; }
+        } else if(menu_page == 1) {
             if(pressed_now(PAD_UP) && item_i > 0) item_i--;
             if(pressed_now(PAD_DOWN) && item_i < 3) item_i++;
             if(pressed_now(PAD_A)) use_item(item_i);
             if(pressed_now(PAD_B)) menu_page = 0;
-        } else if(pressed_now(PAD_Y)) { menu_page = 1; item_i = 0; }
-        else { if(pressed_now(PAD_START) || pressed_now(PAD_A)) paused = 0; }
+        } else {
+            if(pressed_now(PAD_UP) && menu_i > 0) menu_i--;
+            if(pressed_now(PAD_DOWN) && menu_i < 3) menu_i++;
+            if(pressed_now(PAD_Y)) { menu_page = 1; item_i = 0; }
+            else if(pressed_now(PAD_A)) {
+                if(menu_i == 0) paused = 0;
+                else if(menu_i == 1) { build_moves(); move_i = 0; move_show = 0; menu_page = 2; }
+                else if(menu_i == 2) { menu_page = 1; item_i = 0; }
+                else save_game();
+            }
+        }
         draw_scene(); draw_hud(frame_us, draw_us);
         if(level_done) {
             char buf[40] = "LEVEL N COMPLETE";
             buf[6] = (char)('1' + level_idx);
             overlay(buf, level_idx + 1 < NUM_LEVELS ? "THE NEXT LEVEL IS NOW OPEN" : "YOU BEAT THE LAST LEVEL", "A: BACK TO THE OVERWORLD");
         } else if(gameover_on) overlay("GAME OVER", ankhs < 1 ? "NO ANKHS: THE LEVEL STARTS OVER" : "A: RETRY (USES 1 ANKH)", "B: OVERWORLD");
+        else if(!paused) { }
+        else if(menu_page == 2) draw_moves();
         else if(menu_page == 1) draw_item_menu();
-        else overlay("PAUSED", "A: RESUME   Y: ITEMS", "");
+        else draw_pause_list();
+        if(now < save_msg_until) ctext(210, save_msg, RGB(160, 180, 230), 1);
         return;
     }
-    if(pressed_now(PAD_START)) { paused = 1; menu_page = 0; ignore_until_up = 0; return; }
+    if(pressed_now(PAD_START)) { paused = 1; menu_page = 0; menu_i = 0; ignore_until_up = 0; return; }
     if(freeze_ms > 0) {                                                        /* hit-stop: the world holds still (presses made now are still read) */
         freeze_ms -= dt; read_buttons(now); draw_scene(); draw_hud(frame_us, draw_us);
         return;

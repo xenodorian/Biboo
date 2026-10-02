@@ -147,6 +147,14 @@ static u16 maple_poll_buttons(void) {
         u16 b = (u16)(w & 0xffffu) | 0x3000u;                      /* bits 12 and 13 stand for the triggers: 0 when pulled past 100 of 255 */
         if(((w >> 24) & 0xffu) > 100) b &= (u16)~PAD_L;
         if(((w >> 16) & 0xffu) > 100) b &= (u16)~PAD_R;
+        {   /* R36S prints Nintendo labels. Position-mapped, south is Dreamcast A but the label is B, east is B but labeled A, west is X but labeled Y, north is Y but labeled X. */
+            int ap = (b & PAD_A) == 0, bp = (b & PAD_B) == 0, xp = (b & PAD_X) == 0, yp = (b & PAD_Y) == 0;
+            b |= (u16)(PAD_A | PAD_B | PAD_X | PAD_Y);
+            if(bp) b &= (u16)~PAD_A;
+            if(ap) b &= (u16)~PAD_B;
+            if(yp) b &= (u16)~PAD_X;
+            if(xp) b &= (u16)~PAD_Y;
+        }
         return b;
     }
 }

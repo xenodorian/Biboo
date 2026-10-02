@@ -47,7 +47,7 @@ static const char *const TIPS[] = {
     "Buy moves from the Bone Merchant.",
     "Meters and health refill here.",
     "Tap B parry. Hold B to block.",
-    "Start pauses. A resumes.",
+    "Start, then Moves, lists your controls.",
 };
 static void draw_bunny(void) {
     int hop = 0;
