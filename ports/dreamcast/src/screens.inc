@@ -398,7 +398,7 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
             if(pressed_now(PAD_A)) use_item(item_i);
             if(pressed_now(PAD_B)) menu_page = 0;
         } else if(pressed_now(PAD_Y)) { menu_page = 1; item_i = 0; }
-        else { if(pressed_now(PAD_START) || pressed_now(PAD_A)) paused = 0; if(pressed_now(PAD_B)) { go_overworld(); return; } }
+        else { if(pressed_now(PAD_START) || pressed_now(PAD_A)) paused = 0; }
         draw_scene(); draw_hud(frame_us, draw_us);
         if(level_done) {
             char buf[40] = "LEVEL N COMPLETE";
@@ -406,7 +406,7 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
             overlay(buf, level_idx + 1 < NUM_LEVELS ? "THE NEXT LEVEL IS NOW OPEN" : "YOU BEAT THE LAST LEVEL", "A: BACK TO THE OVERWORLD");
         } else if(gameover_on) overlay("GAME OVER", ankhs < 1 ? "NO ANKHS: THE LEVEL STARTS OVER" : "A: RETRY (USES 1 ANKH)", "B: OVERWORLD");
         else if(menu_page == 1) draw_item_menu();
-        else overlay("PAUSED", "A: RESUME   Y: ITEMS", "B: OVERWORLD");
+        else overlay("PAUSED", "A: RESUME   Y: ITEMS", "");
         return;
     }
     if(pressed_now(PAD_START)) { paused = 1; menu_page = 0; ignore_until_up = 0; return; }
