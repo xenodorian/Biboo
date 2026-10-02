@@ -3,3 +3,4 @@
 *.cdi
 *.bin.gen
 build/
+src/gen/
