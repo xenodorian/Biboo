@@ -7,7 +7,7 @@ AS      = sh-elf-gcc
 LD      = sh-elf-gcc
 
 ARCHFLAGS = -m4-single-only -ml
-CFLAGS    = $(ARCHFLAGS) -O2 -fno-builtin -ffreestanding -fomit-frame-pointer -fno-tree-loop-distribute-patterns \
+CFLAGS    = $(CFLAGS_EXTRA) $(ARCHFLAGS) -O2 -fno-builtin -ffreestanding -fomit-frame-pointer -fno-tree-loop-distribute-patterns \
             -Wall -Wextra -nostdlib -nostartfiles -nodefaultlibs
 LDFLAGS   = $(ARCHFLAGS) -nostdlib -nostartfiles -nodefaultlibs -T dc.ld -Wl,--build-id=none
 
