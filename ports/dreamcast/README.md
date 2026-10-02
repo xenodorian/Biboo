@@ -14,6 +14,11 @@ by the owner; its key points are repeated here). Bare metal, no KallistiOS, no C
     make -C ports/dreamcast            # parryperry.elf
     make -C ports/dreamcast cdi        # parryperry.cdi, the disc image (git ignores it)
 
+`make assets` regenerates `build/ART.BIN`, `src/gen/game_data.[ch]` and `src/gen/music_data.[ch]` from the web game (needs node, python3 with
+Pillow and numpy). Test builds (never ship them): `make clean && make CFLAGS_EXTRA='-DAUTOTEST'` adds a bot that plays;
+add `-DGODMODE`, `-DKILLALL`, `-DSTART_LEVEL=n -DSTART_MAP=m` (0-based) as needed. Emulator runs: `tools/emu_run.py` (screenshots, key presses,
+`--home DIR` for a persistent virtual memory card, `--audio FILE` to record the sound).
+
 ## Facts the code relies on (from the handoff; [V] = verified in the CryMon port, the R36S is untested by anyone)
 
 - Video: 320x240, RGB565, NTSC, CPU-drawn into video RAM at 0xa5000000, two buffers (0x000000 and 0x040000), redraw every frame,

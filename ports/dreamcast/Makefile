@@ -11,14 +11,16 @@ CFLAGS    = $(CFLAGS_EXTRA) $(ARCHFLAGS) -O2 -fno-math-errno -fno-builtin -ffree
             -Wall -Wextra -nostdlib -nostartfiles -nodefaultlibs
 LDFLAGS   = $(ARCHFLAGS) -nostdlib -nostartfiles -nodefaultlibs -T dc.ld -Wl,--build-id=none
 
-OBJS = src/start.o src/hw.o src/gfx.o src/game.o src/main.o src/save.o src/art.o src/gen/game_data.o
+OBJS = src/start.o src/hw.o src/gfx.o src/game.o src/main.o src/save.o src/audio.o src/art.o src/gen/game_data.o src/gen/music_data.o
 
 WEB = ../../web
 ASSET_SRC = $(wildcard $(WEB)/assets/*.js $(WEB)/assets/moves/*.png $(WEB)/assets/enemies/*.png $(WEB)/assets/layers/*.png) tools/bake_game.py tools/dump_game_data.js
 
 all: parryperry.elf
 
-assets: build/ART.BIN src/gen/game_data.h src/gen/game_data.c
+assets: build/ART.BIN src/gen/game_data.h src/gen/game_data.c src/gen/music_data.c
+src/gen/music_data.h src/gen/music_data.c: tools/bake_music.py $(WEB)/../tools/music/compose.py
+	python3 tools/bake_music.py
 build/ART.BIN src/gen/game_data.h src/gen/game_data.c: $(ASSET_SRC)
 	node tools/dump_game_data.js
 	python3 tools/bake_game.py
@@ -36,6 +38,9 @@ src/gfx.o: src/gfx.c src/dc.h src/font8x8_basic.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 src/game.o: src/game.c src/dc.h src/gen/game_data.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+src/audio.o: src/audio.c src/dc.h src/gen/music_data.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 src/main.o: src/main.c src/dc.h

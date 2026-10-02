@@ -45,7 +45,7 @@ def sh(cmd, **kw):
     return subprocess.run(cmd, shell=isinstance(cmd, str), **kw)
 
 
-def run(cdi, out, script, seconds, flycast, home=None, size=(640, 480), keep=False):
+def run(cdi, out, script, seconds, flycast, home=None, size=(640, 480), keep=False, audio=None):
     from PIL import ImageGrab
     os.makedirs(out, exist_ok=True)
     tmp = home or tempfile.mkdtemp(prefix='dcemu_')
@@ -53,9 +53,14 @@ def run(cdi, out, script, seconds, flycast, home=None, size=(640, 480), keep=Fal
     os.makedirs(os.path.join(tmp, '.local', 'share', 'flycast'), exist_ok=True)       # Flycast makes no memory card if this is missing
     cfgpath = os.path.join(cfgdir, 'emu.cfg')
     if not os.path.exists(cfgpath):
-        open(cfgpath, 'w').write(CFG.replace('width = 640', f'width = {size[0]}').replace('height = 480', f'height = {size[1]}'))
+        cfg = CFG.replace('width = 640', f'width = {size[0]}').replace('height = 480', f'height = {size[1]}')
+        if audio:                                                  # record the sound: SDL's disk audio driver writes the raw output to a file
+            cfg = cfg.replace('backend = auto', 'backend = SDL2').replace('disable = yes', 'disable = no')
+        open(cfgpath, 'w').write(cfg)
     env = dict(os.environ, HOME=tmp, XDG_CONFIG_HOME=os.path.join(tmp, '.config'), XDG_DATA_HOME=os.path.join(tmp, '.local', 'share'),
-               DISPLAY=DISPLAY, SDL_AUDIODRIVER='dummy', LIBGL_ALWAYS_SOFTWARE='1', SDL_VIDEODRIVER='x11')
+               DISPLAY=DISPLAY, SDL_AUDIODRIVER='disk' if audio else 'dummy', LIBGL_ALWAYS_SOFTWARE='1', SDL_VIDEODRIVER='x11')
+    if audio:
+        env['SDL_DISKAUDIOFILE'] = os.path.abspath(audio)
     xvfb = subprocess.Popen(['Xvfb', DISPLAY, '-screen', '0', f'{size[0] + 64}x{size[1] + 64}x24', '-nolisten', 'tcp'],
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(1.5)
@@ -113,11 +118,12 @@ def main():
     ap.add_argument('--home', help='keep config and memory card in this folder between runs')
     ap.add_argument('--size', default='640x480')
     ap.add_argument('--keep', action='store_true')
+    ap.add_argument('--audio', help='record the emulator sound to this raw file (signed 16 bit stereo, 44100 Hz) with SDL\'s disk audio driver')
     a = ap.parse_args()
     if not os.path.exists(a.flycast):
         sys.exit(f'Flycast not found at {a.flycast} (see tools/setup_toolchain.sh)')
     w, h = (int(v) for v in a.size.split('x'))
-    for p in run(a.cdi, a.out, a.script, a.seconds, a.flycast, a.home, (w, h), a.keep):
+    for p in run(a.cdi, a.out, a.script, a.seconds, a.flycast, a.home, (w, h), a.keep, a.audio):
         print('wrote', p)
 
 

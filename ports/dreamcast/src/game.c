@@ -8,6 +8,7 @@
  * Coordinates are the web game's ("view" pixels, 384x216, y up from the ground); only drawing converts to screen pixels (5/6 size). */
 #include "dc.h"
 #include "gen/game_data.h"
+#include "gen/music_data.h"
 
 #define FRAME_MS 16.6667f
 
@@ -1542,9 +1543,16 @@ void game_init(void) {
     if(screen == SCN_TITLE) { cur_map = &MAPS[0]; level_idx = 0; map_idx = 0; }
 }
 
+static void pick_music(void) {                 /* which track belongs to what is on screen (web/game/19_overworld.js wantedTrack) */
+    int t = TRK_OVERWORLD;
+    if(screen == SCN_LEVEL) t = gameover_on ? -1 : cur_map->boss ? TRK_BOSS1 + level_idx : TRK_LEVEL1 + level_idx;
+    audio_want(t);
+}
+
 void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
     float rx, ry, before, dt = FRAME_MS;
     int i;
+    pick_music();
 #ifdef AUTOTEST                                        /* test build: a bot plays (walk to the nearest enemy, slash, go right when the door is open) */
     {
         static u32 fc; int j; float tx = 1e9f, px = player_x();

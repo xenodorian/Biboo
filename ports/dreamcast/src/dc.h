@@ -42,6 +42,11 @@ void gfx_num(int x, int y, u32 v, u16 c);
 void gfx_text2(int x, int y, const char *s, u16 c, int k);
 void gfx_dim(int y0, int y1);
 
+/* audio.c: music on the AICA */
+void audio_init(void);
+void audio_want(int track);             /* a TRK_ number from gen/music_data.h, or -1 for silence */
+void audio_tick(void);                  /* once per frame */
+
 /* save.c: the VMU */
 int save_read(u8 *data256);             /* 1 read, 0 no save, -1 no card */
 int save_write(const u8 *data256);      /* 1 saved */
