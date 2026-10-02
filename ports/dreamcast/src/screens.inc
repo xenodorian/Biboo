@@ -22,7 +22,7 @@ static void draw_scene(void) {
     draw_layers(camY);
     draw_geometry();
     draw_items();
-    if(training_on) draw_bag();
+    if(training_on) { draw_bag(); draw_bunny(); }
     draw_enemies();
     draw_player();
     draw_beam();
@@ -142,27 +142,27 @@ static void overlay(const char *l0, const char *l1, const char *l2) {
 }
 
 /* ------------------------------------------------------------------ story (web/game/18_story.js): the words, on a panel. The wide scene pictures are not in the art pack. */
-typedef struct { int id; const char *title, *body; } StoryPage;
+typedef struct { int id, bg; const char *title, *body; } StoryPage;
 static const StoryPage STORY[] = {
-    { ST_PROLOGUE, "PERRY", "Peregrine \"Perry\" Riposte was ten years old. She had a mom, a dad, and a little brother. The house was small and loud. It was home." },
-    { ST_PROLOGUE, "THE FIRE", "One night the house went up in flames. Perry saw a figure on the lawn, lit by the fire. The figure looked exactly like her." },
-    { ST_PROLOGUE, "THE FIRE", "Her parents and her little brother never came out." },
-    { ST_PROLOGUE, "THE VILLAGE", "The village came running. They saw the smoke, and they saw Perry. \"She did it,\" they said. Nobody would listen. Perry ran." },
-    { ST_PROLOGUE, "MIRACLE ISLAND", "She found a boat and sailed to Miracle Island. It is full of monsters. At its center lies the Legendary Wish Scroll, which can grant any wish." },
-    { ST_PROLOGUE, "MIRACLE ISLAND", "Perry gripped her sword. She would fight her way to the center." },
-    { ST_DOUBLE, "PERRY, FALLEN", "The other Perry drops to one knee. Her body flickers like a candle in the wind." },
-    { ST_DOUBLE, "THE DOUBLE", "\"You still do not get it,\" she says. \"I am not a stranger. I came from you.\"" },
-    { ST_DOUBLE, "THE DOUBLE", "\"I was born from your magic and your worst feelings. I am every angry thought you ever had, with a body.\"" },
-    { ST_DOUBLE, "THE DOUBLE", "\"You can beat me. It will not last. Unless you let your anger out in a healthy way, I will rise again.\"" },
-    { ST_DOUBLE, "PERRY", "The double fades into red sparks. The way to the center of the island is open." },
-    { ST_ENDING, "THE CENTER", "Perry walked on, past the last of the monsters, to the very center of the island." },
-    { ST_ENDING, "THE SCROLL", "Behind a ring of old stones lay the Legendary Wish Scroll. It glowed softly. Perry opened it. \"Take me back,\" she said. \"To before the fire.\"" },
-    { ST_ENDING, "BACK IN TIME", "The world spun backward. Days and nights blurred past, until the sky settled on that last evening." },
-    { ST_ENDING, "HOME", "Perry stood outside her house. Through the window she saw her mom, her dad, and her little brother, laughing at supper. They were alive." },
-    { ST_ENDING, "HOME", "All that hatred had never made her strong. It had only made her alone. It had hurt her far more than it ever helped." },
-    { ST_ENDING, "PERRY", "Perry sat down in the grass. She took a deep breath. In, and out. Again. She let the anger go a little at a time." },
-    { ST_ENDING, "PERRY", "\"Holding on to anger is self-destructive,\" Perry said. \"I have to appreciate what I have, before it is all gone.\"" },
-    { ST_ENDING, "THE END", "Thank you for playing Perry Riposte." },
+    { ST_PROLOGUE, STBG_CALM, "PERRY", "Peregrine \"Perry\" Riposte was ten years old. She had a mom, a dad, and a little brother. The house was small and loud. It was home." },
+    { ST_PROLOGUE, STBG_FIRE, "THE FIRE", "One night the house went up in flames. Perry saw a figure on the lawn, lit by the fire. The figure looked exactly like her." },
+    { ST_PROLOGUE, STBG_FIRE, "THE FIRE", "Her parents and her little brother never came out." },
+    { ST_PROLOGUE, STBG_CROWD, "THE VILLAGE", "The village came running. They saw the smoke, and they saw Perry. \"She did it,\" they said. Nobody would listen. Perry ran." },
+    { ST_PROLOGUE, STBG_SEA, "MIRACLE ISLAND", "She found a boat and sailed to Miracle Island. It is full of monsters. At its center lies the Legendary Wish Scroll, which can grant any wish." },
+    { ST_PROLOGUE, STBG_SEA, "MIRACLE ISLAND", "Perry gripped her sword. She would fight her way to the center." },
+    { ST_DOUBLE, STBG_DOUBLE, "PERRY, FALLEN", "The other Perry drops to one knee. Her body flickers like a candle in the wind." },
+    { ST_DOUBLE, STBG_DOUBLE, "THE DOUBLE", "\"You still do not get it,\" she says. \"I am not a stranger. I came from you.\"" },
+    { ST_DOUBLE, STBG_DOUBLE, "THE DOUBLE", "\"I was born from your magic and your worst feelings. I am every angry thought you ever had, with a body.\"" },
+    { ST_DOUBLE, STBG_DOUBLE, "THE DOUBLE", "\"You can beat me. It will not last. Unless you let your anger out in a healthy way, I will rise again.\"" },
+    { ST_DOUBLE, STBG_DOUBLE, "PERRY", "The double fades into red sparks. The way to the center of the island is open." },
+    { ST_ENDING, STBG_ALTAR, "THE CENTER", "Perry walked on, past the last of the monsters, to the very center of the island." },
+    { ST_ENDING, STBG_ALTAR, "THE SCROLL", "Behind a ring of old stones lay the Legendary Wish Scroll. It glowed softly. Perry opened it. \"Take me back,\" she said. \"To before the fire.\"" },
+    { ST_ENDING, STBG_REWIND, "BACK IN TIME", "The world spun backward. Days and nights blurred past, until the sky settled on that last evening." },
+    { ST_ENDING, STBG_CALM, "HOME", "Perry stood outside her house. Through the window she saw her mom, her dad, and her little brother, laughing at supper. They were alive." },
+    { ST_ENDING, STBG_CALM, "HOME", "All that hatred had never made her strong. It had only made her alone. It had hurt her far more than it ever helped." },
+    { ST_ENDING, STBG_MEDITATE, "PERRY", "Perry sat down in the grass. She took a deep breath. In, and out. Again. She let the anger go a little at a time." },
+    { ST_ENDING, STBG_SUNRISE, "PERRY", "\"Holding on to anger is self-destructive,\" Perry said. \"I have to appreciate what I have, before it is all gone.\"" },
+    { ST_ENDING, STBG_SUNRISE, "THE END", "Thank you for playing Perry Riposte." },
 };
 static int story_len(void) { int i, n = 0; for(i = 0; i < (int)(sizeof STORY / sizeof STORY[0]); i++) if(STORY[i].id == story_id) n++; return n; }
 static const StoryPage *story_cur(void) {
@@ -179,12 +179,13 @@ static void story_finish(void) {
 static void draw_story(void) {
     const StoryPage *p = story_cur();
     int last = story_page + 1 >= story_len();
-    gfx_clear(RGB(8, 6, 14));
+    gfx_clear(RGB(0, 0, 0));
     gfx_clip(0, SCR_H);
-    box(12, 28, SCR_W - 24, 176);
-    ctext(40, p->title, RGB(255, 225, 77), 2);
-    wrap_text(24, 68, p->body, RGB(230, 230, 236), 34, 12);
-    ctext(214, last ? "A: CONTINUE" : "A: NEXT    B: SKIP", RGB(154, 154, 168), 1);
+    gfx_blit(art_sprite(STORY_BG[p->bg]), 0, VIEW_TOP, 0);
+    box(8, 148, SCR_W - 16, 80);
+    ctext(152, p->title, RGB(255, 225, 77), 1);
+    wrap_text(16, 164, p->body, RGB(230, 230, 236), 36, 4);
+    ctext(216, last ? "A: CONTINUE" : "A: NEXT    B: SKIP", RGB(154, 154, 168), 1);
 }
 
 /* ------------------------------------------------------------------ Bone Merchant (web/game/00_core.js shopRows / buy) */

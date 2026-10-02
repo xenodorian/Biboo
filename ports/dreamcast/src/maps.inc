@@ -11,7 +11,7 @@ static void load_map(int level, int idx, int from_left) {
         float x = (float)s->x;
         e->type = s->type; e->on = 1; e->hp = e->maxhp = (float)d->hp; e->x = e->base = e->prevx = x; e->face = -1; e->state = S_WALK;
         e->k = 0; e->t = 0; e->rest = 0; e->dead = 0; e->dive = frand() < 0.5f; e->fy = (float)s->fy; e->jy = 0; e->jump_on = 0; e->hop_at = -1; e->dir = 1; e->pause = 0; e->far = 0;
-        e->combo_ready = 1; e->melee_seen = 0; e->hit_done = 0; e->land_at = 0; e->tint_until = 0; e->scale = 1; e->speed_mul = e->dmg_mul = 1; e->taunted = 0; e->drop_energy = e->drop_empower = 0; e->seen_t = 0; e->seen = 0; e->push_v = e->push_a = 0;
+        e->combo_ready = 1; e->melee_seen = 0; e->hit_done = 0; e->land_at = 0; e->strike_fr = -1; e->tint_until = 0; e->scale = 1; e->speed_mul = e->dmg_mul = 1; e->taunted = 0; e->drop_energy = e->drop_empower = 0; e->seen_t = 0; e->seen = 0; e->push_v = e->push_a = 0;
         set_range(e);                                    /* an enemy on a platform never leaves it; a ground enemy stays between the pits */
         e->sight = (float)(s->sight ? s->sight : 100) * SIGHT_MUL;
         e->path0 = s->path0; e->path1 = s->path1;
@@ -44,7 +44,7 @@ static void retry_map(void) {               /* after a K.O. the same map can be 
     if(ankhs < 1) { ankhs = 3; start_level(level_idx); return; }
     ankhs--; hp = max_hp; load_map(level_idx, map_idx, 1);
 }
-static const MapDef TRAIN_MAP = { "T", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, SC_SHORE };   /* closed practice map; shore stands in for the unbaked training backdrop */
+static const MapDef TRAIN_MAP = { "T", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, SC_TRAINING };
 static void enter_training(void) {      /* web enterTraining: not a level, so it never marks one cleared */
     int i;
     training_on = 1; screen = SCN_LEVEL; paused = gameover_on = level_done = 0; menu_page = 0;

@@ -224,7 +224,28 @@ static void enemy_attacks(void) {
         Enemy *e = &en[i];
         const EnemyAnim *A;
         float h[4];
-        if(!e->on || e->state != S_ATTACK || e->hit_done) continue;
+        if(!e->on || e->state != S_ATTACK || e->hit_done) {
+            if(e->on && e->strike_fr >= 0) goto hog_tick;
+            continue;
+        }
+        if(e->strike_fr >= 0) hog_tick: {
+            const EnemyFrame *sf = &ENEMY_FRAMES[e->strike_fr];
+            e->strike_fr = -1;
+            if(sf->has_hit) {
+                box_of(e->face, e->base, e->fy + e->jy, e->scale, &sf->ax0, h);
+                if(overlap(h, me)) {
+                    if(parrying()) parried(e);
+                    else if(blocking()) blocked_hit(e);
+                    else if(now >= invuln && !stun_on) knocked(e);
+                }
+            }
+            if(!e->on || e->state != S_ATTACK || e->hit_done) continue;
+        }
+        if(frame_of(e)->open) {
+            const EnemyFrame *f = frame_of(e);
+            if(parrying() && f->has_hit) { box_of(e->face, e->base, e->fy + e->jy, e->scale, &f->ax0, h); if(overlap(h, me)) parried(e); }
+            continue;
+        }
         if(parrying() && e->land_at > 0) { parried(e); continue; }
         A = anim_of(e);
         if(parrying()) {                /* the attack lands this frame or within the next two */

@@ -5,7 +5,7 @@ typedef struct {
     float fy, jy, hp, maxhp, x, base, t, rest, dead, lo, hi, lo0, hi0, sight, pause, far, prevx, push_v, push_a, land_at, tint_until, scale, seen_t, speed_mul, dmg_mul;
     int tint_a, taunted, drop_energy, drop_empower;
     u16 tint_c;
-    int shot_k, path0, path1, dive, combo_ready, melee_seen, hit_done, jump_on, jfall, jdoom;
+    int shot_k, path0, path1, dive, combo_ready, melee_seen, hit_done, jump_on, jfall, jdoom, strike_fr;
     float jx0, jx1, jfy0, jfy1, jH, jt, jdur, hop_at;
     u32 seen;                           /* the last move of hers that hurt it */
 } Enemy;
@@ -19,7 +19,7 @@ static const EnemyFrame *frame_of(const Enemy *e) { return &ENEMY_FRAMES[ENEMY_A
 static float ground_off(const Enemy *e) { float g = (float)frame_of(e)->ground; return e->face < 0 ? g : -g; }
 static void play(Enemy *e, int anim) {
     if(anim < 0) anim = ENEMIES[e->type].a_idle;
-    e->anim = anim; e->k = 0; e->t = 0; e->hit_done = 0; e->land_at = 0; e->shot_k = 0; e->base = e->x - ground_off(e);
+    e->anim = anim; e->k = 0; e->t = 0; e->hit_done = 0; e->land_at = 0; e->shot_k = 0; e->strike_fr = -1; e->base = e->x - ground_off(e);
 }
 static void turn(Enemy *e, int face) { if(face != e->face) { e->face = face; e->base = e->x - ground_off(e); } }
 static int alive(const Enemy *e) { return e->on && e->state != S_DYING; }
@@ -224,7 +224,10 @@ static void step_enemy_core(Enemy *e, float dt) {
     }
     e->t += dt;
     while(e->t >= (float)frame_of(e)->ms) {
-        e->t -= (float)frame_of(e)->ms;
+        const EnemyFrame *leaving = frame_of(e);
+        int leaving_i = ENEMY_ANIM_FRAME_LIST[A->list0 + e->k];
+        e->t -= (float)leaving->ms;
+        if(leaving->tick) e->strike_fr = leaving_i;
         if(e->k + 1 < A->n) e->k++;
         else if(A->loop) e->k = 0;
         else { ended = 1; e->t = 0; break; }

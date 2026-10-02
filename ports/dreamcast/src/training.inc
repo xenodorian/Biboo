@@ -42,3 +42,19 @@ static void draw_bag(void) {
     gfx_rect(x - w / 2 + 2, top + 5, w - 4, h - 5, RGB(120, 72, 36));
     gfx_rect(x - w / 2 + 2, top + 5, 2, h - 5, RGB(72, 40, 20));
 }
+static const char *const TIPS[] = {
+    "Hit the bag with any move you own.",
+    "Buy moves from the Bone Merchant.",
+    "Meters and health refill here.",
+    "Tap B parry. Hold B to block.",
+    "Menu: back to the overworld.",
+};
+static void draw_bunny(void) {
+    int hop = 0;
+    float ph = (float)((int)now % 1800) / 1800.0f;
+    int x = v2s(338), y, tip = ((int)now / 8500) % 5;
+    if(ph < 0.25f) hop = 5;
+    y = VIEW_TOP + v2s(FEET_ROW - iround(-camY)) - hop;
+    gfx_blit(art_sprite(BUNNY_SPRITE), x, y, 0);
+    gfx_text(8, 36, TIPS[tip], RGB(255, 176, 240));
+}
