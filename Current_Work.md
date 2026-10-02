@@ -57,6 +57,15 @@ See repository history for full rules. Work on main, claim steps.
 - **Works on** exact-colour art (GIF, PNG, palette sprites). **JPEG, blurred or anti-aliased art:** use `--tolerance 14 --flood --ink-lum 60`; it is approximate (on the 450 px boar frame saved as JPEG it found 91% of the border at quality 95, 87% at 88, 71% at 75). A soft gradient shadow cannot be separated.
 - **Checked on:** the 450 x 450 black boar GIF (12 frames): 2,575 border pixels on frame 0 and identical to the hand-checked picture pixel for pixel, enclosed pockets (tail curl, gap between the legs) found, shadow left alone. Tests: `tests/test_spriteedge.py`.
 
+## Dreamcast port (on demand only)
+
+**Owner's rules (2026-10-02):** the port is NOT part of the permanent pipeline; build and push a Dreamcast disc image (`.cdi`) only when the owner asks; note each major step here and push it to main so other agents can continue. Everything lives in `ports/dreamcast/` (README there). Source of method: the owner's `DREAMCAST_PORT_HANDOFF.txt` (a CryMon handoff). Plan: a C rewrite of the runtime for the SH-4 with baked data, in phases, each with an emulator test: 1 boot, 2 frame cost, 3 input and text, 4 art, 5 data out of JS, 6 game logic, 7 save, 8 audio, 9 disc streaming, 10 emulator tests.
+
+**Environment (sandbox, Ubuntu 24.04):** `ports/dreamcast/tools/setup_toolchain.sh` installs `gcc-sh-elf 13.2`, builds `mkdcdisc` (GitLab works) and builds Flycast from source. Network notes: apt needs `apt-get update` first; github.com web pages return 403 but `git clone` works; `gitlab.freedesktop.org` is blocked (use the GitHub freetype mirror for Flycast's submodule).
+
+**Step log (newest last):**
+- DC-1 (checkpoint, not yet booted): `ports/dreamcast/` skeleton: `dc.ld`, `src/start.S` (zeroes bss), `Makefile`, `src/main.c` (video 320x240, double buffer, 8x8 font, Maple pad, SH-4 timer for frame cost). `make` and `make cdi` work (ELF 3 KB, CDI 1.4 MB). Boot in the emulator is the next check.
+
 ## Open items
 
 - Cliff scene: Perry's shadow shoots left as a thin spike over the grass edge. The user has not decided whether to shorten or tilt it.
