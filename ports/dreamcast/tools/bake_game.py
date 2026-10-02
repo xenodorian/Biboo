@@ -220,6 +220,8 @@ def main():
     # ---- enemies: frames, animations, and the numbers the AI uses
     ENEMY_HP = {'goblin': 60, 'orc': 200}                     # web/game/05_health.js, for the two enemies that predate the table
     ENEMY_DMG = {'goblin': 12, 'orc': 30}
+    JUMP_DIST = {'goblin': 200, 'orc': 70, 'hobgoblin': 130, 'skullraider': 150, 'dusksaur': 110, 'darkknight': 90, 'ogre': 60, 'clubogre': 60}   # web/game/11_enemies.js ENEMY_JUMP_DIST
+    LAND_OFF = {'goblin': 10, 'orc': 4}
     H.append('typedef struct { unsigned short ms; short sprite; short hx0, hy0, hx1, hy1; short ax0, ay0, ax1, ay1; short ground; unsigned char pause; unsigned char has_hit; } EnemyFrame;')
     H.append('typedef struct { unsigned short list0, n; unsigned char loop; } EnemyAnim;')
     H.append('\n'.join([
@@ -236,6 +238,7 @@ def main():
         '    signed char attack_combo;                            /* the goblin\'s combo animation, -1 if none */',
         '    short dive_min, dive_max;',
         '    unsigned char boss;',
+        '    short jump_dist, land_off;                           /* how far its leap over a pit carries, and where it means to land past the far edge */',
         '    float reach;                                         /* how far ahead of its ground point its longest attack box reaches (view px) */',
         '} EnemyDef;']))
     ef, anim_rows, flat, edefs, done = [], [], [], [], []
@@ -286,7 +289,7 @@ def main():
             dmg=[(atk.get(a) or {}).get('dmg', dmg0) for a in melee] + [0] * pad,
             kdd=[((atk.get(a) or {}).get('knock') or [kd, kms])[0] for a in melee] + [0] * pad,
             kmm=[((atk.get(a) or {}).get('knock') or [kd, kms])[1] for a in melee] + [0] * pad,
-            combo=idx.get('combo', -1), dmin=dv.get('min', 0), dmax=dv.get('max', 0), boss=1 if ai.get('boss') else 0, rf=F(reach)))
+            combo=idx.get('combo', -1), dmin=dv.get('min', 0), dmax=dv.get('max', 0), boss=1 if ai.get('boss') else 0, rf=F(reach), jd=JUMP_DIST.get(ename, 200), lo_=LAND_OFF.get(ename, 10)))
         done.append(ename)
     H.append('enum { ' + ', '.join(f'EN_{ident(n)}' for n in done) + ', EN_COUNT };')
     table('EnemyFrame', 'ENEMY_FRAMES', ef, lambda t: '{%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d}' % t)
@@ -300,7 +303,7 @@ def main():
     C.append('const EnemyDef ENEMIES[EN_COUNT + 1] = {' + ','.join(
         ('{"%(id)s",%(f0)d,%(nf)d,%(ax)d,%(ay)d,%(speed)d,%(hp)d,%(r0)d,%(r1)d,%(kd)d,%(kms)d,%(pd)d,%(pms)d,%(idle)d,%(walk)d,%(stun)d,%(death)d,%(dive)d,%(natk)d,' % r)
         + arr(r['attack']) + ',' + arr(r['dmg']) + ',' + arr(r['kdd']) + ',' + arr(r['kmm'])
-        + (',%(combo)d,%(dmin)d,%(dmax)d,%(boss)d,%(rf)s}' % r) for r in edefs) + ',{0}};')
+        + (',%(combo)d,%(dmin)d,%(dmax)d,%(boss)d,%(jd)d,%(lo_)d,%(rf)s}' % r) for r in edefs) + ',{0}};')
 
     # ---- levels and maps (web/levels.js builds them with a fixed seed, so they are the same every time)
     ENUM = {n: i for i, n in enumerate(done)}

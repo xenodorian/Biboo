@@ -25,6 +25,9 @@ static int facing = 1;
 static int fall_on; static float fall_y, fall_v;
 static int queued = -1;
 static float camY;
+static float floor_y, prev_feet, last_cx; static int prev_ok;          /* height of the surface she stands on; her feet last frame */
+static int pit_fall_on; static float pit_t0, last_down_t;
+static const MapDef *cur_map;
 static u32 clock_ms;
 static float now;                       /* ms since the start, the web game's `clock` */
 static u32 mv_serial;                   /* counts action moves; a move hurts each enemy once per use */
@@ -69,6 +72,46 @@ static void root_of(const Cur *c, int k, float *rx, float *ry) {
     *rx = (float)c->face * mf(c->id, k)->rx;
     *ry = mf(c->id, k)->ry;
 }
+
+/* ------------------------------------------------------------------ surfaces (web/game/09_maps.js) */
+#define SPRITE_PAD 6.0f
+static int face_now(void) { return has_cur ? cur.face : facing; }
+static void span_of(float bx, float out[2]) {                 /* her drawn body: the hurtbox x range plus SPRITE_PAD each side */
+    float f = (float)face_now(), lo = f * 5.0f, hi = f * 30.0f, a, b;
+    if(lo > hi) { float t = lo; lo = hi; hi = t; }
+    a = bx + lo - SPRITE_PAD; b = bx + hi + SPRITE_PAD;
+    out[0] = a < bx ? a : bx; out[1] = b > bx ? b : bx;
+}
+static int over_surf(const Plat *p, const float sp[2]) { return sp[1] >= p->x0 - 3 && sp[0] <= p->x1 + 3; }
+static float support_below(float bx, float y) {                 /* the highest surface at or below height y under her (the ground is 0) */
+    float best = 0, sp[2];
+    int i;
+    span_of(bx, sp);
+    for(i = 0; i < cur_map->nplat; i++) {
+        const Plat *p = &PLATS[cur_map->plat0 + i];
+        if(over_surf(p, sp) && p->top <= y + 0.5f && p->top > best) best = p->top;
+    }
+    return best;
+}
+static float support_under(float bx, float y) {                 /* the highest surface strictly below height y under her */
+    float best = 0, sp[2];
+    int i;
+    span_of(bx, sp);
+    for(i = 0; i < cur_map->nplat; i++) {
+        const Plat *p = &PLATS[cur_map->plat0 + i];
+        if(over_surf(p, sp) && p->top < y - 1 && p->top > best) best = p->top;
+    }
+    return best;
+}
+static const Plat *surface_at(float bx, int top) {
+    int i;
+    for(i = 0; i < cur_map->nplat; i++) {
+        const Plat *p = &PLATS[cur_map->plat0 + i];
+        if(p->top == top && bx >= p->x0 - 3 && bx <= p->x1 + 3) return p;
+    }
+    return 0;
+}
+static float pit_sink(void) { return pit_fall_on ? 0.0006f * (now - pit_t0) * (now - pit_t0) : 0; }
 
 /* ------------------------------------------------------------------ input */
 typedef struct { u16 held; u16 prev; } Pad;
@@ -137,7 +180,17 @@ static void step_jump(float dt) {
     cur.pv -= JUMP_G * ((cur.pv < 0 ? -cur.pv : cur.pv) < JUMP_HANG_V ? JUMP_HANG_G : 1.0f) * dt;
     cur.py += cur.pv * dt;
     cur.k = cur.pv > 0.6f * JUMP_V0 ? 1 : cur.pv > 0.2f * JUMP_V0 ? 2 : cur.pv > -0.2f * JUMP_V0 ? 3 : 4;   /* takeoff, rise, apex, fall */
-    if(cur.py <= 0 && cur.pv < 0) { cur.id = MV_jump; cur.k = LAND_K; cur.t = 0; cur.kind = K_LAND; cur.phys = 0; }
+    if(cur.py <= 0 && cur.pv < 0) {                         /* back down to the height she left from */
+        if(floor_y > 0) {                                   /* she left a platform and walked off it in the air: keep falling */
+            float S = support_under(X, floor_y + 0.5f);
+            if(S < floor_y - 0.5f) {
+                fall_on = 1; fall_y = (floor_y - S) + cur.py; fall_v = -cur.pv; floor_y = S;
+                cur.k = FALL_K; cur.t = 0; cur.kind = K_FALL; cur.phys = 0;
+                return;
+            }
+        }
+        cur.id = MV_jump; cur.k = LAND_K; cur.t = 0; cur.kind = K_LAND; cur.phys = 0;
+    }
 }
 
 static void step(float dt) {
@@ -196,13 +249,14 @@ static float player_x(void) {           /* her anchor: the root motion counts on
     root_of(&cur, cur.k, &rx, &ry);
     return X + rx;
 }
-static float her_y(void) {              /* height of her feet above the ground */
+static float height_above(void) {       /* above the surface she stands on */
     float rx, ry;
     if(stun_on) return stun_y;
     if(fall_on) return fall_y;
     if(has_cur && cur.kind != K_FALL) { root_of(&cur, cur.k, &rx, &ry); return ry; }
     return 0;
 }
+static float her_y(void) { return floor_y + height_above() - pit_sink(); }      /* world height of her feet */
 static int her_face(void) { return has_cur ? cur.face : facing; }
 static float her_top(void) {
     int id = has_cur ? cur.id : MV_idle, k = has_cur ? cur.k : 0;
@@ -221,9 +275,10 @@ static int blocking(void) { return has_cur && cur.id == MV_block; }
 /* ------------------------------------------------------------------ enemies (web/game/11_enemies.js) */
 enum { S_WALK, S_IDLE, S_PATROL, S_ATTACK, S_STUN, S_DYING };
 typedef struct {
-    int type, state, face, anim, k, fy, dir, on;
-    float hp, maxhp, x, base, t, rest, dead, lo, hi, lo0, hi0, sight, pause, far, prevx, push_v, push_a, land_at, flash_until;
-    int path0, path1, dive, combo_ready, melee_seen, hit_done;
+    int type, state, face, anim, k, dir, on;
+    float fy, jy, hp, maxhp, x, base, t, rest, dead, lo, hi, lo0, hi0, sight, pause, far, prevx, push_v, push_a, land_at, flash_until;
+    int path0, path1, dive, combo_ready, melee_seen, hit_done, jump_on, jfall, jdoom;
+    float jx0, jx1, jfy0, jfy1, jH, jt, jdur, hop_at;
     u32 seen;                           /* the last move of hers that hurt it */
 } Enemy;
 #define MAX_ENEMIES 12
@@ -243,7 +298,7 @@ static int alive(const Enemy *e) { return e->on && e->state != S_DYING; }
 static float espeed(const Enemy *e) { const EnemyDef *d = &ENEMIES[e->type]; return (float)d->speed * (d->boss && e->hp < e->maxhp * 0.5f ? 1.45f : 1.0f); }
 
 /* a box [x0, y0, x1, y1] in world coordinates from a frame's native-pixel box (hx0, hy0, hx1, hy1) */
-static void box_of(int face, float base, int fy, const short *h, float out[4]) {
+static void box_of(int face, float base, float fy, const short *h, float out[4]) {
     if(face < 0) { out[0] = base + h[0] * SS; out[2] = base + h[2] * SS; }
     else { out[0] = base - h[2] * SS; out[2] = base - h[0] * SS; }
     out[1] = h[1] * SS + fy; out[3] = h[3] * SS + fy;
@@ -251,7 +306,7 @@ static void box_of(int face, float base, int fy, const short *h, float out[4]) {
 static int hurt_of(const Enemy *e, float out[4]) {
     const EnemyFrame *f = frame_of(e);
     if(!alive(e) || f->hx1 <= f->hx0) return 0;
-    box_of(e->face, e->base, e->fy, &f->hx0, out);
+    box_of(e->face, e->base, e->fy + e->jy, &f->hx0, out);
     return 1;
 }
 static int overlap(const float a[4], const float b[4]) { return a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3]; }
@@ -284,6 +339,82 @@ static void clamp_enemy(Enemy *e, int free) {
     if(nx != e->x) { e->base += nx - e->x; e->x = nx; }
     e->prevx = e->x;
 }
+
+static int in_pit(float x) {
+    int i;
+    for(i = 0; i < cur_map->npit; i++) { const Pit *p = &PITS[cur_map->pit0 + i]; if(x > p->x0 - 2 && x < p->x1 + 2) return 1; }
+    return 0;
+}
+static void set_range(Enemy *e) {           /* the stretch of surface that holds the enemy where it stands: a platform, or the ground between pits */
+    float lo = 8, hi = (float)(VIEW_W - 8);
+    int i;
+    if(e->fy > 0) {
+        const Plat *sf = surface_at(e->x, (int)e->fy);
+        if(sf) { e->lo = e->lo0 = (float)(sf->x0 + 8); e->hi = e->hi0 = (float)(sf->x1 - 8); return; }
+    }
+    for(i = 0; i < cur_map->npit; i++) {
+        const Pit *p = &PITS[cur_map->pit0 + i];
+        if(p->x1 <= e->x) lo = maxf_(lo, (float)(p->x1 + 2)); else if(p->x0 >= e->x) hi = minf_(hi, (float)(p->x0 - 2));
+    }
+    e->lo = lo; e->hi = hi; e->lo0 = 8; e->hi0 = (float)(VIEW_W - 8);
+}
+/* The goblin climbs: it jumps up onto a platform up to HOP_UP px above it, drops off a platform edge toward her, and hops a gap
+ * between two platforms of the same height. plan_hop picks the launch point and the landing (ok = 0 when there is nothing to do). */
+typedef struct { int ok, kind; float launch, land, fy1; } Hop;          /* kind: 0 up, 1 drop, 2 gap */
+#define HOP_UP 70.0f
+#define HOP_X 130.0f
+static Hop plan_hop(const Enemy *e) {
+    Hop best = {0}, none = {0};
+    float fy = e->fy, her = floor_y, bx = her_mid_x(), bestcost = 0;
+    int i;
+    if(her > fy + 1) {                                                   /* she is higher: jump up */
+        const Plat *mine = fy > 0 ? surface_at(e->x, (int)fy) : 0;
+        for(i = 0; i < cur_map->nplat; i++) {
+            const Plat *sf = &PLATS[cur_map->plat0 + i];
+            float dx, launch, land, cost;
+            if(sf->top <= fy + 1 || sf->top > fy + HOP_UP || sf->top > her + 0.5f) continue;
+            dx = e->x < sf->x0 ? sf->x0 - e->x : e->x > sf->x1 ? e->x - sf->x1 : 0;
+            if(dx > HOP_X) continue;
+            launch = dx == 0 ? e->x : (e->x < sf->x0 ? (float)(sf->x0 - 6) : (float)(sf->x1 + 6));
+            if(fy == 0 && in_pit(launch)) continue;
+            if(fy > 0 && (!mine || launch < mine->x0 + 6 || launch > mine->x1 - 6)) continue;
+            land = dx == 0 ? maxf_((float)(sf->x0 + 10), minf_((float)(sf->x1 - 10), e->x)) : (e->x < sf->x0 ? (float)(sf->x0 + 12) : (float)(sf->x1 - 12));
+            cost = dx + (her - sf->top) * 0.6f + fabsf_((float)(sf->x0 + sf->x1) * 0.5f - bx) * 0.2f;
+            if(!best.ok || cost < bestcost) { best.ok = 1; best.kind = 0; best.launch = launch; best.land = land; best.fy1 = (float)sf->top; bestcost = cost; }
+        }
+        return best;
+    }
+    if(her < fy - 1) {                                                   /* she is lower: walk to the edge on her side and drop */
+        const Plat *sf = surface_at(e->x, (int)fy);
+        float d0 = bx >= e->x ? 1.0f : -1.0f, d;
+        int n;
+        if(!sf) return none;
+        for(n = 0; n < 2; n++) {
+            float land, fy1 = 0;
+            int j;
+            d = n == 0 ? d0 : -d0;
+            land = d > 0 ? (float)(sf->x1 + 14) : (float)(sf->x0 - 14);
+            for(j = 0; j < cur_map->nplat; j++) {
+                const Plat *o = &PLATS[cur_map->plat0 + j];
+                if(o->top < fy - 1 && land >= o->x0 - 3 && land <= o->x1 + 3 && o->top > fy1) fy1 = (float)o->top;
+            }
+            if(land < 8 || land > VIEW_W - 8 || (fy1 == 0 && in_pit(land))) continue;
+            best.ok = 1; best.kind = 1; best.launch = d > 0 ? (float)(sf->x1 - 8) : (float)(sf->x0 + 8); best.land = land; best.fy1 = fy1;
+            return best;
+        }
+        return none;
+    }
+    if(fy > 0) {                                                         /* same height, another platform: hop the gap */
+        const Plat *a = surface_at(e->x, (int)fy), *b = surface_at(bx, (int)her);
+        if(a && b && a != b) {
+            float d = bx >= e->x ? 1.0f : -1.0f, gapw = d > 0 ? (float)(b->x0 - a->x1) : (float)(a->x0 - b->x1);
+            if(gapw <= HOP_X) { best.ok = 1; best.kind = 2; best.launch = d > 0 ? (float)(a->x1 - 8) : (float)(a->x0 + 8); best.land = d > 0 ? (float)(b->x0 + 12) : (float)(b->x1 - 12); best.fy1 = fy; return best; }
+        }
+    }
+    return none;
+}
+#define ENEMY_JUMP_H 22.0f
+#define ENEMY_JUMP_MAX 140
 static void patrol(Enemy *e, float dt) {
     const EnemyDef *d = &ENEMIES[e->type];
     float target, dist, step;
@@ -313,7 +444,7 @@ static int strike_attacks(const Enemy *e, const float me[4], int out[4]) {
             const EnemyFrame *f = &ENEMY_FRAMES[ENEMY_ANIM_FRAME_LIST[A->list0 + j]];
             float h[4];
             if(!f->has_hit) continue;
-            box_of(e->face, base, e->fy, &f->ax0, h);
+            box_of(e->face, base, e->fy + e->jy, &f->ax0, h);
             if(overlap(h, me)) { out[n++] = i; break; }
         }
     }
@@ -324,7 +455,7 @@ static void start_attack(Enemy *e, int anim) { e->state = S_ATTACK; play(e, anim
 static void step_enemy_core(Enemy *e, float dt) {
     const EnemyDef *d = &ENEMIES[e->type];
     const EnemyAnim *A = anim_of(e);
-    int ended = 0, i, same_level, blocked_, goblin_like, strike[4], ns;
+    int ended = 0, i, same_level, blocked_, goblin_like, strike[4], ns, pit_between = 0;
     float dd, dist, me[4], edge, gap, reach, eb[4], room, mv;
     if(e->state == S_ATTACK && e->land_at > 0 && !e->hit_done && now < e->land_at) {     /* held on the striking frame until the hit lands (or she parries) */
         const EnemyFrame *sf = frame_of(e);
@@ -339,6 +470,21 @@ static void step_enemy_core(Enemy *e, float dt) {
     }
     e->x = e->base + ground_off(e);
     if(e->state == S_DYING) { e->dead += dt; return; }
+    if(e->jump_on) {                    /* leaping a pit, hopping or dropping: a run over the gap with an arc */
+        if(e->state == S_STUN) { e->jump_on = 0; e->jy = 0; }
+        else {
+            float u, nx, dy;
+            e->jt += dt; u = minf_(1.0f, e->jt / e->jdur); nx = e->jx0 + (e->jx1 - e->jx0) * u; dy = e->jfy1 - e->jfy0;
+            e->base += nx - e->x; e->x = nx;
+            e->jy = e->jfall ? dy * u * u : dy * u + 4.0f * e->jH * u * (1.0f - u);       /* a jump arcs, a drop falls */
+            if(u >= 1.0f) {
+                e->jump_on = 0; e->jy = 0; e->fy = e->jfy1; set_range(e); e->prevx = e->x;
+                if(e->jdoom) { kill(e); return; }                                       /* it came down in the pit */
+                if(e->path0 >= 0 && e->jfy1 != e->jfy0) { e->path0 = (int)(e->lo + 6); e->path1 = (int)maxf_(e->lo + 6, e->hi - 6); }   /* a patrol resumes on the surface it landed on */
+            }
+            return;
+        }
+    }
     if(e->state == S_STUN) {            /* parried or knocked: slides back, no control until it stops */
         float v;
         e->x += e->push_v * dt; e->base += e->push_v * dt;
@@ -371,9 +517,10 @@ static void step_enemy_core(Enemy *e, float dt) {
         e->state = S_WALK;
     }
     goblin_like = d->attack_combo >= 0;
-    same_level = 1;                     /* TODO step 4: compare with the height of the surface she stands on */
+    same_level = fabsf_(floor_y - e->fy) <= 1.0f;
     her_box(me); edge = dd < 0 ? me[2] : me[0];
     gap = dd < 0 ? e->x - edge : edge - e->x;
+    if(e->fy == 0) for(i = 0; i < cur_map->npit; i++) { const Pit *q = &PITS[cur_map->pit0 + i]; if(q->x1 > minf_(e->x, edge) && q->x0 < maxf_(e->x, edge)) pit_between = 1; }
     reach = d->reach;
     if(goblin_like && (e->combo_ready || (e->melee_seen && same_level && gap > reach + 2.0f))) {
         e->combo_ready = 0; e->melee_seen = 0; start_attack(e, d->attack_combo);
@@ -385,15 +532,54 @@ static void step_enemy_core(Enemy *e, float dt) {
         start_attack(e, d->attack[strike[(int)(frand() * ns) % ns]]);
         return;
     }
+    if(!same_level || e->fy > 0) {      /* every enemy that has noticed her climbs, drops and hops toward her */
+        Hop h = plan_hop(e);
+        if(h.ok) {
+            float dir = h.launch >= e->x ? 1.0f : -1.0f;
+            int at = fabsf_(e->x - h.launch) <= 3.0f || (dir > 0 && e->x >= e->hi - 1 && h.launch >= e->hi - 1) || (dir < 0 && e->x <= e->lo + 1 && h.launch <= e->lo + 1);
+            if(at) {
+                float dy = h.fy1 - e->fy;
+                e->jump_on = 1; e->jfall = h.kind == 1; e->jdoom = 0; e->jx0 = e->x; e->jx1 = h.land; e->jfy0 = e->fy; e->jfy1 = h.fy1;
+                e->jH = h.kind == 0 ? 16.0f : ENEMY_JUMP_H; e->jt = 0;
+                e->jdur = e->jfall ? __builtin_sqrtf(2.0f * fabsf_(dy) / 0.0018f) + 80.0f : 420.0f + fabsf_(h.land - e->x) * 3.0f + maxf_(0, dy) * 2.0f;
+                return;
+            }
+            turn(e, dir > 0 ? 1 : -1); if(e->anim != d->a_walk) play(e, d->a_walk);
+            mv = dir * minf_(espeed(e) * dt / 1000.0f, fabsf_(h.launch - e->x));
+            e->x += mv; e->base += mv;
+            return;
+        }
+    }
     if(d->a_dive >= 0 && e->dive && !blocked_ && same_level && dist >= (float)d->dive_min && dist <= (float)d->dive_max) {
         e->dive = 0; start_attack(e, d->a_dive);
     } else if(blocked_) {
         if(e->anim != d->a_idle) play(e, d->a_idle);
     } else {
         if(e->anim != d->a_walk) play(e, d->a_walk);
+        if(e->fy == 0 && cur_map->npit) {                /* a pit between it and her: jump it when it reaches the edge */
+            const Pit *q = 0;
+            if(e->hop_at < 0) e->hop_at = 3.0f + frand() * 10.0f;           /* how close to the edge it takes off (rerolled after each jump) */
+            for(i = 0; i < cur_map->npit && !q; i++) {
+                const Pit *p = &PITS[cur_map->pit0 + i];
+                if(e->face > 0 ? (p->x0 - e->x >= -2 && p->x0 - e->x < e->hop_at && her_mid_x() > p->x1)
+                               : (e->x - p->x1 >= -2 && e->x - p->x1 < e->hop_at && her_mid_x() < p->x0)) q = p;
+            }
+            if(q && q->x1 - q->x0 <= ENEMY_JUMP_MAX && fabsf_(her_y() - e->fy) < 40.0f) {
+                float want = e->face > 0 ? (float)(q->x1 + d->land_off) : (float)(q->x0 - d->land_off), jr, tx;
+                int bad = 0, doom = 0;
+                for(i = 0; i < cur_map->npit; i++) { const Pit *o = &PITS[cur_map->pit0 + i]; if(want > o->x0 - 4 && want < o->x1 + 4) bad = 1; }
+                if(!bad) {
+                    jr = minf_(fabsf_(want - e->x), (float)d->jump_dist); tx = e->x + e->face * jr;
+                    for(i = 0; i < cur_map->npit; i++) { const Pit *o = &PITS[cur_map->pit0 + i]; if(tx > o->x0 && tx < o->x1) doom = 1; }   /* a jump that is too short drops it into the pit */
+                    e->jump_on = 1; e->jfall = 0; e->jdoom = doom; e->jx0 = e->x; e->jx1 = tx; e->jfy0 = e->jfy1 = e->fy; e->jH = ENEMY_JUMP_H; e->jt = 0; e->jdur = 420.0f + jr * 4.0f;
+                    e->hop_at = -1;
+                    return;
+                }
+            }
+        }
         if(hurt_of(e, eb)) room = e->face < 0 ? eb[0] - me[2] : me[0] - eb[2]; else room = gap;     /* free ground until its hitbox meets hers */
         mv = (float)e->face * maxf_(0, minf_(espeed(e) * dt / 1000.0f, room));
-        if(mv == 0 && same_level && d->nattacks) {                    /* its body is against hers and nothing reached: swing anyway */
+        if(mv == 0 && same_level && !pit_between && d->nattacks) {                    /* its body is against hers and nothing reached: swing anyway */
             e->melee_seen = 1; start_attack(e, d->attack[(int)(frand() * d->nattacks) % d->nattacks]);
             return;
         }
@@ -402,9 +588,14 @@ static void step_enemy_core(Enemy *e, float dt) {
     }
 }
 static void step_enemy(Enemy *e, float dt) {
+    int free = 0, i;
     step_enemy_core(e, dt);
-    if(e->state == S_DYING) return;
-    clamp_enemy(e, e->state == S_STUN);
+    if(e->state == S_DYING || e->jump_on) return;
+    if(e->fy == 0 && cur_map->npit) {
+        free = e->state == S_STUN;                      /* pushed: only the walls hold it, and a pit can take it */
+        if(free) for(i = 0; i < cur_map->npit; i++) { const Pit *p = &PITS[cur_map->pit0 + i]; if(e->x > p->x0 + 6 && e->x < p->x1 - 6) { kill(e); return; } }
+    }
+    clamp_enemy(e, free);
 }
 
 /* ------------------------------------------------------------------ hits: hers on them (web/game/12_hits.js) */
@@ -468,8 +659,8 @@ static void resolve_hits(void) {
     f = mf(cur.id, cur.k);
     if(!f->nhit) return;
     root_of(&cur, cur.k, &rx, &ry);
-    resolve_hits_one(f, X + rx, ry, cur.face);
-    if(cur.id == MV_spin_attack) resolve_hits_one(f, X + rx, ry, -cur.face);       /* the spin also cuts behind her */
+    resolve_hits_one(f, X + rx, ry + floor_y, cur.face);
+    if(cur.id == MV_spin_attack) resolve_hits_one(f, X + rx, ry + floor_y, -cur.face);       /* the spin also cuts behind her */
 }
 
 /* ------------------------------------------------------------------ hits: theirs on her (web/game/13_enemy_attacks.js) */
@@ -491,7 +682,7 @@ static void knocked(const Enemy *e) {
     float kd = (float)d->knock_d, kms = (float)d->knock_ms, dmg = (float)d->atk_dmg[0], rx, ry, h;
     int i;
     for(i = 0; i < d->nattacks; i++) if(d->attack[i] == e->anim) { kd = (float)d->atk_knock_d[i]; kms = (float)d->atk_knock_ms[i]; dmg = (float)d->atk_dmg[i]; }
-    h = her_y();
+    h = height_above();
     if(has_cur && !fall_on && cur.kind != K_FALL) { root_of(&cur, cur.k, &rx, &ry); X += rx; }
     fall_on = 0; queued = -1; slide_v = 0;
     stun_on = 1; stun_v = 2.0f * kd / kms * (her_mid_x() >= e->x ? 1.0f : -1.0f); stun_a = 2.0f * kd / (kms * kms); stun_y = h; stun_vy = KNOCK_UP_VY;
@@ -515,19 +706,19 @@ static void enemy_attacks(void) {
             int soon = 0;
             for(j = e->k; j <= e->k + 2 && j < A->n && !soon; j++) {
                 const EnemyFrame *f = &ENEMY_FRAMES[ENEMY_ANIM_FRAME_LIST[A->list0 + j]];
-                if(f->has_hit) { box_of(e->face, e->base, e->fy, &f->ax0, h); soon = overlap(h, me); }
+                if(f->has_hit) { box_of(e->face, e->base, e->fy + e->jy, &f->ax0, h); soon = overlap(h, me); }
             }
             if(soon) { parried(e); continue; }
         }
         if(e->land_at == 0) {
             const EnemyFrame *f = frame_of(e);
             if(!f->has_hit) continue;
-            box_of(e->face, e->base, e->fy, &f->ax0, h);
+            box_of(e->face, e->base, e->fy + e->jy, &f->ax0, h);
             if(!overlap(h, me)) continue;
             e->land_at = now + HIT_DELAY;                      /* contact: the hit lands shortly, a parry still works */
         }
         if(now < e->land_at) continue;
-        { const EnemyFrame *f = frame_of(e); if(!f->has_hit) { e->hit_done = 1; continue; } box_of(e->face, e->base, e->fy, &f->ax0, h); if(!overlap(h, me)) { e->hit_done = 1; continue; } }
+        { const EnemyFrame *f = frame_of(e); if(!f->has_hit) { e->hit_done = 1; continue; } box_of(e->face, e->base, e->fy + e->jy, &f->ax0, h); if(!overlap(h, me)) { e->hit_done = 1; continue; } }
         e->hit_done = 1;
         if(blocking()) blocked_hit(e);
         else if(now >= invuln && !stun_on) knocked(e);
@@ -551,7 +742,6 @@ static void block_move(float before) {
 
 /* ------------------------------------------------------------------ maps and doors (web/game/09_maps.js) */
 static int level_idx, map_idx;
-static const MapDef *cur_map;
 static void load_map(int level, int idx, int from_left) {
     const MapDef *m = &MAPS[LEVELS[level].map0 + idx];
     int i;
@@ -561,23 +751,18 @@ static void load_map(int level, int idx, int from_left) {
         const EnemySpawn *s = &SPAWNS[m->en0 + i];
         Enemy *e = &en[i];
         const EnemyDef *d = &ENEMIES[s->type];
-        int j;
         float x = (float)s->x;
         e->type = s->type; e->on = 1; e->hp = e->maxhp = (float)d->hp; e->x = e->base = e->prevx = x; e->face = -1; e->state = S_WALK;
-        e->k = 0; e->t = 0; e->rest = 0; e->dead = 0; e->dive = frand() < 0.5f; e->fy = s->fy; e->dir = 1; e->pause = 0; e->far = 0;
+        e->k = 0; e->t = 0; e->rest = 0; e->dead = 0; e->dive = frand() < 0.5f; e->fy = (float)s->fy; e->jy = 0; e->jump_on = 0; e->hop_at = -1; e->dir = 1; e->pause = 0; e->far = 0;
         e->combo_ready = 1; e->melee_seen = 0; e->hit_done = 0; e->land_at = 0; e->flash_until = 0; e->seen = 0; e->push_v = e->push_a = 0;
-        e->lo = e->lo0 = 8; e->hi = e->hi0 = (float)(VIEW_W - 8);
-        if(s->fy > 0)                                    /* an enemy on a platform never leaves it */
-            for(j = 0; j < m->nplat; j++) {
-                const Plat *p = &PLATS[m->plat0 + j];
-                if(p->top == s->fy && x >= p->x0 - 3 && x <= p->x1 + 3) { e->lo = e->lo0 = (float)(p->x0 + 8); e->hi = e->hi0 = (float)(p->x1 - 8); break; }
-            }
+        set_range(e);                                    /* an enemy on a platform never leaves it; a ground enemy stays between the pits */
         e->sight = (float)(s->sight ? s->sight : 100) * SIGHT_MUL;
         e->path0 = s->path0; e->path1 = s->path1;
         e->anim = d->a_walk; play(e, d->a_walk);
         if(e->path0 >= 0) { e->state = S_PATROL; e->dir = x <= (float)(e->path0 + e->path1) * 0.5f ? 1 : -1; e->face = e->dir; play(e, d->a_walk); }
     }
     X = from_left ? 26.0f : (float)(VIEW_W - 26); facing = from_left ? 1 : -1;
+    floor_y = 0; pit_fall_on = 0; prev_ok = 0;
     fall_on = 0; stun_on = 0; slide_v = 0; has_cur = 0; queued = -1; camY = 0; invuln = now + 600.0f; ko_until = 0;
     start(MV_idle, K_HOLD);
 }
@@ -587,17 +772,77 @@ static int door_open(void) {
     return 1;
 }
 static void say(const char *s, float ms) { banner = s; banner_until = now + ms; }
-static void edges(void) {
+static int edges(void) {
     float px = player_x();
     if(px >= VIEW_W - EDGE) {
         if(!stun_on && door_open()) {
             if(map_idx + 1 < LEVELS[level_idx].nmaps) load_map(level_idx, map_idx + 1, 1);
             else load_map((level_idx + 1) % NUM_LEVELS, 0, 1);       /* TODO: the level-complete screen and the overworld */
-            return;
+            return 1;
         }
         if(!stun_on) say("DEFEAT EVERY ENEMY", 2200);
         X -= px - (VIEW_W - EDGE);
     } else if(px <= EDGE) X += EDGE - px;
+    return 0;
+}
+
+
+static int physics(void) {              /* landing on surfaces and walking off them (web/game/09_maps.js physics); 1 when the map changed */
+    float px, feet, sp[2];
+    int flying, i;
+    if(edges()) return 1;
+    px = player_x(); feet = her_y();
+    flying = !stun_on && has_cur && (fall_on || cur.kind == K_FALL || (cur.kind == K_ACTION && cur.id == MV_jump));
+    if(flying && prev_ok && feet < prev_feet) {          /* falling (or a jump coming down) through the top of a surface under her */
+        float T = -1;
+        span_of(px, sp);
+        for(i = 0; i < cur_map->nplat; i++) {
+            const Plat *p = &PLATS[cur_map->plat0 + i];
+            if(p->top > floor_y && over_surf(p, sp) && prev_feet > p->top && feet <= p->top && p->top > T) T = (float)p->top;
+        }
+        if(T >= 0) {
+            float rx, ry;
+            if(cur.kind == K_ACTION) { root_of(&cur, cur.k, &rx, &ry); X += rx; }
+            floor_y = T; fall_on = 0;
+            cur.id = MV_jump; cur.k = LAND_K; cur.t = 0; cur.kind = K_LAND; cur.phys = 0;
+        }
+    }
+    if(floor_y > 0 && !fall_on && !stun_on && (!has_cur || cur.kind == K_HOLD || cur.kind == K_LAND)) {      /* walked off the edge: fall to what is below */
+        float S = support_below(player_x(), floor_y);
+        if(S < floor_y - 0.5f) {
+            float rx, ry;
+            if(has_cur) { root_of(&cur, cur.k, &rx, &ry); X += rx; }
+            fall_on = 1; fall_y = floor_y - S; fall_v = 0; floor_y = S;
+            cur.id = MV_jump; cur.k = FALL_K; cur.t = 0; cur.kind = K_FALL; cur.face = has_cur ? cur.face : facing; cur.phys = 0; has_cur = 1;
+        }
+    }
+    prev_feet = her_y(); prev_ok = 1; last_cx = player_x();
+    return 0;
+}
+static void check_pit(void) {           /* she falls only when BOTH feet are over the gap (web/game/10_hazards.js) */
+    float px = player_x(), f = (float)face_now(), a = f > 0 ? px - 1 : px - 38, b = f > 0 ? px + 38 : px + 1;
+    int i;
+    if(pit_fall_on || !cur_map->npit || floor_y != 0 || her_y() > 1.5f || stun_on || slide_v != 0) return;
+    for(i = 0; i < cur_map->npit; i++) {
+        const Pit *p = &PITS[cur_map->pit0 + i];
+        if(a >= p->x0 - 1 && b <= p->x1 + 1) {
+            pit_fall_on = 1; pit_t0 = now; invuln = now + 1e9f; stun_on = 0; slide_v = 0; fall_on = 0; queued = -1;
+            cur.id = MV_jump; cur.k = FALL_K; cur.t = 0; cur.kind = K_FALL; cur.face = (int)f; cur.phys = 0; has_cur = 1;
+            return;
+        }
+    }
+}
+static int drop_through(void) {         /* double tap Down on a platform: drop through it to whatever is below */
+    float S, rx, ry;
+    if(floor_y <= 0 || fall_on || stun_on) return 0;
+    if(has_cur && cur.kind != K_HOLD && cur.kind != K_LAND) return 0;
+    S = support_under(player_x(), floor_y);
+    if(S >= floor_y - 0.5f) return 0;
+    if(has_cur) { root_of(&cur, cur.k, &rx, &ry); X += rx; }
+    fall_on = 1; fall_y = floor_y - S; fall_v = 0.05f; floor_y = S;
+    cur.id = MV_jump; cur.k = FALL_K; cur.t = 0; cur.kind = K_FALL; cur.face = has_cur ? cur.face : facing; cur.phys = 0; has_cur = 1;
+    prev_feet = her_y();
+    return 1;
 }
 
 /* ------------------------------------------------------------------ her health and K.O. */
@@ -605,7 +850,20 @@ static void step_stun(float dt) {
     float v = stun_v - signf_(stun_v) * stun_a * dt;
     X += stun_v * dt;
     stun_v = signf_(v) == signf_(stun_v) ? v : 0;
-    if(stun_y > 0 || stun_vy < 0) { stun_vy += 0.0018f * dt; stun_y = maxf_(0, stun_y - stun_vy * dt); }
+    if(stun_y > 0 || stun_vy < 0) {
+        float f0 = floor_y + stun_y;
+        stun_vy += 0.0018f * dt; stun_y = maxf_(0, stun_y - stun_vy * dt);
+        {                                               /* knocked while in the air: land on a platform she falls through, not below it */
+            float T = -1, sp[2];
+            int i;
+            span_of(player_x(), sp);
+            for(i = 0; i < cur_map->nplat; i++) {
+                const Plat *p = &PLATS[cur_map->plat0 + i];
+                if(p->top > floor_y && over_surf(p, sp) && f0 > p->top && floor_y + stun_y <= p->top && p->top > T) T = (float)p->top;
+            }
+            if(T >= 0) { floor_y = T; stun_y = 0; }
+        }
+    }
     if(stun_v == 0 && stun_y == 0 && (ko_until == 0 || now >= ko_until)) {
         stun_on = 0;
         if(ko_until > 0) { hp = MAX_HP; load_map(level_idx, map_idx, 1); return; }      /* K.O.: the same map again (TODO: ankhs, game over) */
@@ -628,19 +886,60 @@ static void draw_layers(int camx, float camy) {
     for(i = 0; i < NUM_LAYERS; i++) draw_layer(LAYER_SPRITE[i], LAYER_PARALLAX[i], camx, camy);
 }
 
+static int ground_row(void) { return VIEW_TOP + v2s(FEET_ROW + iround(camY)); }     /* screen row of the ground line */
 static void draw_player(void) {
-    float rx, ry;
-    int k = cur.k, vx, vy;
+    float rx = 0, ry;
+    int vx, vy;
     const MoveFrame *f;
-    if(now < invuln && !stun_on && ((int)(now / 60.0f) & 1)) return;       /* blink while she cannot be hurt */
-    if(stun_on) { rx = 0; ry = stun_y; }
-    else if(fall_on) { rx = 0; ry = fall_y; }
-    else if(cur.kind == K_FALL) { rx = 0; ry = 0; }
-    else root_of(&cur, cur.k, &rx, &ry);
-    f = mf(cur.id, k);
+    if(now < invuln && !stun_on && !pit_fall_on && ((int)(now / 60.0f) & 1)) return;       /* blink while she cannot be hurt */
+    if(!(stun_on || fall_on || cur.kind == K_FALL)) { float t; root_of(&cur, cur.k, &rx, &t); }
+    ry = her_y();
+    f = mf(cur.id, cur.k);
     vx = iround(X + rx);                                   /* the camera x is fixed at ANCHOR_X, so world x is view x */
     vy = FEET_ROW - iround(ry - camY);
+    if(pit_fall_on) {                                      /* falling into a pit: drawn only above the ground line or below it inside the hole */
+        int gl = ground_row();
+        gfx_clip(VIEW_TOP, gl); gfx_blit(art_sprite(f->sprite), v2s(vx), VIEW_TOP + v2s(vy), cur.face < 0);
+        gfx_clip(gl, VIEW_TOP + VIEW_SCR_H); gfx_blit(art_sprite(f->sprite), v2s(vx), VIEW_TOP + v2s(vy), cur.face < 0);
+        gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
+        return;
+    }
     gfx_blit(art_sprite(f->sprite), v2s(vx), VIEW_TOP + v2s(vy), cur.face < 0);
+}
+
+/* the map's pits, platforms and door (web/game/15_draw_scenery.js drawGeometry and drawPits), view pixels converted to screen */
+static void vrect(int x, int y, int w, int h, u16 c) {
+    int sx = v2s(x), sy = VIEW_TOP + v2s(y), ex = v2s(x + w), ey = VIEW_TOP + v2s(y + h);
+    if(ex <= sx) ex = sx + 1;
+    if(ey <= sy) ey = sy + 1;
+    gfx_rect(sx, sy, ex - sx, ey - sy, c);
+}
+static void draw_geometry(void) {
+    int i, k, gy = FEET_ROW + iround(camY);                 /* view row of the ground line */
+    int open = door_open(), gx = VIEW_W - 10;
+    gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
+    for(i = 0; i < cur_map->npit; i++) {
+        const Pit *p = &PITS[cur_map->pit0 + i];
+        int x0 = p->x0, w = p->x1 - p->x0, top = gy - 5;
+        vrect(x0, top, w, VIEW_H - top + 40, RGB(5, 3, 10));
+        for(k = top + 10; k < VIEW_H; k += 14) vrect(x0, k, w, 3, RGB(27, 16, 36));                  /* dark bands: a deep shaft */
+        vrect(x0 - 2, top, 2, 10, RGB(107, 74, 42)); vrect(x0 + w, top, 2, 10, RGB(107, 74, 42));   /* the dirt rim */
+        vrect(x0 - 3, top - 1, 3, 2, RGB(63, 143, 58)); vrect(x0 + w, top - 1, 3, 2, RGB(63, 143, 58));
+        for(k = 0; k < w; k += 8) vrect(x0 + k + 2, top + 1, 3, 2, RGB(200, 180, 224));            /* teeth of the hole */
+    }
+    for(i = 0; i < cur_map->nplat; i++) {                  /* platforms: a plank on two posts */
+        const Plat *p = &PLATS[cur_map->plat0 + i];
+        int x0 = p->x0, w = p->x1 - p->x0, top = gy - p->top, bot = gy;
+        vrect(x0 + 4, top + 7, 3, bot - top - 7, RGB(50, 33, 20)); vrect(x0 + w - 7, top + 7, 3, bot - top - 7, RGB(50, 33, 20));
+        vrect(x0, top, w, 7, RGB(122, 82, 48));
+        vrect(x0, top, w, 2, RGB(176, 124, 68));
+        vrect(x0, top + 6, w, 1, RGB(74, 48, 24));
+        for(k = x0 + 6; k < x0 + w - 3; k += 16) vrect(k, top + 3, 2, 2, RGB(42, 26, 12));
+    }
+    /* the door at the right edge: barred while an enemy is alive, a green glow and arrow once the map is clear */
+    vrect(gx, gy - 70, 10, 70, open ? RGB(40, 110, 62) : RGB(30, 30, 40));
+    if(!open) for(k = gy - 70; k < gy; k += 6) vrect(gx + 2, k, 6, 2, RGB(138, 138, 153));
+    else for(k = 0; k < 8; k++) vrect(gx - 4 + (k < 4 ? k : 7 - k), gy - 28 - 7 + k * 2, 1 + (k < 4 ? k : 7 - k), 2, RGB(125, 255, 154));
 }
 
 static void draw_enemies(void) {
@@ -656,7 +955,7 @@ static void draw_enemies(void) {
         if(e->state == S_DYING && d->a_death < 0 && ((int)(e->dead / 70.0f) & 1)) continue;        /* no death animation: it flickers */
         if(e->state == S_DYING && e->dead > DIE_MS - 200.0f && ((int)(e->dead / 40.0f) & 1)) continue;
         f = frame_of(e);
-        vx = iround(e->base); vy = FEET_ROW - iround((float)e->fy - camY);
+        vx = iround(e->base); vy = FEET_ROW - iround(e->fy + e->jy - camY);
         gfx_blit(art_sprite(f->sprite), v2s(vx), VIEW_TOP + v2s(vy), e->face > 0);              /* the art faces left */
         if(e->state != S_DYING && e->hp < e->maxhp) {                                           /* a small health bar over a hurt enemy */
             float hb[4];
@@ -708,14 +1007,17 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
         if(tx > 1e8f) raw &= ~PAD_RIGHT;
         else if(fabsf_(tx - px) > 45.0f) raw &= (tx > px ? ~PAD_RIGHT : ~PAD_LEFT);
         else { if(tx < px) raw &= ~PAD_LEFT; else raw &= ~PAD_RIGHT; if((fc % 25) == 0) raw &= ~PAD_A; }
+        for(j = 0; j < cur_map->npit; j++) { const Pit *q = &PITS[cur_map->pit0 + j]; if(q->x0 - px > -2 && q->x0 - px < 30.0f && floor_y == 0 && (fc % 70) == 0) raw &= ~PAD_UP; }     /* a pit ahead: jump it */
+        for(j = 0; j < MAX_ENEMIES; j++) if(alive(&en[j]) && en[j].fy > floor_y + 5 && fabsf_(en[j].x - px) < 70.0f && (fc % 90) == 0) raw &= ~PAD_UP;     /* an enemy above: jump */
     }
 #endif
     pad.prev = pad.held;
     pad.held = (u16)(~raw & 0x07ff);                       /* a 0 bit in the raw word is a pressed button */
     if(raw == 0xffff) pad.held = 0;
     now += dt; clock_ms = (u32)now;
-    /* buttons -> moves (web/game/02_input.js readButtons); none while she is knocked out of control */
-    if(!stun_on) {
+    /* buttons -> moves (web/game/02_input.js readButtons); none while she is knocked out of control or falling into a pit */
+    if(!stun_on && !pit_fall_on) {
+        if(pressed_now(PAD_DOWN)) { if(now - last_down_t < 300.0f) drop_through(); last_down_t = now; }
         if(pressed_now(PAD_LEFT)) facing = -1; else if(pressed_now(PAD_RIGHT)) facing = 1;
         if(released_now(PAD_LEFT) && held(PAD_RIGHT)) facing = 1;
         else if(released_now(PAD_RIGHT) && held(PAD_LEFT)) facing = -1;
@@ -727,22 +1029,27 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
         if(released_now(PAD_B) && clock_ms - b_down_t <= TAP_MS) request(MV_parry, VIA_CANCEL);       /* tap B: parry; hold B: block */
     }
     before = player_x();
-    step(dt);
-    block_move(before);
-    resolve_hits();
+    if(!pit_fall_on) {
+        step(dt);
+        block_move(before);
+        resolve_hits();
+    }
     for(i = 0; i < MAX_ENEMIES; i++) if(en[i].on) step_enemy(&en[i], dt);
     enemy_attacks();
     for(i = 0; i < MAX_ENEMIES; i++) if(en[i].on && en[i].state == S_DYING && en[i].dead > DIE_MS) en[i].on = 0;
-    edges();
+    if(!pit_fall_on) { if(physics()) goto drawn; check_pit(); }
+    else if(pit_sink() > (float)(VIEW_H - FEET_ROW) + her_top() * SS + 8.0f) { hp = MAX_HP; load_map(level_idx, map_idx, 1); goto drawn; }      /* she dropped out of sight: the map again (TODO: ankhs) */
     root_of(&cur, cur.k, &rx, &ry);
     ry = her_y();
     camY += ((ry - CAM_KEEP > 0 ? ry - CAM_KEEP : 0) - camY) * 0.2123f;          /* 1 - exp(-dt / 70) at 60 fps */
 
     gfx_clear(RGB(0, 0, 0));
     draw_layers(ANCHOR_X, camY);
+    draw_geometry();
     draw_enemies();
     draw_player();
     gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
     draw_layer(FRINGE_SPRITE, 1.0f, ANCHOR_X, camY);
+drawn:
     draw_hud(frame_us, draw_us);
 }
