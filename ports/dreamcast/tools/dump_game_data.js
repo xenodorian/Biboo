@@ -14,7 +14,8 @@ const B = win.BIBOO;
 const dump = { view: B.view, layers: B.layers, fringe: B.fringe, moves: B.moves, input: B.input, enemies: B.enemies || {} };
 if (win.BIBOO_LEVELS) {
   const L = win.BIBOO_LEVELS;
-  dump.levels = { MAP_W: L.MAP_W, levels: (L.levels || L.LEVELS || []).map(l => l && { def: l.def, maps: l.maps }) };
+  // each entry of L.levels is a level definition (name, maps, theme ...); keep only plain data
+  dump.levels = { MAP_W: L.MAP_W, levels: (L.levels || []).map(l => l && JSON.parse(JSON.stringify(l))) };
   dump.levelKeys = Object.keys(L);
 }
 fs.mkdirSync(path.dirname(out), { recursive: true });

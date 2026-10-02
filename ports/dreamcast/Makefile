@@ -11,15 +11,15 @@ CFLAGS    = $(ARCHFLAGS) -O2 -fno-builtin -ffreestanding -fomit-frame-pointer -f
             -Wall -Wextra -nostdlib -nostartfiles -nodefaultlibs
 LDFLAGS   = $(ARCHFLAGS) -nostdlib -nostartfiles -nodefaultlibs -T dc.ld -Wl,--build-id=none
 
-OBJS = src/start.o src/hw.o src/gfx.o src/game.o src/main.o src/art.o
+OBJS = src/start.o src/hw.o src/gfx.o src/game.o src/main.o src/art.o src/gen/game_data.o
 
 WEB = ../../web
 ASSET_SRC = $(wildcard $(WEB)/assets/*.js $(WEB)/assets/moves/*.png $(WEB)/assets/enemies/*.png $(WEB)/assets/layers/*.png) tools/bake_game.py tools/dump_game_data.js
 
 all: parryperry.elf
 
-assets: build/ART.BIN src/gen/game_data.h
-build/ART.BIN src/gen/game_data.h: $(ASSET_SRC)
+assets: build/ART.BIN src/gen/game_data.h src/gen/game_data.c
+build/ART.BIN src/gen/game_data.h src/gen/game_data.c: $(ASSET_SRC)
 	node tools/dump_game_data.js
 	python3 tools/bake_game.py
 
