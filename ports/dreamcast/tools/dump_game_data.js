@@ -18,7 +18,7 @@ const B = win.BIBOO;
   const a = core.findIndex(l => l.includes("const D = window.BIBOO;")), b = core.findIndex(l => l.includes("A-A-A-A-R1+R2+L1+L2"));
   vm.runInContext("(function(){'use strict';\n" + core.slice(a, b + 1).join('\n') + "\n})()", win, { filename: 'game/00_core.js (bindings)' });
 }
-const dump = { view: B.view, layers: B.layers, fringe: B.fringe, moves: B.moves, input: B.input, enemies: B.enemies || {}, items: B.items || {}, themes: B.themes || {} };
+const dump = { view: B.view, layers: B.layers, fringe: B.fringe, moves: B.moves, input: B.input, enemies: B.enemies || {}, items: B.items || {}, themes: B.themes || {}, beams: B.beams || {}, unlocks: (win.BibooProgress && win.BibooProgress.UNLOCKS) || [], training: B.training || null };
 if (win.BIBOO_LEVELS) {
   const L = win.BIBOO_LEVELS;
   // each entry of L.levels is a level definition (name, maps, theme ...); keep only plain data

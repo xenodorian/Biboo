@@ -1,12 +1,4 @@
 /* ------------------------------------------------------------------ her body (web/game/13_enemy_attacks.js) */
-static int strlen_(const char *p) { int n = 0; while(p[n]) n++; return n; }
-static float fabsf_(float v) { return v < 0 ? -v : v; }
-static float minf_(float a, float b) { return a < b ? a : b; }
-static float maxf_(float a, float b) { return a > b ? a : b; }
-static float signf_(float v) { return v > 0 ? 1.0f : v < 0 ? -1.0f : 0.0f; }
-static u32 rng = 2463534242u;
-static float frand(void) { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return (float)(rng & 0xffffff) / 16777216.0f; }
-
 static float player_x(void) {           /* her anchor: the root motion counts only while she is on her feet in a move */
     float rx, ry;
     if(!has_cur || fall_on || cur.kind == K_FALL || cur.kind == K_LAND || cur.kind == K_STUN) return X;
@@ -36,3 +28,7 @@ static float her_mid_x(void) { float b[4]; her_box(b); return (b[0] + b[2]) * 0.
 static int parrying(void) { return has_cur && cur.id == MV_parry && cur.kind == K_ACTION && cur.k <= 2; }
 static int blocking(void) { return has_cur && cur.id == MV_block; }
 
+static float her_body_x(void) { return player_x() + (float)her_face() * 32.0f; }
+static float her_feet_y(void) { return her_y(); }
+static float her_x_for_float(void) { return player_x() + (float)her_face() * 32.0f; }        /* her body centre */
+static float her_y_for_float(void) { return her_y() + her_top() + 8.0f; }                       /* web: herY() + herTop() + 8 */

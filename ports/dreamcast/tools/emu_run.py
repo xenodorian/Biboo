@@ -89,6 +89,19 @@ def run(cdi, out, script, seconds, flycast, home=None, size=(640, 480), keep=Fal
             if kind == 'shot':
                 im = ImageGrab.grab(xdisplay=DISPLAY)
                 path = os.path.join(out, args[0] + '.png'); im.save(path); shots.append(path)
+            elif kind == 'chord':                                  # SEC:chord:Right+x+f:HOLD_MS : all keys down together, then all up
+                keys, hold = args[0].split('+'), int(args[1]) if len(args) > 1 else 100
+                for k in keys: subprocess.run(['xdotool', 'keydown', k], env=env)
+                time.sleep(hold / 1000.0)
+                for k in keys: subprocess.run(['xdotool', 'keyup', k], env=env)
+            elif kind == 'seq':                                    # SEC:seq:Down,Right,x:GAP_MS : tap each key in turn (a key may be a+b for a chord step)
+                steps, gap = args[0].split(','), int(args[1]) if len(args) > 1 else 120
+                for st in steps:
+                    ks = st.split('+')
+                    for k in ks: subprocess.run(['xdotool', 'keydown', k], env=env)
+                    time.sleep(0.04)
+                    for k in ks: subprocess.run(['xdotool', 'keyup', k], env=env)
+                    time.sleep(gap / 1000.0)
             elif kind == 'key':
                 key, hold = args[0], int(args[1]) if len(args) > 1 else 100
                 subprocess.run(['xdotool', 'keydown', key], env=env); time.sleep(hold / 1000.0)

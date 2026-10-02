@@ -1,3 +1,13 @@
+/* ------------------------------------------------------------------ small helpers */
+static int strlen_(const char *p) { int n = 0; while(p[n]) n++; return n; }
+static float fabsf_(float v) { return v < 0 ? -v : v; }
+static float minf_(float a, float b) { return a < b ? a : b; }
+static float maxf_(float a, float b) { return a > b ? a : b; }
+static float signf_(float v) { return v > 0 ? 1.0f : v < 0 ? -1.0f : 0.0f; }
+static u32 rng = 2463534242u;
+static float frand(void) { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return (float)(rng & 0xffffff) / 16777216.0f; }
+
+
 /* ------------------------------------------------------------------ surfaces (web/game/09_maps.js) */
 #define SPRITE_PAD 6.0f
 static int face_now(void) { return has_cur ? cur.face : facing; }

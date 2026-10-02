@@ -11,7 +11,7 @@ static void load_map(int level, int idx, int from_left) {
         float x = (float)s->x;
         e->type = s->type; e->on = 1; e->hp = e->maxhp = (float)d->hp; e->x = e->base = e->prevx = x; e->face = -1; e->state = S_WALK;
         e->k = 0; e->t = 0; e->rest = 0; e->dead = 0; e->dive = frand() < 0.5f; e->fy = (float)s->fy; e->jy = 0; e->jump_on = 0; e->hop_at = -1; e->dir = 1; e->pause = 0; e->far = 0;
-        e->combo_ready = 1; e->melee_seen = 0; e->hit_done = 0; e->land_at = 0; e->flash_until = 0; e->seen = 0; e->push_v = e->push_a = 0;
+        e->combo_ready = 1; e->melee_seen = 0; e->hit_done = 0; e->land_at = 0; e->tint_until = 0; e->scale = 1; e->speed_mul = e->dmg_mul = 1; e->taunted = 0; e->drop_energy = e->drop_empower = 0; e->seen_t = 0; e->seen = 0; e->push_v = e->push_a = 0;
         set_range(e);                                    /* an enemy on a platform never leaves it; a ground enemy stays between the pits */
         e->sight = (float)(s->sight ? s->sight : 100) * SIGHT_MUL;
         e->path0 = s->path0; e->path1 = s->path1;
@@ -32,7 +32,7 @@ static void load_map(int level, int idx, int from_left) {
     X = from_left ? 26.0f : (float)(VIEW_W - 26); facing = from_left ? 1 : -1;
     floor_y = 0; pit_fall_on = 0; prev_ok = 0;
     fall_on = 0; stun_on = 0; slide_v = 0; has_cur = 0; queued = -1; camY = 0; invuln = now + 600.0f; ko_until = 0;
-    start(MV_idle, K_HOLD);
+    start(MV_idle, K_HOLD, VIA_PRESS);
 }
 static void start_level(int level) {       /* a level starts with its crates, bombs and leaves back */
     int i;

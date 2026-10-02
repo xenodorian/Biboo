@@ -11,6 +11,7 @@
 
 #include "state.inc"
 #include "surfaces.inc"
+#include "effects.inc"
 #include "player.inc"
 #include "body.inc"
 #include "enemy.inc"

@@ -142,7 +142,13 @@ static u16 maple_poll_buttons(void) {
     if(MAPLE_STATE != 0) return 0xffff;
     if((resp[0] & 0xffu) != MAPLE_RESPONSE_DATATRF) return 0xffff;
     if(resp[1] != MAPLE_FUNC_CONTROLLER) return 0xffff;
-    return (u16)(resp[2] & 0xffffu);
+    {
+        u32 w = resp[2];
+        u16 b = (u16)(w & 0xffffu) | 0x3000u;                      /* bits 12 and 13 stand for the triggers: 0 when pulled past 100 of 255 */
+        if(((w >> 24) & 0xffu) > 100) b &= (u16)~PAD_L;
+        if(((w >> 16) & 0xffu) > 100) b &= (u16)~PAD_R;
+        return b;
+    }
 }
 
 

@@ -19,24 +19,68 @@ static void draw_fringe(float camy) {
 }
 
 static int ground_row(void) { return VIEW_TOP + v2s(FEET_ROW + iround(camY)); }     /* screen row of the ground line */
+static float fcos(float a) { return fsin(a + 1.5707963f); }
+static int shake_x, shake_y;                           /* this frame's shake in view px, applied to the whole scene when it is finished */
+static int her_tint_now(u16 *c, int *a) {              /* her flash: red hit, white block, the rainbow guard, the blue charge glow */
+    if(rainbow_on()) {                                 /* hsl(h, 100%, 50%) cycling every 450 ms */
+        float h = (float)(((int)(now - rainbow_until + RAINBOW_MS)) % 450) / 450.0f * 6.0f;
+        int k = (int)h, f = (int)((h - (float)k) * 255.0f);
+        static const u8 R[6] = {255, 0, 0, 0, 0, 0};
+        (void)R;
+        switch(k) { case 0: *c = RGB(255, f, 0); break; case 1: *c = RGB(255 - f, 255, 0); break; case 2: *c = RGB(0, 255, f); break; case 3: *c = RGB(0, 255 - f, 255); break; case 4: *c = RGB(f, 0, 255); break; default: *c = RGB(255, 0, 255 - f); break; }
+        *a = 153; return 1;
+    }
+    if(now < her_tint_until) { *c = her_tint_c; *a = her_tint_a; return 1; }
+    if(has_cur && cur.id == MV_charge && charge_ms >= FULL_CHARGE) { *c = RGB(47, 123, 255); *a = 128; return 1; }     /* Max turns blue once the charge is complete */
+    return 0;
+}
+static void vrect(int x, int y, int w, int h, u16 c);
+static void ring(int cx, int cy, int R, u16 c);
+static void draw_beam(void) {
+    BeamNow b;
+    int off, xx, w, x0, x1, bx, by;
+    const BeamDef *T;
+    const Sprite *sp;
+    if(!beam_now(&b)) return;
+    T = &BEAMS[b.kind]; sp = art_sprite(T->sprite);
+    w = T->w; off = (int)(now * 0.45f) % w;
+    bx = b.ox; by = FEET_ROW + iround(camY) - iround(b.oy);
+    if(b.face > 0) { x0 = v2s(bx); x1 = v2s(bx + (int)b.len); } else { x0 = v2s(bx - (int)b.len); x1 = v2s(bx); }
+    gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H); gfx_clip_x(x0, x1);
+    for(xx = off - w; xx < (int)b.len; xx += w) gfx_blit_alpha(sp, v2s(b.face > 0 ? bx + xx : bx - xx), VIEW_TOP + v2s(by), b.face < 0, b.last ? 153 : 255);
+    gfx_clip_x(0, SCR_W);
+}
 static void draw_player(void) {
     float rx = 0, ry;
-    int vx, vy;
+    int vx, vy, flip, sx, sy;
     const MoveFrame *f;
-    if(now < invuln && !stun_on && !pit_fall_on && ((int)(now / 60.0f) & 1)) return;       /* blink while she cannot be hurt */
+    u16 tc; int ta, tint;
+    if(now < invuln && !stun_on && !pit_fall_on && !rainbow_on() && ((int)(now / 60.0f) & 1)) return;       /* blink while she cannot be hurt */
     if(!(stun_on || fall_on || cur.kind == K_FALL)) { float t; root_of(&cur, cur.k, &rx, &t); }
     ry = her_y();
     f = mf(cur.id, cur.k);
     vx = iround(X + rx);                                   /* the camera x is fixed at ANCHOR_X, so world x is view x */
     vy = FEET_ROW - iround(ry - camY);
+    flip = cur.face < 0;
+    tint = her_tint_now(&tc, &ta);
+    sx = v2s(vx); sy = VIEW_TOP + v2s(vy);
     if(pit_fall_on) {                                      /* falling into a pit: drawn only above the ground line or below it inside the hole */
         int gl = ground_row();
-        gfx_clip(VIEW_TOP, gl); gfx_blit(art_sprite(f->sprite), v2s(vx), VIEW_TOP + v2s(vy), cur.face < 0);
-        gfx_clip(gl, VIEW_TOP + VIEW_SCR_H); gfx_blit(art_sprite(f->sprite), v2s(vx), VIEW_TOP + v2s(vy), cur.face < 0);
+        gfx_clip(VIEW_TOP, gl); gfx_blit(art_sprite(f->sprite), sx, sy, flip);
+        gfx_clip(gl, VIEW_TOP + VIEW_SCR_H); gfx_blit(art_sprite(f->sprite), sx, sy, flip);
         gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
         return;
     }
-    gfx_blit(art_sprite(f->sprite), v2s(vx), VIEW_TOP + v2s(vy), cur.face < 0);
+    if(f->fx >= 0) {                                       /* effects at their own scale, behind Max */
+        int gone_main = cur.id == MV_energy_wave && cur.blast[cur.face > 0 ? 1 : 0] && cur.k >= 2;
+        int gone_back = cur.id == MV_energy_wave && cur.blast[cur.face > 0 ? 0 : 1] && cur.k >= 2;
+        int fxx = sx, fxy = sy;
+        if(cur.id == MV_energy_burst) { fxx += v2s((int)(-16.0f * (float)cur.face)); fxy += v2s(18); }      /* keep the enlarged ring centred on Max's body */
+        if(!gone_main) gfx_blit_alpha(art_sprite(f->fx), fxx, fxy, flip, 255);
+        if(cur.id == MV_energy_wave && !gone_back) gfx_blit_alpha(art_sprite(f->fx), fxx, fxy, !flip, 255);
+    }
+    if(tint) gfx_blit_tint(art_sprite(f->sprite), sx, sy, flip, tc, ta);
+    else gfx_blit(art_sprite(f->sprite), sx, sy, flip);
 }
 
 /* the map's pits, platforms and door (web/game/15_draw_scenery.js drawGeometry and drawPits), view pixels converted to screen */
@@ -120,7 +164,11 @@ static void draw_items(void) {
         } else if(g->kind == G_LEAF) {
             int f = ((int)((now + g->bob * 97.0f) / 85.0f)) % LEAF_FRAMES;
             gfx_blit(art_sprite((g->val >= 5 ? LEAF_BIG_SPRITES : LEAF_SPRITES)[f]), v2s(X), VIEW_TOP + v2s(Y), 0);
-        } else gfx_blit(art_sprite(GEM_SPRITES[g->kind == G_UPHP ? 1 : 0]), v2s(X), VIEW_TOP + v2s(Y), 0);
+        } else {
+            int spr = g->kind == G_HEALTH ? 0 : g->kind == G_UPHP ? 1 : g->kind == G_ENERGY || g->kind == G_UP_ENERGY ? 2 : g->kind == G_EMPOWER || g->kind == G_UP_EMPOWER ? 3 : 4;
+            gfx_blit(art_sprite(GEM_SPRITES[spr]), v2s(X), VIEW_TOP + v2s(Y), 0);
+            if(g->kind > G_UPHP && g->kind < G_ANKH) { ring(v2s(X), VIEW_TOP + v2s(Y), 9, RGB(255, 255, 255)); vrect(X - 3, Y - 1, 7, 2, RGB(255, 255, 255)); vrect(X, Y - 4, 1, 8, RGB(255, 255, 255)); }   /* a meter upgrade: a ring and a plus sign */
+        }
     }
 }
 static void draw_effects(void) {
@@ -163,34 +211,89 @@ static void draw_enemies(void) {
         int vx, vy;
         if(!e->on) continue;
         d = &ENEMIES[e->type];
-        if(e->state == S_DYING && d->a_death < 0 && ((int)(e->dead / 70.0f) & 1)) continue;        /* no death animation: it flickers */
-        if(e->state == S_DYING && e->dead > DIE_MS - 200.0f && ((int)(e->dead / 40.0f) & 1)) continue;
+        if(e->state == S_DYING && d->a_death < 0 && e->dead < DIE_MS - 400.0f && ((int)(e->dead / 60.0f) & 1)) continue;        /* no death animation: it flickers */
+        if(e->state == S_DYING && e->dead > DIE_MS - (d->a_death >= 0 ? 500.0f : 400.0f) && ((int)(e->dead / 40.0f) & 1)) continue;   /* then it fades (here: a fast blink out) */
         f = frame_of(e);
         vx = iround(e->base); vy = FEET_ROW - iround(e->fy + e->jy - camY);
-        gfx_blit(art_sprite(f->sprite), v2s(vx), VIEW_TOP + v2s(vy), e->face > 0);              /* the art faces left */
-        if(e->state != S_DYING && e->hp < e->maxhp) {                                           /* a small health bar over a hurt enemy */
+        {
+            int tint = now < e->tint_until, flip = e->face > 0, sx = v2s(vx), sy = VIEW_TOP + v2s(vy);
+            const Sprite *sp = art_sprite(f->sprite);
+            if(e->scale != 1.0f) gfx_blit_scaled(sp, sx, sy, flip, e->scale, tint ? e->tint_c : 0, tint ? e->tint_a : 0);
+            else if(tint) gfx_blit_tint(sp, sx, sy, flip, e->tint_c, e->tint_a);
+            else gfx_blit(sp, sx, sy, flip);                                    /* the art faces left */
+        }
+        if(e->state != S_DYING && e->hp < e->maxhp && !d->boss) {                                  /* a small health bar over a hurt enemy */
             float hb[4];
             if(hurt_of(e, hb)) {
-                int bx = v2s(iround((hb[0] + hb[2]) * 0.5f)) - 10, by = VIEW_TOP + v2s(FEET_ROW - iround(hb[3] - camY)) - 6;
-                gfx_num(bx, by - 9, (u32)e->hp, RGB(255, 255, 255)); gfx_rect(bx, by, 20, 3, RGB(40, 0, 0)); gfx_rect(bx, by, (int)(20.0f * e->hp / e->maxhp), 3, RGB(230, 40, 40));
+                int bx = v2s(iround((hb[0] + hb[2]) * 0.5f)) - 12, by = VIEW_TOP + v2s(FEET_ROW - iround(hb[3] - camY)) - 7;
+                gfx_rect(bx, by, 25, 3, RGB(40, 0, 0)); gfx_rect(bx, by, (int)(25.0f * e->hp / e->maxhp), 3, RGB(230, 40, 40));
             }
         }
     }
 }
 
+static void draw_flashes_floaters(void) {
+    int i, k;
+    gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
+    for(i = 0; i < MAX_FLASHES; i++) {                                        /* starbursts */
+        const Flash *f = &flashes[i];
+        float a, r;
+        int X, Y, inner, len;
+        if(!f->on) continue;
+        a = (now - f->t0) / f->ms; r = f->r * (0.4f + 0.6f * minf_(1.0f, a * 3.0f));
+        X = v2s(iround(f->wx)); Y = VIEW_TOP + v2s(FEET_ROW + iround(camY) - iround(f->wy));
+        inner = (int)(r * 0.25f * 0.83f);
+        for(k = 0; k < 8; k++) {
+            float ang = (float)k * 0.7853982f + 0.4f;
+            len = (int)((k % 2 ? r * 0.6f : r) * 0.83f);
+            if(a > 0.7f) len = len * 2 / 3;
+            gfx_rect(X + (int)(fcos(ang) * (float)len) - 1, Y + (int)(fsin(ang) * (float)len) - 1, 2, 2, f->c);
+            gfx_rect(X + (int)(fcos(ang) * (float)(len + inner) * 0.5f), Y + (int)(fsin(ang) * (float)(len + inner) * 0.5f), 1, 1, f->c);
+        }
+        if(a < 0.4f) gfx_rect(X - 1, Y - 1, 3, 3, RGB(255, 255, 255));
+    }
+    for(i = 0; i < MAX_FLOATERS; i++) {                                       /* damage numbers and notices rise and fade */
+        const Floater *f = &floaters[i];
+        float age;
+        int X, Y, w;
+        if(!f->on) continue;
+        age = now - f->t0;
+        if(age > FLOAT_MS - 300.0f && ((int)(age / 50.0f) & 1)) continue;
+        w = 8 * strlen_(f->text);
+        X = v2s(iround(f->wx)) - w / 2; Y = VIEW_TOP + v2s(FEET_ROW + iround(camY) - iround(f->wy) - (int)(age * 0.035f)) - 4;
+        gfx_text(X + 1, Y + 1, f->text, RGB(0, 0, 0)); gfx_text(X, Y, f->text, f->c);
+    }
+}
+
+static void draw_bar(int x, int y, int len, int h, float frac, u16 col, int flash) {
+    int w;
+    if(frac < 0) frac = 0; else if(frac > 1) frac = 1;
+    gfx_rect(x - 1, y - 1, len + 2, h + 2, RGB(0, 0, 0)); gfx_rect(x, y, len, h, RGB(22, 32, 46));
+    w = (int)((float)len * frac + 0.5f);
+    gfx_rect(x, y, w, h, flash ? RGB(255, 255, 255) : col);
+    gfx_rect(x, y, w, 1, RGB(255, 255, 255) == col ? col : RGB(200, 220, 230));
+}
 static void draw_hud(u32 frame_us, u32 draw_us) {
-    int i, left = 0;
+    int i, left = 0, row = 1;
+    static const char *MLAB[3] = {"EN", "EM", "SU"};
+    static const u16 MCOL[3] = {RGB(68, 170, 255), RGB(255, 170, 68), RGB(204, 102, 255)};
     gfx_clip(0, SCR_H);
     gfx_rect(0, 0, SCR_W, VIEW_TOP, RGB(10, 10, 20));
-    gfx_text(6, 4, "HP", RGB(255, 255, 255));
-    { int bl = (int)(max_hp * 2.0f); if(bl > 180) bl = 180;
-      gfx_rect(26, 4, bl + 2, 10, RGB(60, 60, 70)); gfx_rect(27, 5, bl, 8, RGB(40, 0, 0));
-      gfx_rect(27, 5, (int)((float)bl * hp / max_hp), 8, RGB(60, 220, 90)); }
-    gfx_text(26, 18, "ANKH", RGB(255, 210, 74)); gfx_num(26 + 8 * 5, 18, (u32)ankhs, RGB(255, 255, 255));
-    gfx_text(106, 18, "LEAF", RGB(160, 220, 120)); gfx_num(106 + 8 * 5, 18, (u32)leaves, RGB(255, 255, 255));
-    gfx_text(SCR_W - 8 * 8, 4, "MAP", RGB(160, 180, 230)); gfx_text(SCR_W - 8 * 4, 4, cur_map->id, RGB(255, 255, 255));
+    gfx_text(1, row, "HP", RGB(255, 255, 255));                                   /* health, then the meters she has unlocked */
+    { int bl = v2s((int)max_hp); draw_bar(20, row, bl, 6, hp / max_hp, RGB(61, 220, 95), 0); gfx_num(24 + bl, row - 1, (u32)hp, RGB(255, 255, 255)); }
+    row += 9;
+    for(i = 0; i < 3; i++) if(meter_on(i)) {
+        int bl = v2s((int)meter_max[i]);
+        gfx_text(1, row, MLAB[i], RGB(255, 255, 255));
+        draw_bar(20, row, bl, 6, meter[i] / meter_max[i], MCOL[i], now < meter_flash[i] && ((int)(now / 70.0f) & 1));
+        gfx_num(24 + bl, row - 1, (u32)(meter[i] + 0.5f), RGB(255, 255, 255));
+        row += 7;
+    }
     for(i = 0; i < MAX_ENEMIES; i++) if(alive(&en[i])) left++;
-    gfx_text(SCR_W - 8 * 8, 18, "FOES", RGB(160, 180, 230)); gfx_num(SCR_W - 8 * 3, 18, (u32)left, RGB(255, 255, 255));
+    gfx_text(SCR_W - 8 * 11, 1, "MAP", RGB(160, 180, 230)); gfx_text(SCR_W - 8 * 7, 1, cur_map->id, RGB(255, 255, 255));
+    gfx_text(SCR_W - 8 * 11, 9, "FOES", RGB(160, 180, 230)); gfx_num(SCR_W - 8 * 6, 9, (u32)left, RGB(255, 255, 255));
+    gfx_text(SCR_W - 8 * 11, 17, "LEAF", RGB(160, 220, 120)); gfx_num(SCR_W - 8 * 6, 17, (u32)leaves, RGB(255, 255, 255));
+    gfx_text(SCR_W - 8 * 11, 25 - 1, "ANKH", RGB(255, 210, 74)); gfx_num(SCR_W - 8 * 6, 25 - 1, (u32)ankhs, RGB(255, 255, 255));
     gfx_rect(0, VIEW_TOP + VIEW_SCR_H, SCR_W, SCR_H - VIEW_TOP - VIEW_SCR_H, RGB(8, 8, 16));
     for(i = 0; i < MAX_ENEMIES; i++) if(alive(&en[i]) && ENEMIES[en[i].type].boss) {          /* the boss bar along the bottom of the view */
         const Enemy *b = &en[i];
@@ -203,8 +306,13 @@ static void draw_hud(u32 frame_us, u32 draw_us) {
     }
     if(now < banner_until) gfx_text((SCR_W - 8 * (int)strlen_(banner)) / 2, VIEW_TOP + 8, banner, RGB(255, 210, 74));
     if(hp <= 0) gfx_text((SCR_W - 8 * 4) / 2, 100, "K.O.", RGB(255, 60, 60));
+#ifdef DEBUG_HUD
     gfx_text(4, 214, MOVES[cur.id].id, RGB(255, 220, 120));
     gfx_text(4, 226, "FRAME US", RGB(160, 180, 230)); gfx_num(4 + 8 * 9, 226, frame_us, RGB(255, 255, 255));
     gfx_text(160, 226, "DRAW US", RGB(160, 180, 230)); gfx_num(160 + 8 * 8, 226, draw_us, RGB(255, 255, 255));
+#else
+    (void)frame_us; (void)draw_us;
+    gfx_text(4, 214, MOVES[cur.id].id, RGB(255, 220, 120));
+#endif
 }
 

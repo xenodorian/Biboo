@@ -33,6 +33,27 @@ static void spawn_gem(float x, int kind, float fy, int val) {
         return;
     }
 }
+static void ring_boom(float x, float y, float r) {
+    int j;
+    for(j = 0; j < MAX_BOOMS; j++) if(booms[j].r == 0 || now - booms[j].t0 > 650.0f) { booms[j].x = x; booms[j].y = y; booms[j].t0 = now; booms[j].r = r; return; }
+}
+static int gem_useful(int kind) {                       /* a drop is never redundant: none for a meter she has not unlocked or a full bag; level 1 drops only health */
+    if(level_idx == 0 && kind != G_HEALTH) return 0;
+    if(kind == G_HEALTH) return gem_bag[0] < MAX_GEM_BAG;
+    return meter_on(kind - G_ENERGY) && gem_bag[kind] < MAX_GEM_BAG;
+}
+static void loot_gem(float x, int kind, float fy) { if(gem_useful(kind)) spawn_gem(x, kind, fy, 1); }
+static int loot_pool(int *pool) {                        /* what a crate can drop */
+    int n = 0, m;
+    if(gem_useful(G_HEALTH)) { pool[n++] = G_HEALTH; pool[n++] = G_HEALTH; pool[n++] = G_HEALTH; }
+    if(max_hp < 200.0f) pool[n++] = G_UPHP;
+    for(m = 0; m < 3; m++) {
+        if(!meter_on(m) || level_idx == 0) continue;
+        if(gem_useful(G_ENERGY + m)) pool[n++] = G_ENERGY + m;
+        if(meter_max[m] < 200.0f) { pool[n++] = G_UP_ENERGY + m; pool[n++] = G_UP_ENERGY + m; }
+    }
+    return n;
+}
 static float dist_box2(float px, float py, const float b[4]);
 static void crate_box(int i, float b[4]) { const Crate *c = &CRATES[cur_map->crate0 + i]; b[0] = c->x - 9.0f; b[1] = c->fy; b[2] = c->x + 9.0f; b[3] = c->fy + 18.0f; }
 static void bomb_box(int i, float b[4]) { const Spot *c = &BOMBS[cur_map->bomb0 + i]; b[0] = c->x - 8.0f; b[1] = c->fy; b[2] = c->x + 8.0f; b[3] = c->fy + 22.0f; }
@@ -53,9 +74,11 @@ static void break_crate(int i) {
         }
         burst((float)c->x, c->fy + 14.0f, 14, RGB(255, 210, 74), RGB(255, 242, 160), RGB(201, 150, 42));
     }
-    pool = max_hp < 200.0f ? 4 : 3;                                  /* every crate drops something useful: three health gems and a bone powder in the pool */
-    pick = (int)(frand() * (float)pool) % pool;
-    spawn_gem((float)c->x, pick == 3 ? G_UPHP : G_HEALTH, (float)c->fy, 1);
+    {                                                                /* every crate drops something useful: a health gem, a meter gem, or a +25 upgrade */
+        int pl[16];
+        pool = loot_pool(pl);
+        if(pool) { pick = (int)(frand() * (float)pool) % pool; spawn_gem((float)c->x, pl[pick], (float)c->fy, 1); }
+    }
 }
 static void detonate(int i);
 static void crate_blast(float wx, float wy, float r) {
@@ -75,7 +98,8 @@ static void detonate(int i) {
     burst(cx, cy, 14, RGB(255, 208, 96), RGB(255, 106, 32), RGB(68, 68, 68));
     for(j = 0; j < MAX_ENEMIES; j++) { float hb[4]; if(alive(&en[j]) && hurt_of(&en[j], hb) && dist_box2(cx, cy, hb) <= BOMB_R * BOMB_R) hurt_enemy(&en[j], (int)BOMB_DMG); }
     her_box(me);
-    if(dist_box2(cx, cy, me) <= BOMB_R * BOMB_R) { hurt_her(BOMB_DMG); invuln = maxf_(invuln, now + 500.0f); }
+    if(dist_box2(cx, cy, me) <= BOMB_R * BOMB_R && !rainbow_on()) { hurt_her(BOMB_DMG); her_hit_fx(); her_tint_set(RGB(255, 43, 43), 153, 300.0f); invuln = maxf_(invuln, now + 500.0f); }
+    shake_for(300.0f, 4.0f);
     crate_blast(cx, cy, BOMB_R);
     for(j = 0; j < cur_map->nbomb; j++) {                           /* other bombs in range go off a moment later */
         const Spot *o = &BOMBS[cur_map->bomb0 + j];
@@ -125,11 +149,19 @@ static void step_gems(float dt) {
         g->bob += dt * 0.006f;
         if(g->kind != G_ANKH && g->kind != G_LEAF && now - g->t0 > 20000.0f) { g->on = 0; continue; }       /* GEM_LIFE */
         if(fabsf_(g->x - bx) < 28.0f && hy < g->fy + 50.0f && hy > g->fy - 20.0f) {
-            if(g->kind == G_LEAF) { leaves += g->val; if(g->key >= 0) leaf_got[map_idx] |= 1u << g->key; }
-            else if(g->kind == G_ANKH) ankhs++;
-            else if(g->kind == G_UPHP) { if(max_hp < 200.0f) { max_hp += 25.0f; hp = minf_(max_hp, hp + 25.0f); } }
-            else hp = minf_(max_hp, hp + (float)(int)((max_hp + 3.0f) / 4.0f));           /* TODO: the web game keeps these in a bag used from the menu; with no menu yet a health gem heals 25 percent at once */
-            g->on = 0;
+            static const char *LABEL[4] = {"+BONE", "+QUARTZ", "+GARNET", "+DIAMOND"};
+            static const u16 COL[4] = {RGB(61, 220, 95), RGB(68, 170, 255), RGB(255, 170, 68), RGB(204, 102, 255)};
+            int taken = 1;
+            if(g->kind == G_LEAF) { leaves += g->val; floater_num(g->x, g->y + 20, g->val, "+", RGB(255, 210, 74)); if(g->key >= 0) leaf_got[map_idx] |= 1u << g->key; }
+            else if(g->kind == G_ANKH) { ankhs++; floater(g->x, g->y + 24, "+1 ANKH", RGB(255, 210, 74)); }
+            else if(g->kind == G_UPHP) {                        /* +25 Max HP: the cap and the current health both grow by 25 */
+                if(max_hp < 200.0f) { max_hp += 25.0f; hp = minf_(max_hp, hp + 25.0f); floater(g->x, g->y + 24, "+25 MAX HP", COL[0]); } else floater(g->x, g->y + 24, "HP AT LIMIT", COL[0]);
+            } else if(g->kind >= G_UP_ENERGY) {                 /* a meter upgrade: applied at once, the meter grows by 25 and fills by 25 */
+                int m = g->kind - G_UP_ENERGY;
+                if(meter_max[m] < 200.0f) { meter_max[m] += 25.0f; spend(m, -25.0f); meter_flash[m] = now + 600.0f; floater(g->x, g->y + 24, "+25 MAX", COL[m + 1]); } else floater(g->x, g->y + 24, "AT LIMIT", COL[m + 1]);
+            } else if(gem_bag[g->kind] < MAX_GEM_BAG) { gem_bag[g->kind]++; floater(g->x, g->y + 24, LABEL[g->kind], COL[g->kind]); }
+            else taken = 0;                                     /* the bag is full: it stays */
+            if(taken) g->on = 0;
         }
     }
 }
@@ -196,7 +228,7 @@ static void step_shots(float dt) {
             } else if(blocking()) {                             /* blocked: no damage, a small slide back */
                 slide_v = 2.0f * 8.0f / 120.0f * dir; slide_a = 2.0f * 8.0f / (120.0f * 120.0f); sh->on = 0;
             } else if(now >= invuln && !stun_on) {              /* a hit: damage, a small flinch */
-                hurt_her((float)sh->dmg); slide_v = 2.0f * 14.0f / 180.0f * dir; slide_a = 2.0f * 14.0f / (180.0f * 180.0f);
+                hurt_her((float)sh->dmg); her_tint_set(RGB(255, 43, 43), 153, 220.0f); her_hit_fx(); slide_v = 2.0f * 14.0f / 180.0f * dir; slide_a = 2.0f * 14.0f / (180.0f * 180.0f);
                 invuln = now + 500.0f; sh->on = 0;
             }
         } else {

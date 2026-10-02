@@ -85,6 +85,47 @@ def encode(rgba, ox, oy):
     return head + tab + b''.join(rows)
 
 
+def encode_alpha(rgba, ox, oy):
+    """like encode(), but each pixel is a u32: alpha in bits 16-23 and RGB565 in the low 16 bits (pixels with alpha below 12 are left out)"""
+    op = rgba[..., 3] >= 12
+    if not op.any():
+        return None
+    ys, xs = np.nonzero(op)
+    x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
+    rgba = rgba[y0:y1, x0:x1]
+    op = op[y0:y1, x0:x1]
+    px = ((rgba[..., 0].astype(np.uint32) >> 3) << 11) | ((rgba[..., 1].astype(np.uint32) >> 2) << 5) | (rgba[..., 2].astype(np.uint32) >> 3)
+    px = px | (rgba[..., 3].astype(np.uint32) << 16)
+    h, w = op.shape
+    rows = []
+    for y in range(h):
+        spans = []
+        x = 0
+        while x < w:
+            if not op[y, x]:
+                x += 1
+                continue
+            s = x
+            while x < w and op[y, x]:
+                x += 1
+            spans.append((s, x - s))
+        buf = struct.pack('<H', len(spans))
+        for s, n in spans:
+            buf += struct.pack('<HH', s, n)
+        if len(buf) % 4:
+            buf += b'\0' * (4 - len(buf) % 4)
+        for s, n in spans:
+            buf += px[y, s:s + n].astype('<u4').tobytes()
+        rows.append(buf)
+    head = struct.pack('<hhHH', int(ox + x0), int(oy + y0), w, h)
+    off = len(head) + 4 * h
+    tab = b''
+    for r in rows:
+        tab += struct.pack('<I', off)
+        off += len(r)
+    return head + tab + b''.join(rows)
+
+
 class Pack:
     def __init__(self):
         self.blobs = []
@@ -226,11 +267,11 @@ def main():
     c8 = IT['cell'] / 2
     leaf_ids = [pack.add(f'leaf:{k}', encode(*sample(leaf_im, k * IT['cell'], 0, IT['cell'], IT['cell'], c8, c8, VIEW_SCALE))) for k in range(IT['leafFrames'])]
     leaf_big = [pack.add(f'leafbig:{k}', encode(*sample(leaf_im, k * IT['cell'], 0, IT['cell'], IT['cell'], c8, c8, VIEW_SCALE * 1.5))) for k in range(IT['leafFrames'])]
-    gem_ids = [pack.add('gem:' + n, encode(*sample(gem_im, IT['gems'][n] * IT['cell'], 0, IT['cell'], IT['cell'], c8, c8, VIEW_SCALE))) for n in ('bone', 'powder')]
-    H.append(f'#define LEAF_FRAMES {len(leaf_ids)}\nextern const unsigned short LEAF_SPRITES[LEAF_FRAMES], LEAF_BIG_SPRITES[LEAF_FRAMES], GEM_SPRITES[2];   /* GEM_SPRITES: bone (health), powder (max HP) */')
+    gem_ids = [pack.add('gem:' + n, encode(*sample(gem_im, IT['gems'][n] * IT['cell'], 0, IT['cell'], IT['cell'], c8, c8, VIEW_SCALE))) for n in ('bone', 'powder', 'quartz', 'garnet', 'diamond')]
+    H.append(f'#define LEAF_FRAMES {len(leaf_ids)}\nextern const unsigned short LEAF_SPRITES[LEAF_FRAMES], LEAF_BIG_SPRITES[LEAF_FRAMES], GEM_SPRITES[5];   /* GEM_SPRITES: bone (health), powder (max HP), quartz (energy), garnet (empower), diamond (super) */')
     C.append('const unsigned short LEAF_SPRITES[LEAF_FRAMES] = {' + ','.join(map(str, leaf_ids)) + '};')
     C.append('const unsigned short LEAF_BIG_SPRITES[LEAF_FRAMES] = {' + ','.join(map(str, leaf_big)) + '};')
-    C.append('const unsigned short GEM_SPRITES[2] = {' + ','.join(map(str, gem_ids)) + '};')
+    C.append('const unsigned short GEM_SPRITES[5] = {' + ','.join(map(str, gem_ids)) + '};')
     H.append('typedef struct { unsigned short sprite; short period, margin; float parallax; } SceneLayer;')
     H.append('typedef struct { unsigned char nlayers; short fringe, fringe_period; SceneLayer layers[6]; } Scene;')
     H.append('enum { ' + ', '.join(f'SC_{n.upper()}' for n in SCENE_NAMES) + ', SC_COUNT };')
@@ -240,8 +281,9 @@ def main():
 
     # ---- Max's moves
     H.append('typedef struct { unsigned char shape; float ax, ay, bx, by, r; } Hit;')
-    H.append('typedef struct { unsigned short ms; short sprite; float rx, ry; signed char shx, shy; short top; unsigned short hit0; unsigned char nhit; unsigned char bw; } MoveFrame;')
-    H.append('typedef struct { const char *id; unsigned short frame0, nframes, loop_from; unsigned char loop; } MoveDef;')
+    H.append('typedef struct { unsigned short ms; short sprite; float rx, ry; signed char shx, shy; short top; unsigned short hit0; unsigned char nhit; signed char beam; short bw, fx; float beam_x, beam_y; const char *name; } MoveFrame;   /* bw: full-view impact picture, fx: effect sprite (alpha), beam: kind or -1 */')
+    H.append('typedef struct { const char *id, *title; unsigned short frame0, nframes, loop_from; unsigned char loop; short enter_default, enter_from; signed char enter_k[16]; float fx_scale; unsigned short quake_ms; float quake_amp; unsigned char uses_a; } MoveDef;')
+    BEAM_KINDS = ['cloud', 'fire', 'laser', 'plasma']
     hits_c, frames_c, moves_c = [], [], []
     for name in D['moves']:
         m = D['moves'][name]
@@ -250,22 +292,121 @@ def main():
             print('missing sheet', path)
             continue
         sheet = np.asarray(Image.open(path).convert('RGBA'))
+        fxim = np.asarray(Image.open(os.path.join(WEB, m['fxSheet'])).convert('RGBA')) if m.get('fxSheet') else None
         cw, ch = m['cell']
         ax, ay = m['anchor']
+        fxs = m.get('fxScale') or SPRITE_SCALE
         f0 = len(frames_c)
         for k, f in enumerate(m['frames']):
             o, ox, oy = sample(sheet, k * cw, 0, cw, ch, ax, ay, SCALE)
             sp = pack.add(f'move:{name}:{k}', encode(o, ox, oy))
+            fx = -1
+            if fxim is not None:
+                o2, ox2, oy2 = sample(fxim, k * cw, 0, cw, ch, ax, ay, fxs * VIEW_SCALE)
+                fx = pack.add(f'fx:{name}:{k}', encode_alpha(o2, ox2, oy2))
+            bw = -1
+            if f.get('bw'):
+                im = np.asarray(Image.open(os.path.join(WEB, f['bw'])).convert('RGBA'))
+                o3, ox3, oy3 = sample(im, 0, 0, im.shape[1], im.shape[0], 0, 0, VIEW_SCALE)
+                bw = pack.add('bw:' + f['bw'], encode(o3, ox3, oy3))
             hs = hit_rows(f.get('hits'))
             h0 = len(hits_c)
             hits_c.extend(hs)
-            frames_c.append((f['ms'], sp, f['root'][0], f['root'][1], f['shake'][0], f['shake'][1], f.get('top', 0), h0, len(hs), 1 if f.get('bw') else 0))
-        moves_c.append((name, f0, len(m['frames']), m.get('loopFrom', 0), 1 if m.get('loop') else 0))
+            bm = f.get('beam')
+            frames_c.append((f['ms'], sp, f['root'][0], f['root'][1], f['shake'][0], f['shake'][1], f.get('top', 0), h0, len(hs),
+                             BEAM_KINDS.index(bm['kind']) if bm else -1, bw, fx, bm['x'] if bm else 0, bm['y'] if bm else 0, f.get('name', '')))
+        en = m.get('enter') or {}
+        names = [f.get('name', '') for f in m['frames']]
+        edef = names.index(en['default']) if en.get('default') in names else 0
+        efrom, ek = -1, [-1] * 16
+        for fm, mp in (en.get('fromMove') or {}).items():
+            efrom = fm
+            src_names = [f.get('name', '') for f in D['moves'][fm]['frames']]
+            for si, sn in enumerate(src_names[:16]):
+                tgt = mp.get(sn, sn)
+                ek[si] = names.index(tgt) if tgt in names else -1
+        qa = m.get('aftershake') or {}
+        moves_c.append((name, m.get('title', name), f0, len(m['frames']), m.get('loopFrom', 0), 1 if m.get('loop') else 0, edef, efrom, ek, fxs if not m.get('fxScale') is None else SPRITE_SCALE, qa.get('ms', 0), qa.get('amp', 0), 1 if 'A' in re.split(r'[-+]', str(m.get('input', ''))) else 0))
     H.append('enum { ' + ', '.join(f'MV_{ident(n)}' for n, *_ in moves_c) + ', MV_COUNT };')
+    moves_c = [(a, b_, c_, d_, e_, f_, g_, (-1 if h_ == -1 else [x[0] for x in moves_c].index(h_)), i_, j_, k_, l_, u_) for a, b_, c_, d_, e_, f_, g_, h_, i_, j_, k_, l_, u_ in moves_c]
     table('Hit', 'HITS', hits_c, lambda t: '{%d,%s,%s,%s,%s,%s}' % (t[0], F(t[1]), F(t[2]), F(t[3]), F(t[4]), F(t[5])))
-    table('MoveFrame', 'MOVE_FRAMES', frames_c, lambda t: '{%d,%d,%s,%s,%d,%d,%d,%d,%d,%d}' % (t[0], t[1], F(t[2]), F(t[3]), *t[4:]))
+    table('MoveFrame', 'MOVE_FRAMES', frames_c, lambda t: '{%d,%d,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%s,%s,%s}' % (t[0], t[1], F(t[2]), F(t[3]), t[4], t[5], t[6], t[7], t[8], t[9], t[10], t[11], F(t[12]), F(t[13]), json.dumps(t[14])))
     H.append('extern const MoveDef MOVES[MV_COUNT + 1];')
-    C.append('const MoveDef MOVES[MV_COUNT + 1] = {' + ','.join('{"%s",%d,%d,%d,%d}' % t for t in moves_c) + ',{0}};')
+    C.append('const MoveDef MOVES[MV_COUNT + 1] = {' + ','.join('{%s,%s,%d,%d,%d,%d,%d,%d,{%s},%s,%d,%s,%d}' % (json.dumps(t[0]), json.dumps(t[1]), t[2], t[3], t[4], t[5], t[6], t[7], ','.join(str(x) for x in t[8]), F(t[9]), t[10], F(t[11]), t[12]) for t in moves_c) + ',{0}};')
+    # beams: a scrolling texture each (web/game/08_beams.js)
+    for kind in BEAM_KINDS:
+        T = D['beams'][kind]
+        im = np.asarray(Image.open(os.path.join(WEB, T['src'])).convert('RGBA'))
+        pack.add('beam:' + kind, encode_alpha(*sample(im, 0, 0, im.shape[1], im.shape[0], 0, im.shape[0] / 2.0, VIEW_SCALE)))
+    H.append('typedef struct { short sprite, w, h; } BeamDef;\nextern const BeamDef BEAMS[4];')
+    C.append('const BeamDef BEAMS[4] = {' + ','.join('{%d,%d,%d}' % (pack.index['beam:' + k], D['beams'][k]['w'], D['beams'][k]['h']) for k in BEAM_KINDS) + '};')
+
+    # ---- pad bindings: web/game/00_core.js's final table (the dump runs its rewrites), with the web's four shoulder buttons L1 L2 R1 R2 folded onto
+    # the Dreamcast pad's two triggers: L1 is L, R1 is R. What the web puts on L2 and R2 moves to the key combinations the original Dreamcast
+    # input map had for it: energy burst L+R (hold, let go to fire), energy wave Down-Right-A, cloud beam Left-Right-A, fire beam Right-Left-A,
+    # Ultimate Chain A-A-A-A-L+R, and the meter charge (L1+R1 in the web) is Down held with L+R.
+    BTN = {'Up': 1, 'Down': 2, 'Left': 4, 'Right': 8, 'A': 16, 'B': 32, 'X': 64, 'Y': 128, 'L': 256, 'R': 512, 'L1': 256, 'R1': 512}
+    H.append('enum { BTN_UP = 1, BTN_DOWN = 2, BTN_LEFT = 4, BTN_RIGHT = 8, BTN_A = 16, BTN_B = 32, BTN_X = 64, BTN_Y = 128, BTN_L = 256, BTN_R = 512 };')
+    H.append('enum { BT_IDLE, BT_PRESS, BT_TAP, BT_HOLD, BT_CHORD, BT_SEQ, BT_AIR };')
+    H.append('typedef struct { unsigned char type; signed char nsteps, loose; short move, release_into; unsigned short held, steps[6]; } Binding;')
+    mv_index = {n: i for i, n in enumerate(D['moves'])}
+    DCMAP = {'energy_burst': ('chord', 'L+R'), 'energy_wave': ('sequence', 'Down-Right-A'), 'beam_cloud': ('chord', None), 'beam_fire': ('chord', None)}
+    binds = []
+    for b in D['input']['bindings']:
+        inp, typ, mv = b['input'], b['type'], b['move']
+        if mv not in mv_index and mv != 'ultimate':
+            continue
+        if mv in ('beam_cloud', 'beam_fire', 'energy_burst', 'energy_wave') or any(t in ('L2', 'R2') for t in inp.replace('+', '-').split('-')):
+            continue                                                  # replaced below
+        binds.append((typ, mv, inp, b.get('held') or [], 1 if b.get('loose') else 0, b.get('release_into')))
+    binds.append(('chord', 'energy_burst', 'L+R', [], 0, None))
+    binds.append(('sequence', 'energy_wave', 'Down-Right-A', [], 0, None))
+    binds.append(('sequence', 'beam_cloud', 'Left-Right-A', [], 0, None))
+    binds.append(('sequence', 'beam_fire', 'Right-Left-A', [], 0, None))
+    binds.append(('sequence', 'ultimate', 'A-A-A-A-L+R', [], 0, None))
+    H.append('enum { MV_ULTIMATE = MV_COUNT };                                  /* a pseudo move: the Ultimate Chain is read like a move but is not in the move tables */')
+    TYPE = {'idle': 'BT_IDLE', 'press': 'BT_PRESS', 'tap': 'BT_TAP', 'hold': 'BT_HOLD', 'chord': 'BT_CHORD', 'sequence': 'BT_SEQ', 'air': 'BT_AIR'}
+
+    def parse_steps(typ, inp):
+        if typ == 'idle':
+            return []
+        if typ in ('press', 'tap', 'hold', 'air'):
+            return [BTN[inp]]
+        if typ == 'chord':
+            return [sum(BTN[k] for k in inp.split('+'))]
+        return [sum(BTN[k] for k in st.split('+')) for st in inp.split('-')]
+
+    def brow(b):
+        typ, mv, inp, held, loose, rel = b
+        st = parse_steps(typ, inp)
+        return dict(type=TYPE[typ], move=('MV_ULTIMATE' if mv == 'ultimate' else 'MV_' + ident(mv)), nsteps=len(st), loose=loose, release=('MV_' + ident(rel) if rel else '-1'),
+                    held=sum(BTN[k] for k in held), steps=st + [0] * (6 - len(st)))
+    chords = sorted([b for b in binds if b[0] == 'chord'], key=lambda b: -len(b[2].split('+')))
+    seqs = sorted([b for b in binds if b[0] == 'sequence'], key=lambda b: (-len(b[2].split('-')), -len(b[2].replace('-', '+').split('+'))))
+    others = [b for b in binds if b[0] not in ('chord', 'sequence')]
+    for name, lst in (('BIND_OTHER', others), ('BIND_CHORDS', chords), ('BIND_SEQS', seqs)):
+        rows = [brow(b) for b in lst]
+        H.append(f'#define N_{name} {len(rows)}\nextern const Binding {name}[{len(rows) + 1}];')
+        C.append(f'const Binding {name}[{len(rows) + 1}] = {{' + ','.join('{%(type)s,%(nsteps)d,%(loose)d,%(move)s,%(release)s,%(held)d,{%(s)s}}' % dict(r, s=','.join(map(str, r['steps']))) for r in rows) + ',{0}};')
+
+    # ---- unlocks (web/progress.js UNLOCKS) and prices
+    UL = D['unlocks']
+    H.append('enum { ' + ', '.join('UL_' + ident(u['id']).upper() for u in UL) + ', UL_COUNT };')
+    H.append('enum { SHOP_SCROLL, SHOP_MUTAGEN };\ntypedef struct { const char *id, *name, *hint; unsigned char level, shop; short moves[3]; unsigned short buttons; unsigned char meters; int price; } UnlockDef;   /* meters: 1 energy, 2 empower, 4 super */')
+    ur = []
+    for u in UL:
+        shop = 'SHOP_MUTAGEN' if (u.get('meters') or u['id'] == 'meter_charge') else 'SHOP_SCROLL'
+        price = 25 + 15 * u['level'] if shop == 'SHOP_MUTAGEN' else 15 + 10 * u['level']
+        mvs = [('MV_' + ident(m)) for m in (u.get('moves') or []) if m in mv_index][:3]
+        mvs += ['-1'] * (3 - len(mvs))
+        bt = 0
+        for b_ in u.get('buttons') or []:
+            bt |= {'L1': 256, 'L2': 256, 'R1': 512, 'R2': 512, 'R': 512, 'L': 256}.get(b_, 0)
+        mt = sum({'energy': 1, 'empower': 2, 'super': 4}[m] for m in (u.get('meters') or []))
+        ur.append('{%s,%s,%s,%d,%s,{%s},%d,%d,%d}' % (json.dumps(u['id']), json.dumps(u['name']), json.dumps(u['hint']), u['level'], shop, ','.join(mvs), bt, mt, price))
+    H.append(f'extern const UnlockDef UNLOCKS[UL_COUNT];')
+    C.append('const UnlockDef UNLOCKS[UL_COUNT] = {' + ','.join(ur) + '};')
+    H.append('#define PRICE_BONE 8\n#define PRICE_QUARTZ 12\n#define PRICE_GARNET 12\n#define PRICE_DIAMOND 30\n#define PRICE_POWDER 90')
 
     # ---- enemies: frames, animations, and the numbers the AI uses
     ENEMY_HP = {'goblin': 60, 'orc': 200}                     # web/game/05_health.js, for the two enemies that predate the table

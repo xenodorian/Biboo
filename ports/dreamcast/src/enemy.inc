@@ -2,7 +2,9 @@
 enum { S_WALK, S_IDLE, S_PATROL, S_ATTACK, S_STUN, S_DYING };
 typedef struct {
     int type, state, face, anim, k, dir, on;
-    float fy, jy, hp, maxhp, x, base, t, rest, dead, lo, hi, lo0, hi0, sight, pause, far, prevx, push_v, push_a, land_at, flash_until;
+    float fy, jy, hp, maxhp, x, base, t, rest, dead, lo, hi, lo0, hi0, sight, pause, far, prevx, push_v, push_a, land_at, tint_until, scale, seen_t, speed_mul, dmg_mul;
+    int tint_a, taunted, drop_energy, drop_empower;
+    u16 tint_c;
     int shot_k, path0, path1, dive, combo_ready, melee_seen, hit_done, jump_on, jfall, jdoom;
     float jx0, jx1, jfy0, jfy1, jH, jt, jdur, hop_at;
     u32 seen;                           /* the last move of hers that hurt it */
@@ -22,38 +24,53 @@ static void play(Enemy *e, int anim) {
 static void turn(Enemy *e, int face) { if(face != e->face) { e->face = face; e->base = e->x - ground_off(e); } }
 static int alive(const Enemy *e) { return e->on && e->state != S_DYING; }
 static float espeed(const Enemy *e) { const EnemyDef *d = &ENEMIES[e->type]; return (float)d->speed * (d->boss && e->hp < e->maxhp * 0.5f ? 1.45f : 1.0f); }
+static void set_tint(Enemy *e, u16 c, int a, float ms) { e->tint_c = c; e->tint_a = a; e->tint_until = ms > 1e8f ? 1e30f : now + ms; }
 
 /* a box [x0, y0, x1, y1] in world coordinates from a frame's native-pixel box (hx0, hy0, hx1, hy1) */
-static void box_of(int face, float base, float fy, const short *h, float out[4]) {
-    if(face < 0) { out[0] = base + h[0] * SS; out[2] = base + h[2] * SS; }
-    else { out[0] = base - h[2] * SS; out[2] = base - h[0] * SS; }
-    out[1] = h[1] * SS + fy; out[3] = h[3] * SS + fy;
+static void box_of(int face, float base, float fy, float scale, const short *h, float out[4]) {
+    float s = SS * scale;
+    if(face < 0) { out[0] = base + h[0] * s; out[2] = base + h[2] * s; }
+    else { out[0] = base - h[2] * s; out[2] = base - h[0] * s; }
+    out[1] = h[1] * s + fy; out[3] = h[3] * s + fy;
 }
 static int hurt_of(const Enemy *e, float out[4]) {
     const EnemyFrame *f = frame_of(e);
     if(!alive(e) || f->hx1 <= f->hx0) return 0;
-    box_of(e->face, e->base, e->fy + e->jy, &f->hx0, out);
+    box_of(e->face, e->base, e->fy + e->jy, e->scale, &f->hx0, out);
     return 1;
 }
 static int overlap(const float a[4], const float b[4]) { return a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3]; }
 
-enum { G_HEALTH, G_UPHP, G_ANKH, G_LEAF };
+enum { G_HEALTH, G_ENERGY, G_EMPOWER, G_SUPER, G_UPHP, G_UP_ENERGY, G_UP_EMPOWER, G_UP_SUPER, G_ANKH, G_LEAF };
 static void spawn_gem(float x, int kind, float fy, int val);
 static void say(const char *s, float ms);
+static void loot_gem(float x, int kind, float fy);
 static void kill_q(Enemy *e, int quiet) {
     const EnemyDef *d = &ENEMIES[e->type];
     e->state = S_DYING; e->dead = 0; e->hp = 0;
     if(d->a_death >= 0) play(e, d->a_death);
     if(quiet) return;
     if(d->boss) {                                       /* a bunch of gems, three ankhs and a bone powder; the way on opens */
-        int k;
+        int k, kinds[8], nk = 0, m;
         say("BOSS DEFEATED", 2600.0f);
-        for(k = 0; k < 9; k++) spawn_gem(e->x - 56.0f + (float)k * 14.0f, G_HEALTH, e->fy, 1);
+        kinds[nk++] = G_HEALTH; kinds[nk++] = G_HEALTH; kinds[nk++] = G_HEALTH;
+        if(meter_on(M_ENERGY)) { kinds[nk++] = G_ENERGY; kinds[nk++] = G_ENERGY; }
+        if(meter_on(M_EMPOWER)) { kinds[nk++] = G_EMPOWER; kinds[nk++] = G_EMPOWER; }
+        if(meter_on(M_SUPER)) kinds[nk++] = G_SUPER;
+        for(k = 0; k < 9; k++) spawn_gem(e->x - 56.0f + (float)k * 14.0f, kinds[(int)(frand() * (float)nk) % nk], e->fy, 1);
         for(k = 0; k < 3; k++) spawn_gem(e->x - 20.0f + (float)k * 20.0f, G_ANKH, e->fy, 1);
         if(max_hp < 200.0f) spawn_gem(e->x + 62.0f, G_UPHP, e->fy, 1);
+        (void)m;
     }
-    if(frand() < 0.35f) spawn_gem(e->x - 3, G_HEALTH, e->fy, 1);          /* GEM_CHANCE: a health gem */
-    if(frand() < 0.12f && max_hp < 200.0f) spawn_gem(e->x - 9, G_UPHP, e->fy, 1);   /* MAXHP_CHANCE: bone powder */
+    if(e->drop_energy) { loot_gem(e->x - 6, G_ENERGY, e->fy); loot_gem(e->x + 6, G_ENERGY, e->fy); }          /* hit by the Empowerment Beam: 2 energy gems */
+    if(e->drop_empower) { loot_gem(e->x - 6, G_EMPOWER, e->fy); loot_gem(e->x + 6, G_EMPOWER, e->fy); }      /* taunted: 2 empower gems */
+    if(frand() < 0.35f) loot_gem(e->x - 3, G_HEALTH, e->fy);                                                  /* GEM_CHANCE: a health gem */
+    if(frand() < 0.12f && max_hp < 200.0f) spawn_gem(e->x - 9, G_UPHP, e->fy, 1);                           /* MAXHP_CHANCE: bone powder */
+    {   /* and separately one energy, empower or super gem of a meter she has unlocked */
+        int pool[3], n = 0, m2;
+        for(m2 = 0; m2 < 3; m2++) if(meter_on(m2)) pool[n++] = G_ENERGY + m2;
+        if(n && frand() < 0.35f) loot_gem(e->x + 3, pool[(int)(frand() * (float)n) % n], e->fy);
+    }
 }
 static void kill(Enemy *e) { kill_q(e, 0); }
 static int sees(const Enemy *e) {
@@ -71,7 +88,8 @@ static void hurt_enemy(Enemy *e, int dmg) {
     aggro(e, 0);                                         /* being hit wakes a patrolling enemy, even for 0 damage */
     if(dmg <= 0) return;
     e->hp = maxf_(0, e->hp - (float)dmg);
-    e->flash_until = now + 110.0f;
+    { float b[4]; if(hurt_of(e, b)) { floater_num((b[0] + b[2]) * 0.5f, b[3] + 4, dmg, "-", RGB(255, 43, 43)); if(!beam_tick_on) impact((b[0] + b[2]) * 0.5f, (b[1] + b[3]) * 0.5f, dmg, e->hp <= 0); } }
+    if(now >= e->tint_until) set_tint(e, RGB(255, 34, 34), 140, 110.0f);        /* a short red flash */
     if(e->hp <= 0) kill(e);
 }
 static void clamp_enemy(Enemy *e, int free) {
@@ -184,7 +202,7 @@ static int strike_attacks(const Enemy *e, const float me[4], int out[4]) {
             const EnemyFrame *f = &ENEMY_FRAMES[ENEMY_ANIM_FRAME_LIST[A->list0 + j]];
             float h[4];
             if(!f->has_hit) continue;
-            box_of(e->face, base, e->fy + e->jy, &f->ax0, h);
+            box_of(e->face, base, e->fy + e->jy, e->scale, &f->ax0, h);
             if(overlap(h, me)) { out[n++] = i; break; }
         }
     }
@@ -197,6 +215,8 @@ static void step_enemy_core(Enemy *e, float dt) {
     const EnemyAnim *A = anim_of(e);
     int ended = 0, i, same_level, blocked_, goblin_like, strike[4], ns, pit_between = 0;
     float dd, dist, me[4], edge, gap, reach, eb[4], room, mv;
+    dt *= e->speed_mul;                 /* taunted: everything it does, walking, swinging and resting, runs 2x as fast */
+    if(e->taunted && now >= e->tint_until) set_tint(e, RGB(238, 34, 34), 140, 1e9f);          /* back to red after a flash */
     if(e->state == S_ATTACK && e->land_at > 0 && !e->hit_done && now < e->land_at) {     /* held on the striking frame until the hit lands (or she parries) */
         const EnemyFrame *sf = frame_of(e);
         dt = sf->pause ? maxf_(0, minf_(dt, (float)sf->ms - 1.0f - e->t)) : 0;
@@ -261,7 +281,7 @@ static void step_enemy_core(Enemy *e, float dt) {
     her_box(me); edge = dd < 0 ? me[2] : me[0];
     gap = dd < 0 ? e->x - edge : edge - e->x;
     if(e->fy == 0) for(i = 0; i < cur_map->npit; i++) { const Pit *q = &PITS[cur_map->pit0 + i]; if(q->x1 > minf_(e->x, edge) && q->x0 < maxf_(e->x, edge)) pit_between = 1; }
-    reach = d->reach;
+    reach = d->reach * e->scale;
     if(goblin_like && (e->combo_ready || (e->melee_seen && same_level && gap > reach + 2.0f))) {
         e->combo_ready = 0; e->melee_seen = 0; start_attack(e, d->attack_combo);
         return;
@@ -341,3 +361,14 @@ static void step_enemy(Enemy *e, float dt) {
     clamp_enemy(e, free);
 }
 
+
+static void taunt_all(void) {           /* bosses are immune to the taunt */
+    int i;
+    for(i = 0; i < MAX_ENEMIES; i++) {
+        Enemy *e = &en[i];
+        if(!alive(e) || ENEMIES[e->type].boss) continue;
+        aggro(e, 0);
+        e->taunted = 1; e->drop_empower = 1; e->speed_mul = 2; e->dmg_mul = 2;
+        set_tint(e, RGB(238, 34, 34), 140, 1e9f);
+    }
+}

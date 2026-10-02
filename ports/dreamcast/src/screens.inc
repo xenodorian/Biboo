@@ -1,14 +1,36 @@
 /* ------------------------------------------------------------------ screens: title, overworld, pause, Game Over, level complete (web/game/20_title.js, 19_overworld.js, 17_menus.js) */
 static void draw_scene(void) {
+    const MoveFrame *f = mf(cur.id, cur.k);
+    int sx = 0, sy = 0;
+    if(!(cur.kind == K_FALL || cur.kind == K_LAND || cur.lite)) { sx = f->shx; sy = f->shy; }
+    if(rumble.amp != 0) {                                                       /* fading aftershock */
+        float e = now - rumble.t0, u = 1.0f - e / rumble.ms, a = rumble.amp * (u > 0 ? u * __builtin_sqrtf(u) : 0);
+        sx += iround(a * fsin(e * 0.11f)); sy += iround(a * fsin(e * 0.083f + 1.5707963f));
+    }
+    if(f->bw >= 0 && cur.kind == K_ACTION && !stun_on) {                      /* impact frame: the whole view replaced by a black and white picture slid to where she is */
+        float rx, ry, tgt;
+        int shv;
+        root_of(&cur, cur.k, &rx, &ry);
+        tgt = maxf_(0, ry - CAM_KEEP); camY = tgt;
+        shv = iround(X + rx - (float)ANCHOR_X);
+        gfx_clear(RGB(0, 0, 0)); gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
+        if(cur.face < 0) { gfx_blit(art_sprite(f->bw), v2s(ANCHOR_X + shv), VIEW_TOP, 1); gfx_blit(art_sprite(f->bw), v2s(ANCHOR_X + shv - VIEW_W), VIEW_TOP, 1); }
+        else gfx_blit(art_sprite(f->bw), v2s(shv), VIEW_TOP, 0);
+        return;
+    }
     gfx_clear(RGB(0, 0, 0));
     draw_layers(camY);
     draw_geometry();
     draw_items();
     draw_enemies();
     draw_player();
+    draw_beam();
     draw_effects();
     gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
     draw_fringe(camY);
+    draw_flashes_floaters();
+    if(sx || sy) gfx_shift(VIEW_TOP, VIEW_TOP + VIEW_SCR_H, v2s(sx), v2s(sy));
+    if(screen_flash.on) { float a = (now - screen_flash.t0) / screen_flash.ms; gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H); gfx_fill_alpha(VIEW_TOP, VIEW_TOP + VIEW_SCR_H, screen_flash.c, (int)((float)screen_flash.a * (1.0f - a))); }
 }
 static void ctext(int y, const char *t, u16 c, int k) { gfx_text2((SCR_W - 8 * k * strlen_(t)) / 2, y, t, c, k); }
 static void box(int x, int y, int w, int h) { gfx_rect(x, y, w, h, RGB(255, 210, 74)); gfx_rect(x + 1, y + 1, w - 2, h - 2, RGB(12, 10, 18)); }
@@ -122,6 +144,11 @@ void game_init(void) {
     FALL_K = 0; LAND_K = 0;
     for(i = 1; i < nframes(MV_jump); i++) if(mf(MV_jump, i)->ry < mf(MV_jump, i - 1)->ry) { FALL_K = i; break; }
     for(i = FALL_K + 1; i < nframes(MV_jump); i++) if(mf(MV_jump, i)->ry == 0) { LAND_K = i; break; }
+    rd_reset();
+    unlocked = 0; recompute_unlocks();
+#ifdef UNLOCK_ALL                                       /* test builds: every unlock and full meters */
+    unlocked = (1u << UL_COUNT) - 1; recompute_unlocks(); meter[0] = meter[1] = 50; meter[2] = 100;
+#endif
     hp = max_hp;
     screen = SCN_TITLE;
 #ifndef AUTOTEST
@@ -148,7 +175,7 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
     float rx, ry, before, dt = FRAME_MS;
     int i;
     pick_music();
-#ifdef AUTOTEST                                        /* test build: a bot plays (walk to the nearest enemy, slash, go right when the door is open) */
+#if defined(AUTOTEST) && !defined(MOVETEST)             /* test build: a bot plays (walk to the nearest enemy, slash, go right when the door is open) */
     {
         static u32 fc; int j; float tx = 1e9f, px = player_x();
         raw = 0xffff; fc++;
@@ -166,11 +193,24 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
     }
 #endif
     pad.prev = pad.held;
-    pad.held = (u16)(~raw & 0x07ff);                       /* a 0 bit in the raw word is a pressed button */
-    if(raw == 0xffff) pad.held = 0;
-    now += dt; clock_ms = (u32)now;
+    pad.held = (raw == 0xffff) ? 0 : (u16)(~raw & 0x3fff);  /* a 0 bit in the raw word is a pressed button */
+    pad_raw = 0;                                           /* the same buttons in the reader's BTN_ bits */
+    if(pad.held & PAD_UP) pad_raw |= BTN_UP;
+    if(pad.held & PAD_DOWN) pad_raw |= BTN_DOWN;
+    if(pad.held & PAD_LEFT) pad_raw |= BTN_LEFT;
+    if(pad.held & PAD_RIGHT) pad_raw |= BTN_RIGHT;
+    if(pad.held & PAD_A) pad_raw |= BTN_A;
+    if(pad.held & PAD_B) pad_raw |= BTN_B;
+    if(pad.held & PAD_X) pad_raw |= BTN_X;
+    if(pad.held & PAD_Y) pad_raw |= BTN_Y;
+    if(pad.held & PAD_L) pad_raw |= BTN_L;
+    if(pad.held & PAD_R) pad_raw |= BTN_R;
+    if(!(screen == SCN_LEVEL && freeze_ms > 0 && !paused && !gameover_on && !level_done)) { now += dt; clock_ms = (u32)now; }
 #ifdef GODMODE
     if(hp < max_hp * 0.5f) hp = max_hp;
+#endif
+#ifdef MOVETEST
+    if(screen == SCN_LEVEL) { if(meter[0] < 30) meter[0] = 50; if(meter[1] < 30) meter[1] = 50; }       /* test: the energy and empower meters never run dry */
 #endif
     if(screen == SCN_TITLE) {
         draw_title();
@@ -197,34 +237,57 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
         else overlay("PAUSED", "A OR START: RESUME", "B: OVERWORLD");
         return;
     }
-    if(pressed_now(PAD_START)) { paused = 1; return; }
-    /* buttons -> moves (web/game/02_input.js readButtons); none while she is knocked out of control or falling into a pit */
-    if(!stun_on && !pit_fall_on) {
-        if(pressed_now(PAD_DOWN)) { if(now - last_down_t < 300.0f) drop_through(); last_down_t = now; }
-        if(pressed_now(PAD_LEFT)) facing = -1; else if(pressed_now(PAD_RIGHT)) facing = 1;
-        if(released_now(PAD_LEFT) && held(PAD_RIGHT)) facing = 1;
-        else if(released_now(PAD_RIGHT) && held(PAD_LEFT)) facing = -1;
-        if(pressed_now(PAD_UP)) request(MV_jump, VIA_PRESS);
-        if(pressed_now(PAD_A)) request(MV_slash, VIA_PRESS);
-        if(pressed_now(PAD_X)) request(MV_dash, VIA_PRESS);
-        if(pressed_now(PAD_Y)) request(MV_spin_attack, VIA_PRESS);
-        if(pressed_now(PAD_B)) b_down_t = clock_ms;
-        if(released_now(PAD_B) && clock_ms - b_down_t <= TAP_MS) request(MV_parry, VIA_CANCEL);       /* tap B: parry; hold B: block */
+    if(pressed_now(PAD_START)) { paused = 1; ignore_until_up = 0; return; }
+    if(freeze_ms > 0) {                                                        /* hit-stop: the world holds still (presses made now are still read) */
+        freeze_ms -= dt; read_buttons(now); draw_scene(); draw_hud(frame_us, draw_us);
+        return;
+    }
+    /* buttons -> moves (web/game/17_menus.js tickLevel); none while she is falling into a pit */
+    if(!pit_fall_on) {
+        MoveEvent ev[16];
+        int n, j;
+        read_buttons(now);
+        n = rd_update(now, ev);
+        for(j = 0; j < n; j++) {
+            int via = ev[j].via, mvn = ev[j].move;
+            if(mvn == MV_ULTIMATE) { start_ultimate(); continue; }
+            if(mvn == MV_slash && via == VIA_TAP) via = VIA_PRESS;
+            if(mvn == MV_slash && via == VIA_PRESS && chain_press()) continue;
+            if(mvn == MV_parry && via == VIA_TAP && chain_burst()) continue;
+            request(mvn, via);
+        }
+        chain_tick(); ult_tick();
     }
     before = player_x();
     if(!pit_fall_on) {
-        step(dt);
+        step(dt, now);
+        {   /* turning mirrors the sprite about her anchor, but the point between her legs sits LEGS px ahead of it: move the anchor so that point stays put */
+            static int vis_face = 1;
+            int vf = her_face();
+            if(vf != vis_face) {
+                if(!stun_on) { float sh = (float)(vis_face - vf) * 19.0f, ax = player_x() + sh; if(!(ax < EDGE + 2 || ax > MAP_W - EDGE - 2)) X += sh; }
+                vis_face = vf;
+            }
+        }
+        if(has_cur && cur.crash && cur.id == MV_jump && cur.kind == K_ACTION) { float rx2, ry2; root_of(&cur, cur.k, &rx2, &ry2); if(ry2 > 0) air_crash(VIA_AIR); }
         block_move(before);
-        resolve_hits();
+        if(physics()) goto drawn;
+        if(flight_on && (stun_on || !(has_cur && cur.id == MV_jump && cur.phys))) flight_on = 0;
+        if(rainbow_active && !rainbow_on()) rainbow_active = 0;
+        check_pit();
+        if(!fall_on && (!has_cur || cur.kind == K_HOLD || cur.kind == K_LAND || (cur.id == MV_jump && cur.kind == K_ACTION && !cur.phys))) dbl_used = 0;       /* back on her feet */
     }
-    for(i = 0; i < MAX_ENEMIES; i++) if(en[i].on) step_enemy(&en[i], dt);
-    enemy_attacks();
-    if(!pit_fall_on) step_bombs();
-    step_shots(dt); step_gems(dt); step_parts(dt);
     ko_check();
+    if(!pit_fall_on) { beam_hits(); step_heal(dt); }
+    step_effects(dt);
+    step_shots(dt);
+    if(!pit_fall_on) step_bombs();
+    for(i = 0; i < MAX_ENEMIES; i++) if(en[i].on) step_enemy(&en[i], dt);
+    if(!pit_fall_on) resolve_hits();
+    enemy_attacks();
+    step_gems(dt); step_parts(dt);
     for(i = 0; i < MAX_ENEMIES; i++) if(en[i].on && en[i].state == S_DYING && en[i].dead > DIE_MS) en[i].on = 0;
-    if(!pit_fall_on) { if(physics()) goto drawn; check_pit(); }
-    else if(pit_sink() > (float)(VIEW_H - FEET_ROW) + her_top() * SS + 8.0f) { gameover_on = 1; goto drawn; }      /* she dropped out of sight: Game Over */
+    if(pit_fall_on && pit_sink() > (float)(VIEW_H - FEET_ROW) + her_top() * SS + 8.0f) { gameover_on = 1; goto drawn; }      /* she dropped out of sight: Game Over */
     root_of(&cur, cur.k, &rx, &ry);
     ry = her_y();
     camY += ((ry - CAM_KEEP > 0 ? ry - CAM_KEEP : 0) - camY) * 0.2123f;          /* 1 - exp(-dt / 70) at 60 fps */

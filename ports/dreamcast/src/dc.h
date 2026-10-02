@@ -27,6 +27,8 @@ u32 hw_ticks(void);                     /* SH-4 timer, 12.5 ticks per microsecon
 #define PAD_Z 256u
 #define PAD_Y 512u
 #define PAD_X 1024u
+#define PAD_L 4096u                      /* the left and right triggers, folded into two unused bits of the button word (a 0 bit is pressed) */
+#define PAD_R 8192u
 
 /* ---- gfx.c: the RAM frame buffer, sprites from the art pack, text */
 typedef struct { s16 ox, oy; u16 w, h; u32 rowoff[1]; } Sprite;     /* see tools/bake_game.py for the format */
@@ -39,6 +41,12 @@ void gfx_rect(int x, int y, int w, int h, u16 c);
 void gfx_blit(const Sprite *s, int x, int y, int flip);            /* (x, y) is the sprite's anchor on the screen; flip mirrors about it */
 void gfx_text(int x, int y, const char *s, u16 c);
 void gfx_num(int x, int y, u32 v, u16 c);
+void gfx_shift(int y0, int y1, int dx, int dy);
+void gfx_clip_x(int x0, int x1);
+void gfx_blit_scaled(const Sprite *s, int x, int y, int flip, float k, u16 tint, int alpha);
+void gfx_blit_alpha(const Sprite *s, int x, int y, int flip, int fade);
+void gfx_blit_tint(const Sprite *s, int x, int y, int flip, u16 tint, int alpha);
+void gfx_fill_alpha(int y0, int y1, u16 c, int alpha);
 void gfx_text2(int x, int y, const char *s, u16 c, int k);
 void gfx_dim(int y0, int y1);
 

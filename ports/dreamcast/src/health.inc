@@ -31,7 +31,7 @@ static void step_stun(float dt) {
     }
     if(stun_v == 0 && stun_y == 0 && (ko_until == 0 || now >= ko_until)) {
         if(ko_until > 0) { stun_on = 1; gameover_on = 1; return; }                       /* K.O.: the Game Over menu offers the retry */
-        stun_on = 0; has_cur = 0; hold_state();
+        stun_on = 0; has_cur = 0; hold_state(now);
     }
 }
 
