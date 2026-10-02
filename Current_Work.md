@@ -64,7 +64,8 @@ See repository history for full rules. Work on main, claim steps.
 **Environment (sandbox, Ubuntu 24.04):** `ports/dreamcast/tools/setup_toolchain.sh` installs `gcc-sh-elf 13.2`, builds `mkdcdisc` (GitLab works) and builds Flycast from source. Network notes: apt needs `apt-get update` first; github.com web pages return 403 but `git clone` works; `gitlab.freedesktop.org` is blocked (use the GitHub freetype mirror for Flycast's submodule).
 
 **Step log (newest last):**
-- DC-1 (checkpoint, not yet booted): `ports/dreamcast/` skeleton: `dc.ld`, `src/start.S` (zeroes bss), `Makefile`, `src/main.c` (video 320x240, double buffer, 8x8 font, Maple pad, SH-4 timer for frame cost). `make` and `make cdi` work (ELF 3 KB, CDI 1.4 MB). Boot in the emulator is the next check.
+- DC-1 (VERIFIED in Flycast, desktop, built-in BIOS): `ports/dreamcast/` skeleton: `dc.ld`, `src/start.S` (zeroes bss), `Makefile`, `src/main.c` (video 320x240 RGB565 double buffered, 8x8 public domain font, Maple pad, SH-4 timer TMU0). `make` and `make cdi` work (ELF 3 KB, CDI 1.4 MB). Booted in Flycast: video runs, frame time 16,714 microseconds (60 fps), the full-screen redraw plus text costs about 2.4 ms of guest time per frame, and the d-pad Right and the A button show up on screen when keys are sent. Not tested: a real Dreamcast, the R36S, sound (muted in the tests).
+- DC-tools: `ports/dreamcast/tools/emu_run.py` runs a CDI in Flycast under Xvfb with a scripted list of key presses and screenshots (see its header; default Flycast keys: arrows = d-pad, x = A, c = B, s = X, d = Y, Return = Start, f and v = triggers). `ports/dreamcast/tools/setup_toolchain.sh` rebuilds the whole environment (the Flycast build needs the fixes listed in it: apt-get update, GitHub freetype mirror, nested submodules, USE_BREAKPAD=OFF).
 
 ## Open items
 

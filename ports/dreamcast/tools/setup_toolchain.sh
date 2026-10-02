@@ -14,8 +14,21 @@ if ! command -v mkdcdisc >/dev/null; then
 fi
 echo "mkdcdisc: $(command -v mkdcdisc)"; echo "sh-elf-gcc: $(sh-elf-gcc --version | head -1)"
 if [ "${BUILD_FLYCAST:-1}" = 1 ] && [ ! -x "$WORK/flycast/build/flycast" ]; then
-  apt-get install -y -qq libasound2-dev libpulse-dev libegl1-mesa-dev libgl1-mesa-dev libudev-dev libzip-dev libcurl4-openssl-dev zlib1g-dev libsdl2-dev libxi-dev libxext-dev libxrandr-dev libx11-dev libxcursor-dev libxinerama-dev libglu1-mesa-dev libgles2-mesa-dev libwayland-dev libxkbcommon-dev xvfb xdotool imagemagick
+  apt-get update -qq        # without this some packages 404
+  apt-get install -y -qq libasound2-dev libpulse-dev libegl1-mesa-dev libgl1-mesa-dev libudev-dev libzip-dev libcurl4-openssl-dev zlib1g-dev libxi-dev libxext-dev libxrandr-dev libx11-dev libxcursor-dev libxinerama-dev libglu1-mesa-dev libgles2-mesa-dev libwayland-dev libxkbcommon-dev libusb-1.0-0-dev libao-dev liblua5.4-dev xvfb xdotool imagemagick python3-pil
   [ -d flycast ] || git clone https://github.com/flyinghead/flycast.git
-  (cd flycast && git checkout ea087b9 && git submodule update --init --recursive && mkdir -p build && cd build && cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DUSE_HOST_LIBZIP=ON -DUSE_VULKAN=OFF .. && ninja -j"$(nproc)")
+  cd flycast
+  git checkout ea087b9
+  git submodule init
+  # gitlab.freedesktop.org is blocked in the sandbox: take freetype from its GitHub mirror
+  git config submodule.core/deps/freetype.url https://github.com/freetype/freetype.git
+  git submodule update --init --recursive || true
+  git submodule update --init --recursive || true        # nested submodules (tinygettext/tinycmmc) need the second pass
+  # a submodule whose checkout was interrupted holds only a .git file: check those out
+  git submodule foreach --recursive 'if [ -z "$(ls -A . | grep -v "^.git$")" ]; then git checkout -f HEAD; fi'
+  mkdir -p build && cd build
+  cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DUSE_HOST_LIBZIP=ON -DUSE_VULKAN=OFF -DUSE_BREAKPAD=OFF -DUSE_DISCORD=OFF ..
+  ninja -j"$(nproc)"
+  cd "$WORK"
 fi
-echo "flycast: $WORK/flycast/build/flycast"
+echo "flycast: $WORK/flycast/build/flycast   (tools/emu_run.py looks there by default, or set FLYCAST)"
