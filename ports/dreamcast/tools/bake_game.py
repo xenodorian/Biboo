@@ -173,16 +173,53 @@ def main():
         if count_name:
             H.append(f'#define {count_name} {len(rows)}')
 
-    # ---- background layers (sampled once at 5/6)
-    layer_ids, par = [], []
-    for l in D['layers']:
-        im = np.asarray(Image.open(os.path.join(WEB, l['src'])).convert('RGBA'))
-        o, ox, oy = sample(im, 0, 0, im.shape[1], im.shape[0], 0, 0, VIEW_SCALE)
-        layer_ids.append(pack.add('layer:' + l['name'], encode(o, ox, oy)))
-        par.append(l['parallax'])
-    im = np.asarray(Image.open(os.path.join(WEB, D['fringe']['src'])).convert('RGBA'))
-    o, ox, oy = sample(im, 0, 0, im.shape[1], im.shape[0], 0, 0, VIEW_SCALE)
-    fringe_id = pack.add('layer:fringe', encode(o, ox, oy))
+    # ---- scenery: one scene per backdrop (Green Trail, the five themed levels, the six boss arenas). Layers are sampled once at 5/6 and the
+    # web game's vertical grade (web/game/15_draw_scenery.js LIGHTS and drawGrade, a multiply gradient) is baked in. Boss arenas
+    # that use one picture (web/assets/story.js ARENA_STILLS) are baked as a fixed 384x216 crop of it.
+    LIGHTS = {'trail': ('#1c140c', .28), 'falls': ('#0c1a22', .32), 'canyon': ('#3a1408', .30), 'shore': ('#2a1018', .34), 'mire': ('#06140c', .38),
+              'sanctum': ('#080818', .42), 'fungal': ('#081810', .26), 'crypt': ('#060814', .40), 'bone': ('#1a0c08', .32), 'keep': ('#060810', .36)}
+    STILLS = {'fungal': 'assets/story/view/forest_waterfall.png', 'crypt': 'assets/story/view/cave_shrine.png',
+              'bone': 'assets/story/view/mine_bridge.png', 'keep': 'assets/story/view/moonlit_courtyard.png'}
+    SCENE_NAMES = ['trail', 'falls', 'canyon', 'shore', 'mire', 'sanctum', 'tide', 'fungal', 'crypt', 'bone', 'ember', 'keep']
+
+    def grade(rgba, key, row0):
+        """multiply the vertical grade over rows whose view row is (row index + row0)"""
+        col, ga = LIGHTS.get(key, LIGHTS['trail'])
+        c = np.array([int(col[i:i + 2], 16) for i in (1, 3, 5)], float) / 255.0
+        out = rgba.astype(float)
+        h = rgba.shape[0]
+        for r in range(h):
+            t = min(1.0, max(0.0, (r + row0) / VIEW_H_))
+            k = t / 0.55 if t <= 0.55 else (1.0 - t) / 0.45                 # 0 at the ends (the grade colour), 1 at 55 percent (white)
+            src = c + (1.0 - c) * k
+            out[r, :, :3] *= (1.0 - ga + ga * src)
+        return np.clip(out + 0.5, 0, 255).astype(np.uint8)
+
+    VIEW_H_ = float(v['h'])
+    scene_rows = []                                            # per scene: layers [(sprite, parallax, period, margin)], fringe sprite
+    for name in SCENE_NAMES:
+        layers, fringe = [], -1
+        if name in STILLS:
+            im = np.asarray(Image.open(os.path.join(WEB, STILLS[name])).convert('RGBA'))
+            x0 = int(round((im.shape[1] - v['w']) * 0.5))
+            im = grade(np.ascontiguousarray(im[:, x0:x0 + v['w']]), name, 0)
+            o, ox, oy = sample(im, 0, 0, im.shape[1], im.shape[0], 0, 0, VIEW_SCALE)
+            layers.append((pack.add('still:' + name, encode(o, ox, oy)), 0.0, v['w'], 0))
+        else:
+            if name == 'trail':
+                spec = [(l['src'], l['parallax']) for l in D['layers']]; fr = D['fringe']['src']
+            else:
+                T = D['themes'][name]
+                spec = [(l['src'], l['parallax']) for l in T['layers']]; fr = T['fringe']
+            for src, par in spec:
+                im = np.asarray(Image.open(os.path.join(WEB, src)).convert('RGBA'))
+                im = grade(im, name, -v['margin'])
+                o, ox, oy = sample(im, 0, 0, im.shape[1], im.shape[0], 0, 0, VIEW_SCALE)
+                layers.append((pack.add('layer:' + src, encode(o, ox, oy)), par, im.shape[1], v['margin']))
+            im = np.asarray(Image.open(os.path.join(WEB, fr)).convert('RGBA'))
+            o, ox, oy = sample(im, 0, 0, im.shape[1], im.shape[0], 0, 0, VIEW_SCALE)
+            fringe = pack.add('fringe:' + name, encode(o, ox, oy))
+        scene_rows.append((layers, fringe, im.shape[1]))
     IT = D['items']                                                    # leaf coin frames (small and 1.5x for the 5 leaf piece) and the two gems she can pick up
     leaf_im = np.asarray(Image.open(os.path.join(WEB, IT['leaf'])).convert('RGBA'))
     gem_im = np.asarray(Image.open(os.path.join(WEB, IT['gemSheet'])).convert('RGBA'))
@@ -194,10 +231,12 @@ def main():
     C.append('const unsigned short LEAF_SPRITES[LEAF_FRAMES] = {' + ','.join(map(str, leaf_ids)) + '};')
     C.append('const unsigned short LEAF_BIG_SPRITES[LEAF_FRAMES] = {' + ','.join(map(str, leaf_big)) + '};')
     C.append('const unsigned short GEM_SPRITES[2] = {' + ','.join(map(str, gem_ids)) + '};')
-    H.append(f'#define NUM_LAYERS {len(layer_ids)}\n#define FRINGE_SPRITE {fringe_id}')
-    H.append('extern const unsigned short LAYER_SPRITE[NUM_LAYERS];\nextern const float LAYER_PARALLAX[NUM_LAYERS];')
-    C.append('const unsigned short LAYER_SPRITE[NUM_LAYERS] = {' + ','.join(map(str, layer_ids)) + '};')
-    C.append('const float LAYER_PARALLAX[NUM_LAYERS] = {' + ','.join(F(p_) for p_ in par) + '};')
+    H.append('typedef struct { unsigned short sprite; short period, margin; float parallax; } SceneLayer;')
+    H.append('typedef struct { unsigned char nlayers; short fringe, fringe_period; SceneLayer layers[6]; } Scene;')
+    H.append('enum { ' + ', '.join(f'SC_{n.upper()}' for n in SCENE_NAMES) + ', SC_COUNT };')
+    H.append('extern const Scene SCENES[SC_COUNT];')
+    C.append('const Scene SCENES[SC_COUNT] = {' + ','.join(
+        '{%d,%d,%d,{%s}}' % (len(L_), fr_, fp_, ','.join('{%d,%d,%d,%s}' % (sp, pe, ma, F(pa)) for sp, pa, pe, ma in L_)) for L_, fr_, fp_ in scene_rows) + '};')
 
     # ---- Max's moves
     H.append('typedef struct { unsigned char shape; float ax, ay, bx, by, r; } Hit;')
@@ -249,6 +288,7 @@ def main():
         '    signed char attack_combo;                            /* the goblin\'s combo animation, -1 if none */',
         '    short dive_min, dive_max;',
         '    unsigned char boss;',
+        '    const char *boss_name;                               /* shown on the boss bar */',
         '    short jump_dist, land_off;                           /* how far its leap over a pit carries, and where it means to land past the far edge */',
         '    float reach;                                         /* how far ahead of its ground point its longest attack box reaches (view px) */',
         '} EnemyDef;']))
@@ -300,7 +340,7 @@ def main():
             dmg=[(atk.get(a) or {}).get('dmg', dmg0) for a in melee] + [0] * pad,
             kdd=[((atk.get(a) or {}).get('knock') or [kd, kms])[0] for a in melee] + [0] * pad,
             kmm=[((atk.get(a) or {}).get('knock') or [kd, kms])[1] for a in melee] + [0] * pad,
-            combo=idx.get('combo', -1), dmin=dv.get('min', 0), dmax=dv.get('max', 0), boss=1 if ai.get('boss') else 0, rf=F(reach), jd=JUMP_DIST.get(ename, 200), lo_=LAND_OFF.get(ename, 10)))
+            combo=idx.get('combo', -1), dmin=dv.get('min', 0), dmax=dv.get('max', 0), boss=1 if ai.get('boss') else 0, bn=(ai.get('bossName') or e.get('title') or ename), rf=F(reach), jd=JUMP_DIST.get(ename, 200), lo_=LAND_OFF.get(ename, 10)))
         done.append(ename)
     H.append('enum { ' + ', '.join(f'EN_{ident(n)}' for n in done) + ', EN_COUNT };')
     table('EnemyFrame', 'ENEMY_FRAMES', ef, lambda t: '{%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d}' % t)
@@ -314,13 +354,13 @@ def main():
     C.append('const EnemyDef ENEMIES[EN_COUNT + 1] = {' + ','.join(
         ('{"%(id)s",%(f0)d,%(nf)d,%(ax)d,%(ay)d,%(speed)d,%(hp)d,%(r0)d,%(r1)d,%(kd)d,%(kms)d,%(pd)d,%(pms)d,%(idle)d,%(walk)d,%(stun)d,%(death)d,%(dive)d,%(natk)d,' % r)
         + arr(r['attack']) + ',' + arr(r['dmg']) + ',' + arr(r['kdd']) + ',' + arr(r['kmm'])
-        + (',%(combo)d,%(dmin)d,%(dmax)d,%(boss)d,%(jd)d,%(lo_)d,%(rf)s}' % r) for r in edefs) + ',{0}};')
+        + (',%(combo)d,%(dmin)d,%(dmax)d,%(boss)d,"%(bn)s",%(jd)d,%(lo_)d,%(rf)s}' % r) for r in edefs) + ',{0}};')
 
     # ---- levels and maps (web/levels.js builds them with a fixed seed, so they are the same every time)
     ENUM = {n: i for i, n in enumerate(done)}
     H.append('typedef struct { short x0, x1, top; } Plat;\ntypedef struct { short x0, x1; } Pit;\ntypedef struct { short x, fy; } Spot;\ntypedef struct { short x, fy, loot; } Crate;       /* loot: 0 none, -1 an ankh, n > 0 a shower of n leaves */')
     H.append('typedef struct { short type, x, fy, path0, path1, sight; } EnemySpawn;\ntypedef struct { short x, fy, h; } Leaf;')
-    H.append('typedef struct { const char *id; unsigned short plat0, nplat, pit0, npit, crate0, ncrate, bomb0, nbomb, en0, nen, leaf0, nleaf; unsigned char final, boss; } MapDef;')
+    H.append('typedef struct { const char *id; unsigned short plat0, nplat, pit0, npit, crate0, ncrate, bomb0, nbomb, en0, nen, leaf0, nleaf; unsigned char final, boss, scene; } MapDef;')
     H.append('typedef struct { const char *name; unsigned short map0, nmaps; } LevelDef;')
     plats, pits, crates, bombs, spawns, leaves, maps, levels = [], [], [], [], [], [], [], []
     for lv in D['levels']['levels']:
@@ -331,7 +371,7 @@ def main():
             pl = (md.get('solids') or []) + (md.get('plats') or [])
             maps.append([md.get('id', ''), len(plats), len(pl), len(pits), len(md.get('pits') or []), len(crates), len(md.get('crates') or []),
                          len(bombs), len(md.get('bombs') or []), len(spawns), len(md.get('enemies') or []), len(leaves), len(md.get('leaves') or []),
-                         1 if md.get('final') else 0, 1 if md.get('boss') else 0])
+                         1 if md.get('final') else 0, 1 if md.get('boss') else 0, SCENE_NAMES.index(md['theme'] if md.get('boss') and md.get('theme') else (lv.get('bg') or 'trail'))])
             plats.extend((q['x0'], q['x1'], q['top']) for q in pl)
             pits.extend((q['x0'], q['x1']) for q in md.get('pits') or [])
             crates.extend((q['x'], q.get('fy', 0), -1 if q.get('loot') == 'ankh' else int(q['loot'].split(':')[1]) if (q.get('loot') or '').startswith('leaves:') else 0) for q in md.get('crates') or [])

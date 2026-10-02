@@ -318,11 +318,19 @@ static int overlap(const float a[4], const float b[4]) { return a[0] <= b[2] && 
 
 enum { G_HEALTH, G_UPHP, G_ANKH, G_LEAF };
 static void spawn_gem(float x, int kind, float fy, int val);
+static void say(const char *s, float ms);
 static void kill_q(Enemy *e, int quiet) {
     const EnemyDef *d = &ENEMIES[e->type];
     e->state = S_DYING; e->dead = 0; e->hp = 0;
     if(d->a_death >= 0) play(e, d->a_death);
     if(quiet) return;
+    if(d->boss) {                                       /* a bunch of gems, three ankhs and a bone powder; the way on opens */
+        int k;
+        say("BOSS DEFEATED", 2600.0f);
+        for(k = 0; k < 9; k++) spawn_gem(e->x - 56.0f + (float)k * 14.0f, G_HEALTH, e->fy, 1);
+        for(k = 0; k < 3; k++) spawn_gem(e->x - 20.0f + (float)k * 20.0f, G_ANKH, e->fy, 1);
+        if(max_hp < 200.0f) spawn_gem(e->x + 62.0f, G_UPHP, e->fy, 1);
+    }
     if(frand() < 0.35f) spawn_gem(e->x - 3, G_HEALTH, e->fy, 1);          /* GEM_CHANCE: a health gem */
     if(frand() < 0.12f && max_hp < 200.0f) spawn_gem(e->x - 9, G_UPHP, e->fy, 1);   /* MAXHP_CHANCE: bone powder */
 }
@@ -1135,18 +1143,23 @@ static void step_stun(float dt) {
 }
 
 /* ------------------------------------------------------------------ drawing */
-static void draw_layer(int sprite, float par, int camx, float camy) {
-    int dx = -iround(camx * par), x0 = ((dx % MAP_W) + MAP_W) % MAP_W - MAP_W;     /* web/game/14_draw_player.js drawLayer */
-    int top = iround(camy * par) - VIEW_MARGIN;
-    int sx = v2s(x0), sy = VIEW_TOP + v2s(top);
+static void draw_tiled(int sprite, int period, int margin, float par, int bgx, float camy) {
+    int dx = -iround((float)bgx * par), x0 = ((dx % period) + period) % period - period, xx;     /* web/game/14_draw_player.js drawLayer */
+    int sy = VIEW_TOP + v2s(iround(camy * par) - margin);
     const Sprite *sp = art_sprite(sprite);
-    for(; sx < SCR_W; sx += SCR_W) gfx_blit(sp, sx, sy, 0);                         /* one tile is 384 view px = 320 screen px */
+    for(xx = x0; xx < VIEW_W; xx += period) gfx_blit(sp, v2s(xx), sy, 0);
 }
-
-static void draw_layers(int camx, float camy) {
+static int scene_bgx(void) { return ANCHOR_X + map_idx * MAP_W; }       /* the scenery carries on from map to map */
+static void draw_layers(float camy) {
+    const Scene *sc = &SCENES[cur_map->scene];
     int i;
     gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
-    for(i = 0; i < NUM_LAYERS; i++) draw_layer(LAYER_SPRITE[i], LAYER_PARALLAX[i], camx, camy);
+    for(i = 0; i < sc->nlayers; i++) draw_tiled(sc->layers[i].sprite, sc->layers[i].period, sc->layers[i].margin, sc->layers[i].parallax, scene_bgx(), camy);
+}
+static void draw_fringe(float camy) {
+    const Scene *sc = &SCENES[cur_map->scene];
+    gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
+    if(sc->fringe >= 0) draw_tiled(sc->fringe, sc->fringe_period, VIEW_MARGIN, 1.0f, scene_bgx(), camy);     /* none over a boss arena picture */
 }
 
 static int ground_row(void) { return VIEW_TOP + v2s(FEET_ROW + iround(camY)); }     /* screen row of the ground line */
@@ -1323,6 +1336,15 @@ static void draw_hud(u32 frame_us, u32 draw_us) {
     for(i = 0; i < MAX_ENEMIES; i++) if(alive(&en[i])) left++;
     gfx_text(SCR_W - 8 * 8, 18, "FOES", RGB(160, 180, 230)); gfx_num(SCR_W - 8 * 3, 18, (u32)left, RGB(255, 255, 255));
     gfx_rect(0, VIEW_TOP + VIEW_SCR_H, SCR_W, SCR_H - VIEW_TOP - VIEW_SCR_H, RGB(8, 8, 16));
+    for(i = 0; i < MAX_ENEMIES; i++) if(alive(&en[i]) && ENEMIES[en[i].type].boss) {          /* the boss bar along the bottom of the view */
+        const Enemy *b = &en[i];
+        const char *nm = ENEMIES[b->type].boss_name;
+        int bw = 160, bx = (SCR_W - bw) / 2, by = VIEW_TOP + VIEW_SCR_H - 12;
+        gfx_text((SCR_W - 8 * strlen_(nm)) / 2, by - 11, nm, RGB(255, 225, 77));
+        gfx_rect(bx - 1, by - 1, bw + 2, 8, RGB(0, 0, 0)); gfx_rect(bx, by, bw, 6, RGB(60, 10, 10));
+        gfx_rect(bx, by, (int)((float)bw * b->hp / b->maxhp), 6, RGB(230, 50, 50));
+        break;
+    }
     if(now < banner_until) gfx_text((SCR_W - 8 * (int)strlen_(banner)) / 2, VIEW_TOP + 8, banner, RGB(255, 210, 74));
     if(hp <= 0) gfx_text((SCR_W - 8 * 4) / 2, 100, "K.O.", RGB(255, 60, 60));
     gfx_text(4, 214, MOVES[cur.id].id, RGB(255, 220, 120));
@@ -1337,7 +1359,11 @@ void game_init(void) {
     for(i = 1; i < nframes(MV_jump); i++) if(mf(MV_jump, i)->ry < mf(MV_jump, i - 1)->ry) { FALL_K = i; break; }
     for(i = FALL_K + 1; i < nframes(MV_jump); i++) if(mf(MV_jump, i)->ry == 0) { LAND_K = i; break; }
     hp = max_hp;
+#ifdef START_LEVEL                                      /* test builds: start in the given level and map (make CFLAGS_EXTRA='-DAUTOTEST -DSTART_LEVEL=1 -DSTART_MAP=9') */
+    start_level(START_LEVEL); load_map(START_LEVEL, START_MAP, 1);
+#else
     start_level(0);
+#endif
 }
 
 void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
@@ -1360,6 +1386,9 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
     pad.held = (u16)(~raw & 0x07ff);                       /* a 0 bit in the raw word is a pressed button */
     if(raw == 0xffff) pad.held = 0;
     now += dt; clock_ms = (u32)now;
+#ifdef GODMODE
+    if(hp < max_hp * 0.5f) hp = max_hp;
+#endif
     /* buttons -> moves (web/game/02_input.js readButtons); none while she is knocked out of control or falling into a pit */
     if(!stun_on && !pit_fall_on) {
         if(pressed_now(PAD_DOWN)) { if(now - last_down_t < 300.0f) drop_through(); last_down_t = now; }
@@ -1392,14 +1421,14 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
     camY += ((ry - CAM_KEEP > 0 ? ry - CAM_KEEP : 0) - camY) * 0.2123f;          /* 1 - exp(-dt / 70) at 60 fps */
 
     gfx_clear(RGB(0, 0, 0));
-    draw_layers(ANCHOR_X, camY);
+    draw_layers(camY);
     draw_geometry();
     draw_items();
     draw_enemies();
     draw_player();
     draw_effects();
     gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
-    draw_layer(FRINGE_SPRITE, 1.0f, ANCHOR_X, camY);
+    draw_fringe(camY);
 drawn:
     draw_hud(frame_us, draw_us);
 }
