@@ -361,7 +361,7 @@ def main():
     H.append('typedef struct { short x0, x1, top; } Plat;\ntypedef struct { short x0, x1; } Pit;\ntypedef struct { short x, fy; } Spot;\ntypedef struct { short x, fy, loot; } Crate;       /* loot: 0 none, -1 an ankh, n > 0 a shower of n leaves */')
     H.append('typedef struct { short type, x, fy, path0, path1, sight; } EnemySpawn;\ntypedef struct { short x, fy, h; } Leaf;')
     H.append('typedef struct { const char *id; unsigned short plat0, nplat, pit0, npit, crate0, ncrate, bomb0, nbomb, en0, nen, leaf0, nleaf; unsigned char final, boss, scene; } MapDef;')
-    H.append('typedef struct { const char *name; unsigned short map0, nmaps; } LevelDef;')
+    H.append('typedef struct { const char *name, *blurb; unsigned short map0, nmaps; } LevelDef;')
     plats, pits, crates, bombs, spawns, leaves, maps, levels = [], [], [], [], [], [], [], []
     for lv in D['levels']['levels']:
         if not lv:
@@ -380,7 +380,7 @@ def main():
                 pa = q.get('path') or [-1, -1]
                 spawns.append((ENUM.get(q['type'], 0), q['x'], q.get('fy', 0), pa[0], pa[1], q.get('sight', 100)))
             leaves.extend((q['x'], q.get('fy', 0), q.get('h', 12)) for q in md.get('leaves') or [])
-        levels.append((lv.get('name', ''), m0, len(lv['maps'])))
+        levels.append((lv.get('name', ''), lv.get('blurb', ''), m0, len(lv['maps'])))
     table('Plat', 'PLATS', plats, lambda t: '{%d,%d,%d}' % t)
     table('Pit', 'PITS', pits, lambda t: '{%d,%d}' % t)
     table('Crate', 'CRATES', crates, lambda t: '{%d,%d,%d}' % t)
@@ -388,7 +388,7 @@ def main():
     table('EnemySpawn', 'SPAWNS', spawns, lambda t: '{%d,%d,%d,%d,%d,%d}' % t)
     table('Leaf', 'LEAVES', leaves, lambda t: '{%d,%d,%d}' % t)
     table('MapDef', 'MAPS', maps, lambda r: '{"%s",%s}' % (r[0], ','.join(str(x) for x in r[1:])))
-    table('LevelDef', 'LEVELS', levels, lambda r: '{"%s",%d,%d}' % r, 'NUM_LEVELS')
+    table('LevelDef', 'LEVELS', levels, lambda r: '{%s,%s,%d,%d}' % (json.dumps(r[0]), json.dumps(r[1]), r[2], r[3]), 'NUM_LEVELS')
     H.append('#endif')
     os.makedirs(BUILD, exist_ok=True)
     size = pack.write(os.path.join(BUILD, 'ART.BIN'))

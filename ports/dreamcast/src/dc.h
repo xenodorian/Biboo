@@ -39,6 +39,8 @@ void gfx_rect(int x, int y, int w, int h, u16 c);
 void gfx_blit(const Sprite *s, int x, int y, int flip);            /* (x, y) is the sprite's anchor on the screen; flip mirrors about it */
 void gfx_text(int x, int y, const char *s, u16 c);
 void gfx_num(int x, int y, u32 v, u16 c);
+void gfx_text2(int x, int y, const char *s, u16 c, int k);
+void gfx_dim(int y0, int y1);
 
 /* ---- game.c */
 void game_init(void);

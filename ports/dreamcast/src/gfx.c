@@ -85,3 +85,19 @@ void gfx_num(int x, int y, u32 v, u16 c) {
     while(v) { buf[n++] = (char)('0' + v % 10); v /= 10; }
     for(i = 0; i < n; i++) gfx_char(x + i * 8, y, buf[n - 1 - i], c);
 }
+
+void gfx_text2(int x, int y, const char *s, u16 c, int k) {              /* 8x8 text with every pixel k x k */
+    for(; *s; s++, x += 8 * k) {
+        int ch = (unsigned char)*s, row, col;
+        const u8 *g;
+        if(ch > 127) ch = '?';
+        g = font8x8_basic[ch];
+        for(row = 0; row < 8; row++) for(col = 0; col < 8; col++) if((g[row] >> col) & 1) gfx_rect(x + col * k, y + row * k, k, k, c);
+    }
+}
+void gfx_dim(int y0, int y1) {                                           /* halve the brightness of rows y0..y1 */
+    int i;
+    if(y0 < 0) y0 = 0;
+    if(y1 > SCR_H) y1 = SCR_H;
+    for(i = y0 * SCR_W; i < y1 * SCR_W; i++) scr[i] = (u16)((scr[i] >> 1) & 0x7bef);
+}
