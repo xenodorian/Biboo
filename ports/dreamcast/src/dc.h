@@ -42,6 +42,10 @@ void gfx_num(int x, int y, u32 v, u16 c);
 void gfx_text2(int x, int y, const char *s, u16 c, int k);
 void gfx_dim(int y0, int y1);
 
+/* save.c: the VMU */
+int save_read(u8 *data256);             /* 1 read, 0 no save, -1 no card */
+int save_write(const u8 *data256);      /* 1 saved */
+
 /* ---- game.c */
 void game_init(void);
 void game_frame(u16 pad_raw, u32 frame_us, u32 draw_us);   /* update and draw one 1/60 s frame into scr[] */

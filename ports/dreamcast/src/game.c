@@ -1027,10 +1027,12 @@ static void retry_map(void) {               /* after a K.O. the same map can be 
     if(ankhs < 1) { ankhs = 3; start_level(level_idx); return; }
     ankhs--; hp = max_hp; load_map(level_idx, map_idx, 1);
 }
+static void save_game(void);
 static void level_complete(void) {         /* web/game/09_maps.js levelComplete, progress.js completeLevel */
     cleared |= (u8)(1 << level_idx);
     if(levels_unlocked < level_idx + 2) levels_unlocked = level_idx + 2 > NUM_LEVELS ? NUM_LEVELS : level_idx + 2;
     level_done = 1;
+    save_game();
 }
 static int door_open(void) {
     int i;
@@ -1361,6 +1363,45 @@ static void draw_hud(u32 frame_us, u32 draw_us) {
 
 /* ------------------------------------------------------------------ the frame */
 
+/* ------------------------------------------------------------------ saves (the progress that web/progress.js keeps: levels, leaves, ankhs, max HP) */
+static const char *save_msg = "";
+static float save_msg_until;
+static void save_pack(u8 *d) {                  /* a fixed 256 byte record: magic, version, fields, then a checksum of the first 254 bytes */
+    int i;
+    u16 sum = 0;
+    for(i = 0; i < 256; i++) d[i] = 0;
+    d[0] = 'P'; d[1] = 'P'; d[2] = 'R'; d[3] = 'Y'; d[4] = 1;
+    d[5] = (u8)levels_unlocked; d[6] = cleared;
+    d[8] = (u8)(leaves & 0xff); d[9] = (u8)(leaves >> 8);
+    d[10] = (u8)(ankhs & 0xff); d[11] = (u8)(ankhs >> 8);
+    d[12] = (u8)(int)max_hp; d[13] = (u8)((int)max_hp >> 8);
+    for(i = 0; i < 254; i++) sum = (u16)(sum + d[i]);
+    d[254] = (u8)(sum & 0xff); d[255] = (u8)(sum >> 8);
+}
+static int save_unpack(const u8 *d) {
+    int i;
+    u16 sum = 0;
+    if(d[0] != 'P' || d[1] != 'P' || d[2] != 'R' || d[3] != 'Y' || d[4] != 1) return 0;
+    for(i = 0; i < 254; i++) sum = (u16)(sum + d[i]);
+    if(d[254] != (u8)(sum & 0xff) || d[255] != (u8)(sum >> 8)) return 0;
+    levels_unlocked = d[5] < 1 ? 1 : d[5] > NUM_LEVELS ? NUM_LEVELS : d[5]; cleared = d[6];
+    leaves = d[8] | (d[9] << 8); ankhs = d[10] | (d[11] << 8); max_hp = (float)(d[12] | (d[13] << 8));
+    if(max_hp < MAX_HP_START) max_hp = MAX_HP_START; else if(max_hp > 200.0f) max_hp = 200.0f;
+    return 1;
+}
+static void save_game(void) {
+    u8 d[256];
+    save_pack(d);
+    save_msg = save_write(d) ? "SAVED TO THE MEMORY CARD" : "COULD NOT SAVE (NO CARD?)"; save_msg_until = now + 2500.0f;
+}
+static void load_game(void) {
+    u8 d[256];
+    int r = save_read(d);
+    if(r == 1 && save_unpack(d)) save_msg = "SAVE LOADED";
+    else save_msg = r < 0 ? "NO MEMORY CARD" : "NEW GAME";
+    save_msg_until = now + 4000.0f;
+}
+
 /* ------------------------------------------------------------------ screens: title, overworld, pause, Game Over, level complete (web/game/20_title.js, 19_overworld.js, 17_menus.js) */
 static void draw_scene(void) {
     gfx_clear(RGB(0, 0, 0));
@@ -1424,6 +1465,7 @@ static void draw_title(void) {
     }
     ctext(102, "A PERRY RIPOSTE ADVENTURE", RGB(232, 224, 255), 1);
     if(((int)(now / 500.0f)) & 1) ctext(180, "PRESS START", RGB(255, 255, 255), 1);
+    ctext(222, save_msg, RGB(160, 180, 230), 1);                          /* what the memory card held at boot */
 }
 static const short OW_NODES[7][2] = {{36, 150}, {90, 112}, {144, 146}, {198, 106}, {252, 144}, {306, 108}, {348, 60}};
 static int nx(int i) { return v2s(OW_NODES[i][0]); }
@@ -1452,10 +1494,11 @@ static void draw_overworld(void) {
       while(*b && p < 38) buf[p++] = *b++;
       while(*c && p < 47) buf[p++] = *c++;
       buf[p] = 0; gfx_text(24, 178, buf, RGB(255, 255, 255)); }
-    if(open) wrap_text(24, 190, L->blurb, RGB(230, 230, 236), 35, 2);
-    else { char buf[40] = "LOCKED. BEAT LEVEL N FIRST."; buf[19] = (char)('0' + ow_sel); gfx_text(24, 190, buf, RGB(230, 230, 236)); }
-    gfx_text(24, 216, open ? "A: PLAY  LEFT/RIGHT: CHOOSE" : "LEFT/RIGHT: CHOOSE", RGB(154, 154, 168));
+    if(open) wrap_text(24, 187, L->blurb, RGB(230, 230, 236), 34, 3);
+    else { char buf[40] = "LOCKED. BEAT LEVEL N FIRST."; buf[19] = (char)('0' + ow_sel); gfx_text(24, 187, buf, RGB(230, 230, 236)); }
+    gfx_text(24, 220, open ? "A: PLAY  LEFT/RIGHT: CHOOSE" : "LEFT/RIGHT: CHOOSE", RGB(154, 154, 168));
     if(now < banner_until) ctext(130, banner, RGB(255, 210, 74), 1);
+    if(now < save_msg_until) ctext(2, save_msg, RGB(160, 180, 230), 1);
 }
 static void enter_level(int n) {                /* n is 0-based */
     if(n >= levels_unlocked) { say("LOCKED: BEAT THE LEVEL BEFORE", 2000); return; }
@@ -1465,6 +1508,7 @@ static void enter_level(int n) {                /* n is 0-based */
     say(LEVELS[n].name, 3200.0f);
 }
 static void go_overworld(void) {
+    if(screen == SCN_LEVEL) save_game();                    /* web: goOverworld syncs and saves the progress */
     screen = SCN_OVERWORLD; paused = gameover_on = level_done = 0;
     ow_sel = (levels_unlocked < NUM_LEVELS ? levels_unlocked : NUM_LEVELS) - 1;
     banner_until = 0;
@@ -1484,6 +1528,9 @@ void game_init(void) {
     for(i = FALL_K + 1; i < nframes(MV_jump); i++) if(mf(MV_jump, i)->ry == 0) { LAND_K = i; break; }
     hp = max_hp;
     screen = SCN_TITLE;
+#ifndef AUTOTEST
+    load_game();
+#endif
 #ifdef AUTOTEST
     screen = SCN_LEVEL;
 #endif

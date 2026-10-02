@@ -11,7 +11,7 @@ CFLAGS    = $(CFLAGS_EXTRA) $(ARCHFLAGS) -O2 -fno-math-errno -fno-builtin -ffree
             -Wall -Wextra -nostdlib -nostartfiles -nodefaultlibs
 LDFLAGS   = $(ARCHFLAGS) -nostdlib -nostartfiles -nodefaultlibs -T dc.ld -Wl,--build-id=none
 
-OBJS = src/start.o src/hw.o src/gfx.o src/game.o src/main.o src/art.o src/gen/game_data.o
+OBJS = src/start.o src/hw.o src/gfx.o src/game.o src/main.o src/save.o src/art.o src/gen/game_data.o
 
 WEB = ../../web
 ASSET_SRC = $(wildcard $(WEB)/assets/*.js $(WEB)/assets/moves/*.png $(WEB)/assets/enemies/*.png $(WEB)/assets/layers/*.png) tools/bake_game.py tools/dump_game_data.js
