@@ -183,6 +183,17 @@ def main():
     im = np.asarray(Image.open(os.path.join(WEB, D['fringe']['src'])).convert('RGBA'))
     o, ox, oy = sample(im, 0, 0, im.shape[1], im.shape[0], 0, 0, VIEW_SCALE)
     fringe_id = pack.add('layer:fringe', encode(o, ox, oy))
+    IT = D['items']                                                    # leaf coin frames (small and 1.5x for the 5 leaf piece) and the two gems she can pick up
+    leaf_im = np.asarray(Image.open(os.path.join(WEB, IT['leaf'])).convert('RGBA'))
+    gem_im = np.asarray(Image.open(os.path.join(WEB, IT['gemSheet'])).convert('RGBA'))
+    c8 = IT['cell'] / 2
+    leaf_ids = [pack.add(f'leaf:{k}', encode(*sample(leaf_im, k * IT['cell'], 0, IT['cell'], IT['cell'], c8, c8, VIEW_SCALE))) for k in range(IT['leafFrames'])]
+    leaf_big = [pack.add(f'leafbig:{k}', encode(*sample(leaf_im, k * IT['cell'], 0, IT['cell'], IT['cell'], c8, c8, VIEW_SCALE * 1.5))) for k in range(IT['leafFrames'])]
+    gem_ids = [pack.add('gem:' + n, encode(*sample(gem_im, IT['gems'][n] * IT['cell'], 0, IT['cell'], IT['cell'], c8, c8, VIEW_SCALE))) for n in ('bone', 'powder')]
+    H.append(f'#define LEAF_FRAMES {len(leaf_ids)}\nextern const unsigned short LEAF_SPRITES[LEAF_FRAMES], LEAF_BIG_SPRITES[LEAF_FRAMES], GEM_SPRITES[2];   /* GEM_SPRITES: bone (health), powder (max HP) */')
+    C.append('const unsigned short LEAF_SPRITES[LEAF_FRAMES] = {' + ','.join(map(str, leaf_ids)) + '};')
+    C.append('const unsigned short LEAF_BIG_SPRITES[LEAF_FRAMES] = {' + ','.join(map(str, leaf_big)) + '};')
+    C.append('const unsigned short GEM_SPRITES[2] = {' + ','.join(map(str, gem_ids)) + '};')
     H.append(f'#define NUM_LAYERS {len(layer_ids)}\n#define FRINGE_SPRITE {fringe_id}')
     H.append('extern const unsigned short LAYER_SPRITE[NUM_LAYERS];\nextern const float LAYER_PARALLAX[NUM_LAYERS];')
     C.append('const unsigned short LAYER_SPRITE[NUM_LAYERS] = {' + ','.join(map(str, layer_ids)) + '};')
@@ -307,7 +318,7 @@ def main():
 
     # ---- levels and maps (web/levels.js builds them with a fixed seed, so they are the same every time)
     ENUM = {n: i for i, n in enumerate(done)}
-    H.append('typedef struct { short x0, x1, top; } Plat;\ntypedef struct { short x0, x1; } Pit;\ntypedef struct { short x, fy; } Spot;')
+    H.append('typedef struct { short x0, x1, top; } Plat;\ntypedef struct { short x0, x1; } Pit;\ntypedef struct { short x, fy; } Spot;\ntypedef struct { short x, fy, loot; } Crate;       /* loot: 0 none, -1 an ankh, n > 0 a shower of n leaves */')
     H.append('typedef struct { short type, x, fy, path0, path1, sight; } EnemySpawn;\ntypedef struct { short x, fy, h; } Leaf;')
     H.append('typedef struct { const char *id; unsigned short plat0, nplat, pit0, npit, crate0, ncrate, bomb0, nbomb, en0, nen, leaf0, nleaf; unsigned char final, boss; } MapDef;')
     H.append('typedef struct { const char *name; unsigned short map0, nmaps; } LevelDef;')
@@ -323,7 +334,7 @@ def main():
                          1 if md.get('final') else 0, 1 if md.get('boss') else 0])
             plats.extend((q['x0'], q['x1'], q['top']) for q in pl)
             pits.extend((q['x0'], q['x1']) for q in md.get('pits') or [])
-            crates.extend((q['x'], q.get('fy', 0)) for q in md.get('crates') or [])
+            crates.extend((q['x'], q.get('fy', 0), -1 if q.get('loot') == 'ankh' else int(q['loot'].split(':')[1]) if (q.get('loot') or '').startswith('leaves:') else 0) for q in md.get('crates') or [])
             bombs.extend((q['x'], q.get('fy', 0)) for q in md.get('bombs') or [])
             for q in md.get('enemies') or []:
                 pa = q.get('path') or [-1, -1]
@@ -332,7 +343,7 @@ def main():
         levels.append((lv.get('name', ''), m0, len(lv['maps'])))
     table('Plat', 'PLATS', plats, lambda t: '{%d,%d,%d}' % t)
     table('Pit', 'PITS', pits, lambda t: '{%d,%d}' % t)
-    table('Spot', 'CRATES', crates, lambda t: '{%d,%d}' % t)
+    table('Crate', 'CRATES', crates, lambda t: '{%d,%d,%d}' % t)
     table('Spot', 'BOMBS', bombs, lambda t: '{%d,%d}' % t)
     table('EnemySpawn', 'SPAWNS', spawns, lambda t: '{%d,%d,%d,%d,%d,%d}' % t)
     table('Leaf', 'LEAVES', leaves, lambda t: '{%d,%d,%d}' % t)

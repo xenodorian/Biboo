@@ -28,6 +28,7 @@ static float camY;
 static float floor_y, prev_feet, last_cx; static int prev_ok;          /* height of the surface she stands on; her feet last frame */
 static int pit_fall_on; static float pit_t0, last_down_t;
 static const MapDef *cur_map;
+static int level_idx, map_idx;
 static u32 clock_ms;
 static float now;                       /* ms since the start, the web game's `clock` */
 static u32 mv_serial;                   /* counts action moves; a move hurts each enemy once per use */
@@ -36,7 +37,10 @@ static float slide_v, slide_a;          /* a blocked hit slides her back */
 static float invuln, ko_until;
 static float hp;
 static const char *banner; static float banner_until;
-#define MAX_HP 50.0f                    /* web/progress.js MAX_START.hp */
+#define MAX_HP_START 50.0f              /* web/progress.js MAX_START.hp; +25 per Bone Powder, capped at 200 */
+static float max_hp = MAX_HP_START;
+static int ankhs = 3, leaves;           /* ankhs: retries (web/progress.js ANKH_START); leaves: the purse */
+static float last_parry_t = -1e9f;
 #define BODY_W 16.5f
 #define HURT_X0 5.0f
 #define HURT_X1 30.0f
@@ -144,6 +148,7 @@ static void start(int id, int kind) {
     cur.id = id; cur.k = 0; cur.t = 0; cur.kind = kind; cur.face = facing; cur.phys = 0; cur.py = cur.pv = 0;
     has_cur = 1;
     if(kind == K_ACTION) mv_serial++;
+    if(id == MV_parry) last_parry_t = now;
 }
 
 static void request(int move, int via) {
@@ -277,7 +282,7 @@ enum { S_WALK, S_IDLE, S_PATROL, S_ATTACK, S_STUN, S_DYING };
 typedef struct {
     int type, state, face, anim, k, dir, on;
     float fy, jy, hp, maxhp, x, base, t, rest, dead, lo, hi, lo0, hi0, sight, pause, far, prevx, push_v, push_a, land_at, flash_until;
-    int path0, path1, dive, combo_ready, melee_seen, hit_done, jump_on, jfall, jdoom;
+    int shot_k, path0, path1, dive, combo_ready, melee_seen, hit_done, jump_on, jfall, jdoom;
     float jx0, jx1, jfy0, jfy1, jH, jt, jdur, hop_at;
     u32 seen;                           /* the last move of hers that hurt it */
 } Enemy;
@@ -291,7 +296,7 @@ static const EnemyFrame *frame_of(const Enemy *e) { return &ENEMY_FRAMES[ENEMY_A
 static float ground_off(const Enemy *e) { float g = (float)frame_of(e)->ground; return e->face < 0 ? g : -g; }
 static void play(Enemy *e, int anim) {
     if(anim < 0) anim = ENEMIES[e->type].a_idle;
-    e->anim = anim; e->k = 0; e->t = 0; e->hit_done = 0; e->land_at = 0; e->base = e->x - ground_off(e);
+    e->anim = anim; e->k = 0; e->t = 0; e->hit_done = 0; e->land_at = 0; e->shot_k = 0; e->base = e->x - ground_off(e);
 }
 static void turn(Enemy *e, int face) { if(face != e->face) { e->face = face; e->base = e->x - ground_off(e); } }
 static int alive(const Enemy *e) { return e->on && e->state != S_DYING; }
@@ -311,11 +316,17 @@ static int hurt_of(const Enemy *e, float out[4]) {
 }
 static int overlap(const float a[4], const float b[4]) { return a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3]; }
 
-static void kill(Enemy *e) {
+enum { G_HEALTH, G_UPHP, G_ANKH, G_LEAF };
+static void spawn_gem(float x, int kind, float fy, int val);
+static void kill_q(Enemy *e, int quiet) {
     const EnemyDef *d = &ENEMIES[e->type];
     e->state = S_DYING; e->dead = 0; e->hp = 0;
     if(d->a_death >= 0) play(e, d->a_death);
+    if(quiet) return;
+    if(frand() < 0.35f) spawn_gem(e->x - 3, G_HEALTH, e->fy, 1);          /* GEM_CHANCE: a health gem */
+    if(frand() < 0.12f && max_hp < 200.0f) spawn_gem(e->x - 9, G_UPHP, e->fy, 1);   /* MAXHP_CHANCE: bone powder */
 }
+static void kill(Enemy *e) { kill_q(e, 0); }
 static int sees(const Enemy *e) {
     float dx = her_mid_x() - e->x;
     if(dx * e->face <= 0 || fabsf_(dx) > e->sight) return 0;
@@ -479,7 +490,7 @@ static void step_enemy_core(Enemy *e, float dt) {
             e->jy = e->jfall ? dy * u * u : dy * u + 4.0f * e->jH * u * (1.0f - u);       /* a jump arcs, a drop falls */
             if(u >= 1.0f) {
                 e->jump_on = 0; e->jy = 0; e->fy = e->jfy1; set_range(e); e->prevx = e->x;
-                if(e->jdoom) { kill(e); return; }                                       /* it came down in the pit */
+                if(e->jdoom) { kill_q(e, 1); return; }                                       /* it came down in the pit */
                 if(e->path0 >= 0 && e->jfy1 != e->jfy0) { e->path0 = (int)(e->lo + 6); e->path1 = (int)maxf_(e->lo + 6, e->hi - 6); }   /* a patrol resumes on the surface it landed on */
             }
             return;
@@ -587,13 +598,16 @@ static void step_enemy_core(Enemy *e, float dt) {
         e->x += mv; e->base += mv;
     }
 }
+static void fire_combo_shard(const Enemy *e, int n);
 static void step_enemy(Enemy *e, float dt) {
     int free = 0, i;
     step_enemy_core(e, dt);
+    if(e->state == S_ATTACK && ENEMIES[e->type].attack_combo >= 0 && e->anim == ENEMIES[e->type].attack_combo)      /* the backflip's streaks of light also leave as homing shards */
+        while(e->shot_k < e->k) { e->shot_k++; fire_combo_shard(e, e->shot_k == 3 ? 0 : e->shot_k == 4 ? 1 : e->shot_k == 6 ? 2 : -1); }
     if(e->state == S_DYING || e->jump_on) return;
     if(e->fy == 0 && cur_map->npit) {
         free = e->state == S_STUN;                      /* pushed: only the walls hold it, and a pit can take it */
-        if(free) for(i = 0; i < cur_map->npit; i++) { const Pit *p = &PITS[cur_map->pit0 + i]; if(e->x > p->x0 + 6 && e->x < p->x1 - 6) { kill(e); return; } }
+        if(free) for(i = 0; i < cur_map->npit; i++) { const Pit *p = &PITS[cur_map->pit0 + i]; if(e->x > p->x0 + 6 && e->x < p->x1 - 6) { kill_q(e, 1); return; } }
     }
     clamp_enemy(e, free);
 }
@@ -635,10 +649,12 @@ static int touches(const Hit *h, float px, float py, int face, const float box[4
         return 0;
     }
 }
+static void world_hit_shape(const Hit *h, float px, float py, int face);
 static void resolve_hits_one(const MoveFrame *f, float px, float py, int face) {
     int s, i;
     for(s = 0; s < f->nhit; s++) {
         const Hit *h = &HITS[f->hit0 + s];
+        world_hit_shape(h, px, py, face);                  /* any crate or bomb the shape touches */
         for(i = 0; i < MAX_ENEMIES; i++) {
             Enemy *e = &en[i];
             float box[4], dist, ms;
@@ -677,6 +693,8 @@ static void blocked_hit(const Enemy *e) {
     float dir = her_mid_x() >= e->x ? 1.0f : -1.0f;
     slide_v = 2.0f * 8.0f / 120.0f * dir; slide_a = 2.0f * 8.0f / (120.0f * 120.0f);
 }
+static void ko_check(void);
+static void hurt_her(float dmg) { if(dmg > 0) hp = maxf_(0, hp - dmg); }
 static void knocked(const Enemy *e) {
     const EnemyDef *d = &ENEMIES[e->type];
     float kd = (float)d->knock_d, kms = (float)d->knock_ms, dmg = (float)d->atk_dmg[0], rx, ry, h;
@@ -688,8 +706,8 @@ static void knocked(const Enemy *e) {
     stun_on = 1; stun_v = 2.0f * kd / kms * (her_mid_x() >= e->x ? 1.0f : -1.0f); stun_a = 2.0f * kd / (kms * kms); stun_y = h; stun_vy = KNOCK_UP_VY;
     cur.id = MV_heavy; cur.k = HEAVY_HIGH_K; cur.t = 0; cur.kind = K_STUN; cur.face = has_cur ? cur.face : facing; cur.phys = 0; cur.py = cur.pv = 0; has_cur = 1;
     invuln = now + kms + 400.0f;
-    hp -= dmg;
-    if(hp <= 0) { hp = 0; ko_until = now + KO_MS; }
+    hurt_her(dmg);
+    if(hp <= 0) ko_until = now + KO_MS;
 }
 static void enemy_attacks(void) {
     float me[4];
@@ -740,8 +758,219 @@ static void block_move(float before) {
     if(px > front) X -= px - front; else if(px < back) X += back - px;
 }
 
+
+/* ------------------------------------------------------------------ crates, bombs, gems, leaves, shards, effects (web/game/09_maps.js, 10_hazards.js, 00_core.js) */
+typedef struct { int on, kind, val, key; float x, y, fy, bob, t0; } Gem;
+typedef struct { int on, from_her, streak, home, dmg; float x, y, vx, vy, t0, contact; } Shot;
+typedef struct { int on; float x, y, vx, vy, t0, life; u16 c; } Particle;
+typedef struct { float x, y, t0, r; } Boom;
+#define MAX_GEMS_ON 64
+#define MAX_SHOTS 12
+#define MAX_PARTS 64
+#define MAX_BOOMS 4
+static Gem gems[MAX_GEMS_ON];
+static Shot shots[MAX_SHOTS];
+static Particle parts[MAX_PARTS];
+static Boom booms[MAX_BOOMS];
+static u8 crate_gone[12], bomb_gone[12];                /* kept for the level, so a replayed map has its crates and bombs gone */
+static u32 leaf_got[12];
+static u8 crate_broken[4], bomb_state[4]; static float bomb_fuse[4];
+
+static void burst(float x, float y, int n, u16 c0, u16 c1, u16 c2) {
+    int i, j;
+    for(i = 0; i < n; i++) {
+        Particle *q = 0;
+        for(j = 0; j < MAX_PARTS; j++) if(!parts[j].on) { q = &parts[j]; break; }
+        if(!q) return;
+        q->on = 1; q->x = x; q->y = y; q->vx = (frand() - 0.5f) * 0.22f; q->vy = 0.04f + frand() * 0.16f; q->t0 = now; q->life = 500.0f + frand() * 300.0f;
+        q->c = (i % 3 == 0) ? c0 : (i % 3 == 1) ? c1 : c2;
+    }
+}
+static void spawn_gem(float x, int kind, float fy, int val) {
+    int i;
+    for(i = 0; i < MAX_GEMS_ON; i++) if(!gems[i].on) {
+        Gem *g = &gems[i];
+        g->on = 1; g->kind = kind; g->val = val; g->key = -1; g->x = x; g->fy = fy; g->y = fy + 14.0f + frand() * 8.0f; g->bob = frand() * 6.28f; g->t0 = now;
+        return;
+    }
+}
+static float dist_box2(float px, float py, const float b[4]);
+static void crate_box(int i, float b[4]) { const Crate *c = &CRATES[cur_map->crate0 + i]; b[0] = c->x - 9.0f; b[1] = c->fy; b[2] = c->x + 9.0f; b[3] = c->fy + 18.0f; }
+static void bomb_box(int i, float b[4]) { const Spot *c = &BOMBS[cur_map->bomb0 + i]; b[0] = c->x - 8.0f; b[1] = c->fy; b[2] = c->x + 8.0f; b[3] = c->fy + 22.0f; }
+static void break_crate(int i) {
+    const Crate *c = &CRATES[cur_map->crate0 + i];
+    int pool, pick;
+    if(crate_broken[i]) return;
+    crate_broken[i] = 1; crate_gone[map_idx] |= (u8)(1 << i);
+    burst((float)c->x, c->fy + 9.0f, 9, RGB(138, 90, 43), RGB(107, 68, 32), RGB(176, 122, 60));
+    if(c->loot < 0) spawn_gem((float)c->x, G_ANKH, (float)c->fy, 1);
+    else if(c->loot > 0) {                                           /* a cache: a shower of leaves, the big ones worth 5 */
+        int n = c->loot, big = n / 5, small = n - big * 5, k, total = big + small;
+        for(k = 0; k < total; k++) {
+            int side = (k % 2 ? 1 : -1) * (6 + (k / 2) * 6);
+            if(side > 60) side = 60; else if(side < -60) side = -60;
+            spawn_gem((float)(c->x + side), G_LEAF, (float)c->fy, k < big ? 5 : 1);
+            { Gem *g = &gems[0]; int j; for(j = MAX_GEMS_ON - 1; j >= 0; j--) if(gems[j].on && gems[j].kind == G_LEAF) { g = &gems[j]; break; } g->y = c->fy + 14.0f + (float)(k % 3) * 7.0f; }
+        }
+        burst((float)c->x, c->fy + 14.0f, 14, RGB(255, 210, 74), RGB(255, 242, 160), RGB(201, 150, 42));
+    }
+    pool = max_hp < 200.0f ? 4 : 3;                                  /* every crate drops something useful: three health gems and a bone powder in the pool */
+    pick = (int)(frand() * (float)pool) % pool;
+    spawn_gem((float)c->x, pick == 3 ? G_UPHP : G_HEALTH, (float)c->fy, 1);
+}
+static void detonate(int i);
+static void crate_blast(float wx, float wy, float r) {
+    int i;
+    for(i = 0; i < cur_map->ncrate; i++) { float b[4]; if(crate_broken[i]) continue; crate_box(i, b); if(dist_box2(wx, wy, b) <= r * r) break_crate(i); }
+    for(i = 0; i < cur_map->nbomb; i++) { float b[4]; if(bomb_state[i] == 1) continue; bomb_box(i, b); if(dist_box2(wx, wy, b) <= r * r) detonate(i); }
+}
+#define BOMB_DMG 50.0f
+#define BOMB_R 50.0f
+static void detonate(int i) {
+    const Spot *b = &BOMBS[cur_map->bomb0 + i];
+    float cx = (float)b->x, cy = b->fy + 7.0f, me[4];
+    int j;
+    if(bomb_state[i] == 1) return;
+    bomb_state[i] = 1; bomb_gone[map_idx] |= (u8)(1 << i);
+    for(j = 0; j < MAX_BOOMS; j++) if(booms[j].r == 0) { booms[j].x = cx; booms[j].y = cy; booms[j].t0 = now; booms[j].r = BOMB_R; break; }
+    burst(cx, cy, 14, RGB(255, 208, 96), RGB(255, 106, 32), RGB(68, 68, 68));
+    for(j = 0; j < MAX_ENEMIES; j++) { float hb[4]; if(alive(&en[j]) && hurt_of(&en[j], hb) && dist_box2(cx, cy, hb) <= BOMB_R * BOMB_R) hurt_enemy(&en[j], (int)BOMB_DMG); }
+    her_box(me);
+    if(dist_box2(cx, cy, me) <= BOMB_R * BOMB_R) { hurt_her(BOMB_DMG); invuln = maxf_(invuln, now + 500.0f); }
+    crate_blast(cx, cy, BOMB_R);
+    for(j = 0; j < cur_map->nbomb; j++) {                           /* other bombs in range go off a moment later */
+        const Spot *o = &BOMBS[cur_map->bomb0 + j];
+        float dx = (float)(o->x - b->x), dy = (float)(o->fy - b->fy);
+        if(bomb_state[j] != 1 && bomb_fuse[j] == 0 && dx * dx + dy * dy <= BOMB_R * BOMB_R) bomb_fuse[j] = now + 180.0f;
+    }
+}
+static void step_bombs(void) {
+    float me[4];
+    int i;
+    her_box(me);
+    for(i = 0; i < cur_map->nbomb; i++) {
+        float b[4];
+        if(bomb_state[i] == 1) continue;
+        if(bomb_fuse[i] != 0 && now >= bomb_fuse[i]) { detonate(i); continue; }
+        bomb_box(i, b);
+        if(overlap(me, b)) detonate(i);
+    }
+}
+static void world_hit_shape(const Hit *h, float px, float py, int face) {      /* her blade, kick or shard against crates and bombs */
+    int i;
+    for(i = 0; i < cur_map->ncrate; i++) { float b[4]; if(crate_broken[i]) continue; crate_box(i, b); if(touches(h, px, py, face, b)) break_crate(i); }
+    for(i = 0; i < cur_map->nbomb; i++) { float b[4]; if(bomb_state[i] == 1) continue; bomb_box(i, b); if(touches(h, px, py, face, b)) detonate(i); }
+}
+static void smash_crates_under(float prev, float feet, const float sp[2]) {     /* coming down onto a crate smashes it */
+    int i;
+    for(i = 0; i < cur_map->ncrate; i++) {
+        float b[4];
+        if(crate_broken[i]) continue;
+        crate_box(i, b);
+        if(sp[1] >= b[0] && sp[0] <= b[2] && prev > b[3] - 2 && feet <= b[3] + 1) break_crate(i);
+    }
+}
+
+static float fsin(float a) {                                    /* sine to about 0.001: wrap to -pi..pi, then Bhaskara's parabola */
+    float x = a - 6.2831853f * (float)(int)(a / 6.2831853f), y;
+    if(x > 3.1415927f) x -= 6.2831853f; else if(x < -3.1415927f) x += 6.2831853f;
+    y = x < 0 ? 1.2732395f * x + 0.4052847f * x * x : 1.2732395f * x - 0.4052847f * x * x;
+    return 0.225f * (y * (y < 0 ? -y : y) - y) + y;
+}
+static void step_gems(float dt) {
+    int i;
+    float bx = player_x() + (float)her_face() * 32.0f, hy = her_y();
+    for(i = 0; i < MAX_GEMS_ON; i++) {
+        Gem *g = &gems[i];
+        if(!g->on) continue;
+        g->bob += dt * 0.006f;
+        if(g->kind != G_ANKH && g->kind != G_LEAF && now - g->t0 > 20000.0f) { g->on = 0; continue; }       /* GEM_LIFE */
+        if(fabsf_(g->x - bx) < 28.0f && hy < g->fy + 50.0f && hy > g->fy - 20.0f) {
+            if(g->kind == G_LEAF) { leaves += g->val; if(g->key >= 0) leaf_got[map_idx] |= 1u << g->key; }
+            else if(g->kind == G_ANKH) ankhs++;
+            else if(g->kind == G_UPHP) { if(max_hp < 200.0f) { max_hp += 25.0f; hp = minf_(max_hp, hp + 25.0f); } }
+            else hp = minf_(max_hp, hp + (float)(int)((max_hp + 3.0f) / 4.0f));           /* TODO: the web game keeps these in a bag used from the menu; with no menu yet a health gem heals 25 percent at once */
+            g->on = 0;
+        }
+    }
+}
+static void step_parts(float dt) {
+    int i;
+    for(i = 0; i < MAX_PARTS; i++) {
+        Particle *q = &parts[i];
+        if(!q->on) continue;
+        if(now - q->t0 > q->life) { q->on = 0; continue; }
+        q->x += q->vx * dt; q->y += q->vy * dt; q->vy -= 0.0007f * dt;
+    }
+}
+
+/* the goblin's backflip leaves three streak shards: each flies up and away at first, then after 500 ms curves toward her (web/game/10_hazards.js) */
+#define SHOT_SPEED 0.24f
+#define SHOT_DMG 20
+#define HOME_SPEED 0.17f
+#define HOME_DELAY 500.0f
+#define HOME_TURN 0.0035f
+#define PARRY_EARLY 450.0f
+#define PARRY_LATE 200.0f
+static void fire_combo_shard(const Enemy *e, int n) {
+    static const float C[3] = {0.8829f, 0.6691f, 0.3090f}, S[3] = {0.4695f, 0.7431f, 0.9511f};      /* cos and sin of 28, 48 and 72 degrees */
+    int i;
+    if(n < 0) return;
+    for(i = 0; i < MAX_SHOTS; i++) if(!shots[i].on) {
+        Shot *sh = &shots[i];
+        sh->on = 1; sh->from_her = 0; sh->streak = 1; sh->home = 1; sh->dmg = 10; sh->contact = 0; sh->t0 = now;
+        sh->x = e->x + e->face * 10.0f; sh->y = e->fy + 44.0f; sh->vx = e->face * C[n] * 0.2f; sh->vy = S[n] * 0.2f;
+        return;
+    }
+}
+static void step_shots(float dt) {
+    int i, j;
+    float me[4];
+    her_box(me);
+    for(i = 0; i < MAX_SHOTS; i++) {
+        Shot *sh = &shots[i];
+        float box[4];
+        if(!sh->on) continue;
+        if(sh->home && !sh->from_her && now - sh->t0 > HOME_DELAY && sh->contact == 0) {            /* curve toward her body */
+            float tx = her_mid_x() - sh->x, ty = her_y() + her_top() * SS * 0.5f - sh->y, vl = __builtin_sqrtf(sh->vx * sh->vx + sh->vy * sh->vy), tl = __builtin_sqrtf(tx * tx + ty * ty);
+            if(vl > 0 && tl > 0) {
+                float c = (sh->vx * tx + sh->vy * ty) / (vl * tl), sn = (sh->vx * ty - sh->vy * tx) / (vl * tl), mt = HOME_TURN * dt, a, ca, sa, nx, ny;
+                a = (c < 0 || fabsf_(sn) > mt) ? signf_(sn) * mt : sn;
+                ca = 1.0f - a * a * 0.5f; sa = a - a * a * a / 6.0f;
+                nx = (ca * sh->vx - sa * sh->vy) / vl; ny = (sa * sh->vx + ca * sh->vy) / vl;
+                sh->vx = nx * HOME_SPEED; sh->vy = ny * HOME_SPEED;
+            }
+        }
+        if(sh->contact == 0) { sh->x += sh->vx * dt; sh->y += sh->vy * dt; }          /* a shard that reached her holds still while she can parry */
+        if(now - sh->t0 > (sh->home ? 7000.0f : 4000.0f) || sh->x < -30 || sh->x > VIEW_W + 30 || sh->y < -4 || sh->y > 400) { sh->on = 0; continue; }
+        box[0] = sh->x - 5; box[1] = sh->y - 5; box[2] = sh->x + 5; box[3] = sh->y + 5;
+        if(!sh->from_her) {
+            float dir = sh->vx >= 0 ? 1.0f : -1.0f;
+            int reflect;
+            if(!overlap(box, me)) { sh->contact = 0; continue; }
+            if(sh->contact == 0) sh->contact = now;
+            reflect = parrying() || last_parry_t >= sh->contact - PARRY_EARLY;
+            if(!reflect && !blocking() && now - sh->contact < PARRY_LATE) continue;       /* wait out the late-parry window */
+            if(reflect) {                                       /* reflected: straight forward, a little faster */
+                sh->from_her = 1; sh->home = 0; sh->streak = 0; sh->contact = 0; sh->vx = (float)her_face() * SHOT_SPEED * 1.5f; sh->vy = 0;
+                sh->x = player_x() + (float)her_face() * 22.0f; sh->t0 = now;
+            } else if(blocking()) {                             /* blocked: no damage, a small slide back */
+                slide_v = 2.0f * 8.0f / 120.0f * dir; slide_a = 2.0f * 8.0f / (120.0f * 120.0f); sh->on = 0;
+            } else if(now >= invuln && !stun_on) {              /* a hit: damage, a small flinch */
+                hurt_her((float)sh->dmg); slide_v = 2.0f * 14.0f / 180.0f * dir; slide_a = 2.0f * 14.0f / (180.0f * 180.0f);
+                invuln = now + 500.0f; sh->on = 0;
+            }
+        } else {
+            int hit = 0;
+            for(j = 0; j < MAX_ENEMIES && !hit; j++) { float hb[4]; if(hurt_of(&en[j], hb) && overlap(box, hb)) { hurt_enemy(&en[j], SHOT_DMG); hit = 1; } }
+            for(j = 0; j < cur_map->ncrate && !hit; j++) { float b[4]; if(crate_broken[j]) continue; crate_box(j, b); if(overlap(box, b)) { break_crate(j); hit = 1; } }
+            for(j = 0; j < cur_map->nbomb && !hit; j++) { float b[4]; if(bomb_state[j] == 1) continue; bomb_box(j, b); if(overlap(box, b)) { detonate(j); hit = 1; } }
+            if(hit) { burst(sh->x, sh->y, 8, RGB(255, 255, 255), RGB(143, 208, 255), RGB(143, 208, 255)); sh->on = 0; }
+        }
+    }
+}
+
 /* ------------------------------------------------------------------ maps and doors (web/game/09_maps.js) */
-static int level_idx, map_idx;
 static void load_map(int level, int idx, int from_left) {
     const MapDef *m = &MAPS[LEVELS[level].map0 + idx];
     int i;
@@ -761,10 +990,31 @@ static void load_map(int level, int idx, int from_left) {
         e->anim = d->a_walk; play(e, d->a_walk);
         if(e->path0 >= 0) { e->state = S_PATROL; e->dir = x <= (float)(e->path0 + e->path1) * 0.5f ? 1 : -1; e->face = e->dir; play(e, d->a_walk); }
     }
+    for(i = 0; i < MAX_GEMS_ON; i++) gems[i].on = 0;
+    for(i = 0; i < MAX_SHOTS; i++) shots[i].on = 0;
+    for(i = 0; i < MAX_PARTS; i++) parts[i].on = 0;
+    for(i = 0; i < MAX_BOOMS; i++) booms[i].r = 0;
+    for(i = 0; i < 4; i++) { crate_broken[i] = i < m->ncrate && (crate_gone[idx] >> i & 1); bomb_state[i] = i < m->nbomb && (bomb_gone[idx] >> i & 1); bomb_fuse[i] = 0; }
+    for(i = 0; i < m->nleaf && i < 32; i++) {                       /* leaves lying on the map: gone for good once picked up (until the level restarts) */
+        const Leaf *l = &LEAVES[m->leaf0 + i];
+        if(leaf_got[idx] >> i & 1) continue;
+        spawn_gem((float)l->x, G_LEAF, (float)l->fy, 1);
+        { int j; for(j = MAX_GEMS_ON - 1; j >= 0; j--) if(gems[j].on && gems[j].kind == G_LEAF && gems[j].key < 0 && gems[j].t0 == now) { gems[j].key = i; gems[j].y = (float)(l->fy + l->h); break; } }
+    }
     X = from_left ? 26.0f : (float)(VIEW_W - 26); facing = from_left ? 1 : -1;
     floor_y = 0; pit_fall_on = 0; prev_ok = 0;
     fall_on = 0; stun_on = 0; slide_v = 0; has_cur = 0; queued = -1; camY = 0; invuln = now + 600.0f; ko_until = 0;
     start(MV_idle, K_HOLD);
+}
+static void start_level(int level) {       /* a level starts with its crates, bombs and leaves back */
+    int i;
+    for(i = 0; i < 12; i++) { crate_gone[i] = 0; bomb_gone[i] = 0; leaf_got[i] = 0; }
+    hp = max_hp;
+    load_map(level, 0, 1);
+}
+static void retry_map(void) {               /* after a K.O. the same map can be replayed only by spending an ankh; with none left the level starts over */
+    if(ankhs < 1) { ankhs = 3; start_level(level_idx); return; }
+    ankhs--; hp = max_hp; load_map(level_idx, map_idx, 1);
 }
 static int door_open(void) {
     int i;
@@ -777,7 +1027,7 @@ static int edges(void) {
     if(px >= VIEW_W - EDGE) {
         if(!stun_on && door_open()) {
             if(map_idx + 1 < LEVELS[level_idx].nmaps) load_map(level_idx, map_idx + 1, 1);
-            else load_map((level_idx + 1) % NUM_LEVELS, 0, 1);       /* TODO: the level-complete screen and the overworld */
+            else start_level((level_idx + 1) % NUM_LEVELS);       /* TODO: the level-complete screen and the overworld */
             return 1;
         }
         if(!stun_on) say("DEFEAT EVERY ENEMY", 2200);
@@ -796,6 +1046,7 @@ static int physics(void) {              /* landing on surfaces and walking off t
     if(flying && prev_ok && feet < prev_feet) {          /* falling (or a jump coming down) through the top of a surface under her */
         float T = -1;
         span_of(px, sp);
+        smash_crates_under(prev_feet, feet, sp);
         for(i = 0; i < cur_map->nplat; i++) {
             const Plat *p = &PLATS[cur_map->plat0 + i];
             if(p->top > floor_y && over_surf(p, sp) && prev_feet > p->top && feet <= p->top && p->top > T) T = (float)p->top;
@@ -846,6 +1097,18 @@ static int drop_through(void) {         /* double tap Down on a platform: drop t
 }
 
 /* ------------------------------------------------------------------ her health and K.O. */
+static void ko_check(void) {            /* any source of damage that empties her health ends the run, not only an enemy hit */
+    if(hp > 0 || ko_until != 0 || pit_fall_on) return;
+    ko_until = now + KO_MS;
+    if(!stun_on) {
+        float rx, ry, h = height_above();
+        if(has_cur && !fall_on && cur.kind != K_FALL) { root_of(&cur, cur.k, &rx, &ry); X += rx; }
+        fall_on = 0; queued = -1; slide_v = 0;
+        stun_on = 1; stun_v = 0; stun_a = 0; stun_y = h; stun_vy = KNOCK_UP_VY;
+        cur.id = MV_heavy; cur.k = HEAVY_HIGH_K; cur.t = 0; cur.kind = K_STUN; cur.face = has_cur ? cur.face : facing; cur.phys = 0; cur.py = cur.pv = 0; has_cur = 1;
+    }
+}
+
 static void step_stun(float dt) {
     float v = stun_v - signf_(stun_v) * stun_a * dt;
     X += stun_v * dt;
@@ -866,7 +1129,7 @@ static void step_stun(float dt) {
     }
     if(stun_v == 0 && stun_y == 0 && (ko_until == 0 || now >= ko_until)) {
         stun_on = 0;
-        if(ko_until > 0) { hp = MAX_HP; load_map(level_idx, map_idx, 1); return; }      /* K.O.: the same map again (TODO: ankhs, game over) */
+        if(ko_until > 0) { retry_map(); return; }                                        /* K.O.: an ankh buys the same map again */
         has_cur = 0; hold_state();
     }
 }
@@ -942,6 +1205,85 @@ static void draw_geometry(void) {
     else for(k = 0; k < 8; k++) vrect(gx - 4 + (k < 4 ? k : 7 - k), gy - 28 - 7 + k * 2, 1 + (k < 4 ? k : 7 - k), 2, RGB(125, 255, 154));
 }
 
+
+static void vpix(float wx, float wy, int w, int h, u16 c) {          /* a w x h view-pixel rectangle centred on a world point */
+    vrect(iround(wx) - w / 2, FEET_ROW + iround(camY) - iround(wy) - h / 2, w, h, c);
+}
+static void ring(int cx, int cy, int R, u16 c) {                      /* a 2 px ring in screen pixels */
+    int y, xo, xi, rin = R > 2 ? R - 2 : 0;
+    for(y = -R; y <= R; y++) {
+        xo = (int)(__builtin_sqrtf((float)(R * R - y * y)) + 0.5f);
+        xi = y * y >= rin * rin ? 0 : (int)(__builtin_sqrtf((float)(rin * rin - y * y)) + 0.5f);
+        if(xi <= 0) gfx_rect(cx - xo, cy + y, xo * 2 + 1, 1, c);
+        else { gfx_rect(cx - xo, cy + y, xo - xi, 1, c); gfx_rect(cx + xi + 1, cy + y, xo - xi, 1, c); }
+    }
+}
+static void draw_items(void) {
+    int i, k;
+    gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
+    for(i = 0; i < cur_map->ncrate; i++) {                             /* crates */
+        const Crate *c = &CRATES[cur_map->crate0 + i];
+        int X = c->x, Y = FEET_ROW + iround(camY) - c->fy;
+        if(crate_broken[i]) continue;
+        vrect(X - 10, Y - 19, 20, 19, RGB(0, 0, 0)); vrect(X - 9, Y - 18, 18, 17, RGB(138, 90, 43)); vrect(X - 9, Y - 18, 18, 2, RGB(176, 122, 60));
+        for(k = 0; k < 15; k++) { vrect(X - 8 + k, Y - 17 + k, 1, 1, RGB(90, 58, 24)); vrect(X + 8 - k, Y - 17 + k, 1, 1, RGB(90, 58, 24)); }
+    }
+    for(i = 0; i < cur_map->nbomb; i++) {                              /* bombs */
+        const Spot *b = &BOMBS[cur_map->bomb0 + i];
+        int X = b->x, Y = FEET_ROW + iround(camY) - b->fy, on = bomb_fuse[i] != 0 ? ((int)(now / 50.0f) & 1) : ((int)(now / 240.0f) & 1);
+        if(bomb_state[i] == 1) continue;
+        vrect(X - 7, Y - 13, 14, 14, RGB(0, 0, 0)); vrect(X - 6, Y - 12, 12, 12, RGB(43, 43, 51)); vrect(X - 3, Y - 10, 2, 2, RGB(90, 90, 104));
+        vrect(X + 2, Y - 16, 2, 4, RGB(138, 106, 58)); vrect(X + 4, Y - 18, 3, 3, on ? RGB(255, 225, 77) : RGB(255, 106, 32));
+        if(bomb_fuse[i] != 0) vrect(X - 8, Y - 14, 16, 1, RGB(255, 43, 43));
+    }
+    for(i = 0; i < MAX_GEMS_ON; i++) {                                 /* gems and leaves */
+        const Gem *g = &gems[i];
+        int X, Y;
+        float left;
+        if(!g->on) continue;
+        left = 20000.0f - (now - g->t0);
+        if(g->kind != G_ANKH && g->kind != G_LEAF && left < 4000.0f && ((int)(now / 120.0f) & 1)) continue;
+        X = iround(g->x); Y = FEET_ROW + iround(camY) - iround(g->y + fsin(g->bob) * 3.0f);
+        if(g->kind == G_ANKH) {                                        /* a golden ankh */
+            vrect(X - 2, Y - 9, 5, 1, RGB(0, 0, 0)); vrect(X - 3, Y - 8, 1, 4, RGB(0, 0, 0)); vrect(X + 3, Y - 8, 1, 4, RGB(0, 0, 0)); vrect(X - 5, Y - 3, 11, 4, RGB(0, 0, 0)); vrect(X - 2, Y + 1, 5, 9, RGB(0, 0, 0));
+            vrect(X - 1, Y - 8, 3, 1, RGB(255, 210, 74)); vrect(X - 2, Y - 7, 1, 3, RGB(255, 210, 74)); vrect(X + 2, Y - 7, 1, 3, RGB(255, 210, 74)); vrect(X - 4, Y - 2, 9, 2, RGB(255, 210, 74)); vrect(X - 1, Y, 3, 9, RGB(255, 210, 74));
+            vrect(X - 4, Y - 2, 9, 1, RGB(255, 242, 168));
+        } else if(g->kind == G_LEAF) {
+            int f = ((int)((now + g->bob * 97.0f) / 85.0f)) % LEAF_FRAMES;
+            gfx_blit(art_sprite((g->val >= 5 ? LEAF_BIG_SPRITES : LEAF_SPRITES)[f]), v2s(X), VIEW_TOP + v2s(Y), 0);
+        } else gfx_blit(art_sprite(GEM_SPRITES[g->kind == G_UPHP ? 1 : 0]), v2s(X), VIEW_TOP + v2s(Y), 0);
+    }
+}
+static void draw_effects(void) {
+    int i;
+    gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
+    for(i = 0; i < MAX_SHOTS; i++) {                                   /* shards: a bright diamond and, for the streaks, a short tail */
+        const Shot *sh = &shots[i];
+        u16 c = sh->from_her ? RGB(255, 210, 74) : RGB(143, 180, 255);
+        float len = __builtin_sqrtf(sh->vx * sh->vx + sh->vy * sh->vy), ux, uy;
+        int k;
+        if(!sh->on) continue;
+        ux = len > 0 ? sh->vx / len : 1; uy = len > 0 ? sh->vy / len : 0;
+        if(sh->streak) for(k = 1; k < 6; k++) vpix(sh->x - ux * k * 3.0f, sh->y - uy * k * 3.0f, 3, 2, c);
+        vpix(sh->x, sh->y, 5, 5, RGB(0, 0, 0)); vpix(sh->x, sh->y, 3, 3, c); vpix(sh->x, sh->y, 2, 1, RGB(255, 255, 255));
+    }
+    for(i = 0; i < MAX_BOOMS; i++) {                                   /* explosions: an expanding fireball ring */
+        const Boom *b = &booms[i];
+        float age = now - b->t0, u = age / 650.0f, R;
+        int cx, cy;
+        if(b->r == 0 || age > 650.0f) continue;
+        R = b->r * (0.25f + 0.75f * __builtin_sqrtf(u));
+        cx = v2s(iround(b->x)); cy = VIEW_TOP + v2s(FEET_ROW + iround(camY) - iround(b->y));
+        ring(cx, cy, (int)(R * 0.35f * 5.0f / 6.0f) + 2, RGB(255, 255, 255));
+        ring(cx, cy, (int)(R * 0.7f * 5.0f / 6.0f) + 3, RGB(255, 208, 96));
+        ring(cx, cy, (int)(R * 5.0f / 6.0f) + 4, RGB(255, 106, 32));
+    }
+    for(i = 0; i < MAX_PARTS; i++) {
+        const Particle *q = &parts[i];
+        if(q->on) vpix(q->x, q->y, 3, 3, q->c);
+    }
+}
+
 static void draw_enemies(void) {
     int i;
     gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
@@ -972,9 +1314,11 @@ static void draw_hud(u32 frame_us, u32 draw_us) {
     gfx_clip(0, SCR_H);
     gfx_rect(0, 0, SCR_W, VIEW_TOP, RGB(10, 10, 20));
     gfx_text(6, 4, "HP", RGB(255, 255, 255));
-    gfx_rect(26, 4, 102, 10, RGB(60, 60, 70)); gfx_rect(27, 5, 100, 8, RGB(40, 0, 0));
-    gfx_rect(27, 5, (int)(100.0f * hp / MAX_HP), 8, RGB(60, 220, 90));
-    gfx_text(6, 18, LEVELS[level_idx].name, RGB(255, 220, 120));
+    { int bl = (int)(max_hp * 2.0f); if(bl > 180) bl = 180;
+      gfx_rect(26, 4, bl + 2, 10, RGB(60, 60, 70)); gfx_rect(27, 5, bl, 8, RGB(40, 0, 0));
+      gfx_rect(27, 5, (int)((float)bl * hp / max_hp), 8, RGB(60, 220, 90)); }
+    gfx_text(26, 18, "ANKH", RGB(255, 210, 74)); gfx_num(26 + 8 * 5, 18, (u32)ankhs, RGB(255, 255, 255));
+    gfx_text(106, 18, "LEAF", RGB(160, 220, 120)); gfx_num(106 + 8 * 5, 18, (u32)leaves, RGB(255, 255, 255));
     gfx_text(SCR_W - 8 * 8, 4, "MAP", RGB(160, 180, 230)); gfx_text(SCR_W - 8 * 4, 4, cur_map->id, RGB(255, 255, 255));
     for(i = 0; i < MAX_ENEMIES; i++) if(alive(&en[i])) left++;
     gfx_text(SCR_W - 8 * 8, 18, "FOES", RGB(160, 180, 230)); gfx_num(SCR_W - 8 * 3, 18, (u32)left, RGB(255, 255, 255));
@@ -992,8 +1336,8 @@ void game_init(void) {
     FALL_K = 0; LAND_K = 0;
     for(i = 1; i < nframes(MV_jump); i++) if(mf(MV_jump, i)->ry < mf(MV_jump, i - 1)->ry) { FALL_K = i; break; }
     for(i = FALL_K + 1; i < nframes(MV_jump); i++) if(mf(MV_jump, i)->ry == 0) { LAND_K = i; break; }
-    hp = MAX_HP;
-    load_map(0, 0, 1);
+    hp = max_hp;
+    start_level(0);
 }
 
 void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
@@ -1007,6 +1351,7 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
         if(tx > 1e8f) raw &= ~PAD_RIGHT;
         else if(fabsf_(tx - px) > 45.0f) raw &= (tx > px ? ~PAD_RIGHT : ~PAD_LEFT);
         else { if(tx < px) raw &= ~PAD_LEFT; else raw &= ~PAD_RIGHT; if((fc % 25) == 0) raw &= ~PAD_A; }
+        for(j = 0; j < cur_map->ncrate; j++) { const Crate *q = &CRATES[cur_map->crate0 + j]; if(!crate_broken[j] && q->x - px > 0 && q->x - px < 40.0f && fabsf_(q->fy - floor_y) < 2 && (fc % 25) == 0) raw &= ~PAD_A; }     /* a crate ahead: slash it */
         for(j = 0; j < cur_map->npit; j++) { const Pit *q = &PITS[cur_map->pit0 + j]; if(q->x0 - px > -2 && q->x0 - px < 30.0f && floor_y == 0 && (fc % 70) == 0) raw &= ~PAD_UP; }     /* a pit ahead: jump it */
         for(j = 0; j < MAX_ENEMIES; j++) if(alive(&en[j]) && en[j].fy > floor_y + 5 && fabsf_(en[j].x - px) < 70.0f && (fc % 90) == 0) raw &= ~PAD_UP;     /* an enemy above: jump */
     }
@@ -1036,9 +1381,12 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
     }
     for(i = 0; i < MAX_ENEMIES; i++) if(en[i].on) step_enemy(&en[i], dt);
     enemy_attacks();
+    if(!pit_fall_on) step_bombs();
+    step_shots(dt); step_gems(dt); step_parts(dt);
+    ko_check();
     for(i = 0; i < MAX_ENEMIES; i++) if(en[i].on && en[i].state == S_DYING && en[i].dead > DIE_MS) en[i].on = 0;
     if(!pit_fall_on) { if(physics()) goto drawn; check_pit(); }
-    else if(pit_sink() > (float)(VIEW_H - FEET_ROW) + her_top() * SS + 8.0f) { hp = MAX_HP; load_map(level_idx, map_idx, 1); goto drawn; }      /* she dropped out of sight: the map again (TODO: ankhs) */
+    else if(pit_sink() > (float)(VIEW_H - FEET_ROW) + her_top() * SS + 8.0f) { retry_map(); goto drawn; }      /* she dropped out of sight: the same map again */
     root_of(&cur, cur.k, &rx, &ry);
     ry = her_y();
     camY += ((ry - CAM_KEEP > 0 ? ry - CAM_KEEP : 0) - camY) * 0.2123f;          /* 1 - exp(-dt / 70) at 60 fps */
@@ -1046,8 +1394,10 @@ void game_frame(u16 raw, u32 frame_us, u32 draw_us) {
     gfx_clear(RGB(0, 0, 0));
     draw_layers(ANCHOR_X, camY);
     draw_geometry();
+    draw_items();
     draw_enemies();
     draw_player();
+    draw_effects();
     gfx_clip(VIEW_TOP, VIEW_TOP + VIEW_SCR_H);
     draw_layer(FRINGE_SPRITE, 1.0f, ANCHOR_X, camY);
 drawn:

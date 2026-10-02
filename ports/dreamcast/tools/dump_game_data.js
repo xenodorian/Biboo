@@ -11,7 +11,7 @@ for (const f of ['assets/data.js', 'assets/moves_extra.js', 'assets/creatures.js
 }
 for (const f of ['progress.js', 'levels.js']) { try { run(f); } catch (e) { console.error('skipped', f, String(e).split('\n')[0]); } }
 const B = win.BIBOO;
-const dump = { view: B.view, layers: B.layers, fringe: B.fringe, moves: B.moves, input: B.input, enemies: B.enemies || {} };
+const dump = { view: B.view, layers: B.layers, fringe: B.fringe, moves: B.moves, input: B.input, enemies: B.enemies || {}, items: B.items || {} };
 if (win.BIBOO_LEVELS) {
   const L = win.BIBOO_LEVELS;
   // each entry of L.levels is a level definition (name, maps, theme ...); keep only plain data
