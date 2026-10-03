@@ -168,7 +168,8 @@ static int move_open(int move)
 }
 static int is_energy_hold(int m)
 {
-    return m == MV_energy_kick || m == MV_energy_burst || m == MV_energy_wave || m == MV_energy_dash_thrust;
+    /* L2 burst and R2 wave are presses in 00_core.js. Only the kick and the dash thrust charge. */
+    return m == MV_energy_kick || m == MV_energy_dash_thrust;
 }
 
 static void sync_level(void)

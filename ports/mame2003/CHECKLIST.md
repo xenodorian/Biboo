@@ -91,9 +91,9 @@ Web files: `web/input.js`, `web/game/02_input.js`, the binding rewrites at the t
 
 Port the reader. Do not re-invent timings. Chord window 60 ms, sequence 700 ms, tap 150 ms, frame 16 ms.
 
-- [ ] Press, tap, hold, chord, sequence, air, and release-into (hold A, then the chop; hold L2, then the burst).
-- [ ] A locked move or a locked shoulder does nothing, and the plain move underneath still works (Down+A is a slash until the upswing is bought).
-- [ ] Every live binding, checked against the baked table from MAME-4:
+- [x] Press, tap, hold, chord, sequence, air, and release-into (hold A, then the chop). L2 is a press in the live game, not a hold.
+- [x] A locked move or a locked shoulder does nothing, and the plain move underneath still works (Down+A is a slash until the upswing is bought).
+- [x] Every live binding, checked against the baked table from MAME-4. Two rows below were the old text; the web file wins: Energy Burst is a press of L2, and Cloud Beam is only A+L2.
 
 | Unlock | How |
 |---|---|
@@ -115,9 +115,9 @@ Port the reader. Do not re-invent timings. Chord window 60 ms, sequence 700 ms, 
 | Recover | Hold R1, spends empower |
 | Empowerment Beam | A+R1 |
 | Energy Kick | Hold B+L1, release |
-| Energy Burst | Hold L2, release |
-| Energy Wave | R2 |
-| Cloud Beam | A+L2, or Left then Right then A |
+| Energy Burst | Press L2 (live `00_core.js`; not a hold) |
+| Energy Wave | Press R2 |
+| Cloud Beam | A+L2 only. The Left-Right-A sequences are deleted by `00_core.js` |
 | Laser Beam | A+L1 |
 | Fire Beam | A+R2 |
 | Attack Chain | Mash A: slash, chain 2, chain 3, chain 4, then the heavy chop |
@@ -130,6 +130,8 @@ Port the reader. Do not re-invent timings. Chord window 60 ms, sequence 700 ms, 
 - [ ] Start opens and closes the menu. The L1+L2+R1+R2 chord is reserved for MAME-14 and must not also be read as Ultimate while that menu chord is the one being pressed from the pause menu. Follow the web: Ultimate is the sequence, the cheat chord is the same four shoulders **inside the pause menu**.
 
 Done when: a host pad script can fire each row above once that unlock is forced on, and a fresh game can fire only the always-on row.
+
+Checked against the bake, not a pad script (no core in this sandbox). Up jumps outside the binding table, the same way `02_input.js` strips jump bindings. Y is spin. L2 and R2 are presses, not holds. Cloud, fire, laser, and plasma are only the A+shoulder chords. `00_core.js` deletes the Left-Right-A cloud sequences, so those are not in the ROM. Ultimate is the A-A-A-A then all four shoulders sequence. While pause or the shop is open the reader does not run, so that chord is free for the cheat menu.
 
 ## MAME-7 — Perry's body
 

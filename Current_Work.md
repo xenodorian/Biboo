@@ -71,6 +71,8 @@ See repository history for full rules. Work on main, claim steps.
 
 **MAME-5 (done, not booted):** progress matches `progress.js`. Gem bag, meter caps, cleared bits, story flags. Save is manual (Y while paused). Old autosaves are rejected. A fresh game has no shoulders and no meters. The New game confirm screen is MAME-11.
 
+**MAME-6 (done, not booted):** the reader follows the baked post-rewrite table. Up jumps, Y spins, L2 and R2 are presses, beams are A plus one shoulder, and the pause menu does not feed the reader. The Left-Right-A cloud sequences are not in the live game, so they are not here.
+
 ## Dreamcast port (paused 2026-10-03, was on demand only)
 
 **Owner's rules (2026-10-02):** the port is NOT part of the permanent pipeline; build and push a Dreamcast disc image (`.cdi`) only when the owner asks; note each major step here and push it to main so other agents can continue. Everything lives in `ports/dreamcast/` (README there). Source of method: the owner's `DREAMCAST_PORT_HANDOFF.txt` (a CryMon handoff). Plan: a C rewrite of the runtime for the SH-4 with baked data, in phases, each with an emulator test: 1 boot, 2 frame cost, 3 input and text, 4 art, 5 data out of JS, 6 game logic, 7 save, 8 audio, 9 disc streaming, 10 emulator tests.
