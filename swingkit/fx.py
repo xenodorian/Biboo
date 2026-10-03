@@ -7,7 +7,7 @@ from . import rig, anim
 from .rig import Sword
 from .bg import W, H, M, VH
 
-X0, Y0 = 160, 337            # sprite (x,y) -> view (x+X0, y+Y0); feet row 81 -> view 188
+X0, Y0 = 160, 337            # sprite (x,y) -> native 640x480 view; feet row 81 -> view 418
 
 C = dict(
     white=(249, 249, 250), light=(233, 231, 238), lav=(214, 206, 230), lav2=(184, 174, 214),
