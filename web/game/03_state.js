@@ -173,7 +173,7 @@
   }
   // Double jump (an unlock): tap jump again in the air for a spinning second jump that rises about two more of her heights
   // (81 px). One per trip through the air; it resets when she touches down.
-  const DJ_H = 2 * 81, SPIN_MS = 420;
+  const DJ_H = 2 * 81 * WORLD_Y_SCALE, SPIN_MS = 420;
   const DJ_V = Math.sqrt(2 * JUMP_G * 0.75 * DJ_H);            // the top of the arc is slower (halved gravity), so a little less than 2 g H
   let dblUsed = false;
   function tryDoubleJump() {
