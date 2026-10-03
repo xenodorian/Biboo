@@ -29,6 +29,9 @@ void hw_init(void);
 void hw_clear(u16 color);
 void hw_rect(int x, int y, int w, int h, u16 color);
 void hw_glyph(int x, int y, int ch, u16 color, int scale);
+void hw_clip(int x0, int y0, int x1, int y1);
+void hw_sprite(int x, int y, int id, int flip);
+void hw_sprite_tint(int x, int y, int id, int flip, u16 tint, int alpha);
 u16 hw_pad(void);
 void hw_present(void);
 

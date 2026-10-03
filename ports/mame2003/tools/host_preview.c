@@ -1,15 +1,43 @@
-/* Draw one boot frame with Right and A held, and write a PPM. */
+/* Draw frames with Right and A held, and write a PPM of the last one.
+   Art is roms/art.bin, the same pack the MAME driver blits. */
 #include <stdio.h>
 #include <stdlib.h>
 #include "hw.h"
 #include "fbdraw.h"
 
 static unsigned short fb[FB_W * FB_H];
+static unsigned char *art;
 static int frames;
 static int limit = 40;
 static const char *out_path = "boot.ppm";
 
-void hw_init(void) {}
+static void load_art(void)
+{
+    FILE *f;
+    long n;
+    const char *path = "../roms/art.bin";
+    f = fopen(path, "rb");
+    if (!f) {
+        perror(path);
+        exit(1);
+    }
+    fseek(f, 0, SEEK_END);
+    n = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    art = (unsigned char *)malloc((size_t)n);
+    if (!art || fread(art, 1, (size_t)n, f) != (size_t)n) {
+        perror(path);
+        exit(1);
+    }
+    fclose(f);
+    fb_set_art(art);
+}
+
+void hw_init(void)
+{
+    if (!art)
+        load_art();
+}
 
 void hw_clear(u16 color) { fb_clear(fb, color); }
 
@@ -23,9 +51,24 @@ void hw_glyph(int x, int y, int ch, u16 color, int scale)
     fb_glyph(fb, x, y, ch, color, scale);
 }
 
+void hw_clip(int x0, int y0, int x1, int y1)
+{
+    fb_clip(x0, y0, x1, y1);
+}
+
+void hw_sprite(int x, int y, int id, int flip)
+{
+    fb_sprite(fb, x, y, id, flip, FB_OPAQUE, 0, 255);
+}
+
+void hw_sprite_tint(int x, int y, int id, int flip, u16 tint, int alpha)
+{
+    fb_sprite(fb, x, y, id, flip, FB_TINT, tint, alpha);
+}
+
 u16 hw_pad(void)
 {
-    /* active low: Right and A held, so the square has moved and turned red */
+    /* active low: Right and A held, so she has walked and the attack tint is on */
     return (u16)~(PAD_RIGHT | PAD_A);
 }
 

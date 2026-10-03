@@ -61,7 +61,9 @@ See repository history for full rules. Work on main, claim steps.
 
 **Owner, 2026-10-03:** the Dreamcast port is paused. Do not build another `.cdi` unless asked. The new port is `ports/mame2003/`. Read that README before writing any of it. Same rules as the Dreamcast work: not part of the web pipeline, work on main, note the step here.
 
-**MAME-1 (done, not run in MAME):** a custom mame2003-plus driver (`driver/parryperry.c`) and a 68000 boot ROM (`roms/parryperry.zip`). 640×480, eight real buttons (A B X Y L1 R1 L2 R2) plus Start, native blitter instead of a CPU framebuffer. The boot screen is an input test and shows the 384×216 map at 1:1. The game itself is not in the ROM yet. Desktop core, Android, and the R36S have not been booted. Next is MAME-2: fixed-point drawing commands in the style of `ports/dreamcast/src/gfx.c`, then baked art.
+**MAME-1 (done, not run in MAME):** a custom mame2003-plus driver (`driver/parryperry.c`) and a 68000 boot ROM (`roms/parryperry.zip`). 640×480, eight real buttons, native blitter. Desktop core, Android, and the R36S have not been booted.
+
+**MAME-2 (done, not run in MAME):** the blitter draws the Dreamcast `PPK1` sprites (keyed runs, fade, alpha, tint, clip) with no floats. `tools/bake_art.py` bakes the Green Trail and Perry's idle at 1:1 into `art.bin`, and the boot ROM draws her on that map. The d-pad walks her. A tints her red. The move engine, enemies, other maps, shop, saves, and music are not in the ROM. Next is that runtime, in fixed point, not a copy of the Dreamcast floats.
 
 ## Dreamcast port (paused 2026-10-03, was on demand only)
 

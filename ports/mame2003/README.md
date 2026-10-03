@@ -25,14 +25,14 @@ Eight buttons are real inputs, not chords. The Dreamcast pad was short two butto
 | 8, 9, 10, 11 | Button 5, 6, 7, 8 | L1, R1, L2, R2 |
 | 12, 13 | Start, Coin | Start, Coin |
 
-Map them in RetroArch under Quick Menu, Controls, Port 1. The boot ROM turns a label gold while that button is held, and the square takes the colour of A, B, X, or Y.
+Map them in RetroArch under Quick Menu, Controls, Port 1. On the boot screen a held button turns its name gold. A tints Perry red. The d-pad walks her on the Green Trail.
 
 ## Lessons kept from the Dreamcast port
 
 - The runtime is a C rewrite. The web game is not wrapped, and this port is not part of its build.
-- Art and data get baked on a PC. The ROM consumes tables. That baker is not in this step yet. The Dreamcast one (`ports/dreamcast/tools/bake_game.py`) is the model.
+- Art and data get baked on a PC. The ROM consumes tables. `tools/bake_art.py` bakes the Green Trail and Perry's idle. The rest of the move and enemy tables are still the web game's, and they still use floats. Do not copy those structs onto the 68000.
 - One web map is exactly 384×216 with no scrolling. 2× of that is 768×432, which does not fit 640×480. This port draws the map **1:1** and uses the margin as the HUD. The Dreamcast's 5/6 scale was a last resort for a 320×240 TV mode. Do not stretch the map here.
-- Pixels stay RGB565. The sprite colour key, when art arrives, stays `0xF81F`.
+- Pixels stay RGB565. The sprite colour key is `0xF81F`, and the pack is the Dreamcast `PPK1` run format, read little-endian by the blitter. This screen is 1:1, so the art is baked at the web view's scale, not the Dreamcast's 5/6.
 - No floating point on this CPU. The 68000 has no FPU, and a 68881 would be emulated too. The Dreamcast code uses `float`. Bringing it over means fixed point.
 - Sound is not the Dreamcast AICA. When music is ported, the driver should play the baked note list natively, the way `audio_tick` was once a frame. Do not run the synth on the 68000.
 - Saves will be MAME NVRAM, not a VMU. The record can follow the Dreamcast save (levels, leaves, ankhs, unlocks, gems, meters). A web save will not load.
@@ -70,16 +70,21 @@ Put the `.so` in RetroArch's cores directory and `ports/mame2003/roms/parryperry
 
 ## Status
 
-**MAME-1 (this step).** The machine, the eight-button pad, the blitter, and a boot ROM that draws the title and moves a square. Checked by compiling the 68000 image and by drawing one frame of the same C on the host (`boot.png`). Not yet run inside MAME, and not run on a phone or an R36S.
+**MAME-1.** The machine, the eight-button pad, and a boot ROM. Not run inside MAME.
 
-Not in the ROM yet, on purpose: Perry's moves, enemies, maps, the shop, saves, music. Next step is MAME-2, a fixed-point draw path in the same command style as `ports/dreamcast/src/gfx.c`, then the baked art. The web game stays the source of the numbers.
+**MAME-2 (this step).** The blitter draws the Dreamcast sprite format: colour-keyed runs, fade, per-pixel alpha, tint, clip, dim. No floats. The zip now also holds `art.bin`, the Green Trail and Perry's four idle frames, baked at 1:1. The boot screen draws that scene. Checked by compiling the 68000 image and by drawing the same C on the host (`boot.png`, Right and A held, so she has walked and turned red). Not yet run inside MAME, and not run on a phone or an R36S.
 
-## Memory map (for the next step)
+Not in the ROM yet: the move engine, enemies, the other maps, the shop, saves, music. A scaled blit (the Dreamcast `gfx_blit_scaled`, which used `float`) is not here. When a move needs one, it will be fixed point, with 256 meaning 1.0.
 
-    000000-07FFFF  ROM, 512K, main.bin
+## Memory map
+
+    000000-07FFFF  program ROM, 512K, main.bin
+    080000-......  art.bin in the same ROM region. The CPU cannot see it. The blitter reads it.
     100000-10FFFF  work RAM, 64K. Reset stack is 0x110000.
     200000-20000B  blitter registers, 16-bit. Write the command last.
-                   1 clear, 2 rectangle, 3 glyph (8x8, scale 1 or 2)
+                   1 clear, 2 rectangle, 3 glyph
+                   4 sprite, 5 fade, 6 alpha, 7 tint
+                   8 clip, 9 dim, 10 fill-alpha
     300000-300001  pad, active low
 
-Vblank is a level-6 autovector. The boot ROM stops the CPU until it arrives.
+Vblank is a level-6 autovector. The program stops the CPU until it arrives. Rebuilding the zip changes the CRC, so the core has to be installed again.

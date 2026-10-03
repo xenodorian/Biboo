@@ -6,12 +6,15 @@
    See ports/mame2003/README.md in the Biboo repo.
 
    Memory map
-     000000-07FFFF  ROM, 512K, the boot image main.bin
+     000000-07FFFF  ROM, 512K, the program main.bin
+     080000-......  art pack, art.bin, not mapped into the CPU. The blitter reads it.
      100000-10FFFF  work RAM, 64K
      200000-20000B  blitter, six 16-bit registers, write the command last
                     0 X, 1 Y, 2 A, 3 B, 4 color (RGB565), 5 command
-                    command 1 clear (color), 2 rect (x,y,w,h,color),
-                    3 glyph (x,y,char,scale,color)
+                    1 clear (color)   2 rect (x,y,w,h,color)   3 glyph (x,y,char,scale,color)
+                    4 sprite (x,y,id,flip)   5 fade (fade in color)   6 alpha (fade in color)
+                    7 tint (flip in bit 0 of B, alpha in the high byte, tint in color)
+                    8 clip (x0,y0,x1,y1)   9 dim (y0,y1)   10 fill-alpha (y0,y1,alpha in A, color)
      300000-300001  pad, active low. See hw.h for the bits.
 */
 
@@ -37,6 +40,25 @@ static WRITE16_HANDLER(pp_blit_w)
             fb_rect(pp_fb, (signed short)pp_x, (signed short)pp_y, (signed short)pp_a, (signed short)pp_b, pp_c);
         else if (data == 3)
             fb_glyph(pp_fb, (signed short)pp_x, (signed short)pp_y, pp_a, pp_c, pp_b ? pp_b : 1);
+        else if (data == 4 || data == 5 || data == 6 || data == 7) {
+            int id = pp_a == 0xffff ? -1 : (int)pp_a;
+            int flip = pp_b & 1;
+            int x = (signed short)pp_x;
+            int y = (signed short)pp_y;
+            if (data == 4)
+                fb_sprite(pp_fb, x, y, id, flip, FB_OPAQUE, 0, 255);
+            else if (data == 5)
+                fb_sprite(pp_fb, x, y, id, flip, FB_FADE, 0, pp_c);
+            else if (data == 6)
+                fb_sprite(pp_fb, x, y, id, flip, FB_ALPHA, 0, pp_c);
+            else
+                fb_sprite(pp_fb, x, y, id, flip, FB_TINT, pp_c, pp_b >> 8);
+        } else if (data == 8)
+            fb_clip((signed short)pp_x, (signed short)pp_y, (signed short)pp_a, (signed short)pp_b);
+        else if (data == 9)
+            fb_dim(pp_fb, (signed short)pp_x, (signed short)pp_y);
+        else if (data == 10)
+            fb_fill_alpha(pp_fb, (signed short)pp_x, (signed short)pp_y, pp_c, (signed short)pp_a);
         break;
     }
 }
@@ -75,7 +97,12 @@ INPUT_PORTS_END
 
 VIDEO_START(parryperry)
 {
+    const unsigned char *rom = memory_region(REGION_CPU1);
     fb_clear(pp_fb, 0);
+    if (rom && memory_region_length(REGION_CPU1) > 0x80000)
+        fb_set_art(rom + 0x80000);
+    else
+        fb_set_art(0);
     return 0;
 }
 
@@ -131,7 +158,6 @@ static MACHINE_DRIVER_START(parryperry)
 MACHINE_DRIVER_END
 
 ROM_START(parryperry)
-    ROM_REGION(0x80000, REGION_CPU1, 0)
 #include "rom_load.inc"
 ROM_END
 
