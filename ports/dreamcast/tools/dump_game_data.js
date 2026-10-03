@@ -6,7 +6,7 @@ const out = process.argv[2] || path.resolve(__dirname, '../build/game_data.json'
 const win = {}; win.window = win;
 vm.createContext(win);
 const run = f => vm.runInContext(fs.readFileSync(path.join(WEB, f), 'utf8'), win, { filename: f });
-for (const f of ['assets/data.js', 'assets/moves_extra.js', 'assets/creatures.js', 'assets/arenas.js', 'assets/bgs.js', 'assets/items.js']) {
+for (const f of ['assets/data.js', 'assets/moves_extra.js', 'assets/creatures.js', 'assets/training.js', 'assets/arenas.js', 'assets/bgs.js', 'assets/items.js']) {
   try { run(f); } catch (e) { console.error('skipped', f, String(e).split('\n')[0]); }
 }
 for (const f of ['progress.js', 'levels.js']) { try { run(f); } catch (e) { console.error('skipped', f, String(e).split('\n')[0]); } }
@@ -23,6 +23,7 @@ if (win.BIBOO_LEVELS) {
   const L = win.BIBOO_LEVELS;
   // each entry of L.levels is a level definition (name, maps, theme ...); keep only plain data
   dump.levels = { MAP_W: L.MAP_W, levels: (L.levels || []).map(l => l && JSON.parse(JSON.stringify(l))) };
+  dump.trainingLevel = L.training ? JSON.parse(JSON.stringify(L.training)) : null;
   dump.levelKeys = Object.keys(L);
 }
 fs.mkdirSync(path.dirname(out), { recursive: true });

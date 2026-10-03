@@ -49,6 +49,17 @@ STILLS = {
     "bone": "assets/story/view/mine_bridge.png",
     "keep": "assets/story/view/moonlit_courtyard.png",
 }
+STORY = [
+    ("calm", "assets/story/view/village_meadow.png"),
+    ("fire", "assets/story/view/burning_house.png"),
+    ("crowd", "assets/story/view/village_meadow.png"),
+    ("sea", "assets/story/view/sunset_island.png"),
+    ("double", "assets/story/view/moonlit_courtyard.png"),
+    ("altar", "assets/story/view/snow_temple.png"),
+    ("rewind", "assets/story/view/sunset_island.png"),
+    ("meditate", "assets/story/view/sunset_island.png"),
+    ("sunrise", "assets/story/view/sunset_island.png"),
+]
 SCENES = ["trail", "falls", "canyon", "shore", "mire", "sanctum", "tide", "fungal", "crypt", "bone", "ember", "keep", "training"]
 BEAMS = ["cloud", "fire", "laser", "plasma"]
 JUMP_DIST = {"goblin": 200, "orc": 70, "hobgoblin": 130, "skullraider": 150, "dusksaur": 110, "darkknight": 90, "ogre": 60, "clubogre": 60}
@@ -76,6 +87,27 @@ def half(v):
     return int(round(float(v) * CHAR_SCALE))
 
 
+def add_im(pack, key, path, ax, ay, scale):
+    if not os.path.exists(path):
+        print(" missing", path)
+        return -1
+    im = np.asarray(Image.open(path).convert("RGBA"))
+    h, w = im.shape[0], im.shape[1]
+    if w > 384:
+        x0 = (w - 384) // 2
+        im = np.ascontiguousarray(im[:, x0:x0 + 384])
+        w = im.shape[1]
+    if h > 216:
+        im = np.ascontiguousarray(im[:216])
+        h = im.shape[0]
+    if ax is None:
+        ax = w // 2
+    if ay is None:
+        ay = h
+    o, ox, oy = bg.sample(im, 0, 0, w, h, ax, ay, scale)
+    return pack.add(key, bg.encode(o, ox, oy))
+
+
 def mv_id(name, index):
     if not name:
         return -1
@@ -87,8 +119,9 @@ def mv_id(name, index):
 def main():
     os.makedirs(os.path.dirname(JSON_PATH), exist_ok=True)
     os.makedirs(os.path.dirname(ART), exist_ok=True)
-    if not os.path.exists(JSON_PATH):
-        subprocess.check_call(["node", os.path.join(HERE, "dump_boot.cjs"), JSON_PATH])
+    if os.path.exists(JSON_PATH):
+        os.remove(JSON_PATH)
+    subprocess.check_call(["node", os.path.join(HERE, "dump_boot.cjs"), JSON_PATH])
     D = json.load(open(JSON_PATH))
     v = D["view"]
     pack = bg.Pack()
@@ -142,6 +175,16 @@ def main():
     frames = []
     moves = []
     hits = []
+    fx_ids = {}
+
+    def fx_of(f):
+        p = f.get("bw")
+        if not isinstance(p, str) or not p:
+            return -1
+        if p not in fx_ids:
+            path = os.path.join(WEB, p)
+            fx_ids[p] = add_im(pack, "fx:" + p, path, None, None, CHAR_SCALE) if os.path.exists(path) else -1
+        return fx_ids[p]
     for name in move_names:
         m = D["moves"][name]
         path = os.path.join(WEB, m["sheet"])
@@ -168,7 +211,7 @@ def main():
             beam = BEAMS.index(bm["kind"]) if bm else -1
             nm = (f.get("name") or "")[:15]
             names.append(nm)
-            frames.append((int(f["ms"]), sid, int(round(f["root"][0])), int(round(f["root"][1])), int(f.get("top", 0)), h0, len(hs), beam, nm))
+            frames.append((int(f["ms"]), sid, int(round(f["root"][0])), int(round(f["root"][1])), int(f.get("top", 0)), h0, len(hs), beam, nm, fx_of(f)))
         en = m.get("enter") or {}
         edef = names.index(en["default"]) if en.get("default") in names else 0
         efrom = -1
@@ -224,7 +267,7 @@ def main():
                 if h:
                     reach = max(reach, int(round(g0 - h[0] * CHAR_SCALE)))
         edefs.append(dict(
-            id=ename[:15], speed=int(round(ai["speed"])), hp=int(round(ai.get("hp", 60))),
+            id=ename[:15], speed=int(round(ai["speed"])), hp=min(32767, int(round(ai.get("hp", 60)))),
             r0=int(ai["rest"][0]), r1=int(ai["rest"][1]), kd=int(kd), kms=int(kms), pd=int(pd), pms=int(pms),
             dmg=[int((atk.get(a) or {}).get("dmg", dmg0)) for a in melee] + [0] * (4 - len(melee)),
             kdd=[int(((atk.get(a) or {}).get("knock") or [kd, kms])[0]) for a in melee] + [0] * (4 - len(melee)),
@@ -237,6 +280,7 @@ def main():
             combo=idx.get("combo", -1), natk=len(melee),
             attack=[idx[a] for a in melee] + [-1] * (4 - len(melee)),
             boss=1 if ai.get("boss") else 0,
+            prop=1 if ai.get("prop") else 0,
         ))
         enames.append(ename)
         print(" enemy", ename, len(e["frames"]))
@@ -276,10 +320,58 @@ def main():
             leaves.extend((int(q["x"]), int(q.get("fy", 0)), int(q.get("h", 12))) for q in md.get("leaves") or [])
         levels.append((m0, len(lv["maps"]), (lv.get("name") or "")[:23]))
 
+    map_train = -1
+    tl = D.get("trainingLevel") or {}
+    if tl.get("maps"):
+        map_train = len(maps)
+        md = tl["maps"][0]
+        theme = tl.get("bg") or "training"
+        if theme not in SCENES:
+            theme = "trail"
+        maps.append((
+            len(plats), 0, len(pits), 0, len(crates), 0, len(bombs), 0,
+            len(spawns), len(md.get("enemies") or []), len(leaves), 0,
+            SCENES.index(theme), 0, 0, str(md.get("id", "T"))[:7],
+        ))
+        for q in md.get("enemies") or []:
+            pa = q.get("path") or [-1, -1]
+            spawns.append((enum.get(q["type"], 0), int(q["x"]), int(q.get("fy", 0)), int(pa[0]), int(pa[1]), int(q.get("sight", 100))))
+        print(" training map", map_train, "enemies", md.get("enemies"))
+
+    gem_ids = []
+    cell = int(it["cell"])
+    gem_sheet = np.asarray(Image.open(os.path.join(WEB, it["gemSheet"])).convert("RGBA"))
+    for name in ("bone", "powder", "quartz", "garnet", "diamond"):
+        idx = int(it["gems"][name])
+        o, ox, oy = bg.sample(gem_sheet, idx * cell, 0, cell, cell, cell // 2, cell // 2, VIEW_SCALE)
+        gem_ids.append(pack.add("gem:" + name, bg.encode(o, ox, oy)))
+    mer = it["merchant"]
+    merchant_id = add_im(pack, "merchant", os.path.join(WEB, mer["src"]), mer["w"] // 2, mer["h"], VIEW_SCALE)
+    beam_ids = []
+    for kind in BEAMS:
+        b = D["beams"][kind]
+        beam_ids.append(add_im(pack, "beam:" + kind, os.path.join(WEB, b["src"]), 0, int(b["h"]) // 2, VIEW_SCALE))
+    bunny_id = -1
+    bun = (D.get("training") or {}).get("bunny") or {}
+    if bun.get("sheet"):
+        cw, ch = bun["cell"]
+        ax, ay = bun["anchor"]
+        im = np.asarray(Image.open(os.path.join(WEB, bun["sheet"])).convert("RGBA"))
+        o, ox, oy = bg.sample(im, 0, 0, cw, ch, ax, ay, CHAR_SCALE)
+        bunny_id = pack.add("bunny", bg.encode(o, ox, oy))
+    story_ids = []
+    seen_story = {}
+    for key, rel in STORY:
+        if rel not in seen_story:
+            seen_story[rel] = add_im(pack, "story:" + key, os.path.join(WEB, rel), None, None, VIEW_SCALE)
+        story_ids.append(seen_story[rel])
+    boat_id = add_im(pack, "boat", os.path.join(WEB, "assets/story/view/boat.png"), None, None, VIEW_SCALE)
+
     binds = []
+    seen_b = set()
     for b in D["input"]["bindings"]:
         typ, inp, mv = b["type"], b["input"], b["move"]
-        if typ == "idle":
+        if typ == "idle" or mv == "jump":
             continue
         if typ in ("press", "tap", "hold", "air"):
             steps = [BTN[inp]]
@@ -291,6 +383,10 @@ def main():
         held = sum(BTN[k] for k in (b.get("held") or []))
         mid = mv_id(mv, move_index)
         rid = mv_id(rel, move_index) if rel else -1
+        key = (TYPE[typ], mid, rid, held, tuple(steps))
+        if key in seen_b:
+            continue
+        seen_b.add(key)
         binds.append((TYPE[typ], len(steps), 1 if b.get("loose") else 0, mid, rid, held, steps + [0] * (6 - len(steps))))
     chords = [b for b in binds if b[0] == 4]
     seqs = [b for b in binds if b[0] == 5]
@@ -341,13 +437,13 @@ def main():
     a(f"#define NFRAMES {len(frames)}")
     a(f"#define NHITS {len(hits)}")
     a(f"#define NMOVES {len(moves)}")
-    a("typedef struct { unsigned short ms, spr, hit0; short rx, ry, top; signed char nhit, beam; char name[16]; } Frame;")
+    a("typedef struct { unsigned short ms, spr, hit0; short rx, ry, top; signed char nhit, beam; char name[16]; short fx; } Frame;")
     a("typedef struct { signed char shape, pad; short ax, ay, bx, by, r; } Hit;")
     a("typedef struct { unsigned short f0, n, loop_from; short enter_default, enter_from; unsigned char loop, pad; signed char enter_k[16]; char id[20]; } Move;")
     a("typedef struct { unsigned char type, nsteps, loose, pad; short move, release_into; unsigned short held, steps[6]; } Bind;")
     a("typedef struct { unsigned short ms; short spr, hx0, hy0, hx1, hy1, ax0, ay0, ax1, ay1, ground; unsigned char flags, pad; } EFrame;")
     a("typedef struct { unsigned short list0, n; unsigned char loop, pad; } EAnim;")
-    a("typedef struct { short speed, hp, rest0, rest1, knock_d, knock_ms, parry_d, parry_ms; short atk_dmg[4], atk_kd[4], atk_km[4]; short dive_min, dive_max, reach, jump_dist, land_off; unsigned short f0, nf; signed char a_idle, a_walk, a_stun, a_death, a_dive, combo, attack[4]; unsigned char nattacks, boss; char id[16]; } EDef;")
+    a("typedef struct { short speed, hp, rest0, rest1, knock_d, knock_ms, parry_d, parry_ms; short atk_dmg[4], atk_kd[4], atk_km[4]; short dive_min, dive_max, reach, jump_dist, land_off; unsigned short f0, nf; signed char a_idle, a_walk, a_stun, a_death, a_dive, combo, attack[4]; unsigned char nattacks, boss, prop, pad2; char id[16]; } EDef;")
     a("typedef struct { short x0, x1, top; } Plat;")
     a("typedef struct { short x0, x1; } Pit;")
     a("typedef struct { short x, fy, loot; } Crate;")
@@ -363,8 +459,8 @@ def main():
     a("static const short LEAF_SPR[" + str(len(leaf_ids)) + "] = {" + ",".join(str(i) for i in leaf_ids) + "};")
 
     def frame_c(t):
-        ms, sid, rx, ry, top, h0, nh, beam, nm = t
-        return "{%d,%d,%d,%d,%d,%d,%d,%d,%s}" % (ms, sid if sid is not None and sid >= 0 else 0, h0, rx, ry, top, nh, beam, cstr(nm, 16))
+        ms, sid, rx, ry, top, h0, nh, beam, nm, fx = t
+        return "{%d,%d,%d,%d,%d,%d,%d,%d,%s,%d}" % (ms, sid if sid is not None and sid >= 0 else 0, h0, rx, ry, top, nh, beam, cstr(nm, 16), fx)
     a("static const Frame FRAMES[NFRAMES] = {" + ",".join(frame_c(t) for t in frames) + "};")
     if hits:
         a("static const Hit HITS[NHITS] = {" + ",".join("{%d,0,%d,%d,%d,%d,%d}" % h for h in hits) + "};")
@@ -392,12 +488,12 @@ def main():
     a("static const EAnim EANIMS[NANIMS] = {" + ",".join("{%d,%d,%d,0}" % a_ for a_ in anims) + "};")
     def edef_c(r):
         return ("{%d,%d,%d,%d,%d,%d,%d,%d,{%s},{%s},{%s},%d,%d,%d,%d,%d,%d,%d,"
-                "%d,%d,%d,%d,%d,%d,{%s},%d,%d,%s}") % (
+                "%d,%d,%d,%d,%d,%d,{%s},%d,%d,%d,0,%s}") % (
             r["speed"], r["hp"], r["r0"], r["r1"], r["kd"], r["kms"], r["pd"], r["pms"],
             ",".join(str(x) for x in r["dmg"]), ",".join(str(x) for x in r["kdd"]), ",".join(str(x) for x in r["kmm"]),
             r["dmin"], r["dmax"], r["reach"], r["jd"], r["lo"], r["f0"], r["nf"],
             r["idle"], r["walk"], r["stun"], r["death"], r["dive"], r["combo"],
-            ",".join(str(x) for x in r["attack"]), r["natk"], r["boss"], cstr(r["id"], 16))
+            ",".join(str(x) for x in r["attack"]), r["natk"], r["boss"], r["prop"], cstr(r["id"], 16))
     a(f"#define NENDEF {len(edefs)}")
     a("static const EDef ENEMIES[NENDEF] = {" + ",".join(edef_c(r) for r in edefs) + "};")
 
@@ -434,6 +530,15 @@ def main():
     a("static const UnlockDef UNLOCKS[NUNLOCKS] = {" + ",".join(
         "{%d,%d,%d,0,{%d,%d,%d},%d,%d,%s,%s}" % (lv, shop, mt, m0, m1, m2, bt, price, cstr(i, 16), cstr(nm, 32))
         for i, nm, lv, shop, (m0, m1, m2), bt, mt, price in ulines) + "};")
+    a("#define NGEMS " + str(len(gem_ids)))
+    a("static const short GEM_SPR[NGEMS] = {" + ",".join(str(i) for i in gem_ids) + "};")
+    a("#define SPR_MERCHANT " + str(merchant_id))
+    a("#define SPR_BUNNY " + str(bunny_id))
+    a("#define SPR_BOAT " + str(boat_id))
+    a("#define MAP_TRAINING " + str(map_train))
+    a("static const short BEAM_SPR[4] = {" + ",".join(str(i) for i in beam_ids) + "};")
+    a("enum { " + ", ".join("ST_" + k.upper() for k, _ in STORY) + ", ST_COUNT };")
+    a("static const short STORY_SPR[ST_COUNT] = {" + ",".join(str(i) for i in story_ids) + "};")
     a("#endif")
     with open(HDR, "w") as f:
         f.write("\n".join(out) + "\n")

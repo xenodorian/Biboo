@@ -57,17 +57,17 @@ Do this before any more gameplay. The draft header is already stale.
 
 Web files: `web/progress.js`, `web/levels.js`, `web/assets/data.js`, `web/game/00_core.js` (the rewrites at the top), `ports/dreamcast/tools/dump_game_data.js`.
 
-- [ ] Dump `web/` **after** `00_core.js` has applied its binding rewrites. Do not bake the raw `input_map` if the core then changes it.
-- [ ] Sprites at view scale 1 and character scale 1/2, same as the web canvas. Whole-pixel roots. No floats in `data.h`.
-- [ ] All move frames, including charge, heavy, chains, beams, kicks, earthquake, meteor, sky dash, jump crash, taunt, recover.
-- [ ] All enemy frames, including the club ogre and Mirror Perry. Training heavy bag if it is a creature prop.
-- [ ] Scenes: trail, falls, canyon, shore, mire, sanctum, tide, ember, and the still arenas fungal, crypt, bone, keep, plus training. Bake the multiply grade into the pixels (`15_draw_scenery.js` `LIGHTS`). Fringe layers included.
-- [ ] Pickup and prop art, not coloured rectangles: leaf frames, Bone, Quartz, Garnet, Diamond, Bone Powder, ankh, crate, golden-crate look if the art still has one, bomb, door, merchant, scroll, Slime Bunny, heavy bag, beam sheets (cloud, fire, laser, plasma), the impact pictures (heavy, jump crash, earthquake).
-- [ ] Story backgrounds from `web/assets/story/view/`, plus the boat, at 384×216.
-- [ ] Tables: 6 levels, every map, platforms, pits, crates, bombs, leaves, spawns. Crates do **not** hold unlocks (`levels.js`: moves are bought). Loot is leaves, gems, ankhs, powder, as the web generator emits.
-- [ ] Unlock table copied from `progress.js`, not invented. 27 unlocks. Shop kind is mutagen if it has a meter or is Meter Charge, otherwise scroll. Price is `15 + 10 * level` for a scroll and `25 + 15 * level` for a mutagen. Gem prices: Bone 8, Quartz 12, Garnet 12, Diamond 30, Bone Powder 90.
-- [ ] Binding table is the post-rewrite list. Spot-check these, because they moved: R2 is a press for Energy Wave, R1 hold is Recover, beams are A+L2 cloud, A+R2 fire, A+L1 laser, A+R1 plasma, Ultimate is A A A A then L1+L2+R1+R2.
-- [ ] `art.bin` stays in the ROM region the CPU cannot see. Rebuild `parryperry.zip` and `driver/rom_load.inc`. Re-run `tools/install_driver.py` only when someone is actually building the core.
+- [x] Dump `web/` **after** `00_core.js` has applied its binding rewrites. Do not bake the raw `input_map` if the core then changes it.
+- [x] Sprites at view scale 1 and character scale 1/2, same as the web canvas. Whole-pixel roots. No floats in `data.h`.
+- [x] All move frames, including charge, heavy, chains, beams, kicks, earthquake, meteor, sky dash, jump crash, taunt, recover.
+- [x] All enemy frames, including the club ogre and Mirror Perry. Training heavy bag is a prop (`prop` on `EDef`, HP stored capped at 32767).
+- [x] Scenes: trail, falls, canyon, shore, mire, sanctum, tide, ember, and the still arenas fungal, crypt, bone, keep, plus training. The multiply grade is baked into the pixels. Fringe layers included.
+- [x] Pickup and prop art that exists as pictures: leaf frames, Bone, Quartz, Garnet, Diamond, Bone Powder, merchant, Slime Bunny, heavy bag, beam sheets, impact pictures, story views, the boat. Crates, bombs, the door, and the ankh are drawn shapes in the web game, not sprites, so they are not in the pack.
+- [x] Story backgrounds from `web/assets/story/view/`, plus the boat, at 384×216 (`STORY_SPR`).
+- [x] Tables: 6 levels plus the training map (`MAP_TRAINING`). Crates do not hold unlocks.
+- [x] Unlock table from `progress.js`. 27 unlocks. Scroll and mutagen prices use the live formula.
+- [x] Binding table is the post-rewrite list. Jump bindings are dropped (the web reader does that too). R2 press is Energy Wave. Beams are only A+L2, A+R2, A+L1, A+R1. The Left-Right-A cloud sequences are deleted by `00_core.js`, so they are not baked.
+- [ ] `art.bin` stays in the ROM region the CPU cannot see. The zip was **not** rebuilt: no 68000 compiler in this sandbox. Rebuild with `make` before loading it.
 
 Done when: the header names every web move, enemy, map, and unlock, and a host frame still shows the Green Trail. Gameplay may still be the basic kit.
 
