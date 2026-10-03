@@ -53,8 +53,8 @@
     parries++;
     flashes.push({ wx: (bodyX() + e.x) / 2, wy: herY() + 24, t0: clock, ms: 240, r: 22, c: '#bfe8ff' }); hitStop(90); screenFlash = { c: '#ffffff', a: 0.3, t0: clock, ms: 110 };
   }
-  const KNOCK_UP = 5;
-  const newSlide = (p, dir) => ({ v: p.v * dir, a: p.a, y: 0, vy: -Math.sqrt(2 * 0.0018 * KNOCK_UP) });   // a block or a shot hit: slid back and up KNOCK_UP px
+  const KNOCK_UP = 5 * WORLD_Y_SCALE;
+  const newSlide = (p, dir) => ({ v: p.v * dir, a: p.a, y: 0, vy: -Math.sqrt(2 * 0.0018 * WORLD_Y_SCALE * KNOCK_UP) });   // a block or a shot hit: slid back and up KNOCK_UP px
   function knocked(e) {                 // a clean hit: red, pushed away from the enemy, stunned
     const AT = (EN[e.type].ai.atk || {})[e.anim];                      // per-attack damage and knockback (new creatures)
     const [d, ms] = (AT && AT.knock) || EN[e.type].ai.knock, p = push(d, ms);
@@ -62,7 +62,7 @@
     const y = heightAbove();
     if (cur && !fall && cur.kind !== 'fall') x += rootOf(cur)[0];
     fall = null; queued = null; slide = null;
-    stun = { v: p.v * dir, a: p.a, y, vy: -Math.sqrt(2 * 0.0018 * KNOCK_UP) }; lastPushT = clock;   // knocked back and up KNOCK_UP px (so she clears the ground and ledge edges)
+    stun = { v: p.v * dir, a: p.a, y, vy: -Math.sqrt(2 * 0.0018 * WORLD_Y_SCALE * KNOCK_UP) }; lastPushT = clock;   // knocked back and up KNOCK_UP px (so she clears the ground and ledge edges)
     cur = { id: 'heavy', k: HIGH_K, t: 0, kind: 'stun', from: x, face: cur ? cur.face : facing };
     tint = { color: RED, alpha: 0.6, until: clock + ms };
     invuln = clock + ms + 400;
@@ -84,7 +84,7 @@
     stun.v = Math.sign(v) === Math.sign(stun.v) ? v : 0;
     if (stun.y > 0 || stun.vy < 0) {
       const f0 = floorY + stun.y;
-      stun.vy += 0.0018 * dt; stun.y = Math.max(0, stun.y - stun.vy * dt);
+      stun.vy += 0.0018 * WORLD_Y_SCALE * dt; stun.y = Math.max(0, stun.y - stun.vy * dt);
       if (curMap) {                                   // knocked while in the air: land on a platform or block she falls through, not below it
         let T = -1; const sp = span(playerX());
         for (const sf of surfaces(curMap)) if (sf.top > floorY && overSurf(sf, sp) && f0 > sf.top && floorY + stun.y <= sf.top && sf.top > T) T = sf.top;
