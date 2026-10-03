@@ -3,6 +3,10 @@
   // her hurtbox: x from her anchor, up to the top of her drawn body on this frame (hair, head and
   // arms, not the sword); while ducking it stops DUCK_TRIM px under the top of her head
   const HURT = [10 * SPRITE_SCALE, 0, 60 * SPRITE_SCALE];
+  // Native 132x93 Perry frame: the supplied 79-pixel toe-tip-to-heel line is x=53..131
+  // in the sprite, with the sprite anchor at x=40. Keep that exact pixel footprint for gravity.
+  // In anchor-relative world coordinates its continuous collision span is +13..+92 (79 px).
+  const GRAVITY_FOOT_BACK = 13, GRAVITY_FOOT_FRONT = 92, GRAVITY_FOOT_WIDTH = 79;
   const DUCK_TRIM = 5;
   function herTop() {
     if (!cur) return D.moves.idle.frames[0].top;
