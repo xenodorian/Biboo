@@ -5,13 +5,6 @@
   // up through. She is always standing on `floorY`; in the air her height above it comes from the jump animation, and
   // physics() lands her on a surface she falls onto or drops her off the edge of one.
   const surfaces = m => m.solids.concat(m.plats);
-  // Her sprite counts as touching a surface when ANY part of it is over the surface: bx is the anchor, and the span
-  // is her drawn body (hurtbox plus SPRITE_PAD each side), not just the anchor point.
-  const SPRITE_PAD = 6;
-  function span(bx) {
-    const f = hf(), a = bx + Math.min(f * HURT[0], f * HURT[2]) - SPRITE_PAD, b = bx + Math.max(f * HURT[0], f * HURT[2]) + SPRITE_PAD;
-    return [Math.min(a, bx), Math.max(b, bx)];
-  }
   const overSurf = (s, sp) => sp[1] >= s.x0 - 3 && sp[0] <= s.x1 + 3;
   function gravitySpan(bx) {
     const f = hf();
