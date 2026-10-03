@@ -42,6 +42,7 @@ static int btn_mask, meters_on;
 static unsigned char moves_open[MV_COUNT];
 static int mode, paused, shop_i, shop_clear, shop_next;
 static int boom_t, boom_x, boom_y;
+static int hop_y, hop_t, down_at, down_held;
 
 static int rd_held[NBTN];
 typedef struct { int b, t, u, used; } Press;
@@ -305,9 +306,9 @@ static void clamp_x(void) { px = clampi(px, 16, VIEW_W - 16); }
 static int vis_x(void) { return px + face * (int)mf(mv, fr)->rx; }
 static int feet_h(void)
 {
-    if (flight) return fly_h;
+    if (flight) return fly_h + hop_y;
     if (jumping) return surf + (py >> 16);
-    return surf + (int)mf(mv, fr)->ry;
+    return surf + (int)mf(mv, fr)->ry + hop_y;
 }
 static void her_box(int *x0, int *y0, int *x1, int *y1)
 {
@@ -912,6 +913,10 @@ static void start(int id, int knd, int via, int k0)
     jumping = 0;
     want_crash = 0;
     if (id == MV_jump) dbl_used = 0;
+    if (id == MV_dash || id == MV_dash_thrust || id == MV_push_kick || id == MV_energy_dash_thrust)
+        hop_t = 1;
+    else if (knd != K_HOLD)
+        hop_t = 0;
     (void)peak;
 }
 static void air_crash(void)
@@ -1600,6 +1605,37 @@ static void pickups(void)
     }
     if (!jumping && rainbow_left <= 0 && surf == 0 && in_pit(x)) die();
 }
+static void step_hop(void)
+{
+    if (hop_t <= 0) { hop_y = 0; return; }
+    hop_t += DT;
+    if (hop_t < 80) hop_y = hop_t * 5 / 80;
+    else if (hop_t < 200) hop_y = 5 - (hop_t - 80) * 5 / 120;
+    else { hop_y = 0; hop_t = 0; }
+}
+static void try_drop(int down)
+{
+    int edge = (down & PAD_DOWN) && !down_held;
+    down_held = (down & PAD_DOWN) != 0;
+    if (!edge) return;
+    if (jumping || flight || kind == K_ACTION || surf <= 0) {
+        down_at = now;
+        return;
+    }
+    if (down_at && now - down_at < 300) {
+        int below = ground_under(vis_x(), surf - 8);
+        py = (surf - below) << 16;
+        pv = 0;
+        surf = below;
+        jumping = 1;
+        dbl_used = 0;
+        mv = MV_jump;
+        fr = 4;
+        kind = K_ACTION;
+        acc = 0;
+        down_at = 0;
+    } else down_at = now;
+}
 static void step_player(int down)
 {
     if (her_stun > 0) {
@@ -1618,6 +1654,8 @@ static void step_player(int down)
     else if (slide < -1) { px -= 2; slide += 2; }
     else slide = 0;
     clamp_x();
+    step_hop();
+    try_drop(down);
     step_charge(down);
     step_meters(down);
     chain_tick();

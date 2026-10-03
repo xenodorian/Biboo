@@ -71,7 +71,9 @@ See repository history for full rules. Work on main, claim steps.
 
 **MAME-5 (done, not booted):** progress matches `progress.js`. Gem bag, meter caps, cleared bits, story flags. Save is manual (Y while paused). Old autosaves are rejected. A fresh game has no shoulders and no meters. The New game confirm screen is MAME-11.
 
-**MAME-6 (done, not booted):** the reader follows the baked post-rewrite table. Up jumps, Y spins, L2 and R2 are presses, beams are A plus one shoulder, and the pause menu does not feed the reader. The Left-Right-A cloud sequences are not in the live game, so they are not here.
+**MAME-6 (done, not booted):** reader matches the rewritten bindings. Energy Burst and Energy Wave are presses. Cloud Beam is only A+L2. Holding B still blocks. Host syntax check only.
+
+**MAME-7 (done, not booted):** dash, dash thrust, and both kicks hop 5 px. A second Down on a plank drops through. Jump, charge, chains, flight, rainbow, ultimate, and the meter costs were already in the draft and still compile. Host syntax check only. Not a pad test.
 
 ## Dreamcast port (paused 2026-10-03, was on demand only)
 

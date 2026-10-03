@@ -137,13 +137,13 @@ Checked against the bake, not a pad script (no core in this sandbox). Up jumps o
 
 Web files: `web/game/03_state.js`, `04_chain.js`, the dash hop in `13_enemy_attacks.js`.
 
-- [ ] Hold, action, and land. Entry frames. Loop commits only on a wrap. Root motion from the baked table, including the walk handoff.
-- [ ] Jump, air steering, landing on a platform, walking off an edge, double jump, drop-through on a second Down.
-- [ ] Dash, dash thrust, and push kick hop 5 px and come back down over the move.
-- [ ] Charge meter and the heavy chop. Energy holds that fire on release. Chain, chain burst, jump crash.
-- [ ] Flight and rainbow timers. Ultimate plays the chain, a taunt, then the four beams, in the web order.
-- [ ] Recover heals and spends 1 empower per tick. Meter charge fills owned meters only.
-- [ ] Costs, paid once when the move starts: jump crash 30 energy, earthquake and meteor a full super meter. If she cannot pay, the move does not start and the HUD says which meter is short.
+- [x] Hold, action, and land. Entry frames. Loop commits only on a wrap. Root motion from the baked table, including the walk handoff.
+- [x] Jump, air steering, landing on a platform, walking off an edge, double jump, drop-through on a second Down.
+- [x] Dash, dash thrust, and push kick hop 5 px and come back down over the move.
+- [x] Charge meter and the heavy chop. Energy holds that fire on release. Chain, chain burst, jump crash.
+- [x] Flight and rainbow timers. Ultimate plays the chain, a taunt, then the four beams, in the web order.
+- [x] Recover heals and spends 1 empower per tick. Meter charge fills owned meters only.
+- [x] Costs, paid once when the move starts: jump crash 30 energy, earthquake and meteor a full super meter. If she cannot pay, the move does not start and the HUD says which meter is short.
 - [ ] Hit stun, slide on block, knockback, 400 ms invulnerability after a clean hit, red tint on that hit. Rainbow and god mode skip damage.
 
 Done when: with unlocks forced on, each move in the MAME-6 table changes her sprite and her position the way that web function does. No floats in the disassembly of `main.o`.
@@ -262,7 +262,7 @@ Every line of the live game is one of these. Do not call the port finished while
 | Fresh dump of moves, enemies, maps, scenes, pickups, beams, story art | `web/`, `00_core.js` | MAME-4 |
 | Unlocks, gem bag, meter caps, manual save, New game wipe | `progress.js` | MAME-5 |
 | Full binding table, shoulders gated by unlocks | `input.js`, `02_input.js`, `00_core.js` | MAME-6 |
-| Jump, drop-through, charge, chains, flight, rainbow, ultimate, costs | `03_state.js`, `04_chain.js` | MAME-7 |
+| Jump, drop-through, charge, chains, flight, rainbow, ultimate, costs | `03_state.js`, `04_chain.js` | done, not booted (MAME-7) |
 | Hits, beams, parry window, boss rules and drops | `12_hits.js`, `08_beams.js`, `05_health.js` | MAME-8 |
 | Enemy AI, shards, pit hops, fade | `11_enemies.js`, `13_enemy_attacks.js` | MAME-9 |
 | Six levels, doors, pits, crates, bombs, leaves, gem drops | `09_maps.js`, `10_hazards.js`, `levels.js` | MAME-10 |
