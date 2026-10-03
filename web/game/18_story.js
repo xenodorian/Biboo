@@ -1,7 +1,8 @@
 'use strict';
   // ---- the story: a prologue before level 1, Mirror Perry's confession when she falls, and the ending after the last level.
-  // Each page is a full-screen scene: a 384x216 faux-pixel background (generated photo, sized down to 240p then nearest-neighbor)
-  // with Perry's real idle sprite and Mirror Max (the enemy sheet) drawn on top. imageSmoothingEnabled stays off so pixels stay crisp.
+  // Each page is a native 640x480 scene. Background assets are prepared to exactly 640x480
+  // before runtime, so the renderer blits them 1:1. Character sprites are also drawn at
+  // their native pixel dimensions; only scene placement changes.
   const STORY = {
     prologue: [
       ['calm', 'Perry', 'Peregrine "Perry" Riposte was ten years old. She had a mom, a dad, and a little brother. The house was small and loud. It was home.'],
@@ -57,45 +58,34 @@
   // Shadows: L says which way the light falls. sx leans the shadow sideways with height (+ right), sy lays it toward the viewer (+) or away (-),
   // a is its darkness. steps: tread lines (screen y, nearest first) a shadow is stepped up across, stepDy px per tread. clip: the ground polygon the
   // shadow may fall on (it is cut at a cliff edge). Sunset island: the sun sits low on the right, so the shadow runs long to the left and front.
-  const LOW_SUN = { sx: -1.3, sy: 0.3, a: 1.0, col: '#14041c', clip: [[0, 148], [150, 148], [160, 184], [168, 200], [182, 216], [0, 216]] };
+  const STORY_X_SCALE = 640 / 384, STORY_Y_SCALE = 480 / 216;
+  const LOW_SUN = {
+    sx: -1.3, sy: 0.3, a: 1.0, col: '#14041c',
+    clip: [[0, 148], [150, 148], [160, 184], [168, 200], [182, 216], [0, 216]]
+      .map(([x, y]) => [Math.round(x * STORY_X_SCALE), Math.round(y * STORY_Y_SCALE)])
+  };
   const SC = {
-    calm:     { pan: 0,    x: 205, gy: 188, s: 1.0, L: { sx: 0.8, sy: 0.28, a: 0.8, col: '#050d08' } },     // the path at the foot of the meadow
-    fire:     { pan: 0.8,  x: 78,  gy: 194, s: 0.95, twinX: 338, twinGy: 190, L: { sx: -1.0, sy: 0.28, a: 1.0, col: '#0a0000', flick: true } },   // the dark lawn in front of the burning house
-    crowd:    { pan: 0.5,  gy: 188, s: 0.95, L: { sx: 0.8, sy: 0.28, a: 0.8, col: '#050d08' } },
-    sea:      { pan: 0.35, boatX: 268, boatY: 185 },        // open water, raised so the bow stays clear of the shore
-    double:   { pan: 0.5,  x: 96,  gy: 190, s: 1.1, twinX: 306, twinGy: 194, L: { sx: 0.9, sy: 0.25, a: 0.8, col: '#01030a' } },  // the flagstone yard
-    altar:    { pan: 0.5,  x: 236, gy: 181, s: 0.8,
-                L: { sx: 0.45, sy: -0.4, a: 0.8, col: '#000008', steps: [181, 172, 164, 156, 148, 141, 133, 125], stepDy: 3 } },       // the foot of the temple stairs
+    // This placement is the verified native-size composition from the new 640x480 meadow crop.
+    calm:     { pan: 0,    x: 250, gy: 418, s: 1.0, L: { sx: 0.8, sy: 0.28, a: 0.8, col: '#050d08' } },
+    fire:     { pan: 0.8,  x: Math.round(78 * STORY_X_SCALE), gy: Math.round(194 * STORY_Y_SCALE), s: 1.0, twinX: Math.round(338 * STORY_X_SCALE), twinGy: Math.round(190 * STORY_Y_SCALE), L: { sx: -1.0, sy: 0.28, a: 1.0, col: '#0a0000', flick: true } },
+    crowd:    { pan: 0.5,  x: 250, gy: 418, s: 1.0, L: { sx: 0.8, sy: 0.28, a: 0.8, col: '#050d08' } },
+    sea:      { pan: 0.35, boatX: Math.round(268 * STORY_X_SCALE), boatY: Math.round(185 * STORY_Y_SCALE) },
+    double:   { pan: 0.5,  x: Math.round(96 * STORY_X_SCALE), gy: Math.round(190 * STORY_Y_SCALE), s: 1.0, twinX: Math.round(306 * STORY_X_SCALE), twinGy: Math.round(194 * STORY_Y_SCALE), L: { sx: 0.9, sy: 0.25, a: 0.8, col: '#01030a' } },
+    altar:    { pan: 0.5,  x: Math.round(236 * STORY_X_SCALE), gy: Math.round(181 * STORY_Y_SCALE), s: 1.0,
+                L: { sx: 0.45, sy: -0.4, a: 0.8, col: '#000008', steps: [181, 172, 164, 156, 148, 141, 133, 125].map(y => Math.round(y * STORY_Y_SCALE)), stepDy: Math.round(3 * STORY_Y_SCALE) } },
     rewind:   { pan: 0.35 },
-    meditate: { pan: 0,    x: 104, gy: 178, s: 0.95, L: LOW_SUN },      // the grassy cliff
-    sunrise:  { pan: 0,    x: 104, gy: 178, s: 0.95, L: LOW_SUN },
+    meditate: { pan: 0,    x: Math.round(104 * STORY_X_SCALE), gy: Math.round(178 * STORY_Y_SCALE), s: 1.0, L: LOW_SUN },
+    sunrise:  { pan: 0,    x: Math.round(104 * STORY_X_SCALE), gy: Math.round(178 * STORY_Y_SCALE), s: 1.0, L: LOW_SUN },
   };
   function drawStoryBg(name) {
     const im = img['story:' + name] && img['story:' + name].im;
     g.imageSmoothingEnabled = false;
-    if (im) {                                                       // the picture is 216 px tall and wider than the view: show the part the scene wants
+    if (im) {                                                       // every scene background is prepared to native 640x480 before runtime
       const range = Math.max(0, im.width - V.w), u = (SC[name] || {}).pan || 0;
       const x0 = -Math.round(range * u);
-      g.drawImage(im, x0, 0, im.width, V.h);
-      if (STORY_BGS[name] && /sunset_island/.test(STORY_BGS[name])) rippleWater(im, x0);
+      g.drawImage(im, x0, 0);
     }
     else { g.fillStyle = '#100818'; g.fillRect(0, 0, V.w, V.h); }
-  }
-
-  // Ripples on the sea of the sunset picture. The water is the part of the picture below the horizon that is not the cliff, the low headland or the far shore
-  // (measured on the 624x216 view copy). Each row of water slides sideways by a sine wave that grows toward the viewer, the same wave as the boat's reflection.
-  const SEA_TOP = 161;
-  const lerp = (y, y0, y1, a, b) => a + (b - a) * (y - y0) / (y1 - y0);
-  function seaLeft(y) { return y < 172 ? 215 : y < 177 ? lerp(y, 172, 177, 215, 250) : y < 193 ? lerp(y, 177, 192, 250, 293) : 264; }
-  function seaRight(y) { return y < 158 ? 520 : y < 173 ? lerp(y, 158, 173, 520, 443) : y < 195 ? lerp(y, 173, 195, 443, 383) : lerp(y, 195, 216, 383, 363); }
-  function rippleWater(im, x0) {
-    const T = clock;
-    for (let y = SEA_TOP; y < im.height; y++) {
-      const L = Math.round(seaLeft(y)), R = Math.round(seaRight(y)), depth = (y - SEA_TOP) / (im.height - SEA_TOP);
-      const off = Math.round(Math.sin(y * 0.9 + T * 0.004) * (0.5 + depth * 2.1));
-      if (!off) continue;
-      g.drawImage(im, L - off, y, R - L, 1, x0 + L, y, R - L, 1);
-    }
   }
 
   // A silhouette of one sprite frame in one colour, cached.
@@ -109,7 +99,7 @@
     x.globalCompositeOperation = 'source-in'; x.fillStyle = col; x.fillRect(0, 0, w, h);
     return (_sil[k] = c);
   }
-  const _scratch = document.createElement('canvas'); _scratch.width = 384; _scratch.height = 216;
+  const _scratch = document.createElement('canvas'); _scratch.width = 640; _scratch.height = 480;
   // Cast a shadow of the silhouette (drawn at dx, dy, standing on groundY) along the light L, laid flat on the ground.
   function castShadow(sil, dx, dy, groundY, L, alpha) {
     const sx = L.sx + (L.flick ? Math.sin(clock * 0.011) * 0.15 : 0), sy = L.sy;
@@ -120,12 +110,12 @@
     g.globalAlpha = shade;
     if (L.clip) { g.beginPath(); L.clip.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.clip(); }   // cut off at a cliff edge
     if (L.steps) {                                                // stairs: each tread the shadow climbs lifts it a little, in a hard step
-      const c = _scratch.getContext('2d'); c.clearRect(0, 0, 384, 216); c.imageSmoothingEnabled = false; lay(c);
+      const c = _scratch.getContext('2d'); c.clearRect(0, 0, 640, 480); c.imageSmoothingEnabled = false; lay(c);
       const ys = L.steps;
       for (let k = 0; k < ys.length; k++) {
-        const top = k + 1 < ys.length ? ys[k + 1] : 0, bot = k === 0 ? 216 : ys[k];   // the rows between tread k+1 and tread k
+        const top = k + 1 < ys.length ? ys[k + 1] : 0, bot = k === 0 ? 480 : ys[k];
         const sh = bot - top; if (sh <= 0) continue;
-        g.drawImage(_scratch, 0, top, 384, sh, 0, top - k * (L.stepDy || 3), 384, sh);
+        g.drawImage(_scratch, 0, top, 640, sh, 0, top - k * (L.stepDy || 3), 640, sh);
       }
     } else lay(g);
     g.restore();
@@ -136,7 +126,7 @@
     o = o || {};
     const im = img[IDLE_SRC] && img[IDLE_SRC].im;
     if (!im) return;
-    const s = o.s || 1.15;
+    const s = o.s || 1.0;
     const fr = (o.frame != null ? o.frame : 0);
     const dx = Math.round(X - IDLE_AX * s);
     const dy = Math.round(Y - IDLE_AY * s + (o.sit ? 10 * s : 0));
@@ -154,7 +144,7 @@
     o = o || {};
     const im = img[MM_SRC] && img[MM_SRC].im;
     if (!im) return;
-    const s = o.s || 0.72;
+    const s = o.s || 1.0;
     const fr = o.frame != null ? o.frame : 0;
     const dx = Math.round(X - MM_AX * s);
     const dy = Math.round(Y - MM_AY * s + (o.sit ? 12 * s : 0));
@@ -191,7 +181,7 @@
       g.restore();
     }
     else if (sc === 'crowd') {
-      drawMax(205, c.gy, { s: c.s, L: c.L });
+      drawMax(c.x, c.gy, { s: c.s, L: c.L });
     }
     else if (sc === 'sea') {                                        // Perry rows toward the island in her boat, rocking on the swell
       const boat = img['assets/story/view/boat.png'] && img['assets/story/view/boat.png'].im;
@@ -246,6 +236,6 @@
       pixOval(c.x - 52, c.gy + 1, 6, 2, '#14041c', 0.55);
       figure(c.x - 52, c.gy + 2, '#b89a7a');                      // on the grass beside her, not out over the cliff
       pixOval(c.x - 74, c.gy + 1, 5, 2, '#14041c', 0.45);
-      figure(c.x - 74, c.gy + 2, '#7a6a9a', { s: 0.8 });
+      figure(c.x - 74, c.gy + 2, '#7a6a9a');
     }
   }
