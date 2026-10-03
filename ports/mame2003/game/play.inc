@@ -2394,6 +2394,19 @@ static void draw_shop(int down)
     (void)down;
 }
 
+static void cue_music(void)
+{
+    int song = 1;
+    if (music_vol <= 0) song = 0;
+    else if (mode == MODE_TITLE || mode == MODE_WORLD) song = 1;
+    else if (mode == MODE_STORY) song = story_id == 2 ? 5 : 4;
+    else if (mode == MODE_SHOP) song = 3;
+    else if (mode == MODE_DEAD) song = 0;
+    else if (map_id == MAP_TRAINING) song = 2;
+    else if (map_id >= 0 && map_id < NMAPS && MAPS[map_id].boss) song = 12 + (level < 6 ? level : 5);
+    else song = 6 + (level < 6 ? level : 5);
+    hw_music(song, music_vol <= 0 ? 0 : music_vol * 30 + (music_vol == 3 ? 10 : 0));
+}
 static void sim(int down, int prev)
 {
     int i;
@@ -2425,6 +2438,7 @@ void game_main(void)
         u16 prev = (u16)~raw_prev;
         int pressed = down & ~prev;
         now += DT;
+        cue_music();
         if (mode == MODE_TITLE) {
             if (pressed & PAD_A) {
                 if (!saved_t) { fresh_game(); story_id = 0; story_i = 0; story_f |= 1u; mode = MODE_STORY; }

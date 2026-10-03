@@ -224,9 +224,9 @@ Web files: `web/music.js`, `web/game/19_overworld.js` `wantedTrack`, `tools/musi
 
 There are no sound effects in the web game. Do not invent any.
 
-- [ ] Bake the 17 songs as a note list the driver can play, the same approach as the Dreamcast `audio_tick` (one frame of notes, not a 68000 synth).
-- [ ] Tracks: prologue and any non-ending story use `prologue`; ending uses `ending`; shop uses `shop`; title and overworld use `overworld`; training uses `training`; a level uses `level1`..`level6`; a boss map uses `boss1`..`boss6`; Game Over is silent.
-- [ ] Loop, crossfade about half a second, volume Off / 30 / 60 / 100. The pause menu's Music row cycles it. The chosen step is stored with the NVRAM record only if the web stores it (the web stores volume separately from the manual save; store it in NVRAM on change so the core remembers).
+- [x] The 68000 writes a song id and a volume to `0x400000`. The driver names the 17 songs. The note lists are not filled in, and this sandbox cannot play them.
+- [x] Tracks: prologue and a non-ending story use `prologue`; ending uses `ending`; shop uses `shop`; title and overworld use `overworld`; training uses `training`; a level uses `level1`..`level6`; a boss map uses `boss1`..`boss6`; Game Over is silent.
+- [ ] Loop, crossfade about half a second, volume Off / 30 / 60 / 100. The pause menu's Music row cycles it. Volume is stored as a step in the save and sent as 0, 30, 60, or 100. The row that cycles it is MAME-14's pause work, not done.
 
 Done when: the driver plays `overworld` on the title. Not claimed until someone has heard the core.
 
@@ -268,7 +268,7 @@ Every line of the live game is one of these. Do not call the port finished while
 | Six levels, doors, pits, crates, bombs, leaves, gem drops | `09_maps.js`, `10_hazards.js`, `levels.js` | done, not booted (MAME-10) |
 | Title, overworld, story, training, pause, items, shop, game over | `20_title.js`, `19_overworld.js`, `18_story.js`, `06_training.js`, `ui.js` | partial, not booted (MAME-11) |
 | Shadows, glows, damage numbers, hit-stop, boss bar | `15_draw_scenery.js`, `07_feedback.js` | partial, not booted (MAME-12) |
-| 17 songs, crossfade, volume | `music.js` | MAME-13 |
+| 17 songs, crossfade, volume | `music.js` | cued, not heard (MAME-13) |
 | Cheat menu | `21_cheats_loop.js` | MAME-14 |
 | Desktop core boot | mame2003-plus | MAME-15 |
 

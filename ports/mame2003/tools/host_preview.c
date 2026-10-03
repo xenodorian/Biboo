@@ -73,6 +73,12 @@ u16 hw_pad(void)
     return (u16)~PAD_RIGHT;
 }
 
+void hw_music(int song, int vol)
+{
+    (void)song;
+    (void)vol;
+}
+
 u16 hw_nv_r(int i) { return nv[i & 31]; }
 void hw_nv_w(int i, u16 v) { nv[i & 31] = v; }
 

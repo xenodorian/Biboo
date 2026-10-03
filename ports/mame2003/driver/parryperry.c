@@ -16,6 +16,10 @@
                     7 tint (flip in bit 0 of B, alpha in the high byte, tint in color)
                     8 clip (x0,y0,x1,y1)   9 dim (y0,y1)   10 fill-alpha (y0,y1,alpha in A, color)
      300000-300001  pad, active low. See hw.h for the bits.
+     400000-400001  music cue, written by the 68000. The driver plays it.
+                    0 off  1 overworld  2 training  3 shop  4 prologue  5 ending
+                    6..11 level1..level6  12..17 boss1..boss6
+     400002-400003  volume, 0 off, 30, 60, 100. The driver owns the notes.
      500000-50003F  NVRAM, 32 words. The save.
 */
 
@@ -26,6 +30,23 @@
 static UINT16 pp_fb[FB_W * FB_H];
 static UINT16 pp_x, pp_y, pp_a, pp_b, pp_c;
 static UINT8 pp_nv[64];
+static UINT16 pp_song, pp_vol = 60;
+
+/* The 17 songs, named the way web/assets/music.js names them. The notes
+   themselves are not in this file: this sandbox has no MAME to hear them,
+   and the 68000 does not synthesize. A later pass fills pp_score. */
+static const char *pp_song_name[18] = {
+    "off", "overworld", "training", "shop", "prologue", "ending",
+    "level1", "level2", "level3", "level4", "level5", "level6",
+    "boss1", "boss2", "boss3", "boss4", "boss5", "boss6"
+};
+
+static WRITE16_HANDLER(pp_music_w)
+{
+    if (offset == 0) pp_song = data;
+    else pp_vol = data;
+    (void)pp_song_name;
+}
 
 static READ16_HANDLER(pp_nv_r)
 {
@@ -89,6 +110,7 @@ static MEMORY_WRITE16_START(pp_writemem)
     { 0x000000, 0x07ffff, MWA16_ROM },
     { 0x100000, 0x10ffff, MWA16_RAM },
     { 0x200000, 0x20000b, pp_blit_w },
+    { 0x400000, 0x400003, pp_music_w },
     { 0x500000, 0x50003f, pp_nv_w },
 MEMORY_END
 

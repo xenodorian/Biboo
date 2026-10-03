@@ -85,6 +85,8 @@ See repository history for full rules. Work on main, claim steps.
 
 **MAME-12 (done, not booted):** a black contact blob sits under her feet. A hit shows a rising damage number and freezes the sim for 45 ms. A living boss draws its name and an HP bar. Crates, bombs, and the door are still coloured shapes. No cast shadow, no glow stamps, no shake. Host syntax check only. Not linked.
 
+**MAME-13 (done, not heard):** the 68000 writes a song id and a volume to `0x400000`. The driver names all 17 tracks (overworld, training, shop, prologue, ending, level 1-6, boss 1-6) and keeps the notes. Title and overworld ask for overworld, a boss map asks for its boss track, death asks for silence. Nobody has heard it: this sandbox has no MAME, and the note lists are not filled in. Not linked.
+
 ## Dreamcast port (paused 2026-10-03, was on demand only)
 
 **Owner's rules (2026-10-02):** the port is NOT part of the permanent pipeline; build and push a Dreamcast disc image (`.cdi`) only when the owner asks; note each major step here and push it to main so other agents can continue. Everything lives in `ports/dreamcast/` (README there). Source of method: the owner's `DREAMCAST_PORT_HANDOFF.txt` (a CryMon handoff). Plan: a C rewrite of the runtime for the SH-4 with baked data, in phases, each with an emulator test: 1 boot, 2 frame cost, 3 input and text, 4 art, 5 data out of JS, 6 game logic, 7 save, 8 audio, 9 disc streaming, 10 emulator tests.

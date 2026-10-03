@@ -3,6 +3,7 @@
 
 #define BLIT ((volatile u16 *)0x200000)
 #define PAD  ((volatile u16 *)0x300000)
+#define MUS  ((volatile u16 *)0x400000)
 
 #define R_X   0
 #define R_Y   1
@@ -88,6 +89,12 @@ void hw_sprite_tint(int x, int y, int id, int flip, u16 tint, int alpha)
 u16 hw_pad(void)
 {
     return *PAD;
+}
+
+void hw_music(int song, int vol)
+{
+    MUS[0] = (u16)song;
+    MUS[1] = (u16)vol;
 }
 
 /* Struct copies in the game lower to this. The 68000 image has no C library. */
