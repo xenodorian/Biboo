@@ -40,6 +40,14 @@ def test_web_game_uses_native_640x480_space():
     assert 'W, VH, M = 640, 480, 16' in bg
     fx = (ROOT / 'swingkit' / 'fx.py').read_text()
     assert 'X0, Y0 = 160, 337' in fx
+    story = (ROOT / 'web' / 'game' / '18_story.js').read_text()
+    assert 'g.drawImage(im, x0, 0);' in story
+    assert 'g.drawImage(im, x0, 0, im.width, V.h)' not in story
+    assert 'calm:     { pan: 0,    x: 250, gy: 418, s: 1.0' in story
+    title = (ROOT / 'web' / 'game' / '20_title.js').read_text()
+    assert 'sc = 1.0' in title
+    prep = (ROOT / 'tools' / 'prepare_story_assets.py').read_text()
+    assert 'VILLAGE_URL' in prep and 'W, H = 640, 480' in prep
 
 
 def test_web_data_covers_every_binding():
