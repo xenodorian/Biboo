@@ -205,7 +205,7 @@
     if (!curMap || floorY <= 0 || fall || stun) return false;
     if (cur && cur.kind !== 'hold' && cur.kind !== 'land') return false;
     const px = playerX();
-    if (curMap.solids.some(sd => sd.top === floorY && overSurf(sd, span(px)))) return false;   // a block is not a plank
+    if (curMap.solids.some(sd => sd.top === floorY && gravityOverSurf(sd, gravitySpan(px)))) return false;   // a block is not a plank
     const S = supportUnder(px, floorY);
     if (S >= floorY - 0.5) return false;
     if (cur) x += rootOf(cur)[0];
