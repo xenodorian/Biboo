@@ -22,6 +22,18 @@ def test_web_canvas_is_native_640x480():
     assert '384 / 216' not in src
 
 
+def test_web_game_uses_native_640x480_space():
+    data_src = (ROOT / 'web' / 'assets' / 'data.js').read_text()
+    data = json.loads(data_src[data_src.index('=') + 1:].strip().rstrip(';'))
+    assert data['view']['w'] == 640 and data['view']['h'] == 480
+    assert data['view']['feetRow'] == 418
+    assert data['view']['anchorX'] == 160
+    core = (ROOT / 'web' / 'game' / '00_core.js').read_text()
+    assert 'const SPRITE_SCALE = 1.0;' in core
+    levels = (ROOT / 'web' / 'levels.js').read_text()
+    assert 'const MAP_W = 640' in levels
+
+
 def test_web_data_covers_every_binding():
     src = (ROOT / 'web' / 'assets' / 'data.js').read_text()
     data = json.loads(src[src.index('=') + 1:].strip().rstrip(';'))
