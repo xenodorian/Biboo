@@ -22,12 +22,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install web build dependencies
+        run: python -m pip install -r requirements.txt
       - name: Prepare native 640x480 story assets
         run: python tools/prepare_story_assets.py
       - name: Build native web assets
-        run: |
-          python -m pip install -r requirements.txt
-          python -m swingkit --web
+        run: python -m swingkit --web
       - uses: actions/configure-pages@v5
         with:
           enablement: true
