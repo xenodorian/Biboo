@@ -45,6 +45,10 @@ def test_web_game_uses_native_640x480_space():
     assert 'g.drawImage(im, x0, 0);' in story
     assert 'g.drawImage(im, x0, 0, im.width, V.h)' not in story
     assert 'calm:     { pan: 0,    x: 250, gy: 418, s: 1.0' in story
+    loop = (ROOT / 'web' / 'game' / '21_cheats_loop.js').read_text()
+    assert 'function showTitle()' in loop
+    assert 'showTitle();' in loop
+    assert "goOverworld(); screen = 'title'" not in loop
     title = (ROOT / 'web' / 'game' / '20_title.js').read_text()
     assert 'sc = 1.0' in title
     prep = (ROOT / 'tools' / 'prepare_story_assets.py').read_text()
