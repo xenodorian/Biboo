@@ -20,7 +20,9 @@
   let floorY = 0;                       // height of the surface she stands on: 0 is the ground, a platform or barrier top is more
   let prevFeet = null, lastCx = null;   // her feet height and anchor x on the last frame, for landing and blocking
   const powerups = [], particles = [], banners = [];
-  const AIR_SPEED = 0.16;               // px/ms she can steer sideways in the air (a jump reaches about 65 px)
+  const AIR_SPEED = 120 / 560;
+  const DOUBLE_AIR_SPEED = 180 / 560;
+  const AIR_JUMP_WIDTH = 120, DOUBLE_JUMP_WIDTH = 240;
   const CAM_KEEP = 100 * WORLD_Y_SCALE;                 // the camera only rises when she is higher than this above the ground
   let showBoxes = false;                // H: draw hurtboxes and hit shapes
   let stun = null;                      // {v: px/ms (signed), a: px/ms^2, y, vy}: knocked back, no control
@@ -104,15 +106,17 @@
   // halved near the top so she hangs a moment, which makes it slower, smoother and floatier than the old frame by frame hop.
   // It rises about 135 px in 280 ms and stays up about 670 ms (the old hop was about 410 ms); with Left or Right held she covers about 107 px sideways. Steering in the air is
   // in step(). The sky dash (Down then Up) is a separate move and is unchanged.
-  const FLY_MS = 5000, FLY_VY = 0.11 * WORLD_Y_SCALE, FLY_MIN = 6 * WORLD_Y_SCALE, FLY_MAX = 150 * WORLD_Y_SCALE;
+  const SKY_DASH_H = 300, SKY_DASH_APEX_MS = 420;
+  const SKY_DASH_G = 2 * SKY_DASH_H / (SKY_DASH_APEX_MS * SKY_DASH_APEX_MS);
+  const SKY_DASH_V0 = SKY_DASH_G * SKY_DASH_APEX_MS;
   let flight = null, trailAcc = 0;
   function startFlight() {
     if (stun || flight || pitFall) return;
-    const y0 = Math.max(heightAbove(), 0);
     if (cur && !fall && cur.kind !== 'fall') x += rootOf(cur)[0];
     fall = null; queued = null; slide = null; hold = null;
-    cur = { id: 'jump', k: 3, t: 0, kind: 'action', face: facing, phys: { y: Math.max(y0, FLY_MIN) + 6, v: 0 } };
-    flight = { until: clock + FLY_MS };
+    cur = { id: 'jump', k: 3, t: 0, kind: 'action', face: facing,
+            phys: { y: 0, v: SKY_DASH_V0, t: 0, baseY: 0, x0: x, xRange: 0, skyDash: true } };
+    flight = { skyDash: true };
     floater(bodyX(), herY() + herTop() + 8, 'Flight', '#7fd0ff');
   }
   // Rainbow Guard: 5 seconds of complete invulnerability, cycling through the rainbow, and pitfalls count as solid ground
@@ -138,27 +142,27 @@
     if (D.moves[id] && !canAfford(id)) { deny(id); return; }       // no meter for this beam: on to the next
     queued = null; start(id, 'action', 'ultimate');
   }
-  const JUMP_H = 130 * WORLD_Y_SCALE, JUMP_UP = 280, JUMP_G = 2 * JUMP_H / (JUMP_UP * JUMP_UP), JUMP_V0 = JUMP_G * JUMP_UP;
-  const JUMP_HANG_V = 0.2 * JUMP_V0, JUMP_HANG_G = 0.5;
+  const JUMP_H = 100, JUMP_APEX_MS = 280;
+  const JUMP_G = 2 * JUMP_H / (JUMP_APEX_MS * JUMP_APEX_MS), JUMP_V0 = JUMP_G * JUMP_APEX_MS;
   function stepJump(dt) {
     const j = cur.phys;
     if (flight) {
-      if (clock >= flight.until) flight = null;
-      else {                                                       // flying: no gravity; Up and Down climb and dive
-        const vy = ((isDown.has('Up') ? 1 : 0) - (isDown.has('Down') ? 1 : 0)) * FLY_VY;
-        j.v = 0; j.y = Math.min(FLY_MAX, Math.max(FLY_MIN, j.y + vy * dt)); cur.k = 3;
-        trailAcc += dt;
-        while (trailAcc >= 25) {                                   // a trail of blue particles
-          trailAcc -= 25;
-          particles.push({ wx: legsX() + (Math.random() - 0.5) * 8, wy: herY() + 10 + Math.random() * 12, vx: (Math.random() - 0.5) * 0.04 - hf() * 0.02, vy: (Math.random() - 0.5) * 0.03, t0: clock, life: 450 + Math.random() * 250, c: ['#2f7bff', '#7fd0ff', '#1b46d8', '#bfe8ff'][Math.floor(Math.random() * 4)] });
-        }
-        return;
+      j.t += dt;
+      j.y = j.baseY + SKY_DASH_V0 * j.t - 0.5 * SKY_DASH_G * j.t * j.t;
+      j.v = SKY_DASH_V0 - SKY_DASH_G * j.t;
+      cur.k = j.v > 0.6 * SKY_DASH_V0 ? 1 : j.v > 0.2 * SKY_DASH_V0 ? 2 : j.v > -0.2 * SKY_DASH_V0 ? 3 : 4;
+      if (j.y <= 0 && j.v < 0) {
+        j.y = 0; flight = null;
+        cur = { id: 'jump', k: LAND_K, t: 0, kind: 'land', face: cur.face };
       }
+      return;
     }
-    j.v -= JUMP_G * (Math.abs(j.v) < JUMP_HANG_V ? JUMP_HANG_G : 1) * dt;
-    j.y += j.v * dt;
+    j.t += dt;
+    j.y = j.baseY + j.v0 * j.t - 0.5 * JUMP_G * j.t * j.t;
+    j.v = j.v0 - JUMP_G * j.t;
     cur.k = j.v > 0.6 * JUMP_V0 ? 1 : j.v > 0.2 * JUMP_V0 ? 2 : j.v > -0.2 * JUMP_V0 ? 3 : 4;   // takeoff, rise, apex, fall frames
-    if (j.y <= 0 && j.v < 0) {                                   // back down to the height she left from
+    const arcDone = j.t >= (2 * j.v0 / JUMP_G);
+    if (j.y <= j.baseY && j.v < 0 && arcDone) {
       const y = j.y, vv = -j.v;
       if (floorY > 0) {                                          // she left a platform and walked off it in the air: keep falling
         const S = supportUnder(playerX(), floorY + 0.5);
@@ -171,19 +175,22 @@
       cur = { id: 'jump', k: LAND_K, t: 0, kind: 'land', face: cur.face };
     }
   }
-  // Double jump (an unlock): tap jump again in the air for a spinning second jump that rises about two more of her heights
-  // (81 px). One per trip through the air; it resets when she touches down.
-  const DJ_H = 2 * 81 * WORLD_Y_SCALE, SPIN_MS = 420;
-  const DJ_V = Math.sqrt(2 * JUMP_G * 0.75 * DJ_H);            // the top of the arc is slower (halved gravity), so a little less than 2 g H
+  // Double jump: the second arc raises Perry to at most 200 px above her starting surface and
+  // expands the total horizontal travel envelope to 240 px. One use per trip through the air.
+  const DOUBLE_JUMP_MAX_H = 200, SPIN_MS = 420;
   let dblUsed = false;
   function tryDoubleJump() {
     if (!P.has('double_jump') || dblUsed || stun) return false;
-    if (cur && cur.id === 'jump' && cur.kind === 'action' && cur.phys) { /* in the flight */ }
-    else if (fall || (cur && cur.id === 'jump' && cur.kind === 'fall')) {           // dropped off a ledge or from a drop-through
-      cur = { id: 'jump', k: 3, t: 0, kind: 'action', face: cur ? cur.face : facing, phys: { y: fall ? fall.y : 0, v: 0 } };
+    if (cur && cur.id === 'jump' && cur.kind === 'action' && cur.phys && !flight) { }
+    else if (fall || (cur && cur.id === 'jump' && cur.kind === 'fall')) {
+      cur = { id: 'jump', k: 3, t: 0, kind: 'action', face: cur ? cur.face : facing,
+              phys: { y: fall ? fall.y : 0, v: 0, x0: x, xRange: DOUBLE_JUMP_WIDTH } };
       fall = null;
     } else return false;
-    cur.phys.v = Math.max(cur.phys.v, DJ_V);
+    const p = cur.phys;
+    p.baseY = p.y;
+    p.v0 = Math.sqrt(Math.max(0, 2 * JUMP_G * (DOUBLE_JUMP_MAX_H - p.baseY)));
+    p.v = p.v0; p.t = 0; p.xRange = DOUBLE_JUMP_WIDTH; p.doubleArc = true;
     cur.spin = clock; dblUsed = true; queued = null;
     return true;
   }
