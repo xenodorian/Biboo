@@ -70,6 +70,10 @@ static En en[MAX_EN];
 typedef struct { short x, y, vx, vy, dmg, age; unsigned char on, home, from_her; } Shot;
 static Shot shots[MAX_SHOT];
 static unsigned char leaf_on[MAX_LEAF], crate_on[MAX_CRATE], bomb_on[MAX_BOMB];
+static int bomb_fuse[MAX_BOMB];
+#define MAX_DROP 24
+typedef struct { short x, y, fy, kind, life; unsigned char on; } Drop;
+static Drop drops[MAX_DROP];
 
 static int move_open(int move);
 static int has(int ul) { return (int)((unlocked >> ul) & 1u); }
@@ -82,6 +86,7 @@ static int feet_h(void);
 static void die(void);
 static void load_map(void);
 static void save_game(void);
+static void spawn_drop(int x, int fy, int kind);
 
 static int iabs(int v) { return v < 0 ? -v : v; }
 static int rng(void)
@@ -427,6 +432,18 @@ static void hurt_enemy(En *e, int dmg, int dir)
         e->land_at = 0;
         e->hit_done = 1;
         if ((int)ENEMIES[e->type].a_death >= 0) eplay(e, ENEMIES[e->type].a_death);
+        if (ENEMIES[e->type].boss) {
+            int k, pool[7], n = 1;
+            pool[0] = 0;
+            if (meter_on(0)) { pool[n++] = 1; pool[n++] = 1; }
+            if (meter_on(1)) { pool[n++] = 2; pool[n++] = 2; }
+            if (meter_on(2)) pool[n++] = 3;
+            for (k = 0; k < 9; k++) spawn_drop(e->x - 56 + k * 14, e->fy, pool[rng() % (unsigned)n]);
+            for (k = 0; k < 3; k++) spawn_drop(e->x - 20 + k * 20, e->fy, 5);
+            if (maxm[0] < 200) spawn_drop(e->x + 62, e->fy, 6);
+        } else if ((rng() % 100) < 35) {
+            spawn_drop(e->x, e->fy, 0);
+        }
         return;
     }
     if (dist) {
@@ -820,15 +837,37 @@ static int dmg_of(void)
     }
     return v * p / 100;
 }
+static void spawn_drop(int x, int fy, int kind)
+{
+    int i;
+    for (i = 0; i < MAX_DROP; i++) if (!drops[i].on) break;
+    if (i == MAX_DROP) return;
+    drops[i].on = 1;
+    drops[i].x = (short)x;
+    drops[i].fy = (short)fy;
+    drops[i].y = (short)(fy + 16);
+    drops[i].kind = (short)kind;
+    drops[i].life = 20000;
+}
+static int bag_room(int kind)
+{
+    if (kind < 0 || kind > 3) return 0;
+    return gem[kind] < 99;
+}
 static void break_crate(int i)
 {
     const Crate *c;
+    int roll;
     if (i < 0 || i >= MAX_CRATE || !crate_on[i]) return;
     crate_on[i] = 0;
     c = &CRATES[MAPS[map_id].crate0 + i];
-    if (c->loot < 0) ankhs = clampi(ankhs + 1, 0, 9);
+    if (c->loot < 0) spawn_drop(c->x, c->fy, 5);
     else if (c->loot > 0) leaves += c->loot;
-    else leaves += 3;
+    roll = (int)(rng() % 100);
+    if (roll < 35) spawn_drop(c->x + 8, c->fy, 0);
+    else if (meter_on(0)) spawn_drop(c->x + 8, c->fy, 1);
+    else if (meter_on(1)) spawn_drop(c->x + 8, c->fy, 2);
+    else if (meter_on(2)) spawn_drop(c->x + 8, c->fy, 3);
 }
 static void detonate(int i)
 {
@@ -837,32 +876,33 @@ static void detonate(int i)
     int k, hx0, hy0, hx1, hy1;
     if (i < 0 || i >= MAX_BOMB || !bomb_on[i]) return;
     bomb_on[i] = 0;
+    bomb_fuse[i] = 0;
     b = &BOMBS[m->bomb0 + i];
     boom_t = 10;
     boom_x = b->x;
     boom_y = b->fy + 20;
     her_box(&hx0, &hy0, &hx1, &hy1);
-    if (dist2_box(b->x, b->fy + 10, hx0, hy0, hx1, hy1) <= 50 * 50)
-        hurt_her(40, vis_x() >= b->x ? -1 : 1);
+    if (rainbow_left <= 0 && dist2_box(b->x, b->fy + 7, hx0, hy0, hx1, hy1) <= 50 * 50)
+        hurt_her(50, vis_x() >= b->x ? -1 : 1);
     for (k = 0; k < MAX_EN; k++) {
         int x0, y0, x1, y1;
         if (!e_hurt(&en[k], &x0, &y0, &x1, &y1)) continue;
-        if (dist2_box(b->x, b->fy + 10, x0, y0, x1, y1) <= 50 * 50)
+        if (dist2_box(b->x, b->fy + 7, x0, y0, x1, y1) <= 50 * 50)
             hurt_enemy(&en[k], 50, en[k].x >= b->x ? 1 : -1);
     }
     for (k = 0; k < (int)m->ncrate && k < MAX_CRATE; k++) {
         const Crate *c = &CRATES[m->crate0 + k];
         int dx = c->x - b->x, dy = c->fy - b->fy;
-        if (dx * dx + dy * dy <= 60 * 60) break_crate(k);
+        if (dx * dx + dy * dy <= 50 * 50) break_crate(k);
     }
     for (k = 0; k < (int)m->nbomb && k < MAX_BOMB; k++) {
         const Spot *o;
         int dx, dy;
-        if (k == i || !bomb_on[k]) continue;
+        if (k == i || !bomb_on[k] || bomb_fuse[k]) continue;
         o = &BOMBS[m->bomb0 + k];
         dx = o->x - b->x;
         dy = o->fy - b->fy;
-        if (dx * dx + dy * dy <= 70 * 70) detonate(k);
+        if (dx * dx + dy * dy <= 50 * 50) bomb_fuse[k] = now + 180;
     }
 }
 static void hit_world(const Hit *h, int ax, int ay)
@@ -1715,7 +1755,38 @@ static void pickups(void)
             leaves++;
         }
     }
-    if (!jumping && rainbow_left <= 0 && surf == 0 && in_pit(x)) die();
+    for (i = 0; i < MAX_DROP; i++) {
+        Drop *g = &drops[i];
+        if (!g->on) continue;
+        g->life = (short)(g->life - DT);
+        if (g->kind < 4 && g->life <= 0) { g->on = 0; continue; }
+        if (iabs(x - g->x) >= 28 || y < g->fy - 20 || y > g->fy + 50) continue;
+        if (g->kind == 5) { ankhs = clampi(ankhs + 1, 0, 99); g->on = 0; }
+        else if (g->kind == 6) {
+            if (maxm[0] < 200) { maxm[0] = clampi(maxm[0] + 25, 0, 200); maxhp = maxm[0]; hp = clampi(hp + 25, 0, maxhp); }
+            g->on = 0;
+        } else if (bag_room(g->kind)) {
+            gem[g->kind] = clampi(gem[g->kind] + 1, 0, 99);
+            g->on = 0;
+        }
+    }
+    for (i = 0; i < (int)m->nbomb && i < MAX_BOMB; i++) {
+        const Spot *b;
+        int hx0, hy0, hx1, hy1;
+        if (!bomb_on[i]) continue;
+        if (bomb_fuse[i] && now >= bomb_fuse[i]) { detonate(i); continue; }
+        b = &BOMBS[m->bomb0 + i];
+        her_box(&hx0, &hy0, &hx1, &hy1);
+        if (overlap(hx0, hy0, hx1, hy1, b->x - 8, b->fy, b->x + 8, b->fy + 22)) detonate(i);
+    }
+    if (!jumping && rainbow_left <= 0 && surf == 0) {
+        int back = x - face, front = x + face * 38;
+        int lo = back < front ? back : front, hi = back > front ? back : front;
+        for (i = 0; i < (int)m->npit; i++) {
+            const Pit *p = &PITS[m->pit0 + i];
+            if (lo >= p->x0 - 1 && hi <= p->x1 + 1) { die(); break; }
+        }
+    }
 }
 static void step_hop(void)
 {
@@ -1837,7 +1908,8 @@ static void spawn_map(void)
     for (i = 0; i < MAX_EN; i++) en[i].on = 0;
     for (i = 0; i < MAX_LEAF; i++) leaf_on[i] = 0;
     for (i = 0; i < MAX_CRATE; i++) crate_on[i] = 0;
-    for (i = 0; i < MAX_BOMB; i++) bomb_on[i] = 0;
+    for (i = 0; i < MAX_BOMB; i++) { bomb_on[i] = 0; bomb_fuse[i] = 0; }
+    for (i = 0; i < MAX_DROP; i++) drops[i].on = 0;
     for (i = 0; i < (int)m->nen && i < MAX_EN; i++) {
         const Spawn *s = &SPAWNS[m->en0 + i];
         En *e = &en[i];
@@ -2066,7 +2138,16 @@ static void draw_world(void)
     for (i = 0; i < (int)m->nbomb && i < MAX_BOMB; i++) {
         const Spot *b = &BOMBS[m->bomb0 + i];
         if (!bomb_on[i]) continue;
-        rect_w(b->x - 6, b->fy, b->x + 6, b->fy + 12, RGB565(40, 40, 48));
+        rect_w(b->x - 6, b->fy, b->x + 6, b->fy + 12, bomb_fuse[i] ? COL_RED : RGB565(40, 40, 48));
+    }
+    for (i = 0; i < MAX_DROP; i++) {
+        if (!drops[i].on) continue;
+        if (drops[i].kind == 5) rect_w(drops[i].x - 4, drops[i].fy, drops[i].x + 4, drops[i].fy + 14, COL_GOLD);
+        else if (drops[i].kind == 0) hw_sprite(PF_X + drops[i].x, PF_Y + FEET_ROW - (drops[i].fy + 8), (int)GEM_SPR[0], 0);
+        else if (drops[i].kind == 1) hw_sprite(PF_X + drops[i].x, PF_Y + FEET_ROW - (drops[i].fy + 8), (int)GEM_SPR[2], 0);
+        else if (drops[i].kind == 2) hw_sprite(PF_X + drops[i].x, PF_Y + FEET_ROW - (drops[i].fy + 8), (int)GEM_SPR[3], 0);
+        else if (drops[i].kind == 3) hw_sprite(PF_X + drops[i].x, PF_Y + FEET_ROW - (drops[i].fy + 8), (int)GEM_SPR[4], 0);
+        else if (drops[i].kind == 6) hw_sprite(PF_X + drops[i].x, PF_Y + FEET_ROW - (drops[i].fy + 8), (int)GEM_SPR[1], 0);
     }
     for (i = 0; i < MAX_EN; i++) {
         const EFrame *f;
@@ -2218,7 +2299,7 @@ static void sim(int down, int prev)
     for (i = 0; i < MAX_EN; i++) step_enemy(&en[i]);
     step_shots();
     pickups();
-    if (mode == MODE_PLAY && px >= 350 && enemies_left() == 0) clear_map();
+    if (mode == MODE_PLAY && px >= 360 && enemies_left() == 0) clear_map();
 }
 
 void game_main(void)

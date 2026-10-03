@@ -79,6 +79,8 @@ See repository history for full rules. Work on main, claim steps.
 
 **MAME-9 (done, not booted):** sight is twice the baked distance. A heavy bag does not walk or attack. Death stays on screen and fades for 900 ms instead of blinking off. A pit hop uses the baked jump distance and dies if that distance lands in the pit. The goblin combo fires three homing shards at frames 3, 4 and 6; a parry turns one around, a block eats it. Climbing onto other platforms is not in this step. Host syntax check only. Not linked.
 
+**MAME-10 (done, not booted):** the right edge opens the next map only after every enemy is dead. Both feet over a pit sink her; the retry spends an ankh, and with none left the level restarts with 3. Crates break from hits and bombs and never grant an unlock. Bombs do 50 inside 50 px and set the next bomb off 180 ms later. Gems go into the bag (full bag leaves them), powder raises max HP by 25, and a boss drops 9 gems, 3 ankhs, and one powder. Host syntax check only. Not linked.
+
 ## Dreamcast port (paused 2026-10-03, was on demand only)
 
 **Owner's rules (2026-10-02):** the port is NOT part of the permanent pipeline; build and push a Dreamcast disc image (`.cdi`) only when the owner asks; note each major step here and push it to main so other agents can continue. Everything lives in `ports/dreamcast/` (README there). Source of method: the owner's `DREAMCAST_PORT_HANDOFF.txt` (a CryMon handoff). Plan: a C rewrite of the runtime for the SH-4 with baked data, in phases, each with an emulator test: 1 boot, 2 frame cost, 3 input and text, 4 art, 5 data out of JS, 6 game logic, 7 save, 8 audio, 9 disc streaming, 10 emulator tests.

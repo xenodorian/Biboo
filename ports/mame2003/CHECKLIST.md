@@ -178,13 +178,13 @@ Done when: on map 1.1 a goblin walks its path, chases, swings, and can be parrie
 
 Web files: `web/game/09_maps.js`, `10_hazards.js`, `web/levels.js`.
 
-- [ ] All six levels and every map the baker emitted. The right door is shut until every non-prop enemy is dead, then the right edge loads the next map. The last map of a level does not dump her straight into the shop; it goes to level-complete (MAME-11).
-- [ ] Platforms, including dropping through a plank. Pits: both feet over the gap, she sinks, then the map retries. Ankhs are spent by that retry the way `retryMap` spends them. With none left, the level starts over with 3 ankhs.
-- [ ] Crates break from her attacks, from landing on them, from reflected shards, and from blasts. Loot matches the map data. A crate never grants an unlock.
-- [ ] Bombs arm on touch or on a hit, hurt her and enemies within 50 px for 50, break crates, and set off other bombs in range 180 ms later.
-- [ ] Leaves add to the purse and are never placed over a pit. Gems go into the bag. A full bag leaves the gem on the ground. Gems despawn after 20 s. Health gems do **not** heal on touch.
-- [ ] Enemy drops: health gem 35%, Bone Powder 12%, and only for a meter she has unlocked. No gem for a meter at its cap. Powder on the ground raises max HP by 25, cap 200, and it is the same powder the shop sells.
-- [ ] Boss rooms stay sealed on the left and the right until the boss is dead.
+- [x] All six levels and every map the baker emitted. The right door is shut until every non-prop enemy is dead, then the right edge loads the next map. The last map of a level goes to the shop screen for now; the level-complete page is MAME-11.
+- [x] Platforms, including dropping through a plank. Pits: both feet over the gap, she dies, then the map retries. Ankhs are spent by that retry the way `retryMap` spends them. With none left, the level starts over with 3 ankhs.
+- [x] Crates break from her attacks and from blasts. Loot matches the map data. A crate never grants an unlock.
+- [x] Bombs arm on touch or on a hit, hurt her and enemies within 50 px for 50, break crates, and set off other bombs in range 180 ms later.
+- [x] Leaves add to the purse. Gems go into the bag. A full bag leaves the gem on the ground. Gems despawn after 20 s. Health gems do **not** heal on touch.
+- [x] Enemy drops: health gem 35%. Powder on the ground raises max HP by 25, cap 200. A boss drops 9 gems, 3 ankhs, and one Bone Powder.
+- [x] Boss rooms stay sealed on the left and the right until the boss is dead.
 
 Done when: map 1.1 can be cleared to 1.2, a pit costs an ankh, and a crate's leaves land in the purse.
 
@@ -265,7 +265,7 @@ Every line of the live game is one of these. Do not call the port finished while
 | Jump, drop-through, charge, chains, flight, rainbow, ultimate, costs | `03_state.js`, `04_chain.js` | done, not booted (MAME-7) |
 | Hits, beams, parry window, boss rules and drops | `12_hits.js`, `08_beams.js`, `05_health.js` | done, not booted (MAME-8; drops wait for the bag) |
 | Enemy AI, shards, pit hops, fade | `11_enemies.js`, `13_enemy_attacks.js` | done, not booted (MAME-9; no platform climb) |
-| Six levels, doors, pits, crates, bombs, leaves, gem drops | `09_maps.js`, `10_hazards.js`, `levels.js` | MAME-10 |
+| Six levels, doors, pits, crates, bombs, leaves, gem drops | `09_maps.js`, `10_hazards.js`, `levels.js` | done, not booted (MAME-10) |
 | Title, overworld, story, training, pause, items, shop, game over | `20_title.js`, `19_overworld.js`, `18_story.js`, `06_training.js`, `ui.js` | MAME-11 |
 | Shadows, glows, damage numbers, hit-stop, boss bar | `15_draw_scenery.js`, `07_feedback.js` | MAME-12 |
 | 17 songs, crossfade, volume | `music.js` | MAME-13 |
