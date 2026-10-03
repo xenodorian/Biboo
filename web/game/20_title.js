@@ -9,7 +9,7 @@
     // Max, idle, large, on the left
     const m = D.moves.idle, cw = m.cell[0], ch = m.cell[1], total = m.frames.reduce((a, f) => a + f.ms, 0);
     let t = T % total, k = 0; while (k < m.frames.length - 1 && t >= m.frames[k].ms) { t -= m.frames[k].ms; k++; }
-    const sc = 0.85, ax = 78, ay = H - 30;
+    const sc = 1.0, ax = Math.round(W * 0.22), ay = H - 34;
     const tdx = Math.round(ax - m.anchor[0] * sc), tdy = Math.round(ay - m.anchor[1] * sc);   // a real cast shadow: her own outline laid on the grass, away from the sunset glow
     castShadow(silhouette('title' + k, img[m.sheet].im, k * cw, 0, cw, ch, Math.round(cw * sc), Math.round(ch * sc), '#0a0614'), tdx, tdy, ay, { sx: 1.0, sy: 0.2, a: 0.85 });
     blit(img[m.sheet].im, k * cw, cw, ch, ax - m.anchor[0] * sc, ay - m.anchor[1] * sc, null, sc);
@@ -26,13 +26,13 @@
       }
     };
     const intro = Math.min(1, T / 700);
-    g.globalAlpha = intro; draw('PARRYING', 200, 52 - (1 - intro) * 14, 34); draw('PERRY', 200, 88 - (1 - intro) * 14, 34); g.globalAlpha = 1;
+    g.globalAlpha = intro; draw('PARRYING', W / 2, 92 - (1 - intro) * 18, 52); draw('PERRY', W / 2, 150 - (1 - intro) * 18, 52); g.globalAlpha = 1;
     // a sword slash sweeping across the logo, now and then
-    const sweep = (T % 4200) / 4200, sx0 = 60 + sweep * 3 * 360;
-    if (sweep < 0.34) { g.globalAlpha = 0.85 * Math.sin(sweep / 0.34 * Math.PI); g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(sx0 - 40, 120); g.lineTo(sx0 + 10, 28); g.stroke(); g.lineWidth = 1; g.beginPath(); g.moveTo(sx0 - 30, 120); g.lineTo(sx0 + 20, 28); g.stroke(); g.globalAlpha = 1; }
-    g.font = 'bold 8px monospace'; g.fillStyle = '#e8e0ff'; g.strokeStyle = '#000'; g.lineWidth = 3;
-    g.strokeText('A PERRY RIPOSTE ADVENTURE', 200, 112); g.fillText('A PERRY RIPOSTE ADVENTURE', 200, 112);
-    g.font = '7px monospace'; g.textAlign = 'right'; g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillText(window.BIBOO_VER || '', W - 4, H - 6);
+    const sweep = (T % 4200) / 4200, sx0 = 90 + sweep * 3 * (W - 180);
+    if (sweep < 0.34) { g.globalAlpha = 0.85 * Math.sin(sweep / 0.34 * Math.PI); g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(sx0 - 60, 190); g.lineTo(sx0 + 15, 55); g.stroke(); g.lineWidth = 1; g.beginPath(); g.moveTo(sx0 - 45, 190); g.lineTo(sx0 + 30, 55); g.stroke(); g.globalAlpha = 1; }
+    g.font = 'bold 12px monospace'; g.fillStyle = '#e8e0ff'; g.strokeStyle = '#000'; g.lineWidth = 3;
+    g.strokeText('A PERRY RIPOSTE ADVENTURE', W / 2, 188); g.fillText('A PERRY RIPOSTE ADVENTURE', W / 2, 188);
+    g.font = '9px monospace'; g.textAlign = 'right'; g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillText(window.BIBOO_VER || '', W - 6, H - 8);
     g.restore();
   }
   function drawOverworld() {
