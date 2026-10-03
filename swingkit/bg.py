@@ -1,6 +1,6 @@
 """Original sunset side-scroller scene, drawn at 1:1 pixel scale.
 Every layer is native 640x480 artwork and periodic (tiles horizontally) for parallax scrolling.
-Layers are rendered with a vertical margin (M rows above and below the 216-px view)
+Layers are rendered with a vertical margin (M rows above and below the 480-px view)
 so camera shake never exposes an edge.
 """
 import numpy as np
