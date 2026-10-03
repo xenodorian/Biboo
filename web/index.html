@@ -2,15 +2,102 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="0;url=https://cdn.jsdelivr.net/gh/xenodorian/Biboo@9d1dbdd61847901658ebd45dd250bbd627f5c5fd/web/index.html">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Perry Riposte</title>
-<script>
-// st121: rewrite script tags to use live repo + st121 after loading is not ideal.
-// Prefer same-origin: inject stamp-bumped copy.
-location.replace('https://cdn.jsdelivr.net/gh/xenodorian/Biboo@9d1dbdd61847901658ebd45dd250bbd627f5c5fd/web/');
-</script>
+<style>
+:root{--bg:#15151b;--panel:#1f1f28;--line:#33333f;--text:#e6e6ec;--dim:#9a9aa8;--lit:#f0b44c;--key:#2b2b36}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}
+main{max-width:1184px;margin:0 auto;padding:16px}h1{font-size:18px;margin:0 0 10px;font-weight:600}
+#stage{position:relative;background:#1a0f18;border:1px solid var(--line)}
+canvas{display:block;width:100%;image-rendering:pixelated;image-rendering:crisp-edges;aspect-ratio:4/3}
+#kills{position:absolute;right:10px;top:8px;padding:4px 8px;background:rgba(0,0,0,.55);border-radius:4px;font-weight:600;pointer-events:none;z-index:3}
+#loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--dim);z-index:4}
+#start-menu{position:absolute;inset:0;z-index:5;display:grid;place-items:center;background:transparent;pointer-events:none}
+#start-menu[hidden]{display:none!important}
+#start-menu .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(12,8,16,.45),rgba(12,8,16,.62));pointer-events:none}
+#start-menu .panel{position:relative;z-index:1;pointer-events:auto;text-align:center;padding:24px 28px;background:rgba(31,31,40,.9);border:1px solid var(--line);border-radius:10px;min-width:240px}
+#start-menu button{font:600 15px system-ui,sans-serif;padding:10px 16px;border-radius:6px;border:1px solid var(--line);cursor:pointer;background:var(--key);color:var(--text)}
+#start-menu button.primary{background:var(--lit);color:#1a1206;border-color:var(--lit)}
+#btn-hud-start{position:absolute;left:10px;bottom:10px;z-index:6;font:600 13px system-ui,sans-serif;padding:8px 14px;border-radius:6px;border:1px solid var(--line);cursor:pointer;background:var(--lit);color:#1a1206}
+.row{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin:0 0 8px}
+#log{list-style:none;margin:0;padding:0;font:13px ui-monospace,monospace;min-height:8.5em}
+#log li{padding:1px 0;color:var(--dim)}#log li:first-child{color:var(--text)}
+p.note{color:var(--dim);margin:8px 0 0;font-size:13px}
+#monitor{font:12px/1.4 ui-monospace,monospace;color:var(--dim);white-space:pre-wrap;margin:8px 0 0}
+.cur{outline:2px solid var(--lit);outline-offset:-2px;background:rgba(255,255,255,.07)}
+.menu-scroll{max-height:38vh;min-width:min(560px,80vw);overflow:auto;text-align:left}
+.shop-wrap{min-width:min(520px,90vw)}.shop-scroll{max-height:46vh;overflow-y:auto}
+</style>
 </head>
 <body>
-<p>Loading Perry Riposte…</p>
+<main>
+  <h1>Perry Riposte</h1>
+  <div id="stage">
+    <canvas id="view" width="640" height="480" tabindex="0" aria-label="Game view"></canvas>
+    <div id="kills"></div>
+    <button type="button" id="btn-hud-start" disabled>Menu</button>
+    <div id="loading">Loading...</div>
+    <div id="start-menu" hidden>
+      <div class="veil"></div>
+      <div class="panel">
+        <div class="hero" aria-hidden="true"></div>
+        <h2 id="menu-title">Parrying Perry</h2>
+        <p id="menu-msg">Defeat the goblins and orcs</p>
+        <div id="menu-view"></div>
+      </div>
+    </div>
+  </div>
+  <div class="row one">
+    <section>
+      <h2>Last moves</h2>
+      <ol id="log"></ol>
+    </section>
+  </div>
+  <section id="inputmon">
+    <h2>Input monitor</h2>
+    <label class="note"><input type="checkbox" id="monitor-on"> Show raw key and controller events</label>
+    <pre id="monitor"></pre>
+  </section>
+</main>
+<script>window.BIBOO_VER = 'st121';</script>
+<script src="assets/data.js?v=st121"></script>
+<script src="assets/moves_extra.js?v=st121"></script>
+<script src="assets/creatures.js?v=st121"></script>
+<script src="assets/arenas.js?v=st121"></script>
+<script src="assets/bgs.js?v=st121"></script>
+<script src="assets/training.js?v=st121"></script>
+<script src="assets/items.js?v=st121"></script>
+<script src="assets/story.js?v=st121"></script>
+<script src="assets/music.js?v=st121"></script>
+<script src="music.js?v=st121"></script>
+<script src="input.js?v=st121"></script>
+<script src="progress.js?v=st121"></script>
+<script src="ui.js?v=st121"></script>
+<script src="levels.js?v=st121"></script>
+<script src="game/00_core.js?v=st121"></script>
+<script src="game/01_assets.js?v=st121"></script>
+<script src="game/02_input.js?v=st121"></script>
+<script src="game/03_state.js?v=st121"></script>
+<script src="game/04_chain.js?v=st121"></script>
+<script src="game/05_health.js?v=st121"></script>
+<script src="game/06_training.js?v=st121"></script>
+<script src="game/07_feedback.js?v=st121"></script>
+<script src="game/08_beams.js?v=st121"></script>
+<script src="game/09_maps.js?v=st121"></script>
+<script src="game/10_hazards.js?v=st121"></script>
+<script src="game/11_enemies.js?v=st121"></script>
+<script src="game/12_hits.js?v=st121"></script>
+<script src="game/13_enemy_attacks.js?v=st121"></script>
+<script src="game/14_draw_player.js?v=st121"></script>
+<script src="game/15_draw_scenery.js?v=st121"></script>
+<script src="game/16_hud.js?v=st121"></script>
+<script src="game/17_menus.js?v=st121"></script>
+<script src="game/18_story.js?v=st121"></script>
+<script src="game/19_overworld.js?v=st121"></script>
+<script src="game/20_title.js?v=st121"></script>
+<script src="game/21_cheats_loop.js?v=st121"></script>
+<script src="game/22_test_hooks.js?v=st121"></script>
 </body>
 </html>
