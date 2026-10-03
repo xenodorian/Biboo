@@ -79,3 +79,20 @@ def test_crash_plays_the_full_dust_cloud():
     cells = [sheet.crop((names.index(n) * w, 0, (names.index(n) + 1) * w, h)) for n in ('burst', 'plume', 'settle')]
     for a, b in zip(cells, cells[1:]):
         assert ImageChops.difference(a, b).getbbox() is not None, 'consecutive cloud frames are identical'
+
+
+def test_perry_native_gravity_and_jump_targets():
+    state = (ROOT / 'web' / 'game' / '03_state.js').read_text()
+    maps = (ROOT / 'web' / 'game' / '09_maps.js').read_text()
+    attacks = (ROOT / 'web' / 'game' / '13_enemy_attacks.js').read_text()
+    chain = (ROOT / 'web' / 'game' / '04_chain.js').read_text()
+
+    assert 'const GRAVITY_FOOT_BACK = 13, GRAVITY_FOOT_FRONT = 92, GRAVITY_FOOT_WIDTH = 79;' in attacks
+    assert 'function gravitySpan(bx)' in maps
+    assert 'gravityOverSurf(sf, gravitySpan(px))' in maps
+    assert 'const JUMP_H = 100, JUMP_APEX_MS = 280;' in state
+    assert 'const AIR_JUMP_WIDTH = 120, DOUBLE_JUMP_WIDTH = 240;' in state
+    assert 'const DOUBLE_JUMP_MAX_H = 200' in state
+    assert 'const SKY_DASH_H = 300' in state
+    assert 'const speed = dblUsed ? DOUBLE_AIR_SPEED : AIR_SPEED;' in chain
+    assert 'xRange: AIR_JUMP_WIDTH' in chain
