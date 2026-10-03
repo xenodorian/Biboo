@@ -14,7 +14,7 @@
   let rumble = null;                    // {t0, ms, amp}: shake that outlasts a move (the earthquake)
   let clock = 0;
   // levels: the level being played, its loaded map, and the surface she stands on (see "levels" below)
-  const LV = window.BIBOO_LEVELS, MAP_W = LV.MAP_W;
+  const LV = window.BIBOO_LEVELS, MAP_W = LV.MAP_W, WORLD_Y_SCALE = LV.WORLD_Y_SCALE;
   let level = null, curMap = null;
   let screen = 'title';                 // 'title', 'overworld' or 'level'
   let floorY = 0;                       // height of the surface she stands on: 0 is the ground, a platform or barrier top is more

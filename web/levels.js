@@ -234,6 +234,6 @@
   const training = { n: 0, name: 'Sunset Training', blurb: 'Optional. Hit the heavy bag with any move you own.', bg: 'training', training: true, tint: null,
     maps: [{ id: 'T', solids: [], plats: [], pits: [], bombs: [], crates: [], enemies: [{ type: 'heavybag', x: 140 * MAP_X_SCALE, fy: 12 * MAP_Y_SCALE }], arena: true }] };
 
-  root.BIBOO_LEVELS = { MAP_W, MAPS_PER_LEVEL, levels, training };
+  root.BIBOO_LEVELS = { MAP_W, WORLD_Y_SCALE, MAPS_PER_LEVEL, levels, training };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.BIBOO_LEVELS;
 })(typeof window !== 'undefined' ? window : globalThis);
