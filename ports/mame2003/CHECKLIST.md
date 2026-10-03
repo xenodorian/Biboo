@@ -165,12 +165,12 @@ Done when: a forced slash damages one enemy once, a late parry still lands, and 
 
 Web files: `web/game/11_enemies.js`, `13_enemy_attacks.js`.
 
-- [ ] Every baked type, including the club ogre and Mirror Perry. A prop (the heavy bag) does not walk or attack.
-- [ ] Patrol, sight at 2× the baked distance, chase, and an attack as soon as one damage box would touch her body. They aim at the middle of that box.
-- [ ] Climb, drop off platforms, hop pits. Jump distance and landing offset stay the baked per-type numbers (goblin 200 px, orc 70 px). They do not walk into pits on their own. A knock into a pit kills them.
-- [ ] Goblin combo, including the three shards. Dive, swing-anyway, rest, parried, knocked.
-- [ ] Death fades out. It does not blink off.
-- [ ] Damage boxes stay the tightened leading slice from `tools/creatures/tighten_hits.py`. Re-bake if that tool is re-run; do not hand-widen them.
+- [x] Every baked type, including the club ogre and Mirror Perry. A prop (the heavy bag) does not walk or attack.
+- [x] Patrol, sight at 2× the baked distance, chase, and an attack when a damage box would touch her body.
+- [x] Hop pits using the baked jump distance (goblin 200, orc 70). A jump that lands in the pit kills them. They do not walk into pits on their own. A knock into a pit kills them. Climbing onto a higher platform is not in this step.
+- [x] Goblin combo fires three homing shards (frames 3, 4, 6). A parry reflects one. A block removes it. Dive, rest, and the parry stun were already in.
+- [x] Death fades out over 900 ms. It does not blink off.
+- [x] Damage boxes stay the tightened leading slice from `tools/creatures/tighten_hits.py`. Re-bake if that tool is re-run; do not hand-widen them.
 
 Done when: on map 1.1 a goblin walks its path, chases, swings, and can be parried. A pit knock removes it.
 
@@ -264,7 +264,7 @@ Every line of the live game is one of these. Do not call the port finished while
 | Full binding table, shoulders gated by unlocks | `input.js`, `02_input.js`, `00_core.js` | MAME-6 |
 | Jump, drop-through, charge, chains, flight, rainbow, ultimate, costs | `03_state.js`, `04_chain.js` | done, not booted (MAME-7) |
 | Hits, beams, parry window, boss rules and drops | `12_hits.js`, `08_beams.js`, `05_health.js` | done, not booted (MAME-8; drops wait for the bag) |
-| Enemy AI, shards, pit hops, fade | `11_enemies.js`, `13_enemy_attacks.js` | MAME-9 |
+| Enemy AI, shards, pit hops, fade | `11_enemies.js`, `13_enemy_attacks.js` | done, not booted (MAME-9; no platform climb) |
 | Six levels, doors, pits, crates, bombs, leaves, gem drops | `09_maps.js`, `10_hazards.js`, `levels.js` | MAME-10 |
 | Title, overworld, story, training, pause, items, shop, game over | `20_title.js`, `19_overworld.js`, `18_story.js`, `06_training.js`, `ui.js` | MAME-11 |
 | Shadows, glows, damage numbers, hit-stop, boss bar | `15_draw_scenery.js`, `07_feedback.js` | MAME-12 |

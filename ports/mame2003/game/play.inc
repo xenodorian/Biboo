@@ -59,12 +59,16 @@ typedef struct {
     short x, fy, base, hp, maxhp, lo, hi;
     short sacc, t, rest, stun, tint, taunt, knock_left, knock_ms, knock_acc, knock_dir;
     short path0, path1, dir, hop, shot_k, sight;
+    short jx0, jx1, jfy;
     unsigned short seen;
     int seen_t;
     int land_at;
     unsigned char on, hit_done, scale, flags;
 } En;
 static En en[MAX_EN];
+#define MAX_SHOT 12
+typedef struct { short x, y, vx, vy, dmg, age; unsigned char on, home, from_her; } Shot;
+static Shot shots[MAX_SHOT];
 static unsigned char leaf_on[MAX_LEAF], crate_on[MAX_CRATE], bomb_on[MAX_BOMB];
 
 static int move_open(int move);
@@ -419,6 +423,7 @@ static void hurt_enemy(En *e, int dmg, int dir)
     else if (mv == MV_energy_burst) { dist = 70; ms = 320; }
     if (e->hp == 0) {
         e->state = ST_DEAD;
+        e->stun = 0;
         e->land_at = 0;
         e->hit_done = 1;
         if ((int)ENEMIES[e->type].a_death >= 0) eplay(e, ENEMIES[e->type].a_death);
@@ -497,17 +502,102 @@ static int hurt_her(int dmg, int from_face)
     if (hp == 0) die();
     return 1;
 }
+static int isqrt(int n)
+{
+    int x, i;
+    if (n <= 0) return 0;
+    x = n;
+    for (i = 0; i < 12; i++) x = (x + n / x) / 2;
+    return x;
+}
+static void spawn_shot(int x, int y, int vx, int vy, int dmg, int home)
+{
+    int i;
+    for (i = 0; i < MAX_SHOT; i++) if (!shots[i].on) break;
+    if (i == MAX_SHOT) return;
+    shots[i].on = 1;
+    shots[i].from_her = 0;
+    shots[i].home = (unsigned char)home;
+    shots[i].x = (short)x;
+    shots[i].y = (short)y;
+    shots[i].vx = (short)vx;
+    shots[i].vy = (short)vy;
+    shots[i].dmg = (short)dmg;
+    shots[i].age = 0;
+}
+static void fire_combo(En *e, int n)
+{
+    static const int ang[3] = {488, 743, 951};
+    int c = ang[n < 0 || n > 2 ? 0 : n];
+    int s = isqrt(1000 * 1000 - c * c);
+    spawn_shot(e->x + e->face * 10, e->fy + 44, e->face * c / 5, s / 5, 10, 1);
+}
+static void step_shots(void)
+{
+    int i, j;
+    for (i = 0; i < MAX_SHOT; i++) {
+        Shot *s = &shots[i];
+        int hx0, hy0, hx1, hy1;
+        if (!s->on) continue;
+        s->age = (short)(s->age + DT);
+        if (s->home && !s->from_her && s->age > 500) {
+            int tx, ty, cross, spd;
+            her_box(&hx0, &hy0, &hx1, &hy1);
+            tx = (hx0 + hx1) / 2 - s->x;
+            ty = (hy0 + hy1) / 2 - s->y;
+            cross = s->vx * ty - s->vy * tx;
+            if (cross > 40) { int nx = s->vx * 124 / 128 - s->vy * 28 / 128; int ny = s->vy * 124 / 128 + s->vx * 28 / 128; s->vx = (short)nx; s->vy = (short)ny; }
+            else if (cross < -40) { int nx = s->vx * 124 / 128 + s->vy * 28 / 128; int ny = s->vy * 124 / 128 - s->vx * 28 / 128; s->vx = (short)nx; s->vy = (short)ny; }
+            spd = isqrt((int)s->vx * s->vx + (int)s->vy * s->vy);
+            if (spd > 0) { s->vx = (short)(s->vx * 170 / spd); s->vy = (short)(s->vy * 170 / spd); }
+        }
+        s->x = (short)(s->x + s->vx * DT / 1000);
+        s->y = (short)(s->y + s->vy * DT / 1000);
+        if (s->age > (s->home ? 7000 : 4000) || s->x < -30 || s->x > VIEW_W + 30 || s->y < -8 || s->y > 300) { s->on = 0; continue; }
+        if (!s->from_her) {
+            her_box(&hx0, &hy0, &hx1, &hy1);
+            if (overlap(s->x - 5, s->y - 5, s->x + 5, s->y + 5, hx0, hy0, hx1, hy1)) {
+                if (mv == MV_parry && kind == K_ACTION && fr <= 2) {
+                    s->from_her = 1;
+                    s->home = 0;
+                    s->vx = (short)(face * 360);
+                    s->vy = 0;
+                    s->age = 0;
+                } else if (mv == MV_block && kind != K_LAND) {
+                    s->on = 0;
+                } else {
+                    hurt_her(s->dmg > 0 ? s->dmg : 10, s->vx >= 0 ? 1 : -1);
+                    s->on = 0;
+                }
+            }
+            continue;
+        }
+        for (j = 0; j < MAX_EN; j++) {
+            int b0, b1, b2, b3;
+            if (!e_hurt(&en[j], &b0, &b1, &b2, &b3)) continue;
+            if (!overlap(s->x - 5, s->y - 5, s->x + 5, s->y + 5, b0, b1, b2, b3)) continue;
+            hurt_enemy(&en[j], 20, s->vx >= 0 ? 1 : -1);
+            s->on = 0;
+            break;
+        }
+    }
+}
 static void step_enemy(En *e)
 {
     const EDef *d = &ENEMIES[e->type];
     const EAnim *A;
     const EFrame *f;
-    int sp, ended = 0;
+    int sp, ended = 0, dt = DT;
     if (!e->on) return;
-    if (e->tint > 0) e->tint--;
-    if (e->taunt > 0) e->taunt--;
+    if (d->prop) {
+        e->state = ST_PATROL;
+        e->face = -1;
+        return;
+    }
+    if (e->tint > 0 && e->taunt <= 0) e->tint--;
+    if (e->taunt > 0) dt *= 2;
     if (e->knock_left > 0 && e->knock_ms > 0) {
-        e->knock_acc = (short)(e->knock_acc + e->knock_left * DT);
+        e->knock_acc = (short)(e->knock_acc + e->knock_left * dt);
         while (e->knock_acc >= e->knock_ms && e->knock_left > 0) {
             e->knock_acc = (short)(e->knock_acc - e->knock_ms);
             e->knock_left--;
@@ -516,7 +606,7 @@ static void step_enemy(En *e)
     }
     A = &EANIMS[e->anim];
     f = ef(e);
-    e->t = (short)(e->t + DT);
+    e->t = (short)(e->t + dt);
     if (e->t >= f->ms) {
         e->t = (short)(e->t - f->ms);
         e->k++;
@@ -524,9 +614,13 @@ static void step_enemy(En *e)
             if (A->loop) e->k = 0;
             else { e->k = (short)(A->n - 1); ended = 1; }
         }
+        if (e->state == ST_ATK && (int)d->combo >= 0 && e->anim == d->combo) {
+            if (e->k == 3 || e->k == 4 || e->k == 6) fire_combo(e, e->k == 3 ? 0 : (e->k == 4 ? 1 : 2));
+        }
     }
     if (e->state == ST_DEAD) {
-        if (ended || (int)d->a_death < 0) e->on = 0;
+        e->stun = (short)(e->stun + DT);
+        if (e->stun >= 900) e->on = 0;
         return;
     }
     if (e->state == ST_ATK) {
@@ -567,31 +661,29 @@ static void step_enemy(En *e)
         return;
     }
     if (e->state == ST_STUN) {
-        e->stun = (short)(e->stun - DT);
+        e->stun = (short)(e->stun - dt);
         if (e->stun <= 0) {
             e->state = ST_CHASE;
             eplay(e, d->a_idle >= 0 ? d->a_idle : 0);
         }
         return;
     }
-    if (e->rest > 0) e->rest = (short)(e->rest - DT);
+    if (e->rest > 0) e->rest = (short)(e->rest - dt);
     if (e->hop > 0) {
-        int step = d->jump_dist / 8;
-        int rise = e->hop < 4 ? e->hop * 6 : (8 - e->hop) * 6;
-        if (step < 1) step = 1;
-        e->base = (short)(e->base + e->dir * step);
-        e->x = (short)(e->x + e->dir * step);
-        e->fy = (short)(e->fy + 0);
-        (void)rise;
+        int u = e->hop;
+        int nx = e->jx0 + (e->jx1 - e->jx0) * u / 8;
+        e->base = (short)(e->base + (nx - e->x));
+        e->x = (short)nx;
         e->hop++;
         if (e->hop >= 8) {
             e->hop = 0;
-            e->x = (short)(e->x + e->dir * d->land_off);
-            if (e->fy == 0 && in_pit(e->x)) {
+            e->fy = e->jfy;
+            set_range(e);
+            if (e->flags & 2) {
                 e->hp = 0;
                 e->state = ST_DEAD;
-                e->on = 0;
-                leaves += 2;
+                e->stun = 0;
+                e->flags = (unsigned char)(e->flags & ~2);
                 return;
             }
         }
@@ -599,7 +691,8 @@ static void step_enemy(En *e)
     }
     if (e->state == ST_PATROL) {
         int target, dxh = vis_x() - e->x;
-        if (dxh * e->face > 0 && iabs(dxh) < e->sight && iabs(feet_h() - e->fy) < 80) {
+        int see = e->sight > 0 ? e->sight * 2 : 160;
+        if (dxh * e->face > 0 && iabs(dxh) < see && iabs(feet_h() - e->fy) < 120) {
             e->state = ST_CHASE;
             e->rest = 180;
             return;
@@ -621,11 +714,11 @@ static void step_enemy(En *e)
         int anim;
         e->dir = (short)(dxh >= 0 ? 1 : -1);
         e->face = e->dir;
-        if (iabs(dxh) > 200 && iabs(feet_h() - e->fy) > 80) {
+        if (iabs(dxh) > e->sight * 2 && iabs(feet_h() - e->fy) > 120 && e->path0 >= 0) {
             e->state = ST_PATROL;
             return;
         }
-        if (e->rest <= 0 && iabs(dxh) < d->reach + 36) {
+        if (e->rest <= 0) {
             anim = strike_anim(e);
             if (anim >= 0) {
                 e->state = ST_ATK;
@@ -634,9 +727,14 @@ static void step_enemy(En *e)
                 return;
             }
         }
-        if (iabs(dxh) < 28) return;
+        if (iabs(dxh) < 20) return;
         if (e->fy == 0 && in_pit(e->x + e->dir * 8) && d->jump_dist > 0) {
+            int tx = e->x + e->dir * d->jump_dist;
+            e->jx0 = e->x;
+            e->jx1 = (short)tx;
+            e->jfy = e->fy;
             e->hop = 1;
+            e->flags = (unsigned char)((e->flags & ~2) | (in_pit(tx) ? 2 : 0));
             return;
         }
         if ((int)d->a_walk >= 0 && e->anim != d->a_walk && e->rest <= 0) eplay(e, d->a_walk);
@@ -645,7 +743,7 @@ static void step_enemy(En *e)
     if (d->boss && e->hp * 2 < e->maxhp) sp = sp * 145 / 100;
     if (e->taunt > 0) sp *= 2;
     if (e->state == ST_PATROL) sp /= 2;
-    e->sacc = (short)(e->sacc + sp * DT);
+    e->sacc = (short)(e->sacc + sp * dt);
     while (e->sacc >= 1000) {
         e->sacc = (short)(e->sacc - 1000);
         e_move(e, e->dir);
@@ -1976,10 +2074,19 @@ static void draw_world(void)
         if (!en[i].on) continue;
         f = ef(&en[i]);
         y = en[i].fy + (en[i].hop ? (en[i].hop < 4 ? en[i].hop * 6 : (8 - en[i].hop) * 6) : 0);
-        if (en[i].tint > 0)
+        if (en[i].state == ST_DEAD) {
+            int a = 255 - en[i].stun * 255 / 900;
+            if (a < 0) a = 0;
+            hw_sprite_tint(PF_X + en[i].base, PF_Y + FEET_ROW - y, f->spr, en[i].face > 0, 0, a);
+        } else if (en[i].tint > 0)
             hw_sprite_tint(PF_X + en[i].base, PF_Y + FEET_ROW - y, f->spr, en[i].face > 0, COL_RED, 160);
         else
             hw_sprite(PF_X + en[i].base, PF_Y + FEET_ROW - y, f->spr, en[i].face > 0);
+    }
+    for (i = 0; i < MAX_SHOT; i++) {
+        if (!shots[i].on) continue;
+        rect_w(shots[i].x - 14, shots[i].y - 2, shots[i].x + 10, shots[i].y + 2,
+               shots[i].from_her ? COL_GOLD : COL_BLUE);
     }
     if (kind == K_ACTION && mf(mv, fr)->beam >= 0) {
         int b = (int)mf(mv, fr)->beam;
@@ -2109,6 +2216,7 @@ static void sim(int down, int prev)
     take_events();
     step_player(down);
     for (i = 0; i < MAX_EN; i++) step_enemy(&en[i]);
+    step_shots();
     pickups();
     if (mode == MODE_PLAY && px >= 350 && enemies_left() == 0) clear_map();
 }

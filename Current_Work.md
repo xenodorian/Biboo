@@ -77,6 +77,8 @@ See repository history for full rules. Work on main, claim steps.
 
 **MAME-8 (done, not booted):** beams use the baked sheets, grow to 500 px, and spend the live tick cost (cloud 1, fire 3, laser 5, plasma 5) with live damage (5 / 15 / 15 / 0). A swing waits 200 ms after first contact, which is what `13_enemy_attacks.js` does now; the checklist's 300 was behind that file. A parry in that wait deals 10 and knocks 100 px. Bosses skip taunt and plasma. Boss drops (9 gems, 3 ankhs, powder) are MAME-10, because MAME-5 says gems enter the bag and MAME-8 has no bag yet. Host syntax check only. Not linked.
 
+**MAME-9 (done, not booted):** sight is twice the baked distance. A heavy bag does not walk or attack. Death stays on screen and fades for 900 ms instead of blinking off. A pit hop uses the baked jump distance and dies if that distance lands in the pit. The goblin combo fires three homing shards at frames 3, 4 and 6; a parry turns one around, a block eats it. Climbing onto other platforms is not in this step. Host syntax check only. Not linked.
+
 ## Dreamcast port (paused 2026-10-03, was on demand only)
 
 **Owner's rules (2026-10-02):** the port is NOT part of the permanent pipeline; build and push a Dreamcast disc image (`.cdi`) only when the owner asks; note each major step here and push it to main so other agents can continue. Everything lives in `ports/dreamcast/` (README there). Source of method: the owner's `DREAMCAST_PORT_HANDOFF.txt` (a CryMon handoff). Plan: a C rewrite of the runtime for the SH-4 with baked data, in phases, each with an emulator test: 1 boot, 2 frame cost, 3 input and text, 4 art, 5 data out of JS, 6 game logic, 7 save, 8 audio, 9 disc streaming, 10 emulator tests.
