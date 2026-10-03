@@ -9,7 +9,9 @@ typedef unsigned char u8;
 
 #define RGB565(r, g, b) ((u16)((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | ((b) >> 3)))
 
-/* One word at 0x300000, active low, matching the driver. A 0 bit is pressed. */
+/* One word at 0x300000, active low, matching the driver. A 0 bit is pressed.
+   Bits are the game names (A slash, B parry, X dash, Y spin, then L1 R1 L2 R2).
+   The driver maps an R36S BAYX pad onto these bits. Web is Xbox ABXY. Dreamcast is BAYXRL. */
 #define PAD_UP    0x0001u
 #define PAD_DOWN  0x0002u
 #define PAD_LEFT  0x0004u

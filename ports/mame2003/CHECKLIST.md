@@ -10,6 +10,7 @@ Read [README.md](README.md) and the MAME section of [Current_Work.md](../../Curr
 - The CPU does not paint pixels. It writes blitter commands. The driver paints a 640×480 RGB565 buffer at vblank. The CPU waits with `STOP` for the level-6 interrupt.
 - One web map is 384×216. Draw it **1:1**. The rest of the 640×480 frame is the HUD. Do not use the Dreamcast 5/6 shrink.
 - Eight buttons are real inputs: A, B, X, Y, L1, R1, L2, R2, plus Start. Do not fold L2 and R2 into chords the way the Dreamcast pad did.
+- The MAME core is built for an **R36S BAYX** pad (Nintendo letters) plus L1 R1 L2 R2. The letter on the plastic is the game button. Web is Xbox ABXY (south is A). Dreamcast is BAYXRL (east is A, two triggers). RetroArch must use Classic Gamepad, not a fightstick layout.
 - Art and tables are baked on the PC from a fresh dump of `web/`. The 68000 only reads them.
 - Music, if it is a synth, runs in the **driver**, not on the 68000.
 - Saves are MAME NVRAM. A web `localStorage` file does not load here.
@@ -37,15 +38,15 @@ There is a **pushed work-in-progress** (`game/play.inc`, `game/data.h`, `tools/b
 5. `make -C ports/mame2003/game` must link. If the picture should change, `make -C ports/mame2003/game preview` and look at `boot.png`.
 6. Note what was checked and what was not (MAME itself, a phone, an R36S). Commit. Push.
 
-Controls, for every step that reads the pad. This is the live game (`progress.js`, `00_core.js`), not the stale line in `ui.js` that says Y attacks.
+Controls, for every step that reads the pad. This is the live game (`progress.js`, `00_core.js`), not the stale line in `ui.js` that says Y attacks. On the R36S, use the **letter** on the button, not the web Xbox seat.
 
-| Pad | Live game |
+| Pad letter (R36S BAYX) | Live game |
 |---|---|
 | D-pad | Move. Up jumps. Up again in the air is the double jump, once unlocked. Down ducks. Down twice on a plank drops through. |
-| A | Attack and accept. Hold, then release, for the heavy chop once unlocked. |
-| B | Tap parries. Hold blocks. |
-| X | Dash. |
-| Y | Spin. In a menu, Y shows what the row does. |
+| A (east) | Attack and accept. Hold, then release, for the heavy chop once unlocked. |
+| B (south) | Tap parries. Hold blocks. |
+| X (north) | Dash. |
+| Y (west) | Spin. In a menu, Y shows what the row does. |
 | L1 L2 R1 R2 | Off until that button is bought. See the unlock table below. |
 | Start | Pause, which opens the menu. |
 

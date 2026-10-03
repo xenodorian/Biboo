@@ -25,7 +25,7 @@ add `-DGODMODE`, `-DKILLALL`, `-DSTART_LEVEL=n -DSTART_MAP=m` (0-based) as neede
 
 - Video: 320x240, RGB565, NTSC, CPU-drawn into video RAM at 0xa5000000, two buffers (0x000000 and 0x040000), redraw every frame,
   flip after vblank. Colour key for sprites 0xF81F (no alpha).
-- Pad: Maple bus port A unit 0, buttons active low, one GetCondition per frame. Bounded wait.
+- Pad: Maple bus port A unit 0, buttons active low, one GetCondition per frame. Bounded wait. Native **BAYXRL** layout (A east slash, B south parry, X west dash, Y north spin, L and R the two triggers). The R36S plays the MAME port, not this disc.
 - RAM is 16 MB at 0x8c000000, program at 0x8c010000, stack 0x8cfffff0. Zero the bss in start.S. Float only (no double).
 - Disc image: `mkdcdisc -e x.elf [-f extra.bin] -o x.cdi -n "Parry Perry" -a "Parry Perry" -N --allow-overwrite`.
 - Emulator tests only prove behaviour in desktop Flycast with its built-in BIOS. Nothing is verified on a real Dreamcast or the R36S.

@@ -16,6 +16,11 @@
                     7 tint (flip in bit 0 of B, alpha in the high byte, tint in color)
                     8 clip (x0,y0,x1,y1)   9 dim (y0,y1)   10 fill-alpha (y0,y1,alpha in A, color)
      300000-300001  pad, active low. See hw.h for the bits.
+                    Built for an R36S BAYX pad (Nintendo letters) plus L1 R1 L2 R2.
+                    mame2003-plus Classic RetroPad: B=BUTTON1, A=BUTTON2, Y=BUTTON3, X=BUTTON4,
+                    L=BUTTON5, R=BUTTON6, L2=BUTTON7, R2=BUTTON8. The bit list below wires those
+                    so the letter on the R36S is the game button (A slash, B parry, X dash, Y spin).
+                    Web is Xbox ABXY (south is A). Dreamcast is BAYXRL (east is A, two triggers).
      400000-400001  music cue, written by the 68000. The driver plays it.
                     0 off  1 overworld  2 training  3 shop  4 prologue  5 ending
                     6..11 level1..level6  12..17 boss1..boss6
@@ -120,10 +125,11 @@ INPUT_PORTS_START(parryperry)
     PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN)
     PORT_BIT(0x0004, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT)
     PORT_BIT(0x0008, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT)
-    PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_BUTTON1) /* A */
-    PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_BUTTON2) /* B */
-    PORT_BIT(0x0040, IP_ACTIVE_LOW, IPT_BUTTON3) /* X */
-    PORT_BIT(0x0080, IP_ACTIVE_LOW, IPT_BUTTON4) /* Y */
+    /* Classic RetroPad on an R36S BAYX pad. Do not use the 6-button or 8-button fightstick layouts. */
+    PORT_BIT(0x0010, IP_ACTIVE_LOW, IPT_BUTTON2) /* game A slash  <- RetroPad A, R36S A (east) */
+    PORT_BIT(0x0020, IP_ACTIVE_LOW, IPT_BUTTON1) /* game B parry  <- RetroPad B, R36S B (south) */
+    PORT_BIT(0x0040, IP_ACTIVE_LOW, IPT_BUTTON4) /* game X dash   <- RetroPad X, R36S X (north) */
+    PORT_BIT(0x0080, IP_ACTIVE_LOW, IPT_BUTTON3) /* game Y spin   <- RetroPad Y, R36S Y (west) */
     PORT_BIT(0x0100, IP_ACTIVE_LOW, IPT_BUTTON5) /* L1 */
     PORT_BIT(0x0200, IP_ACTIVE_LOW, IPT_BUTTON6) /* R1 */
     PORT_BIT(0x0400, IP_ACTIVE_LOW, IPT_BUTTON7) /* L2 */

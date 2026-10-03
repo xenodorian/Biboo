@@ -18,14 +18,29 @@ The other change is the one the Dreamcast port already paid for. A full-frame so
 
 Eight buttons are real inputs, not chords. The Dreamcast pad was short two buttons, so L2 and R2 became key combinations. This port does not repeat that.
 
-| Bit in the pad word (0 means held) | RetroArch button | Game |
-|---|---|---|
-| 0 up, 1 down, 2 left, 3 right | d-pad | move |
-| 4, 5, 6, 7 | Button 1, 2, 3, 4 | A attack, B parry, X dash, Y spin |
-| 8, 9, 10, 11 | Button 5, 6, 7, 8 | L1, R1, L2, R2 |
-| 12, 13 | Start, Coin | Start, Coin |
+Three pads, three letter layouts. Game names stay A slash, B parry, X dash, Y spin.
 
-Map them in RetroArch under Quick Menu, Controls, Port 1. A held name turns gold. A slashes, A with Left or Right thrusts, A with Down is the upswing. B tapped parries, B held blocks. X dashes, Y spins, Up jumps. Left and Right walk. L1, R1, L2 and R2 are on the pad and do not start moves yet.
+| Build | Pad | Face diamond (north, west, east, south) | Shoulders |
+|---|---|---|---|
+| Web | Xbox ABXY + L1 L2 R1 R2 | Y spin, X dash, B parry, A slash | four real shoulders |
+| Dreamcast | BAYXRL | Y spin, X dash, A slash, B parry | L and R only; L2/R2 are chords |
+| MAME (R36S) | BAYX + L1 R1 L2 R2 | X dash, Y spin, A slash, B parry | four real shoulders |
+
+On the R36S the letter on the plastic is the game button. South is B (parry), east is A (slash). That is the opposite of the web Xbox pad, where south is A.
+
+Set RetroArch Port 1 to **RetroPad / Classic Gamepad**, not 6-button or 8-button fightstick. Then:
+
+| Bit in the pad word (0 means held) | RetroPad (Classic) | R36S letter | Game |
+|---|---|---|---|
+| 0 up, 1 down, 2 left, 3 right | d-pad | d-pad | move. Up jumps |
+| 4 | A (east) | A | slash, accept. Hold then release is the chop once unlocked |
+| 5 | B (south) | B | tap parry, hold block |
+| 6 | X (north) | X | dash |
+| 7 | Y (west) | Y | spin. In a menu, Y describes the row |
+| 8, 9, 10, 11 | L, R, L2, R2 | L1, R1, L2, R2 | shoulders, off until bought |
+| 12, 13 | Start, Coin | Start | pause / coin |
+
+Reinstall the driver after this change (`install_driver.py` then rebuild the core). The zip CRC is unchanged.
 
 ## Lessons kept from the Dreamcast port
 
