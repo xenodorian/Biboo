@@ -77,11 +77,11 @@ Web files: `web/progress.js`, the save block in `web/game/21_cheats_loop.js`.
 
 A new game starts with the d-pad and A, B, X, Y only. Everything else is locked. Leaves 100. HP 50. Ankhs 3. No meters on screen.
 
-- [ ] Record: unlock ids, `levelsUnlocked`, `cleared[]`, gem bag `{health, energy, empower, super}` each 0..99, meter values, meter and HP maxima (start 50 / 50 / 50 / 100, +25, cap 200), story flags `double` and `ending`, leaves (cap 99999), ankhs (no cap).
-- [ ] Nothing writes NVRAM by itself. **Save game** writes one snapshot. **Continue** reads it. **New game** wipes it and asks twice if a save exists. Closing RetroArch without saving loses the run, same as closing the browser.
-- [ ] Version the record. Reject a bad checksum. Do not load the web JSON, and do not load the draft's 14-word autosave as if it were this format.
-- [ ] `has` / `hasMove` / `buttonOn` / `meterOn` match `progress.js`. Shoulders stay dead until an unlock lists that button. A meter is drawn only after an unlock that uses it.
-- [ ] Base moves stay open with nothing owned: idle, walk left, walk right, duck, block, parry, jump, dash, slash, spin.
+- [x] Record: unlock ids, `levelsUnlocked`, `cleared`, gem bag of four kinds, meter values and maxima, story flags, leaves, ankhs. Magic `0xB1B4`, version 4.
+- [x] Nothing writes NVRAM by itself. Y while paused writes one snapshot. Boot loads it. A bad or old record starts a new game and zeroes NVRAM. The "press again" confirm is the MAME-11 menu. Closing the core without saving loses the run.
+- [x] Version the record. Reject a bad checksum. The old 14-word autosave is rejected.
+- [x] `recompute` is `has` / `hasMove` / `buttonOn` / `meterOn`. Shoulders stay dead until that unlock is owned. A meter is drawn only once an unlock uses it.
+- [x] Base moves stay open with nothing owned: idle, walk, duck, block, parry, jump, dash, slash, spin.
 
 Done when: a fresh boot has no shoulders and no meters, a manual save survives a reboot of the core, and New game erases it.
 

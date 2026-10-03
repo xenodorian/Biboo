@@ -67,7 +67,9 @@ See repository history for full rules. Work on main, claim steps.
 
 **MAME-3 (done, not run in MAME):** the basic kit runs in whole pixels. Walk uses the baked root handoff. Up jumps, a tap of B parries, holding B blocks, A slashes, A with a direction thrusts or upswings, X dashes, Y spins. The host frame (`boot.png`) is her walking on the Green Trail. Sequences, charge, beams, supers, enemies, other maps, the shop, saves and music are not in the ROM. L1, R1, L2 and R2 do nothing yet. Next is the rest of the reader (chords and sequences), still with no floats.
 
-**MAME-4 (done, not linked, not booted):** fresh bake from the live web game after `00_core.js` rewrites. 35 moves, 15 enemies (the heavy bag included), 62 maps (training is map 61), 27 unlocks at the live prices (scroll `15+10*level`, mutagen `25+15*level`). Jump is not a baked binding; Up jumps, Y spins. Gems, the merchant, four beam sheets, Slime Bunny, the boat, story pictures, and the impact pictures are in `art.bin`. Crates, bombs, the door, and the ankh stay drawn shapes, which is how the web game draws them. Host syntax check passed. This sandbox has no `m68k-elf-gcc` and apt cannot install one, so `main.bin` and the zip were not relinked. Do not boot the old zip against this art.
+**MAME-4 (done, not linked, not booted):** fresh bake from the live web game after `00_core.js` rewrites. 35 moves, 15 enemies (the heavy bag included), 62 maps (training is map 61), 27 unlocks at the live prices. Jump is not a baked binding. Beam sheets, gems, the merchant, Slime Bunny, story pictures, and impact pictures are in `art.bin`. Crates, bombs, the door, and the ankh stay drawn shapes. No `m68k-elf-gcc` in this sandbox, so the zip was not relinked.
+
+**MAME-5 (done, not booted):** progress matches `progress.js`. Gem bag, meter caps, cleared bits, story flags. Save is manual (Y while paused). Old autosaves are rejected. A fresh game has no shoulders and no meters. The New game confirm screen is MAME-11.
 
 ## Dreamcast port (paused 2026-10-03, was on demand only)
 

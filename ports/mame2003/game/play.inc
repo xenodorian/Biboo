@@ -31,7 +31,11 @@ static int rainbow_left, invuln, hurt_flash, slide, her_stun;
 static int charge_ms, hold_on, hold_move, hold_keys, heavy_lite, power_pct;
 static int serial, chain_n, chain_t, chain_q[6], chain_qn;
 static int ult_on, ult_i, queued, queued_via, deny_t, deny_k;
-static int hp, maxhp, leaves, ankhs, gems;
+static int hp, maxhp, leaves, ankhs;
+static int gem[4];
+static int maxm[4];
+static unsigned cleared;
+static int story_f, music_vol, saved_t;
 static int meter[3];
 static unsigned unlocked;
 static int btn_mask, meters_on;
@@ -104,7 +108,15 @@ static int frame_named(int id, const char *name)
     }
     return -1;
 }
-static int meter_cap(int k) { return k == 2 ? 100 : 50; }
+static int meter_cap(int k)
+{
+    int cap;
+    if (k < 0 || k > 2) return 50;
+    cap = maxm[k + 1];
+    if (cap < 1) cap = k == 2 ? 100 : 50;
+    if (cap > 200) cap = 200;
+    return cap;
+}
 static int meter_on(int k) { return (meters_on >> k) & 1; }
 static void spend(int k, int n)
 {
@@ -168,71 +180,100 @@ static void sync_level(void)
             level = i;
     }
 }
-static unsigned save_sum(const unsigned w[13])
+static unsigned save_sum(const unsigned w[25])
 {
     unsigned s = 0;
     int i;
-    for (i = 0; i < 13; i++) s += w[i];
+    for (i = 0; i < 25; i++) s += w[i];
     return (s ^ 0xA5A5u) & 0xffffu;
 }
 static void save_game(void)
 {
-    unsigned w[14];
+    unsigned w[26];
     int i;
-    w[0] = 0xB1B0u;
-    w[1] = unlocked & 0xffffu;
-    w[2] = (unlocked >> 16) & 0xffffu;
-    w[3] = (unsigned)clampi(leaves, 0, 60000);
-    w[4] = (unsigned)clampi(hp, 0, 400);
-    w[5] = (unsigned)clampi(maxhp, 1, 400);
-    w[6] = ((unsigned)level & 255u) | (((unsigned)map_id & 255u) << 8);
-    w[7] = (unsigned)clampi(ankhs, 0, 20);
-    w[8] = (unsigned)meter[0];
-    w[9] = (unsigned)meter[1];
-    w[10] = (unsigned)meter[2];
-    w[11] = (unsigned)levels_unlocked;
-    w[12] = (unsigned)clampi(gems, 0, 99);
-    w[13] = save_sum(w);
-    for (i = 0; i < 14; i++) hw_nv_w(i, (u16)w[i]);
+    w[0] = 0xB1B4u;
+    w[1] = 4;
+    w[2] = unlocked & 0xffffu;
+    w[3] = (unlocked >> 16) & 0xffffu;
+    w[4] = (unsigned)clampi(leaves, 0, 99999) & 0xffffu;
+    w[5] = ((unsigned)clampi(leaves, 0, 99999) >> 16) & 0xffffu;
+    w[6] = (unsigned)clampi(hp, 0, 400);
+    w[7] = (unsigned)clampi(maxhp, 1, 200);
+    w[8] = (unsigned)clampi(map_id, 0, 255);
+    w[9] = (unsigned)clampi(level, 0, 15);
+    w[10] = (unsigned)clampi(ankhs, 0, 65535);
+    w[11] = (unsigned)clampi(levels_unlocked, 1, NLEVELS);
+    w[12] = cleared & 0xffffu;
+    w[13] = (unsigned)clampi(meter[0], 0, 200);
+    w[14] = (unsigned)clampi(meter[1], 0, 200);
+    w[15] = (unsigned)clampi(meter[2], 0, 200);
+    w[16] = (unsigned)clampi(gem[0], 0, 99);
+    w[17] = (unsigned)clampi(gem[1], 0, 99);
+    w[18] = (unsigned)clampi(gem[2], 0, 99);
+    w[19] = (unsigned)clampi(gem[3], 0, 99);
+    w[20] = (unsigned)clampi(maxm[1], 1, 200);
+    w[21] = (unsigned)clampi(maxm[2], 1, 200);
+    w[22] = (unsigned)clampi(maxm[3], 1, 200);
+    w[23] = (unsigned)story_f & 3u;
+    w[24] = (unsigned)clampi(music_vol, 0, 3);
+    w[25] = save_sum(w);
+    for (i = 0; i < 26; i++) hw_nv_w(i, (u16)w[i]);
+    saved_t = now + 1200;
 }
 static void fresh_game(void)
 {
     int i;
     unlocked = 0;
     leaves = 100;
-    hp = maxhp = 50;
+    maxm[0] = maxhp = 50;
+    maxm[1] = 50;
+    maxm[2] = 50;
+    maxm[3] = 100;
+    hp = maxhp;
     ankhs = 3;
-    gems = 0;
+    gem[0] = gem[1] = gem[2] = gem[3] = 0;
     meter[0] = meter[1] = meter[2] = 0;
     levels_unlocked = 1;
+    cleared = 0;
+    story_f = 0;
+    music_vol = 2;
     map_id = 0;
-    for (i = 14; i < 32; i++) hw_nv_w(i, 0);
+    for (i = 0; i < 32; i++) hw_nv_w(i, 0);
     recompute();
     sync_level();
 }
 static void load_save(void)
 {
-    unsigned w[14];
+    unsigned w[26];
     int i;
-    for (i = 0; i < 14; i++) w[i] = hw_nv_r(i);
-    if (w[0] != 0xB1B0u || save_sum(w) != w[13]) {
+    for (i = 0; i < 26; i++) w[i] = hw_nv_r(i);
+    if (w[0] != 0xB1B4u || w[1] != 4 || save_sum(w) != w[25]) {
         fresh_game();
         return;
     }
-    unlocked = w[1] | (w[2] << 16);
-    leaves = (int)w[3];
-    hp = (int)w[4];
-    maxhp = (int)w[5];
-    if (maxhp < 1) maxhp = 50;
-    level = (int)(w[6] & 255u);
-    map_id = (int)((w[6] >> 8) & 255u);
-    ankhs = (int)w[7];
-    meter[0] = (int)w[8];
-    meter[1] = (int)w[9];
-    meter[2] = (int)w[10];
+    unlocked = w[2] | (w[3] << 16);
+    leaves = (int)(w[4] | (w[5] << 16));
+    hp = (int)w[6];
+    maxhp = maxm[0] = (int)w[7];
+    if (maxhp < 1) maxhp = maxm[0] = 50;
+    map_id = (int)w[8];
+    level = (int)w[9];
+    ankhs = (int)w[10];
     levels_unlocked = (int)w[11];
     if (levels_unlocked < 1) levels_unlocked = 1;
-    gems = (int)w[12];
+    cleared = w[12];
+    meter[0] = (int)w[13];
+    meter[1] = (int)w[14];
+    meter[2] = (int)w[15];
+    gem[0] = (int)w[16];
+    gem[1] = (int)w[17];
+    gem[2] = (int)w[18];
+    gem[3] = (int)w[19];
+    maxm[1] = (int)w[20];
+    maxm[2] = (int)w[21];
+    maxm[3] = (int)w[22];
+    story_f = (int)w[23] & 3;
+    music_vol = (int)w[24];
     recompute();
     if (map_id < 0 || map_id >= NMAPS) map_id = 0;
     sync_level();
@@ -377,7 +418,7 @@ static void hurt_enemy(En *e, int dmg, int dir)
         if (ENEMIES[e->type].boss) {
             leaves += 15;
             ankhs = clampi(ankhs + 1, 0, 9);
-            gems = clampi(gems + 1, 0, 99);
+            gem[0] = clampi(gem[0] + 1, 0, 99);
             hp = clampi(hp + 20, 0, maxhp);
         } else {
             leaves += 2;
@@ -1726,13 +1767,11 @@ static void continue_dead(void)
     if (ankhs > 0) {
         ankhs--;
         hp = maxhp;
-        save_game();
         load_map();
     } else {
         ankhs = 3;
         hp = maxhp;
         map_id = (int)LEVELS[level].map0;
-        save_game();
         load_map();
     }
 }
@@ -1741,17 +1780,16 @@ static void clear_map(void)
     int end = (int)LEVELS[level].map0 + (int)LEVELS[level].nmaps;
     if (map_id + 1 < end) {
         map_id++;
-        save_game();
         load_map();
         return;
     }
     if (levels_unlocked < level + 2) levels_unlocked = level + 2;
     if (levels_unlocked > NLEVELS) levels_unlocked = NLEVELS;
+    cleared |= 1u << level;
     shop_clear = 1;
     shop_next = (level + 1 >= NLEVELS) ? 1 : level + 1;
     shop_i = 0;
     mode = MODE_SHOP;
-    save_game();
 }
 static int shop_ok(int i)
 {
@@ -1784,7 +1822,6 @@ static void shop_buy(void)
     leaves -= price;
     unlocked |= 1u << id;
     recompute();
-    save_game();
 }
 static void shop_leave(void)
 {
@@ -1803,7 +1840,6 @@ static void shop_leave(void)
     map_id = (int)LEVELS[level].map0;
     hp = maxhp;
     if (ankhs < 3) ankhs = 3;
-    save_game();
     load_map();
 }
 
@@ -1949,7 +1985,13 @@ static void hud(int down)
         hw_num(216, 332, meter[2], RGB565(180, 80, 220));
     }
     if (deny_t > now) hw_text(300, 332, deny_k == 2 ? "NO SUPER" : deny_k == 1 ? "NO EMPOWER" : "NO ENERGY", COL_RED, 1);
-    if (gems) { hw_text(520, 332, "GM", COL_DIM, 1); hw_num(544, 332, gems, COL_GOLD); }
+    if (gem[0] | gem[1] | gem[2] | gem[3]) {
+        hw_text(400, 332, "BN", COL_DIM, 1); hw_num(424, 332, gem[0], COL_INK);
+        hw_text(456, 332, "QZ", COL_DIM, 1); hw_num(480, 332, gem[1], COL_INK);
+        hw_text(512, 332, "GR", COL_DIM, 1); hw_num(536, 332, gem[2], COL_INK);
+        hw_text(568, 332, "DI", COL_DIM, 1); hw_num(592, 332, gem[3], COL_INK);
+    }
+    if (saved_t > now) hw_text(300, 332, "SAVED", COL_GREEN, 1);
     mark(48, 356, "UP", down & PAD_UP);
     mark(88, 356, "DN", down & PAD_DOWN);
     mark(128, 356, "LT", down & PAD_LEFT);
@@ -1963,7 +2005,7 @@ static void hud(int down)
     mark(440, 356, "L2", down & PAD_L2);
     mark(480, 356, "R2", down & PAD_R2);
     mark(530, 356, "ST", down & PAD_START);
-    if (paused) hw_text(160, 180, "PAUSED  A RESUME  B SHOP", COL_GOLD, 1);
+    if (paused) hw_text(120, 180, "PAUSED  A RESUME  B SHOP  Y SAVES", COL_GOLD, 1);
     if (mode == MODE_DEAD) hw_text(148, 180, ankhs > 0 ? "DOWN  A SPENDS AN ANKH" : "OUT OF ANKHS  A RETRIES", COL_RED, 1);
     if (mode == MODE_END) hw_text(168, 180, "END OF THE TRAIL", COL_GOLD, 1);
 }
@@ -2025,12 +2067,13 @@ void game_main(void)
                 paused = !paused;
                 if (!paused) rd_reset();
             }
+            if (paused && (pressed & PAD_Y)) save_game();
             if (paused && (pressed & PAD_B)) {
                 shop_clear = 0;
                 shop_i = 0;
                 mode = MODE_SHOP;
                 paused = 0;
-            } else {
+            } else if (!paused) {
                 sim(down, prev);
             }
         } else if (mode == MODE_SHOP) {
@@ -2046,7 +2089,6 @@ void game_main(void)
                 map_id = 0;
                 level = 0;
                 hp = maxhp;
-                save_game();
                 load_map();
             }
         }
