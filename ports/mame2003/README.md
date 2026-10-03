@@ -78,7 +78,7 @@ Put the `.so` in RetroArch's cores directory and `ports/mame2003/roms/parryperry
 
 Not in the ROM yet: the chord window and the sequences, charge, beams, supers, enemies, the other maps, the shop, saves, music. L1, R1, L2 and R2 are read and labeled, and they do not start moves yet. The full web reader is still the model. A scaled blit is still not here.
 
-The list that installs the rest of the live web game is [CHECKLIST.md](CHECKLIST.md) (MAME-4 through MAME-15). Claim a step in `Current_Work.md` before starting it. An uncommitted draft of later steps may be sitting in this tree; it is not done.
+The list that installs the rest of the live web game is [CHECKLIST.md](CHECKLIST.md) (MAME-4 through MAME-15). Claim a step in `Current_Work.md` before starting it. A work-in-progress of later systems is on `main` (`play.inc`, `data.h`, `bake_full.py`). It is not done, and it is behind `web/progress.js`. Re-bake before trusting it. Not booted in MAME.
 
 ## Memory map
 

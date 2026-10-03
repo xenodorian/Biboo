@@ -67,7 +67,7 @@ See repository history for full rules. Work on main, claim steps.
 
 **MAME-3 (done, not run in MAME):** the basic kit runs in whole pixels. Walk uses the baked root handoff. Up jumps, a tap of B parries, holding B blocks, A slashes, A with a direction thrusts or upswings, X dashes, Y spins. The host frame (`boot.png`) is her walking on the Green Trail. Sequences, charge, beams, supers, enemies, other maps, the shop, saves and music are not in the ROM. L1, R1, L2 and R2 do nothing yet. Next is the rest of the reader (chords and sequences), still with no floats.
 
-**Install the live game (not started):** the work list is `ports/mame2003/CHECKLIST.md`. Steps MAME-4 through MAME-15. Claim one step here before writing it. The uncommitted local draft (`play.inc`, `data.h`, `bake_full.py`) is not a finished step and is behind `web/progress.js`. Do not push that draft as if the port were done.
+**Install the live game (not started):** the work list is `ports/mame2003/CHECKLIST.md`. Steps MAME-4 through MAME-15. Claim one step here before writing it. A work-in-progress of later systems is already on `main` (`play.inc`, `data.h`, `bake_full.py`, rebuilt zip). It is not a finished step and is behind `web/progress.js` (one gem counter, hardcoded prices, rectangle beams and crates, save-on-every-map, no title, overworld, story, training, music, items, or cheats). Not booted in MAME. Re-bake from `web/` before trusting it.
 
 ## Dreamcast port (paused 2026-10-03, was on demand only)
 

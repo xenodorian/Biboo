@@ -18,6 +18,8 @@
 #define CMD_TINT  7
 #define CMD_CLIP  8
 
+#define NV ((volatile u16 *)0x500000)
+
 volatile u8 vblank_flag;
 
 void hw_init(void)
@@ -86,6 +88,27 @@ void hw_sprite_tint(int x, int y, int id, int flip, u16 tint, int alpha)
 u16 hw_pad(void)
 {
     return *PAD;
+}
+
+/* Struct copies in the game lower to this. The 68000 image has no C library. */
+void *memcpy(void *dst, const void *src, unsigned long n)
+{
+    unsigned char *d = (unsigned char *)dst;
+    const unsigned char *s = (const unsigned char *)src;
+    unsigned long i;
+    for (i = 0; i < n; i++)
+        d[i] = s[i];
+    return dst;
+}
+
+u16 hw_nv_r(int i)
+{
+    return NV[i & 31];
+}
+
+void hw_nv_w(int i, u16 v)
+{
+    NV[i & 31] = v;
 }
 
 void hw_present(void)

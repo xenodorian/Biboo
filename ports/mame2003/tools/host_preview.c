@@ -8,8 +8,9 @@
 static unsigned short fb[FB_W * FB_H];
 static unsigned char *art;
 static int frames;
-static int limit = 120;
+static int limit = 200;
 static const char *out_path = "boot.ppm";
+static u16 nv[32];
 
 static void load_art(void)
 {
@@ -68,9 +69,12 @@ void hw_sprite_tint(int x, int y, int id, int flip, u16 tint, int alpha)
 
 u16 hw_pad(void)
 {
-    /* active low: Right held, so the saved frame is a walk, not the idle */
+    /* Right held: she walks toward the first goblin. */
     return (u16)~PAD_RIGHT;
 }
+
+u16 hw_nv_r(int i) { return nv[i & 31]; }
+void hw_nv_w(int i, u16 v) { nv[i & 31] = v; }
 
 void hw_present(void)
 {

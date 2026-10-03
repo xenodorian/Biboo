@@ -26,7 +26,7 @@ Pushed on `main` (MAME-1, MAME-2, MAME-3). Not booted in MAME.
 - [x] `PPK1` sprites, colour key `0xF81F`, little-endian runs.
 - [x] Basic kit only: idle, walk, duck, block, parry, slash, thrust, upswing, dash, jump, spin. Green Trail. Shoulders do nothing.
 
-There is an **uncommitted local draft** (`game/play.inc`, `game/data.h`, `tools/bake_full.py`). It is not a finished step. It tries the reader, the move list, enemies, the six levels, and a shop, but it is behind the live web game: one gem counter instead of a bag, hardcoded prices, beams and crates drawn as rectangles, save-on-every-map instead of a manual save, and no title, overworld, story, training, music, items menu, or cheats. Audit it. Do not treat it as done, and do not push the ROM zip until the step you are on actually matches the web file named in that step.
+There is a **pushed work-in-progress** (`game/play.inc`, `game/data.h`, `tools/bake_full.py`, plus a rebuilt `roms/parryperry.zip`). It is not a finished step. It sketches the reader, the move list, enemies, the six levels, and a shop, but it is behind the live web game: one gem counter instead of a bag, hardcoded prices, beams and crates drawn as rectangles, save-on-every-map instead of a manual save, and no title, overworld, story, training, music, items menu, or cheats. It has not been booted in MAME. Start at MAME-4 and re-bake from `web/` before trusting `data.h`.
 
 ## How to work a step
 

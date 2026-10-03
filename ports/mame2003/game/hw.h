@@ -34,6 +34,8 @@ void hw_sprite(int x, int y, int id, int flip);
 void hw_sprite_tint(int x, int y, int id, int flip, u16 tint, int alpha);
 u16 hw_pad(void);
 void hw_present(void);
+u16 hw_nv_r(int i);
+void hw_nv_w(int i, u16 v);
 
 void game_main(void);
 

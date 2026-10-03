@@ -16,6 +16,7 @@
                     7 tint (flip in bit 0 of B, alpha in the high byte, tint in color)
                     8 clip (x0,y0,x1,y1)   9 dim (y0,y1)   10 fill-alpha (y0,y1,alpha in A, color)
      300000-300001  pad, active low. See hw.h for the bits.
+     500000-50003F  NVRAM, 32 words. The save.
 */
 
 #include "driver.h"
@@ -24,6 +25,20 @@
 
 static UINT16 pp_fb[FB_W * FB_H];
 static UINT16 pp_x, pp_y, pp_a, pp_b, pp_c;
+static UINT8 pp_nv[64];
+
+static READ16_HANDLER(pp_nv_r)
+{
+    return pp_nv[offset * 2] | (pp_nv[offset * 2 + 1] << 8);
+}
+
+static WRITE16_HANDLER(pp_nv_w)
+{
+    UINT16 cur = pp_nv[offset * 2] | (pp_nv[offset * 2 + 1] << 8);
+    COMBINE_DATA(&cur);
+    pp_nv[offset * 2] = cur & 0xff;
+    pp_nv[offset * 2 + 1] = (cur >> 8) & 0xff;
+}
 
 static WRITE16_HANDLER(pp_blit_w)
 {
@@ -67,12 +82,14 @@ static MEMORY_READ16_START(pp_readmem)
     { 0x000000, 0x07ffff, MRA16_ROM },
     { 0x100000, 0x10ffff, MRA16_RAM },
     { 0x300000, 0x300001, input_port_0_word_r },
+    { 0x500000, 0x50003f, pp_nv_r },
 MEMORY_END
 
 static MEMORY_WRITE16_START(pp_writemem)
     { 0x000000, 0x07ffff, MWA16_ROM },
     { 0x100000, 0x10ffff, MWA16_RAM },
     { 0x200000, 0x20000b, pp_blit_w },
+    { 0x500000, 0x50003f, pp_nv_w },
 MEMORY_END
 
 INPUT_PORTS_START(parryperry)
@@ -98,6 +115,8 @@ INPUT_PORTS_END
 VIDEO_START(parryperry)
 {
     const unsigned char *rom = memory_region(REGION_CPU1);
+    generic_nvram = pp_nv;
+    generic_nvram_size = sizeof(pp_nv);
     fb_clear(pp_fb, 0);
     if (rom && memory_region_length(REGION_CPU1) > 0x80000)
         fb_set_art(rom + 0x80000);
@@ -155,10 +174,18 @@ static MACHINE_DRIVER_START(parryperry)
 
     MDRV_VIDEO_START(parryperry)
     MDRV_VIDEO_UPDATE(parryperry)
+
+    MDRV_NVRAM_HANDLER(generic_0fill)
 MACHINE_DRIVER_END
 
 ROM_START(parryperry)
 #include "rom_load.inc"
 ROM_END
 
-GAME(2026, parryperry, 0, parryperry, parryperry, 0, ROT0, "Homebrew", "Parry Perry")
+DRIVER_INIT(parryperry)
+{
+    generic_nvram = pp_nv;
+    generic_nvram_size = sizeof(pp_nv);
+}
+
+GAME(2026, parryperry, 0, parryperry, parryperry, parryperry, ROT0, "Homebrew", "Parry Perry")

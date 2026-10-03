@@ -10,16 +10,16 @@ BUILD := ../build
 ROM   := ../roms/main.bin
 ART   := ../roms/art.bin
 ZIP   := ../roms/parryperry.zip
-IDS   := art_ids.h
+DATA  := data.h
 
 .PHONY: all rom preview clean art
 
 all: rom
 
-art: $(ART) $(IDS)
+art: $(ART) $(DATA)
 
-$(ART) $(IDS): ../tools/bake_art.py
-	python3 ../tools/bake_art.py
+$(ART) $(DATA): ../tools/bake_full.py
+	python3 ../tools/bake_full.py
 
 $(BUILD)/start.o: start.s
 	mkdir -p $(BUILD)
@@ -29,7 +29,7 @@ $(BUILD)/hal_m68k.o: hal_m68k.c hw.h
 	mkdir -p $(BUILD)
 	$(M68K_CC) $(CFLAGS) -c hal_m68k.c -o $@
 
-$(BUILD)/main.o: main.c hw.h $(IDS)
+$(BUILD)/main.o: main.c play.inc hw.h $(DATA)
 	mkdir -p $(BUILD)
 	$(M68K_CC) $(CFLAGS) -c main.c -o $@
 
@@ -41,7 +41,7 @@ rom: $(BUILD)/parryperry.elf $(ART)
 	$(OBJCOPY) -O binary $(BUILD)/parryperry.elf $(BUILD)/main.unpadded
 	python3 ../tools/pack_rom.py $(BUILD)/main.unpadded $(ART) $(ROM) $(ZIP) ../driver/rom_load.inc
 
-preview: main.c hw.h $(IDS) $(ART) ../driver/fbdraw.c ../driver/fbdraw.h
+preview: main.c play.inc hw.h $(DATA) $(ART) ../driver/fbdraw.c ../driver/fbdraw.h
 	mkdir -p $(BUILD)
 	gcc -O2 -Wall -Wextra -I. -I../driver -o $(BUILD)/host_preview ../tools/host_preview.c main.c ../driver/fbdraw.c
 	$(BUILD)/host_preview $(BUILD)/boot.ppm
