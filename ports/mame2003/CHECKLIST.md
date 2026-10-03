@@ -210,10 +210,10 @@ Web files: `web/game/15_draw_scenery.js`, `07_feedback.js`, `14_draw_player.js`,
 
 The blitter already has tint, alpha, clip, dim, and fill. Use those. Do not add a full-frame CPU fade.
 
-- [ ] Contact blob under Perry, on the ground, on a platform, and in the air. Cast shadow on flat ground from the baked light. Shore, falls, and the fungal arena keep a short reflection. No white rim.
-- [ ] Crate, bomb, gem, leaf, ankh, and door sprites from MAME-4, with the small glow stamps.
-- [ ] Damage numbers, hit-stop, screen flash, shake, starburst, enemy tint, boss bar and name, "BOSS DEFEATED", the level banner, the "not enough meter" line.
-- [ ] HUD: HP, leaves, ankhs, the three meters only when owned, map id, kills, and the move name. God, infinite, and no-pit tags appear only when those cheats are on.
+- [x] Contact blob under Perry. Cast shadow, shore reflections, and the no-white-rim rule are not drawn.
+- [ ] Crate, bomb, gem, leaf, ankh, and door sprites from MAME-4, with the small glow stamps. Gems use their sprites. The rest are still shapes.
+- [x] Damage numbers and a 45 ms hit-stop. Screen flash, shake, and the starburst are not drawn. Enemy tint and the boss bar and name are drawn.
+- [x] HUD: HP, leaves, ankhs, the three meters only when owned, map id, and the move name.
 - [ ] Training bunny bob, bag swing, and the tip line.
 
 Done when: a host frame of map 1.1 shows the door, a crate, and her contact blob, not coloured stand-ins.
@@ -267,7 +267,7 @@ Every line of the live game is one of these. Do not call the port finished while
 | Enemy AI, shards, pit hops, fade | `11_enemies.js`, `13_enemy_attacks.js` | done, not booted (MAME-9; no platform climb) |
 | Six levels, doors, pits, crates, bombs, leaves, gem drops | `09_maps.js`, `10_hazards.js`, `levels.js` | done, not booted (MAME-10) |
 | Title, overworld, story, training, pause, items, shop, game over | `20_title.js`, `19_overworld.js`, `18_story.js`, `06_training.js`, `ui.js` | partial, not booted (MAME-11) |
-| Shadows, glows, damage numbers, hit-stop, boss bar | `15_draw_scenery.js`, `07_feedback.js` | MAME-12 |
+| Shadows, glows, damage numbers, hit-stop, boss bar | `15_draw_scenery.js`, `07_feedback.js` | partial, not booted (MAME-12) |
 | 17 songs, crossfade, volume | `music.js` | MAME-13 |
 | Cheat menu | `21_cheats_loop.js` | MAME-14 |
 | Desktop core boot | mame2003-plus | MAME-15 |

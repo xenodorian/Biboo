@@ -44,6 +44,7 @@ static int mode, paused, shop_i, shop_clear, shop_next;
 static int boom_t, boom_x, boom_y;
 static int hop_y, hop_t, down_at, down_held;
 static int story_id, story_i, menu_i, confirm;
+static int freeze, num_x, num_y, num_v, num_t;
 
 static int rd_held[NBTN];
 typedef struct { int b, t, u, used; } Press;
@@ -422,6 +423,11 @@ static void hurt_enemy(En *e, int dmg, int dir)
     if (dmg <= 0) return;
     e->hp = (short)(e->hp - dmg);
     if (e->hp < 0) e->hp = 0;
+    num_x = e->x;
+    num_y = e->fy + 48;
+    num_v = dmg;
+    num_t = 40;
+    if (freeze < 45) freeze = 45;
     if (mv == MV_heavy || mv == MV_slash) { dist = 25; ms = 100; }
     else if (mv == MV_heavy_horizontal) { dist = 50; ms = 100; }
     else if (mv == MV_push_kick) { dist = 100; ms = 200; }
@@ -2112,6 +2118,10 @@ static void draw_world(void)
     int sprid = (int)mf(mv, fr)->spr;
     bgx = ANCHOR_X + (map_id - (int)LEVELS[level].map0) * VIEW_W;
     hw_clip(PF_X, PF_Y, PF_X + VIEW_W, PF_Y + VIEW_H);
+    {
+        int gy = feet_h();
+        hw_rect(PF_X + vis_x() - 10, PF_Y + FEET_ROW - gy - 3, 20, 4, RGB565(0, 0, 0));
+    }
     for (i = 0; i < (int)sc->n && i < 6; i++) {
         const Layer *L = &sc->layer[i];
         draw_tiled((int)L->spr, (int)L->period, (int)L->margin, (int)L->par, bgx);
@@ -2217,6 +2227,7 @@ static void hud(int down)
 {
     const MapDef *m = &MAPS[map_id];
     int bar = maxhp > 0 ? hp * 80 / maxhp : 0;
+    int bi;
     hw_text(200, 20, "PARRYING PERRY", COL_GOLD, 2);
     hw_text(160, 48, LEVELS[level].name, COL_INK, 1);
     hw_text(360, 48, m->id, COL_GOLD, 1);
@@ -2226,6 +2237,17 @@ static void hud(int down)
     hw_rect(304, 316, 80, 8, RGB565(40, 16, 16));
     if (bar > 0) hw_rect(304, 316, bar, 8, COL_GREEN);
     hw_num(392, 316, hp, COL_INK);
+    if (num_t > 0) {
+        hw_num(PF_X + num_x, PF_Y + FEET_ROW - (num_y + (40 - num_t)), num_v, COL_RED);
+        num_t--;
+    }
+    for (bi = 0; bi < MAX_EN; bi++) {
+        if (!en[bi].on || en[bi].hp <= 0 || !ENEMIES[en[bi].type].boss) continue;
+        hw_text(PF_X + 8, PF_Y + 8, ENEMIES[en[bi].type].id, COL_GOLD, 1);
+        hw_rect(PF_X + 8, PF_Y + 20, 80, 6, RGB565(40, 16, 16));
+        if (en[bi].maxhp > 0) hw_rect(PF_X + 8, PF_Y + 20, en[bi].hp * 80 / en[bi].maxhp, 6, COL_RED);
+        break;
+    }
     hw_text(440, 316, "LV", COL_DIM, 1);
     hw_num(464, 316, leaves, COL_GOLD);
     hw_text(520, 316, "AK", COL_DIM, 1);
@@ -2376,6 +2398,7 @@ static void sim(int down, int prev)
 {
     int i;
     if (mode != MODE_PLAY || paused) return;
+    if (freeze > 0) { freeze -= DT; return; }
     read_buttons(down, prev);
     take_events();
     step_player(down);

@@ -83,6 +83,8 @@ See repository history for full rules. Work on main, claim steps.
 
 **MAME-11 (done, not booted):** the boot is a title. Continue returns to the overworld; New game asks twice when a save exists, wipes, and shows a two-page prologue. The overworld lists the six levels, Sunset Training, and the Bone Merchant. A locked level refuses. Training loads map 61 and refills HP. Beating the last map shows a two-page ending instead of dumping her into the shop. The full pause order, the Moves pages, the Items menu, and the merchant's three sections are not built yet; pause is still Start, Y saves, B opens the old shop. Host syntax check only. Not linked.
 
+**MAME-12 (done, not booted):** a black contact blob sits under her feet. A hit shows a rising damage number and freezes the sim for 45 ms. A living boss draws its name and an HP bar. Crates, bombs, and the door are still coloured shapes. No cast shadow, no glow stamps, no shake. Host syntax check only. Not linked.
+
 ## Dreamcast port (paused 2026-10-03, was on demand only)
 
 **Owner's rules (2026-10-02):** the port is NOT part of the permanent pipeline; build and push a Dreamcast disc image (`.cdi`) only when the owner asks; note each major step here and push it to main so other agents can continue. Everything lives in `ports/dreamcast/` (README there). Source of method: the owner's `DREAMCAST_PORT_HANDOFF.txt` (a CryMon handoff). Plan: a C rewrite of the runtime for the SH-4 with baked data, in phases, each with an emulator test: 1 boot, 2 frame cost, 3 input and text, 4 art, 5 data out of JS, 6 game logic, 7 save, 8 audio, 9 disc streaming, 10 emulator tests.
