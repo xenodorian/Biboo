@@ -14,6 +14,8 @@ The same ROM zip is the game on PC, a phone, and the R36S. Each machine needs it
 
 The sample `custom_480p.c` and the two-line `m68k-elf-gcc` command will not build, and the memory map in the sample C does not match the sample driver. This port keeps the goal and uses the real 0.78 macros (`VIDEO_START`, `MEMORY_READ16_START`, `GAME`, `ROM_LOAD16_WORD`).
 
+Both builds now use a native **640×480 base canvas/framebuffer**. The current gameplay scene remains a 384×216 1:1 viewport inside that native surface; it is not rendered at 384×216 and then upscaled. The web canvas is 640×480, and the MAME framebuffer is 640×480 RGB565.
+
 The other change is the one the Dreamcast port already paid for. A full-frame software redraw cost 4 to 10 ms on a real 200 MHz SH-4. MAME 2003 *interprets* every 68000 instruction, so the same 640×480 fill cannot reach a playable frame rate on a handheld. The 68000 writes draw commands (clear, rectangle, glyph). The driver runs them as native code into a 640×480 RGB565 buffer, then copies that to the screen at vblank. The CPU waits on the level-6 interrupt with `STOP`, so a wait does not burn the host. A raw framebuffer at a magic address is not the path the game uses.
 
 Eight buttons are real inputs, not chords. The Dreamcast pad was short two buttons, so L2 and R2 became key combinations. This port does not repeat that.
