@@ -1,6 +1,5 @@
 /* The whole trail: reader, moves, enemies, maps, shop, save.
-   Integers only. Music stays with the driver, not this CPU.
-   Beams are rectangles; the web's alpha sheets are not in the pack. */
+   Integers only. Music stays with the driver, not this CPU. */
 #define DT 16
 #define CHORD_MS 60
 #define SEQ_MS 700
@@ -46,6 +45,7 @@ static int hop_y, hop_t, down_at, down_held;
 static int story_id, story_i, menu_i, confirm;
 static int freeze, num_x, num_y, num_v, num_t;
 static int cheats, cheats_on, cheat_i;
+static int has_save, story_wait;
 
 static int rd_held[NBTN];
 typedef struct { int b, t, u, used; } Press;
@@ -70,7 +70,7 @@ typedef struct {
 } En;
 static En en[MAX_EN];
 #define MAX_SHOT 12
-typedef struct { short x, y, vx, vy, dmg, age; unsigned char on, home, from_her; } Shot;
+typedef struct { short x, y, vx, vy, dmg, age; unsigned char on, home, from_her; int hold; } Shot;
 static Shot shots[MAX_SHOT];
 static unsigned char leaf_on[MAX_LEAF], crate_on[MAX_CRATE], bomb_on[MAX_BOMB];
 static int bomb_fuse[MAX_BOMB];
@@ -229,10 +229,11 @@ static void save_game(void)
     w[20] = (unsigned)clampi(maxm[1], 1, 200);
     w[21] = (unsigned)clampi(maxm[2], 1, 200);
     w[22] = (unsigned)clampi(maxm[3], 1, 200);
-    w[23] = (unsigned)story_f & 3u;
+    w[23] = (unsigned)story_f & 7u;
     w[24] = (unsigned)clampi(music_vol, 0, 3);
     w[25] = save_sum(w);
     for (i = 0; i < 26; i++) hw_nv_w(i, (u16)w[i]);
+    has_save = 1;
     saved_t = now + 1200;
 }
 static void fresh_game(void)
@@ -252,6 +253,7 @@ static void fresh_game(void)
     cleared = 0;
     story_f = 0;
     music_vol = 2;
+    has_save = 0;
     map_id = 0;
     for (i = 0; i < 32; i++) hw_nv_w(i, 0);
     recompute();
@@ -287,8 +289,10 @@ static void load_save(void)
     maxm[1] = (int)w[20];
     maxm[2] = (int)w[21];
     maxm[3] = (int)w[22];
-    story_f = (int)w[23] & 3;
+    story_f = (int)w[23] & 7;
     music_vol = (int)w[24];
+    if (music_vol < 0 || music_vol > 3) music_vol = 2;
+    has_save = 1;
     recompute();
     if (map_id < 0 || map_id >= NMAPS) map_id = 0;
     sync_level();
@@ -391,20 +395,42 @@ static int e_hurt(const En *e, int *x0, int *y0, int *x1, int *y1)
     *y0 += 0;
     return 1;
 }
+static void plunge(En *e)
+{
+    if (!e->on || e->state == ST_DEAD) return;
+    e->hp = 0;
+    e->state = ST_DEAD;
+    e->stun = 0;
+    e->hit_done = 1;
+    e->land_at = 0;
+    e->hop = 0;
+    e->flags = (unsigned char)(e->flags & ~2);
+}
 static void e_move(En *e, int dir)
 {
     int nx = e->x + (dir >= 0 ? 1 : -1);
     if (nx < e->lo) nx = e->lo;
     if (nx > e->hi) nx = e->hi;
-    if (e->state != ST_STUN && e->fy == 0 && in_pit(nx)) return;
-    if (e->state == ST_STUN && e->fy == 0 && in_pit(nx)) {
-        e->hp = 0;
-        e->state = ST_DEAD;
-        leaves += 2;
+    if (e->fy == 0 && in_pit(nx)) {
+        if (e->state == ST_STUN) plunge(e);
         return;
     }
     e->base = (short)(e->base + (nx - e->x));
     e->x = (short)nx;
+}
+static void e_shove(En *e, int dist, int dir)
+{
+    int n, s;
+    if (!e->on || e->hp <= 0 || e->state == ST_DEAD) return;
+    n = dist < 0 ? -dist : dist;
+    dir = dir < 0 ? -1 : 1;
+    for (s = 0; s < n; s++) {
+        int nx = e->x + dir;
+        if (nx < 8 || nx > VIEW_W - 8) break;
+        e->base = (short)(e->base + (nx - e->x));
+        e->x = (short)nx;
+        if (e->fy == 0 && in_pit(nx)) { plunge(e); return; }
+    }
 }
 static void e_knock(En *e, int dist, int ms, int dir)
 {
@@ -440,6 +466,8 @@ static void hurt_enemy(En *e, int dmg, int dir)
         e->land_at = 0;
         e->hit_done = 1;
         if ((int)ENEMIES[e->type].a_death >= 0) eplay(e, ENEMIES[e->type].a_death);
+        if (e->type == EN_mirrormax && !(story_f & 2) && !story_wait)
+            story_wait = now + 2600;
         if (ENEMIES[e->type].boss) {
             int k, pool[7], n = 1;
             pool[0] = 0;
@@ -449,8 +477,22 @@ static void hurt_enemy(En *e, int dmg, int dir)
             for (k = 0; k < 9; k++) spawn_drop(e->x - 56 + k * 14, e->fy, pool[rng() % (unsigned)n]);
             for (k = 0; k < 3; k++) spawn_drop(e->x - 20 + k * 20, e->fy, 5);
             if (maxm[0] < 200) spawn_drop(e->x + 62, e->fy, 6);
-        } else if ((rng() % 100) < 35) {
-            spawn_drop(e->x, e->fy, 0);
+        } else {
+            int pool[3], n = 0;
+            if (e->taunt > 0) {
+                spawn_drop(e->x - 6, e->fy, 2);
+                spawn_drop(e->x + 6, e->fy, 2);
+            }
+            if (e->flags & 1) {
+                spawn_drop(e->x - 6, e->fy, 1);
+                spawn_drop(e->x + 6, e->fy, 1);
+            }
+            if ((rng() % 100) < 35) spawn_drop(e->x - 3, e->fy, 0);
+            if ((rng() % 100) < 12 && maxm[0] < 200) spawn_drop(e->x - 9, e->fy, 6);
+            if (meter_on(0) && meter[0] < meter_cap(0)) pool[n++] = 1;
+            if (meter_on(1) && meter[1] < meter_cap(1)) pool[n++] = 2;
+            if (meter_on(2) && meter[2] < meter_cap(2)) pool[n++] = 3;
+            if (n && (rng() % 100) < 35) spawn_drop(e->x + 3, e->fy, pool[rng() % (unsigned)n]);
         }
         return;
     }
@@ -549,51 +591,75 @@ static void spawn_shot(int x, int y, int vx, int vy, int dmg, int home)
     shots[i].vy = (short)vy;
     shots[i].dmg = (short)dmg;
     shots[i].age = 0;
+    shots[i].hold = 0;
 }
 static void fire_combo(En *e, int n)
 {
-    static const int ang[3] = {488, 743, 951};
-    int c = ang[n < 0 || n > 2 ? 0 : n];
+    /* cos(28, 48, 72 degrees) * 1000. Speed is 200 px/s, the web's 0.2 px/ms. */
+    static const int cs[3] = {883, 669, 309};
+    int c = cs[n < 0 || n > 2 ? 0 : n];
     int s = isqrt(1000 * 1000 - c * c);
     spawn_shot(e->x + e->face * 10, e->fy + 44, e->face * c / 5, s / 5, 10, 1);
 }
 static void step_shots(void)
 {
     int i, j;
+    static int last_parry;
+    if (mv == MV_parry && kind == K_ACTION && fr <= 2) last_parry = now;
     for (i = 0; i < MAX_SHOT; i++) {
         Shot *s = &shots[i];
         int hx0, hy0, hx1, hy1;
         if (!s->on) continue;
         s->age = (short)(s->age + DT);
-        if (s->home && !s->from_her && s->age > 500) {
-            int tx, ty, cross, spd;
-            her_box(&hx0, &hy0, &hx1, &hy1);
-            tx = (hx0 + hx1) / 2 - s->x;
-            ty = (hy0 + hy1) / 2 - s->y;
-            cross = s->vx * ty - s->vy * tx;
-            if (cross > 40) { int nx = s->vx * 124 / 128 - s->vy * 28 / 128; int ny = s->vy * 124 / 128 + s->vx * 28 / 128; s->vx = (short)nx; s->vy = (short)ny; }
-            else if (cross < -40) { int nx = s->vx * 124 / 128 + s->vy * 28 / 128; int ny = s->vy * 124 / 128 - s->vx * 28 / 128; s->vx = (short)nx; s->vy = (short)ny; }
-            spd = isqrt((int)s->vx * s->vx + (int)s->vy * s->vy);
-            if (spd > 0) { s->vx = (short)(s->vx * 170 / spd); s->vy = (short)(s->vy * 170 / spd); }
+        if (!s->hold) {
+            if (s->home && !s->from_her && s->age > 500) {
+                int tx, ty, cross, spd;
+                her_box(&hx0, &hy0, &hx1, &hy1);
+                tx = (hx0 + hx1) / 2 - s->x;
+                ty = (hy0 + hy1) / 2 - s->y;
+                cross = s->vx * ty - s->vy * tx;
+                /* about 0.056 rad per frame, the web's 0.0035 rad/ms */
+                if (cross > 40) {
+                    int nx = s->vx * 998 / 1000 - s->vy * 56 / 1000;
+                    int ny = s->vy * 998 / 1000 + s->vx * 56 / 1000;
+                    s->vx = (short)nx;
+                    s->vy = (short)ny;
+                } else if (cross < -40) {
+                    int nx = s->vx * 998 / 1000 + s->vy * 56 / 1000;
+                    int ny = s->vy * 998 / 1000 - s->vx * 56 / 1000;
+                    s->vx = (short)nx;
+                    s->vy = (short)ny;
+                }
+                spd = isqrt((int)s->vx * s->vx + (int)s->vy * s->vy);
+                if (spd > 0) { s->vx = (short)(s->vx * 170 / spd); s->vy = (short)(s->vy * 170 / spd); }
+            }
+            s->x = (short)(s->x + s->vx * DT / 1000);
+            s->y = (short)(s->y + s->vy * DT / 1000);
         }
-        s->x = (short)(s->x + s->vx * DT / 1000);
-        s->y = (short)(s->y + s->vy * DT / 1000);
         if (s->age > (s->home ? 7000 : 4000) || s->x < -30 || s->x > VIEW_W + 30 || s->y < -8 || s->y > 300) { s->on = 0; continue; }
         if (!s->from_her) {
+            int reflect;
             her_box(&hx0, &hy0, &hx1, &hy1);
-            if (overlap(s->x - 5, s->y - 5, s->x + 5, s->y + 5, hx0, hy0, hx1, hy1)) {
-                if (mv == MV_parry && kind == K_ACTION && fr <= 2) {
-                    s->from_her = 1;
-                    s->home = 0;
-                    s->vx = (short)(face * 360);
-                    s->vy = 0;
-                    s->age = 0;
-                } else if (mv == MV_block && kind != K_LAND) {
-                    s->on = 0;
-                } else {
-                    hurt_her(s->dmg > 0 ? s->dmg : 10, s->vx >= 0 ? 1 : -1);
-                    s->on = 0;
-                }
+            if (!overlap(s->x - 5, s->y - 5, s->x + 5, s->y + 5, hx0, hy0, hx1, hy1)) {
+                s->hold = 0;
+                continue;
+            }
+            reflect = (mv == MV_parry && kind == K_ACTION && fr <= 2)
+                || (last_parry && now - last_parry <= 450);
+            if (reflect) {
+                s->from_her = 1;
+                s->home = 0;
+                s->hold = 0;
+                s->vx = (short)(face * 360);
+                s->vy = 0;
+                s->age = 0;
+            } else if (mv == MV_block && kind != K_LAND) {
+                s->on = 0;
+            } else if (!s->hold) {
+                s->hold = now + 200;
+            } else if (now >= s->hold) {
+                hurt_her(s->dmg > 0 ? s->dmg : 10, s->vx >= 0 ? 1 : -1);
+                s->on = 0;
             }
             continue;
         }
@@ -701,16 +767,13 @@ static void step_enemy(En *e)
         e->x = (short)nx;
         e->hop++;
         if (e->hop >= 8) {
+            nx = e->jx1;
+            e->base = (short)(e->base + (nx - e->x));
+            e->x = (short)nx;
             e->hop = 0;
             e->fy = e->jfy;
             set_range(e);
-            if (e->flags & 2) {
-                e->hp = 0;
-                e->state = ST_DEAD;
-                e->stun = 0;
-                e->flags = (unsigned char)(e->flags & ~2);
-                return;
-            }
+            if (e->flags & 2) plunge(e);
         }
         return;
     }
@@ -788,7 +851,7 @@ static void taunt_all(void)
 static int enemies_left(void)
 {
     int i, n = 0;
-    for (i = 0; i < MAX_EN; i++) if (en[i].on && en[i].hp > 0) n++;
+    for (i = 0; i < MAX_EN; i++) if (en[i].on && en[i].hp > 0 && !ENEMIES[en[i].type].prop) n++;
     return n;
 }
 
@@ -869,7 +932,7 @@ static void break_crate(int i)
     if (i < 0 || i >= MAX_CRATE || !crate_on[i]) return;
     crate_on[i] = 0;
     c = &CRATES[MAPS[map_id].crate0 + i];
-    if (c->loot < 0) spawn_drop(c->x, c->fy, 5);
+    if (c->loot < 0) { spawn_drop(c->x, c->fy, 5); return; }
     else if (c->loot > 0) leaves += c->loot;
     roll = (int)(rng() % 100);
     if (roll < 35) spawn_drop(c->x + 8, c->fy, 0);
@@ -938,7 +1001,7 @@ static void resolve_hits(void)
     int s, i, gap, ax, ay, dmg;
     if (kind != K_ACTION || her_stun > 0) return;
     if (f->nhit <= 0 && f->beam < 0) return;
-    gap = (mv == MV_earthquake || mv == MV_meteor_shower) ? 250 : 0;
+    gap = mv == MV_earthquake ? 250 : (mv == MV_meteor_shower ? 300 : 0);
     ax = vis_x();
     ay = feet_h();
     dmg = dmg_of();
@@ -1009,7 +1072,7 @@ static void beam_tick(void)
         was = en[i].hp;
         if (b == 3) { en[i].scale = 16; en[i].flags = (unsigned char)(en[i].flags | 1); }
         hurt_enemy(&en[i], dmg, face);
-        if (push && en[i].hp > 0) e_move(&en[i], face > 0 ? push : -push);
+        if (push && en[i].hp > 0) e_shove(&en[i], push, face);
         (void)was;
     }
 }
@@ -1047,7 +1110,13 @@ static void start(int id, int knd, int via, int k0)
 {
     int charged = (mv == MV_charge) ? charge_ms : 0;
     if (id < 0 || id >= MV_COUNT) return;
-    if (knd == K_ACTION && !can_afford(id) && via != VIA_CHAIN) { deny(0); return; }
+    if (knd == K_ACTION && !can_afford(id) && via != VIA_CHAIN) {
+        int bk = 0, bn = 0;
+        if (id == MV_earthquake || id == MV_meteor_shower) bk = 2;
+        else if (id != MV_jump_crash) beam_need(id, &bk, &bn);
+        deny(bk);
+        return;
+    }
     px += face * (int)mf(mv, fr)->rx;
     clamp_x();
     if (via == VIA_CHAIN && (id == MV_heavy || id == MV_energy_burst)) {
@@ -1073,7 +1142,7 @@ static void start(int id, int knd, int via, int k0)
     jumping = 0;
     want_crash = 0;
     if (id == MV_jump) dbl_used = 0;
-    if (id == MV_dash || id == MV_dash_thrust || id == MV_push_kick || id == MV_energy_dash_thrust)
+    if (id == MV_dash || id == MV_dash_thrust || id == MV_push_kick || id == MV_energy_kick || id == MV_energy_dash_thrust)
         hop_t = 1;
     else if (knd != K_HOLD)
         hop_t = 0;
@@ -1774,7 +1843,7 @@ static void pickups(void)
         g->life = (short)(g->life - DT);
         if (g->kind < 4 && g->life <= 0) { g->on = 0; continue; }
         if (iabs(x - g->x) >= 28 || y < g->fy - 20 || y > g->fy + 50) continue;
-        if (g->kind == 5) { ankhs = clampi(ankhs + 1, 0, 99); g->on = 0; }
+        if (g->kind == 5) { ankhs = clampi(ankhs + 1, 0, 65535); g->on = 0; }
         else if (g->kind == 6) {
             if (maxm[0] < 200) { maxm[0] = clampi(maxm[0] + 25, 0, 200); maxhp = maxm[0]; hp = clampi(hp + 25, 0, maxhp); }
             g->on = 0;
@@ -1792,7 +1861,7 @@ static void pickups(void)
         her_box(&hx0, &hy0, &hx1, &hy1);
         if (overlap(hx0, hy0, hx1, hy1, b->x - 8, b->fy, b->x + 8, b->fy + 22)) detonate(i);
     }
-    if (!jumping && rainbow_left <= 0 && !(cheats & 4) && surf == 0) {
+    if (!jumping && rainbow_left <= 0 && !(cheats & 5) && surf == 0) {
         int back = x - face, front = x + face * 38;
         int lo = back < front ? back : front, hi = back > front ? back : front;
         for (i = 0; i < (int)m->npit; i++) {
@@ -1923,6 +1992,7 @@ static void spawn_map(void)
     for (i = 0; i < MAX_CRATE; i++) crate_on[i] = 0;
     for (i = 0; i < MAX_BOMB; i++) { bomb_on[i] = 0; bomb_fuse[i] = 0; }
     for (i = 0; i < MAX_DROP; i++) drops[i].on = 0;
+    for (i = 0; i < MAX_SHOT; i++) shots[i].on = 0;
     for (i = 0; i < (int)m->nen && i < MAX_EN; i++) {
         const Spawn *s = &SPAWNS[m->en0 + i];
         En *e = &en[i];
@@ -2016,7 +2086,14 @@ static void continue_dead(void)
 }
 static void clear_map(void)
 {
-    int end = (int)LEVELS[level].map0 + (int)LEVELS[level].nmaps;
+    int end;
+    if (map_id == MAP_TRAINING) {
+        mode = MODE_WORLD;
+        menu_i = NLEVELS;
+        paused = 0;
+        return;
+    }
+    end = (int)LEVELS[level].map0 + (int)LEVELS[level].nmaps;
     if (map_id + 1 < end) {
         map_id++;
         load_map();
@@ -2025,12 +2102,17 @@ static void clear_map(void)
     if (levels_unlocked < level + 2) levels_unlocked = level + 2;
     if (levels_unlocked > NLEVELS) levels_unlocked = NLEVELS;
     cleared |= 1u << level;
-    shop_clear = 1;
-    shop_next = (level + 1 >= NLEVELS) ? 1 : level + 1;
-    shop_i = 0;
-    mode = MODE_END;
-    story_id = 2;
-    story_i = 0;
+    if (level + 1 >= NLEVELS && !(story_f & 4)) {
+        story_f |= 4;
+        story_id = 2;
+        story_i = 0;
+        mode = MODE_STORY;
+        paused = 0;
+        return;
+    }
+    mode = MODE_WORLD;
+    menu_i = level < NLEVELS ? level : 0;
+    paused = 0;
 }
 static int shop_ok(int i)
 {
@@ -2053,16 +2135,20 @@ static int shop_nth(int n)
 }
 static void shop_buy(void)
 {
-    int n = shop_count(), id, price;
+    int n = shop_count(), id, price, had;
     if (n <= 0) return;
     shop_i = clampi(shop_i, 0, n - 1);
     id = shop_nth(shop_i);
     if (id < 0) return;
     price = (int)UNLOCKS[id].price;
     if (leaves < price) return;
+    had = meters_on;
     leaves -= price;
     unlocked |= 1u << id;
     recompute();
+    if (!(had & 1) && meter_on(0)) meter[0] = meter_cap(0);
+    if (!(had & 2) && meter_on(1)) meter[1] = meter_cap(1);
+    if (!(had & 4) && meter_on(2)) meter[2] = meter_cap(2);
 }
 static void shop_leave(void)
 {
@@ -2074,7 +2160,8 @@ static void shop_leave(void)
     }
     shop_clear = 0;
     if (shop_next <= 0 || shop_next >= NLEVELS) {
-        mode = MODE_END;
+        mode = MODE_WORLD;
+        menu_i = 0;
         return;
     }
     level = shop_next;
@@ -2124,10 +2211,6 @@ static void draw_world(void)
     int sprid = (int)mf(mv, fr)->spr;
     bgx = ANCHOR_X + (map_id - (int)LEVELS[level].map0) * VIEW_W;
     hw_clip(PF_X, PF_Y, PF_X + VIEW_W, PF_Y + VIEW_H);
-    {
-        int gy = feet_h();
-        hw_rect(PF_X + vis_x() - 10, PF_Y + FEET_ROW - gy - 3, 20, 4, RGB565(0, 0, 0));
-    }
     for (i = 0; i < (int)sc->n && i < 6; i++) {
         const Layer *L = &sc->layer[i];
         draw_tiled((int)L->spr, (int)L->period, (int)L->margin, (int)L->par, bgx);
@@ -2175,8 +2258,8 @@ static void draw_world(void)
         f = ef(&en[i]);
         y = en[i].fy + (en[i].hop ? (en[i].hop < 4 ? en[i].hop * 6 : (8 - en[i].hop) * 6) : 0);
         if (en[i].state == ST_DEAD) {
-            int a = 255 - en[i].stun * 255 / 900;
-            if (a < 0) a = 0;
+            int a = en[i].stun * 255 / 900;
+            if (a > 255) a = 255;
             hw_sprite_tint(PF_X + en[i].base, PF_Y + FEET_ROW - y, f->spr, en[i].face > 0, 0, a);
         } else if (en[i].tint > 0)
             hw_sprite_tint(PF_X + en[i].base, PF_Y + FEET_ROW - y, f->spr, en[i].face > 0, COL_RED, 160);
@@ -2215,6 +2298,10 @@ static void draw_world(void)
     }
     open = enemies_left() == 0;
     rect_w(VIEW_W - 16, 0, VIEW_W - 8, 64, open ? RGB565(40, 140, 70) : RGB565(90, 40, 40));
+    {
+        int gy = feet_h();
+        hw_rect(PF_X + vis_x() - 10, PF_Y + FEET_ROW - gy - 3, 20, 4, RGB565(0, 0, 0));
+    }
     {
         int wy = feet_h();
         u16 tint = 0;
@@ -2293,7 +2380,7 @@ static void hud(int down)
     mark(530, 356, "ST", down & PAD_START);
     if (paused) {
         hw_text(200, 150, "PAUSED", COL_GOLD, 1);
-        hw_text(120, 180, "A RESUME   B SHOP   Y SAVES", COL_INK, 1);
+        hw_text(120, 180, cheats_on ? "A TOGGLES  B SHOP  Y SAVES" : "A RESUME  B SHOP  Y SAVES", COL_INK, 1);
         if (cheats_on) {
             static const char *row[5] = {"GOD MODE", "INFINITE METER", "LEVEL UNLOCK", "MASTER UNLOCK", "NO PITFALLS"};
             int r;
@@ -2313,8 +2400,8 @@ static void hud(int down)
 static void draw_title(void)
 {
     hw_text(150, 80, "PERRY RIPOSTE", COL_GOLD, 2);
-    hw_text(170, 140, saved_t ? "A  CONTINUE" : "A  NEW GAME", COL_INK, 1);
-    if (saved_t) hw_text(170, 164, "Y  NEW GAME", COL_DIM, 1);
+    hw_text(170, 140, has_save ? "A  CONTINUE" : "A  NEW GAME", COL_INK, 1);
+    if (has_save) hw_text(170, 164, "Y  NEW GAME", COL_DIM, 1);
     if (confirm) hw_text(120, 210, "Y AGAIN ERASES THE SAVE", COL_RED, 1);
     hw_text(150, 400, "A NATIVE 640 X 480 PORT", COL_DIM, 1);
 }
@@ -2460,11 +2547,18 @@ void game_main(void)
         int pressed = down & ~prev;
         now += DT;
         cue_music();
+        if (story_wait && now >= story_wait && mode == MODE_PLAY && !paused && hp > 0) {
+            story_wait = 0;
+            story_f |= 2;
+            story_id = 1;
+            story_i = 0;
+            mode = MODE_STORY;
+        }
         if (mode == MODE_TITLE) {
             if (pressed & PAD_A) {
-                if (!saved_t) { fresh_game(); story_id = 0; story_i = 0; story_f |= 1u; mode = MODE_STORY; }
-                else { level = 0; map_id = 0; mode = MODE_WORLD; menu_i = 0; }
-            } else if ((pressed & PAD_Y) && saved_t) {
+                if (!has_save) { fresh_game(); story_id = 0; story_i = 0; story_f |= 1u; mode = MODE_STORY; }
+                else { mode = MODE_WORLD; menu_i = 0; }
+            } else if ((pressed & PAD_Y) && has_save) {
                 if (!confirm) confirm = 1;
                 else { confirm = 0; fresh_game(); story_id = 0; story_i = 0; story_f |= 1u; mode = MODE_STORY; }
             }
@@ -2472,8 +2566,7 @@ void game_main(void)
             if (pressed & PAD_A) {
                 if (story_i < 1) story_i++;
                 else if (story_id == 0) { mode = MODE_WORLD; menu_i = 0; }
-                else if (story_id == 1) { mode = MODE_WORLD; menu_i = level; }
-                else { mode = MODE_END; }
+                else { mode = MODE_WORLD; menu_i = level < NLEVELS ? level : 0; }
             }
         } else if (mode == MODE_WORLD) {
             if ((pressed & PAD_LEFT) && menu_i > 0) menu_i--;
@@ -2488,12 +2581,19 @@ void game_main(void)
                 cheats_on = 1;
             if (paused && cheats_on && (pressed & PAD_UP) && cheat_i > 0) cheat_i--;
             if (paused && cheats_on && (pressed & PAD_DOWN) && cheat_i < 4) cheat_i++;
-            if (paused && cheats_on && (pressed & PAD_A)) {
-                if (cheat_i == 0) cheats ^= 1;
+            if (paused && (pressed & PAD_A)) {
+                if (!cheats_on) { paused = 0; cheats_on = 0; rd_reset(); }
+                else if (cheat_i == 0) cheats ^= 1;
                 else if (cheat_i == 1) cheats ^= 2;
-                else if (cheat_i == 2) { levels_unlocked = NLEVELS; }
-                else if (cheat_i == 3) { unlocked = (1u << NUNLOCKS) - 1u; btn_mask = 0x0f00; meters_on = 7; levels_unlocked = NLEVELS; }
-                else cheats ^= 4;
+                else if (cheat_i == 2) levels_unlocked = NLEVELS;
+                else if (cheat_i == 3) {
+                    unlocked = (1u << NUNLOCKS) - 1u;
+                    recompute();
+                    if (meter_on(0)) meter[0] = meter_cap(0);
+                    if (meter_on(1)) meter[1] = meter_cap(1);
+                    if (meter_on(2)) meter[2] = meter_cap(2);
+                    levels_unlocked = NLEVELS;
+                } else cheats ^= 4;
             }
             if (paused && (pressed & PAD_Y)) save_game();
             if (paused && (pressed & PAD_B)) {
