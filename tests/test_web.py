@@ -32,6 +32,10 @@ def test_web_game_uses_native_640x480_space():
     assert 'const SPRITE_SCALE = 1.0;' in core
     levels = (ROOT / 'web' / 'levels.js').read_text()
     assert 'const MAP_W = 640' in levels
+    bg = (ROOT / 'swingkit' / 'bg.py').read_text()
+    assert 'W, VH, M = 640, 480, 16' in bg
+    fx = (ROOT / 'swingkit' / 'fx.py').read_text()
+    assert 'X0, Y0 = 160, 337' in fx
 
 
 def test_web_data_covers_every_binding():
