@@ -32,9 +32,11 @@ def test_web_game_uses_native_640x480_space():
     assert 'const SPRITE_SCALE = 1.0;' in core
     levels = (ROOT / 'web' / 'levels.js').read_text()
     assert 'const MAP_W = 640' in levels
-    assert 'const MAP_Y_SCALE = 480 / LEGACY_VIEW_H' in levels
+    assert 'const LEGACY_VIEW_H = 216, LEGACY_FEET_ROW = 188, NATIVE_FEET_ROW = 418;' in levels
+    assert 'const WORLD_Y_SCALE = NATIVE_FEET_ROW / LEGACY_FEET_ROW, MAP_Y_SCALE = WORLD_Y_SCALE' in levels
     state = (ROOT / 'web' / 'game' / '03_state.js').read_text()
-    assert 'const WORLD_Y_SCALE = V.h / 216;' in state
+    assert 'const CAM_KEEP = 100 * WORLD_Y_SCALE;' in state
+    assert 'WORLD_Y_SCALE' in state
     assert 'const CAM_KEEP = 100 * WORLD_Y_SCALE;' in state
     bg = (ROOT / 'swingkit' / 'bg.py').read_text()
     assert 'W, VH, M = 640, 480, 16' in bg
