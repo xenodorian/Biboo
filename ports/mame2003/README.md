@@ -25,12 +25,12 @@ Eight buttons are real inputs, not chords. The Dreamcast pad was short two butto
 | 8, 9, 10, 11 | Button 5, 6, 7, 8 | L1, R1, L2, R2 |
 | 12, 13 | Start, Coin | Start, Coin |
 
-Map them in RetroArch under Quick Menu, Controls, Port 1. On the boot screen a held button turns its name gold. A tints Perry red. The d-pad walks her on the Green Trail.
+Map them in RetroArch under Quick Menu, Controls, Port 1. A held name turns gold. A slashes, A with Left or Right thrusts, A with Down is the upswing. B tapped parries, B held blocks. X dashes, Y spins, Up jumps. Left and Right walk. L1, R1, L2 and R2 are on the pad and do not start moves yet.
 
 ## Lessons kept from the Dreamcast port
 
 - The runtime is a C rewrite. The web game is not wrapped, and this port is not part of its build.
-- Art and data get baked on a PC. The ROM consumes tables. `tools/bake_art.py` bakes the Green Trail and Perry's idle. The rest of the move and enemy tables are still the web game's, and they still use floats. Do not copy those structs onto the 68000.
+- Art and data get baked on a PC. `tools/bake_art.py` bakes the Green Trail and the basic kit (idle, walk, duck, block, parry, slash, dash, jump, spin, thrust, upswing). Roots are stored as whole pixels. Charge, beams, supers and enemies are not baked yet. Do not copy the Dreamcast float structs onto this CPU.
 - One web map is exactly 384×216 with no scrolling. 2× of that is 768×432, which does not fit 640×480. This port draws the map **1:1** and uses the margin as the HUD. The Dreamcast's 5/6 scale was a last resort for a 320×240 TV mode. Do not stretch the map here.
 - Pixels stay RGB565. The sprite colour key is `0xF81F`, and the pack is the Dreamcast `PPK1` run format, read little-endian by the blitter. This screen is 1:1, so the art is baked at the web view's scale, not the Dreamcast's 5/6.
 - No floating point on this CPU. The 68000 has no FPU, and a 68881 would be emulated too. The Dreamcast code uses `float`. Bringing it over means fixed point.
@@ -72,9 +72,11 @@ Put the `.so` in RetroArch's cores directory and `ports/mame2003/roms/parryperry
 
 **MAME-1.** The machine, the eight-button pad, and a boot ROM. Not run inside MAME.
 
-**MAME-2 (this step).** The blitter draws the Dreamcast sprite format: colour-keyed runs, fade, per-pixel alpha, tint, clip, dim. No floats. The zip now also holds `art.bin`, the Green Trail and Perry's four idle frames, baked at 1:1. The boot screen draws that scene. Checked by compiling the 68000 image and by drawing the same C on the host (`boot.png`, Right and A held, so she has walked and turned red). Not yet run inside MAME, and not run on a phone or an R36S.
+**MAME-2.** The blitter draws the Dreamcast sprite format. The zip holds `art.bin`.
 
-Not in the ROM yet: the move engine, enemies, the other maps, the shop, saves, music. A scaled blit (the Dreamcast `gfx_blit_scaled`, which used `float`) is not here. When a move needs one, it will be fixed point, with 256 meaning 1.0.
+**MAME-3 (this step).** Perry's basic kit, in whole pixels, no floats. Walk, duck, block, parry, slash, dash, jump, spin, thrust and upswing. Roots are the baked frame tables, including the walk loop's handoff. Up jumps. Holding B blocks, tapping B parries. A with a direction is the thrust or the upswing. Checked by compiling the 68000 image and by a host frame of her walking (`boot.png`, Right held). Not yet run inside MAME, and not run on a phone or an R36S.
+
+Not in the ROM yet: the chord window and the sequences, charge, beams, supers, enemies, the other maps, the shop, saves, music. L1, R1, L2 and R2 are read and labeled, and they do not start moves yet. The full web reader is still the model. A scaled blit is still not here.
 
 ## Memory map
 

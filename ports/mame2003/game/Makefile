@@ -4,7 +4,7 @@ M68K_CC  ?= m68k-elf-gcc
 OBJCOPY  ?= $(patsubst %gcc,%objcopy,$(M68K_CC))
 CFLAGS  := -m68000 -msoft-float -Os -ffreestanding -fno-builtin -fno-pic -Wall -Wextra
 CFLAGS  += -fno-tree-loop-distribute-patterns
-LDFLAGS := -nostdlib -T link.ld -lgcc
+LDFLAGS := -nostdlib -T link.ld
 
 BUILD := ../build
 ROM   := ../roms/main.bin
@@ -34,7 +34,7 @@ $(BUILD)/main.o: main.c hw.h $(IDS)
 	$(M68K_CC) $(CFLAGS) -c main.c -o $@
 
 $(BUILD)/parryperry.elf: $(BUILD)/start.o $(BUILD)/hal_m68k.o $(BUILD)/main.o link.ld
-	$(M68K_CC) $(CFLAGS) $(LDFLAGS) $(BUILD)/start.o $(BUILD)/hal_m68k.o $(BUILD)/main.o -o $@
+	$(M68K_CC) $(CFLAGS) $(LDFLAGS) $(BUILD)/start.o $(BUILD)/hal_m68k.o $(BUILD)/main.o -lgcc -o $@
 
 rom: $(BUILD)/parryperry.elf $(ART)
 	mkdir -p ../roms

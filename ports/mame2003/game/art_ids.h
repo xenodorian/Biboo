@@ -13,7 +13,15 @@ static const unsigned short LAYER_PAR[6] = {26,51,90,141,179,256};
 static const unsigned short LAYER_MARGIN[6] = {8,8,8,8,8,8};
 #define FRINGE_ID 6
 #define FRINGE_PERIOD 384
-#define IDLE_N 4
-static const unsigned short IDLE_ID[4] = {7,8,9,10};
-static const unsigned short IDLE_MS[4] = {360,240,300,240};
+enum { MV_IDLE, MV_WALK, MV_DUCK, MV_BLOCK, MV_PARRY, MV_SLASH, MV_DASH, MV_JUMP, MV_SPIN, MV_THRUST, MV_UPSWING, MV_COUNT };
+#define NFRAMES 58
+static const unsigned short F_MS[58] = {360,240,300,240,100,100,100,100,100,60,80,200,50,60,240,30,50,40,40,40,60,110,60,80,100,120,60,50,50,90,100,80,60,90,170,90,100,90,90,50,50,50,70,90,100,120,90,40,70,90,100,120,60,110,60,90,110,120};
+static const unsigned short F_SPR[58] = {7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64};
+static const short F_RX[NFRAMES] = {0,0,0,0,0,5,10,15,20,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,30,70,92,92,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8,18,18,18,18,0,0,0,0,0,0};
+static const short F_RY[NFRAMES] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,24,100,164,90,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+static const unsigned short MV_F0[11] = {0,4,9,12,15,20,26,31,38,46,52};
+static const unsigned short MV_N[11] = {4,5,3,3,5,6,5,7,8,6,6};
+static const unsigned short MV_LOOP[11] = {1,1,1,1,0,0,0,0,0,0,0};
+static const unsigned short MV_LF[11] = {0,0,2,2,0,0,0,0,0,0,0};
+static const char *const MV_NAME[MV_COUNT] = {"IDLE","WALK","DUCK","BLOCK","PARRY","SLASH","DASH","JUMP","SPIN","THRUST","SWING"};
 #endif

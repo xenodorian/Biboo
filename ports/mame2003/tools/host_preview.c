@@ -8,7 +8,7 @@
 static unsigned short fb[FB_W * FB_H];
 static unsigned char *art;
 static int frames;
-static int limit = 40;
+static int limit = 120;
 static const char *out_path = "boot.ppm";
 
 static void load_art(void)
@@ -68,8 +68,8 @@ void hw_sprite_tint(int x, int y, int id, int flip, u16 tint, int alpha)
 
 u16 hw_pad(void)
 {
-    /* active low: Right and A held, so she has walked and the attack tint is on */
-    return (u16)~(PAD_RIGHT | PAD_A);
+    /* active low: Right held, so the saved frame is a walk, not the idle */
+    return (u16)~PAD_RIGHT;
 }
 
 void hw_present(void)

@@ -63,7 +63,9 @@ See repository history for full rules. Work on main, claim steps.
 
 **MAME-1 (done, not run in MAME):** a custom mame2003-plus driver (`driver/parryperry.c`) and a 68000 boot ROM (`roms/parryperry.zip`). 640×480, eight real buttons, native blitter. Desktop core, Android, and the R36S have not been booted.
 
-**MAME-2 (done, not run in MAME):** the blitter draws the Dreamcast `PPK1` sprites (keyed runs, fade, alpha, tint, clip) with no floats. `tools/bake_art.py` bakes the Green Trail and Perry's idle at 1:1 into `art.bin`, and the boot ROM draws her on that map. The d-pad walks her. A tints her red. The move engine, enemies, other maps, shop, saves, and music are not in the ROM. Next is that runtime, in fixed point, not a copy of the Dreamcast floats.
+**MAME-2 (done, not run in MAME):** the blitter draws the Dreamcast `PPK1` sprites. `art.bin` is in the zip.
+
+**MAME-3 (done, not run in MAME):** the basic kit runs in whole pixels. Walk uses the baked root handoff. Up jumps, a tap of B parries, holding B blocks, A slashes, A with a direction thrusts or upswings, X dashes, Y spins. The host frame (`boot.png`) is her walking on the Green Trail. Sequences, charge, beams, supers, enemies, other maps, the shop, saves and music are not in the ROM. L1, R1, L2 and R2 do nothing yet. Next is the rest of the reader (chords and sequences), still with no floats.
 
 ## Dreamcast port (paused 2026-10-03, was on demand only)
 
