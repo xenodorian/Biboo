@@ -21,7 +21,7 @@
   let prevFeet = null, lastCx = null;   // her feet height and anchor x on the last frame, for landing and blocking
   const powerups = [], particles = [], banners = [];
   const AIR_SPEED = 0.16;               // px/ms she can steer sideways in the air (a jump reaches about 65 px)
-  const CAM_KEEP = 160;                 // the camera only rises when she is higher than this above the ground
+  const CAM_KEEP = 100 * WORLD_Y_SCALE;                 // the camera only rises when she is higher than this above the ground
   let showBoxes = false;                // H: draw hurtboxes and hit shapes
   let stun = null;                      // {v: px/ms (signed), a: px/ms^2, y, vy}: knocked back, no control
   let slide = null;                     // {v, a}: the small push back of a blocked hit
@@ -37,7 +37,8 @@
   function rootOf(c, k = c.k) {
     if (c.phys) return [0, c.phys.y];                            // the plain jump is driven by physics, not by frame root motion
     const r = D.moves[c.id].frames[k].root, s = c.face || 1;
-    return c.air ? [s * (r[0] - c.air.x0), r[1] * c.air.s] : [s * r[0], r[1]];
+    const ry = r[1] * WORLD_Y_SCALE;
+    return c.air ? [s * (r[0] - c.air.x0), ry * c.air.s] : [s * r[0], ry];
   }
   function airborne() {
     if (fall || (cur && cur.kind === 'fall')) return true;
@@ -52,7 +53,7 @@
     fall = null; queued = null;
     const m = D.moves.jump_crash, k0 = m.frames.findIndex(f => f.name === 'apex');
     const a = m.frames[k0].root;
-    cur = { id: 'jump_crash', k: k0, t: 0, kind: 'action', from: x, face: facing, air: { x0: a[0], s: h / a[1] }, lite: h <= CRASH_HIGH, height: h };
+    cur = { id: 'jump_crash', k: k0, t: 0, kind: 'action', from: x, face: facing, air: { x0: a[0], s: h / (a[1] * WORLD_Y_SCALE) }, lite: h <= CRASH_HIGH, height: h };
     started.push({ id: 'jump_crash', via: via || 'air' });
     logMove('jump_crash', 'air');
     queueHit();
@@ -77,7 +78,7 @@
   // The heavy chop gets its black-and-white impact frame and camera shake only after a full charge
   // (Up held FULL_CHARGE ms); the crash only when it starts more than two body lengths up.
   // Without them the move plays its other frames and effects (the dirt plume) with no shake.
-  const FULL_CHARGE = 1000, BODY_LEN = 82, CRASH_HIGH = 2 * BODY_LEN;
+  const FULL_CHARGE = 1000, BODY_LEN = 82, CRASH_HIGH = 2 * BODY_LEN * WORLD_Y_SCALE;
   // A full impact also holds its black-and-white frame a little longer and shakes the ground: the
   // shake starts on the frame where the blade lands and fades out over QUAKE_MS.
   const BW_HOLD = 110, QUAKE_AT = { heavy: 'impact', jump_crash: 'crash' }, QUAKE_MS = 1000, QUAKE_AMP = 14;
@@ -103,7 +104,7 @@
   // halved near the top so she hangs a moment, which makes it slower, smoother and floatier than the old frame by frame hop.
   // It rises about 135 px in 280 ms and stays up about 670 ms (the old hop was about 410 ms); with Left or Right held she covers about 107 px sideways. Steering in the air is
   // in step(). The sky dash (Down then Up) is a separate move and is unchanged.
-  const FLY_MS = 5000, FLY_VY = 0.11, FLY_MIN = 6, FLY_MAX = 150;
+  const FLY_MS = 5000, FLY_VY = 0.11 * WORLD_Y_SCALE, FLY_MIN = 6 * WORLD_Y_SCALE, FLY_MAX = 150 * WORLD_Y_SCALE;
   let flight = null, trailAcc = 0;
   function startFlight() {
     if (stun || flight || pitFall) return;
@@ -137,7 +138,7 @@
     if (D.moves[id] && !canAfford(id)) { deny(id); return; }       // no meter for this beam: on to the next
     queued = null; start(id, 'action', 'ultimate');
   }
-  const JUMP_H = 130, JUMP_UP = 280, JUMP_G = 2 * JUMP_H / (JUMP_UP * JUMP_UP), JUMP_V0 = JUMP_G * JUMP_UP;
+  const JUMP_H = 130 * WORLD_Y_SCALE, JUMP_UP = 280, JUMP_G = 2 * JUMP_H / (JUMP_UP * JUMP_UP), JUMP_V0 = JUMP_G * JUMP_UP;
   const JUMP_HANG_V = 0.2 * JUMP_V0, JUMP_HANG_G = 0.5;
   function stepJump(dt) {
     const j = cur.phys;
