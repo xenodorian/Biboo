@@ -113,16 +113,28 @@
     moveNotes: dev => dev === 'keys'
       ? ['Keyboard: arrows = d-pad, Z = A (attack), X = B, A = X, S = Y, Up = jump. Shoulders: Q = L1, W = R1 (hold to recover), 1 = L2, 2 = R2. Enter, Space or Escape opens and closes this menu. Hold Left or Right while jumping to steer. Double tap Down on a platform to drop through it. Press H to show hurtboxes and hit shapes.']
       : ['A gamepad works too, wired or Bluetooth, also on an Android phone in Chrome: A (bottom) jumps, Y (top) attacks, B is right, X is left. Start opens and closes this menu. Click the game first if buttons do nothing.'] });
+  function showTitle() {
+    // Startup is an explicit title/splash state. Do not route through the overworld first:
+    // the splash must be the first playable screen after assets finish loading.
+    story = null; storyAt = null; level = null; curMap = null;
+    paused = false; gameOver = false; levelDone = false; devOpen = false;
+    enemies.length = 0; respawns.length = 0; gems.length = 0; explosions.length = 0; floaters.length = 0;
+    powerups.length = 0; particles.length = 0; banners.length = 0; hitQ.length = 0;
+    stun = null; slide = null; fall = null; cur = null; queued = null; hold = null; tint = null;
+    floorY = 0; camY = 0; rumble = null; flight = null; rainbow = null; ult = null;
+    ow.sel = 0; clock = 0;
+    screen = 'title';
+    hideMenu(); ignoreHeldButtons(); setStartLabel();
+    showMenu('Defeat the goblins and orcs');
+    canvas.focus();
+  }
   Promise.all(srcs.map(load)).then(() => {
     const loading = document.getElementById('loading');
     if (loading) loading.remove();
     assetsReady = true;
     const hb = document.getElementById('btn-hud-start');
     if (hb) hb.disabled = false;
-    goOverworld(); screen = 'title';                  // the title menu sits over the overworld
-    ow.sel = 0;
-    setStartLabel();
-    showMenu('Defeat the goblins and orcs');
+    showTitle();
   }).catch(err => {
     const loading = document.getElementById('loading');
     if (loading) loading.textContent = String(err) + '. Reload the page (hard refresh) to try again.';
