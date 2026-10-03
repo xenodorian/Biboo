@@ -67,6 +67,8 @@ See repository history for full rules. Work on main, claim steps.
 
 **MAME-3 (done, not run in MAME):** the basic kit runs in whole pixels. Walk uses the baked root handoff. Up jumps, a tap of B parries, holding B blocks, A slashes, A with a direction thrusts or upswings, X dashes, Y spins. The host frame (`boot.png`) is her walking on the Green Trail. Sequences, charge, beams, supers, enemies, other maps, the shop, saves and music are not in the ROM. L1, R1, L2 and R2 do nothing yet. Next is the rest of the reader (chords and sequences), still with no floats.
 
+**Install the live game (not started):** the work list is `ports/mame2003/CHECKLIST.md`. Steps MAME-4 through MAME-15. Claim one step here before writing it. The uncommitted local draft (`play.inc`, `data.h`, `bake_full.py`) is not a finished step and is behind `web/progress.js`. Do not push that draft as if the port were done.
+
 ## Dreamcast port (paused 2026-10-03, was on demand only)
 
 **Owner's rules (2026-10-02):** the port is NOT part of the permanent pipeline; build and push a Dreamcast disc image (`.cdi`) only when the owner asks; note each major step here and push it to main so other agents can continue. Everything lives in `ports/dreamcast/` (README there). Source of method: the owner's `DREAMCAST_PORT_HANDOFF.txt` (a CryMon handoff). Plan: a C rewrite of the runtime for the SH-4 with baked data, in phases, each with an emulator test: 1 boot, 2 frame cost, 3 input and text, 4 art, 5 data out of JS, 6 game logic, 7 save, 8 audio, 9 disc streaming, 10 emulator tests.
