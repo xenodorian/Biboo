@@ -83,7 +83,7 @@ def make_sky():
     # streaks: stronger in the middle sky, calm near zenith and horizon
     streak = 1.25 * np.sin(np.clip(t, 0, 1) * np.pi) ** 0.7
     dx = wrapdist(x, SUN_CX)
-    glow = 1.7 * np.exp(-(dx / 78) ** 2 - ((y - SUN_CY) / 46) ** 2)
+    glow = 1.7 * np.exp(-(dx / (78 * SX)) ** 2 - ((y - SUN_CY) / (46 * SY)) ** 2)
     v = base + streak * n + glow
     idx = np.clip(np.floor(v), 0, len(SKY) - 1).astype(int)
     idx = mode_clean(idx, 2)
