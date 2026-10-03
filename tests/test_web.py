@@ -96,3 +96,5 @@ def test_perry_native_gravity_and_jump_targets():
     assert 'const SKY_DASH_H = 300' in state
     assert 'const speed = dblUsed ? DOUBLE_AIR_SPEED : AIR_SPEED;' in chain
     assert 'xRange: AIR_JUMP_WIDTH' in chain
+    assert 'overSurf(sd, span(px))' not in state
+    assert 'gravityOverSurf(sd, gravitySpan(px))' in state
