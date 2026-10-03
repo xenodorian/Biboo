@@ -125,7 +125,7 @@
         if (sp[1] >= bx[0] && sp[0] <= bx[2] && prevFeet > bx[3] - 2 && feet <= bx[3] + 1) breakCrate(c);
       }
       let T = -1;
-      for (const sf of surfaces(curMap)) if (sf.top > floorY && overSurf(sf, span(px)) && prevFeet > sf.top && feet <= sf.top && sf.top > T) T = sf.top;
+      for (const sf of surfaces(curMap)) if (sf.top > floorY && gravityOverSurf(sf, gravitySpan(px)) && prevFeet > sf.top && feet <= sf.top && sf.top > T) T = sf.top;
       if (T >= 0) {
         if (cur.kind === 'action') x += rootOf(cur)[0];
         floorY = T; fall = null;
