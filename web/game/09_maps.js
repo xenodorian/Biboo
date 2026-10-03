@@ -13,17 +13,25 @@
     return [Math.min(a, bx), Math.max(b, bx)];
   }
   const overSurf = (s, sp) => sp[1] >= s.x0 - 3 && sp[0] <= s.x1 + 3;
-  function supportBelow(bx, y) {                 // the highest surface at or below height y under her (the ground is 0)
+  function gravitySpan(bx) {
+    const f = hf();
+    const a = bx + Math.min(f * GRAVITY_FOOT_BACK, f * GRAVITY_FOOT_FRONT);
+    const b = bx + Math.max(f * GRAVITY_FOOT_BACK, f * GRAVITY_FOOT_FRONT);
+    return [a, b];
+  }
+  const gravityOverSurf = (s, sp) => sp[1] >= s.x0 && sp[0] <= s.x1;
+  function supportBelow(bx, y) {
     let best = 0;
     if (!curMap) return 0;
-    const sp = span(bx);
-    for (const s of surfaces(curMap)) if (overSurf(s, sp) && s.top <= y + 0.5 && s.top > best) best = s.top;
+    const sp = gravitySpan(bx);
+    for (const s of surfaces(curMap)) if (gravityOverSurf(s, sp) && s.top <= y + 0.5 && s.top > best) best = s.top;
     return best;
   }
-  function supportUnder(bx, y) {                 // the highest surface strictly below height y under her (the ground is 0)
+  function supportUnder(bx, y) {
     let best = 0;
-    const sp = span(bx);
-    for (const s of surfaces(curMap)) if (overSurf(s, sp) && s.top < y - 1 && s.top > best) best = s.top;
+    if (!curMap) return 0;
+    const sp = gravitySpan(bx);
+    for (const s of surfaces(curMap)) if (gravityOverSurf(s, sp) && s.top < y - 1 && s.top > best) best = s.top;
     return best;
   }
   function surfaceAt(m, bx, top) { return surfaces(m).find(s => s.top === top && bx >= s.x0 - 3 && bx <= s.x1 + 3) || null; }
@@ -110,7 +118,7 @@
     const feet = herY();
     const flying = !stun && cur && (fall || cur.kind === 'fall' || (cur.kind === 'action' && cur.id === 'jump'));
     if (flying && prevFeet !== null && feet < prevFeet) {
-      const sp = span(px);                                         // coming down onto a crate smashes it (any part of her over it)
+      const sp = gravitySpan(px);
       for (const c of curMap.crates) {
         if (c.broken) continue;
         const bx = crateBox(c);
