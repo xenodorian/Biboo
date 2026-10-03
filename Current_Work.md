@@ -89,6 +89,8 @@ See repository history for full rules. Work on main, claim steps.
 
 **MAME-14 (done, not booted):** holding L1+R1+L2+R2 while paused reveals the cheat list. It is not on the pause screen before that. God Mode skips damage, Infinite Meter fills owned meters, Level Unlock opens every level, Master Unlock grants every unlock without spending leaves, No Pitfalls ignores pits. The same chord does not start the Ultimate, because the pause returns before the play step. Host syntax check only. Not linked.
 
+**MAME-15 (not booted):** the 68000 ROM does link. `m68k-elf-gcc` 13.2 at `/tmp/m68k13` built `roms/main.bin` (524288 bytes, crc `1df530cc`) and `roms/parryperry.zip`. The driver is not installed in the MAME tree at `/tmp/mame2003-plus`, and that tree has no compiled binary, so nobody has watched title, new game, prologue, overworld, a map, a purchase, a save, and a continue. Android and the R36S are still unchecked. Do not load an older zip.
+
 ## Dreamcast port (paused 2026-10-03, was on demand only)
 
 **Owner's rules (2026-10-02):** the port is NOT part of the permanent pipeline; build and push a Dreamcast disc image (`.cdi`) only when the owner asks; note each major step here and push it to main so other agents can continue. Everything lives in `ports/dreamcast/` (README there). Source of method: the owner's `DREAMCAST_PORT_HANDOFF.txt` (a CryMon handoff). Plan: a C rewrite of the runtime for the SH-4 with baked data, in phases, each with an emulator test: 1 boot, 2 frame cost, 3 input and text, 4 art, 5 data out of JS, 6 game logic, 7 save, 8 audio, 9 disc streaming, 10 emulator tests.

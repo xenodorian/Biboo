@@ -242,10 +242,10 @@ Done when: the row is absent on a fresh pause, present after the chord, and God 
 
 ## MAME-15 — Boot the core, and stop claiming machines you have not booted
 
-- [ ] `python3 ports/mame2003/tools/install_driver.py` into a current [mame2003-plus](https://github.com/libretro/mame2003-plus-libretro), then `make platform=unix`.
-- [ ] Load `roms/parryperry.zip`. The game name is Parry Perry. The zip's CRC matches `driver/rom_load.inc`.
-- [ ] Desktop: title, New game, prologue, overworld, one map, one bought move, Save, quit, Continue.
-- [ ] Write what was not booted. Android (`platform=android-armv7`) and an R36S-class build (`platform=classic_armv8_a35`) stay unchecked until someone loads the zip there. There is no arm64 Android target in that makefile.
+- [ ] `python3 ports/mame2003/tools/install_driver.py` into a current [mame2003-plus](https://github.com/libretro/mame2003-plus-libretro), then `make platform=unix`. The tree at `/tmp/mame2003-plus` has no compiled binary, and the driver was not copied in.
+- [x] `roms/parryperry.zip` was rebuilt by `m68k-elf-gcc` 13.2. `main.bin` is 524288 bytes, crc `1df530cc`. It was not loaded.
+- [ ] Desktop: title, New game, prologue, overworld, one map, one bought move, Save, quit, Continue. Not done. There is no MAME binary in this sandbox.
+- [ ] Write what was not booted. Android (`platform=android-armv7`) and an R36S-class build (`platform=classic_armv8_a35`) stay unchecked until someone loads the zip there. There is no arm64 Android target in that makefile. Both stay unchecked.
 
 Done when: the desktop core has done the path in the third box, and `Current_Work.md` says so in those words.
 
@@ -259,9 +259,9 @@ Every line of the live game is one of these. Do not call the port finished while
 |---|---|---|
 | 640×480, 1:1 map, eight real buttons, blitter | this port | done (MAME-1..3) |
 | Basic kit on the Green Trail | `03_state.js` | done, replaced by MAME-7 |
-| Fresh dump of moves, enemies, maps, scenes, pickups, beams, story art | `web/`, `00_core.js` | MAME-4 |
-| Unlocks, gem bag, meter caps, manual save, New game wipe | `progress.js` | MAME-5 |
-| Full binding table, shoulders gated by unlocks | `input.js`, `02_input.js`, `00_core.js` | MAME-6 |
+| Fresh dump of moves, enemies, maps, scenes, pickups, beams, story art | `web/`, `00_core.js` | done, not booted (MAME-4) |
+| Unlocks, gem bag, meter caps, manual save, New game wipe | `progress.js` | done, not booted (MAME-5) |
+| Full binding table, shoulders gated by unlocks | `input.js`, `02_input.js`, `00_core.js` | done, not booted (MAME-6) |
 | Jump, drop-through, charge, chains, flight, rainbow, ultimate, costs | `03_state.js`, `04_chain.js` | done, not booted (MAME-7) |
 | Hits, beams, parry window, boss rules and drops | `12_hits.js`, `08_beams.js`, `05_health.js` | done, not booted (MAME-8; drops wait for the bag) |
 | Enemy AI, shards, pit hops, fade | `11_enemies.js`, `13_enemy_attacks.js` | done, not booted (MAME-9; no platform climb) |
@@ -270,6 +270,6 @@ Every line of the live game is one of these. Do not call the port finished while
 | Shadows, glows, damage numbers, hit-stop, boss bar | `15_draw_scenery.js`, `07_feedback.js` | partial, not booted (MAME-12) |
 | 17 songs, crossfade, volume | `music.js` | cued, not heard (MAME-13) |
 | Cheat menu | `21_cheats_loop.js` | done, not booted (MAME-14) |
-| Desktop core boot | mame2003-plus | MAME-15 |
+| Desktop core boot | mame2003-plus | ROM linked, not booted (MAME-15) |
 
 Out of scope, on purpose: loading a web save, keyboard-only play inside MAME (the Moves: Keyboard page is a description, the machine has a pad), browser fullscreen, and the web test hooks in `22_test_hooks.js`.
