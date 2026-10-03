@@ -1,3 +1,4 @@
+/* st126: ensure strip at bottom even if base drawOverworld was cached */
   function drawOverworld() {
     const n = LV.levels.length;
     g.fillStyle = '#10151c'; g.fillRect(0, 0, V.w, V.h);
