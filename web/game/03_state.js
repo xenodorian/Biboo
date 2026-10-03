@@ -21,7 +21,7 @@
   let prevFeet = null, lastCx = null;   // her feet height and anchor x on the last frame, for landing and blocking
   const powerups = [], particles = [], banners = [];
   const AIR_SPEED = 0.16;               // px/ms she can steer sideways in the air (a jump reaches about 65 px)
-  const CAM_KEEP = 100;                 // the camera only rises when she is higher than this above the ground
+  const CAM_KEEP = 160;                 // the camera only rises when she is higher than this above the ground
   let showBoxes = false;                // H: draw hurtboxes and hit shapes
   let stun = null;                      // {v: px/ms (signed), a: px/ms^2, y, vy}: knocked back, no control
   let slide = null;                     // {v, a}: the small push back of a blocked hit
