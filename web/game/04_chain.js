@@ -117,7 +117,7 @@
     if (cur.id === 'jump' && cur.kind === 'action') {            // the plain jump: crouch, then physics until she lands
       if (cur.phys) { stepJump(dt); return; }
       cur.t += dt;
-      if (cur.t >= msOf(cur, 0)) { cur.phys = { y: 0, v: JUMP_V0 }; cur.k = 1; cur.t = 0; }
+      if (cur.t >= msOf(cur, 0)) { cur.phys = { y: 0, v: JUMP_V0, v0: JUMP_V0, t: 0, baseY: 0, x0: x, xRange: AIR_JUMP_WIDTH }; cur.k = 1; cur.t = 0; }
       return;
     }
     if (cur.kind === 'hold') {
