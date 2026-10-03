@@ -37,7 +37,6 @@ def test_web_game_uses_native_640x480_space():
     state = (ROOT / 'web' / 'game' / '03_state.js').read_text()
     assert 'const CAM_KEEP = 100 * WORLD_Y_SCALE;' in state
     assert 'WORLD_Y_SCALE' in state
-    assert 'const CAM_KEEP = 100 * WORLD_Y_SCALE;' in state
     bg = (ROOT / 'swingkit' / 'bg.py').read_text()
     assert 'W, VH, M = 640, 480, 16' in bg
     fx = (ROOT / 'swingkit' / 'fx.py').read_text()
