@@ -102,10 +102,9 @@
     if (!cur || cur.kind !== 'action' || cur.lite) return;
     if (QUAKE_AT[cur.id] === D.moves[cur.id].frames[cur.k].name) rumble = { t0: clock, ms: QUAKE_MS, amp: QUAKE_AMP };
   }
-  // The plain jump (Y) is a physics jump: a short crouch, then launch at JUMP_V0 (px/ms) under gravity JUMP_G. Gravity is
-  // halved near the top so she hangs a moment, which makes it slower, smoother and floatier than the old frame by frame hop.
-  // It rises about 135 px in 280 ms and stays up about 670 ms (the old hop was about 410 ms); with Left or Right held she covers about 107 px sideways. Steering in the air is
-  // in step(). The sky dash (Down then Up) is a separate move and is unchanged.
+  // The plain jump is a native 100 px ballistic arc with a 280 ms rise and 560 ms total arc.
+  // Air steering is capped at 120 px from the jump start; the double jump expands that cap to 240 px.
+  // Sky dash is a separate 300 px vertical ballistic arc with no horizontal steering.
   const SKY_DASH_H = 300, SKY_DASH_APEX_MS = 420;
   const SKY_DASH_G = 2 * SKY_DASH_H / (SKY_DASH_APEX_MS * SKY_DASH_APEX_MS);
   const SKY_DASH_V0 = SKY_DASH_G * SKY_DASH_APEX_MS;
@@ -163,6 +162,11 @@
     cur.k = j.v > 0.6 * JUMP_V0 ? 1 : j.v > 0.2 * JUMP_V0 ? 2 : j.v > -0.2 * JUMP_V0 ? 3 : 4;   // takeoff, rise, apex, fall frames
     const arcDone = j.t >= (2 * j.v0 / JUMP_G);
     if (j.y <= j.baseY && j.v < 0 && arcDone) {
+      if (j.doubleArc && j.baseY > 0) {
+        fall = { y: j.baseY, v: Math.abs(j.v) };
+        cur = { id: 'jump', k: FALL_K, t: 0, kind: 'fall', face: cur.face };
+        return;
+      }
       const y = j.y, vv = -j.v;
       if (floorY > 0) {                                          // she left a platform and walked off it in the air: keep falling
         const S = supportUnder(playerX(), floorY + 0.5);
