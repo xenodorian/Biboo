@@ -19,7 +19,7 @@
 
 enum { VIA_PRESS, VIA_TAP, VIA_RELEASE, VIA_CHORD, VIA_SEQ, VIA_CHAIN, VIA_AIR, VIA_ULT };
 enum { K_HOLD, K_ACTION, K_LAND };
-enum { MODE_PLAY, MODE_SHOP, MODE_DEAD, MODE_END };
+enum { MODE_TITLE, MODE_STORY, MODE_WORLD, MODE_PLAY, MODE_SHOP, MODE_DEAD, MODE_END };
 enum { ST_PATROL, ST_CHASE, ST_ATK, ST_STUN, ST_DEAD };
 
 static int now;
@@ -43,6 +43,7 @@ static unsigned char moves_open[MV_COUNT];
 static int mode, paused, shop_i, shop_clear, shop_next;
 static int boom_t, boom_x, boom_y;
 static int hop_y, hop_t, down_at, down_held;
+static int story_id, story_i, menu_i, confirm;
 
 static int rd_held[NBTN];
 typedef struct { int b, t, u, used; } Press;
@@ -2015,7 +2016,9 @@ static void clear_map(void)
     shop_clear = 1;
     shop_next = (level + 1 >= NLEVELS) ? 1 : level + 1;
     shop_i = 0;
-    mode = MODE_SHOP;
+    mode = MODE_END;
+    story_id = 2;
+    story_i = 0;
 }
 static int shop_ok(int i)
 {
@@ -2264,6 +2267,86 @@ static void hud(int down)
     if (mode == MODE_DEAD) hw_text(148, 180, ankhs > 0 ? "DOWN  A SPENDS AN ANKH" : "OUT OF ANKHS  A RETRIES", COL_RED, 1);
     if (mode == MODE_END) hw_text(168, 180, "END OF THE TRAIL", COL_GOLD, 1);
 }
+static void draw_title(void)
+{
+    hw_text(150, 80, "PERRY RIPOSTE", COL_GOLD, 2);
+    hw_text(170, 140, saved_t ? "A  CONTINUE" : "A  NEW GAME", COL_INK, 1);
+    if (saved_t) hw_text(170, 164, "Y  NEW GAME", COL_DIM, 1);
+    if (confirm) hw_text(120, 210, "Y AGAIN ERASES THE SAVE", COL_RED, 1);
+    hw_text(150, 400, "A NATIVE 640 X 480 PORT", COL_DIM, 1);
+}
+static void draw_story(void)
+{
+    static const char *who[3] = {"PERRY", "THE DOUBLE", "THE END"};
+    static const char *line[3][2] = {
+        {"Peregrine Perry Riposte lost her family", "to a fire. She sailed to Miracle Island."},
+        {"The double was her own anger.", "Let it go, or it rises again."},
+        {"She wished herself home, before the fire.", "Holding on to anger is self-destructive."},
+    };
+    int pic = story_id == 0 ? ST_CALM : (story_id == 1 ? ST_DOUBLE : ST_ALTAR);
+    hw_sprite(PF_X, PF_Y, (int)STORY_SPR[pic], 0);
+    hw_rect(PF_X, PF_Y + VIEW_H - 48, VIEW_W, 48, COL_BG);
+    hw_text(PF_X + 12, PF_Y + VIEW_H - 40, who[story_id], COL_GOLD, 1);
+    hw_text(PF_X + 12, PF_Y + VIEW_H - 24, line[story_id][story_i & 1], COL_INK, 1);
+    hw_text(PF_X + 250, PF_Y + VIEW_H - 8, "A NEXT", COL_DIM, 1);
+}
+static int owned_n(void)
+{
+    int i, n = 0;
+    for (i = 0; i < NUNLOCKS; i++) if ((unlocked >> i) & 1u) n++;
+    return n;
+}
+static void draw_overworld(void)
+{
+    int i, y = 90;
+    hw_text(180, 36, "MIRACLE ISLAND", COL_GOLD, 2);
+    hw_text(48, 68, "LEAVES", COL_DIM, 1);
+    hw_num(120, 68, leaves, COL_INK);
+    hw_text(200, 68, "OWNED", COL_DIM, 1);
+    hw_num(260, 68, owned_n(), COL_INK);
+    hw_text(300, 68, "/ 27", COL_DIM, 1);
+    for (i = 0; i < NLEVELS; i++) {
+        int open = i < levels_unlocked;
+        hw_text(80, y, menu_i == i ? ">" : " ", open ? COL_GOLD : COL_DIM, 1);
+        hw_text(100, y, LEVELS[i].name, open ? COL_INK : COL_DIM, 1);
+        if ((cleared >> i) & 1u) hw_text(420, y, "CLEAR", COL_GREEN, 1);
+        else if (!open) hw_text(420, y, "LOCKED", COL_DIM, 1);
+        y += 22;
+    }
+    hw_text(80, y, menu_i == NLEVELS ? ">" : " ", COL_INK, 1);
+    hw_text(100, y, "SUNSET TRAINING", COL_INK, 1);
+    y += 22;
+    hw_text(80, y, menu_i == NLEVELS + 1 ? ">" : " ", COL_INK, 1);
+    hw_text(100, y, "BONE MERCHANT", COL_INK, 1);
+    hw_text(48, 430, "LEFT RIGHT  A ENTERS", COL_DIM, 1);
+}
+static void enter_world(void)
+{
+    if (menu_i < NLEVELS) {
+        if (menu_i >= levels_unlocked) return;
+        level = menu_i;
+        map_id = (int)LEVELS[level].map0;
+        if (level == 0 && !(story_f & 1u)) {
+            story_id = 0;
+            story_i = 0;
+            story_f |= 1u;
+            mode = MODE_STORY;
+            return;
+        }
+        load_map();
+        return;
+    }
+    if (menu_i == NLEVELS) {
+        map_id = MAP_TRAINING;
+        level = 0;
+        load_map();
+        hp = maxhp;
+        return;
+    }
+    shop_clear = 0;
+    shop_i = 0;
+    mode = MODE_SHOP;
+}
 static void draw_shop(int down)
 {
     int n = shop_count(), i, y = 120;
@@ -2311,14 +2394,34 @@ void game_main(void)
     face = 1;
     mv = MV_idle;
     load_save();
-    load_map();
+    mode = MODE_TITLE;
+    menu_i = 0;
     for (;;) {
         u16 raw = hw_pad();
         u16 down = (u16)~raw;
         u16 prev = (u16)~raw_prev;
         int pressed = down & ~prev;
         now += DT;
-        if (mode == MODE_PLAY) {
+        if (mode == MODE_TITLE) {
+            if (pressed & PAD_A) {
+                if (!saved_t) { fresh_game(); story_id = 0; story_i = 0; story_f |= 1u; mode = MODE_STORY; }
+                else { level = 0; map_id = 0; mode = MODE_WORLD; menu_i = 0; }
+            } else if ((pressed & PAD_Y) && saved_t) {
+                if (!confirm) confirm = 1;
+                else { confirm = 0; fresh_game(); story_id = 0; story_i = 0; story_f |= 1u; mode = MODE_STORY; }
+            }
+        } else if (mode == MODE_STORY) {
+            if (pressed & PAD_A) {
+                if (story_i < 1) story_i++;
+                else if (story_id == 0) { mode = MODE_WORLD; menu_i = 0; }
+                else if (story_id == 1) { mode = MODE_WORLD; menu_i = level; }
+                else { mode = MODE_END; }
+            }
+        } else if (mode == MODE_WORLD) {
+            if ((pressed & PAD_LEFT) && menu_i > 0) menu_i--;
+            if ((pressed & PAD_RIGHT) && menu_i < NLEVELS + 1) menu_i++;
+            if (pressed & PAD_A) enter_world();
+        } else if (mode == MODE_PLAY) {
             if (pressed & PAD_START) {
                 paused = !paused;
                 if (!paused) rd_reset();
@@ -2351,7 +2454,10 @@ void game_main(void)
         hw_clear(COL_BG);
         hw_rect(8, 8, 624, 464, COL_DIM);
         hw_rect(12, 12, 616, 456, COL_BG);
-        if (mode == MODE_SHOP) draw_shop(down);
+        if (mode == MODE_TITLE) draw_title();
+        else if (mode == MODE_STORY) draw_story();
+        else if (mode == MODE_WORLD) draw_overworld();
+        else if (mode == MODE_SHOP) draw_shop(down);
         else {
             draw_world();
             hud(down);

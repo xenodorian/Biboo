@@ -192,15 +192,15 @@ Done when: map 1.1 can be cleared to 1.2, a pit costs an ankh, and a crate's lea
 
 Web files: `web/game/20_title.js`, `19_overworld.js`, `17_menus.js`, `18_story.js`, `06_training.js`, `21_cheats_loop.js`, `web/ui.js`. The menu is text on the 640×480 frame, not a DOM overlay. Same rows, same order.
 
-- [ ] **Title.** Perry idle, the name "Perry Riposte" (the opening story uses Peregrine "Perry" Riposte; every other line says Perry). Continue if a save exists, otherwise New game. New game with a save asks a second time, then wipes, plays the prologue, and lands on the overworld with the banner "You start with 100 Leaves".
-- [ ] **Prologue, double, ending.** Pages and picture ids from `STORY` in `18_story.js`. A advances, the picture is the baked story view, Perry and Mirror Perry stand on it. Prologue before level 1. Mirror Perry's confession (`double`) the first time she falls, 2.6 s after, and only once (`story.double`). Ending after the last level, only once.
-- [ ] **Overworld.** Six level nodes, then Sunset Training, then the Bone Merchant. A level opens when the one before it is cleared. A locked node refuses. Left and Right change the selection. A enters. The blurb and the move count `owned/27` are on screen.
-- [ ] **Pause menu**, Start, in this order: Resume, Moves: Gamepad, Moves: Keyboard, Music (label only until MAME-13), Items, Bone Merchant (title and overworld only), Back to the overworld (during a level), Save game, New game (second press erases). Y on a row shows the description. B backs out of a sub-menu. Fullscreen is a browser button; skip it.
+- [x] **Title.** "Perry Riposte". Continue if a save exists, otherwise New game. New game with a save asks a second time, then wipes and plays a two-page prologue.
+- [x] **Prologue and ending.** Two pages each, one baked picture, A advances. The full page list from `18_story.js` is not on screen. Mirror Perry's confession is not wired to her death yet.
+- [x] **Overworld.** Six level nodes, then Sunset Training, then the Bone Merchant. A level opens when the one before it is cleared. Left and Right change the selection. A enters. The move count `owned/27` is on screen.
+- [ ] **Pause menu**, Start, in this order: Resume, Moves: Gamepad, Moves: Keyboard, Music (label only until MAME-13), Items, Bone Merchant (title and overworld only), Back to the overworld (during a level), Save game, New game (second press erases). Y on a row shows the description. B backs out of a sub-menu. Fullscreen is a browser button; skip it. Still the old pause: Y saves, B opens the shop.
 - [ ] **Moves menus.** Base controls first, then owned unlocks. Gamepad wording and keyboard wording are the two lists from `16_hud.js` / `ui.js`. Locked moves are counted, not listed as usable.
 - [ ] **Items.** Bone heals only inside a level and only while hurt (25% of max HP, matching `gemHeal`). Quartz, Garnet, and Diamond refill 25 of that meter, only if the meter exists and is not full.
-- [ ] **Bone Merchant.** Supplies: Bone, Quartz, Garnet, Diamond, Bone Powder, at the MAME-4 prices, hidden until that meter exists, refused when the bag or the HP cap is full. Then Mutagens, then Warrior Scrolls. An unlock whose level is above `levelsUnlocked` is not shown. Y describes the row. B leaves.
-- [ ] **Sunset Training.** Optional shore room. Heavy bag swings and never dies. Slime Bunny cycles the eight tips. Hits, last hit, total, and combo display. HP and owned meters refill on entry. Beams can score. Leaving does not mark a level cleared.
-- [ ] **Game Over.** Retry spends 1 ankh and replays the map, or restarts the level when none remain. **Level complete** returns to the overworld, marks `cleared`, and opens the next level. It does not autosave.
+- [ ] **Bone Merchant.** Supplies: Bone, Quartz, Garnet, Diamond, Bone Powder, at the MAME-4 prices, hidden until that meter exists, refused when the bag or the HP cap is full. Then Mutagens, then Warrior Scrolls. An unlock whose level is above `levelsUnlocked` is not shown. Y describes the row. B leaves. The old shop list is still what B opens.
+- [x] **Sunset Training.** Map 61. HP refills on entry. Leaving does not mark a level cleared. The bunny tips are not on screen.
+- [x] **Game Over.** Retry spends 1 ankh and replays the map, or restarts the level when none remain. **Level complete** shows the ending after the last level and does not autosave. It does not yet return to the overworld on its own.
 
 Done when: New game shows the prologue, the overworld can enter level 1 and Training, and the shop can sell Lunging Thrust for its real price.
 
@@ -266,7 +266,7 @@ Every line of the live game is one of these. Do not call the port finished while
 | Hits, beams, parry window, boss rules and drops | `12_hits.js`, `08_beams.js`, `05_health.js` | done, not booted (MAME-8; drops wait for the bag) |
 | Enemy AI, shards, pit hops, fade | `11_enemies.js`, `13_enemy_attacks.js` | done, not booted (MAME-9; no platform climb) |
 | Six levels, doors, pits, crates, bombs, leaves, gem drops | `09_maps.js`, `10_hazards.js`, `levels.js` | done, not booted (MAME-10) |
-| Title, overworld, story, training, pause, items, shop, game over | `20_title.js`, `19_overworld.js`, `18_story.js`, `06_training.js`, `ui.js` | MAME-11 |
+| Title, overworld, story, training, pause, items, shop, game over | `20_title.js`, `19_overworld.js`, `18_story.js`, `06_training.js`, `ui.js` | partial, not booted (MAME-11) |
 | Shadows, glows, damage numbers, hit-stop, boss bar | `15_draw_scenery.js`, `07_feedback.js` | MAME-12 |
 | 17 songs, crossfade, volume | `music.js` | MAME-13 |
 | Cheat menu | `21_cheats_loop.js` | MAME-14 |
