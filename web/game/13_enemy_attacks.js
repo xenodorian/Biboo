@@ -90,7 +90,7 @@
       const f0 = floorY + stun.y;
       stun.vy += 0.0018 * WORLD_Y_SCALE * dt; stun.y = Math.max(0, stun.y - stun.vy * dt);
       if (curMap) {                                   // knocked while in the air: land on a platform or block she falls through, not below it
-        let T = -1; const sp = span(playerX());
+        let T = -1; const sp = gravitySpan(playerX());
         for (const sf of surfaces(curMap)) if (sf.top > floorY && overSurf(sf, sp) && f0 > sf.top && floorY + stun.y <= sf.top && sf.top > T) T = sf.top;
         if (T >= 0) { floorY = T; stun.y = 0; }
       }
