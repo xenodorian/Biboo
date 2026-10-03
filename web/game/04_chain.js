@@ -95,7 +95,7 @@
       x += slide.v * dt;
       const v = slide.v - Math.sign(slide.v) * slide.a * dt;
       slide.v = Math.sign(v) === Math.sign(slide.v) ? v : 0;
-      slide.vy += 0.0018 * dt; slide.y = Math.max(0, slide.y - slide.vy * dt);      // the KNOCK_UP hop
+      slide.vy += 0.0018 * WORLD_Y_SCALE * dt; slide.y = Math.max(0, slide.y - slide.vy * dt);      // the KNOCK_UP hop
       if (slide.v === 0 && slide.y === 0 && slide.vy >= 0) slide = null;
     }
     // steering in the air: hold Left or Right while a jump is up or she is falling
@@ -104,7 +104,7 @@
       x += steer * AIR_SPEED * dt; facing = steer; if (cur) cur.face = steer;
     }
     if (fall) {                                                  // simple gravity, px/ms^2
-      fall.v += 0.0018 * dt;
+      fall.v += 0.0018 * WORLD_Y_SCALE * dt;
       fall.y -= fall.v * dt;
       if (fall.y <= 0) { fall = null; cur = { id: 'jump', k: LAND_K, t: 0, kind: 'land', face: cur ? cur.face : facing }; }
       return;
