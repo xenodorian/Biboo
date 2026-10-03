@@ -45,6 +45,7 @@ static int boom_t, boom_x, boom_y;
 static int hop_y, hop_t, down_at, down_held;
 static int story_id, story_i, menu_i, confirm;
 static int freeze, num_x, num_y, num_v, num_t;
+static int cheats, cheats_on, cheat_i;
 
 static int rd_held[NBTN];
 typedef struct { int b, t, u, used; } Press;
@@ -510,7 +511,7 @@ static int strike_anim(En *e)
 static int hurt_her(int dmg, int from_face)
 {
     if (mode != MODE_PLAY || paused) return 0;
-    if (rainbow_left > 0 || invuln > 0) return 0;
+    if ((cheats & 1) || rainbow_left > 0 || invuln > 0) return 0;
     if (mv == MV_parry && kind == K_ACTION && fr <= 2) return 2;
     if (mv == MV_block && kind != K_LAND) {
         dmg /= 2;
@@ -1112,7 +1113,7 @@ static void start_rainbow(void)
 }
 static void start_ult(void)
 {
-    if (her_stun > 0 || ult_on) return;
+    if (her_stun > 0 || ult_on || paused) return;
     ult_on = 1;
     ult_i = 0;
 }
@@ -1749,6 +1750,11 @@ static void step_meters(int down)
             hp = clampi(hp + 5, 0, maxhp);
         }
     } else hbag = 0;
+    if (cheats & 2) {
+        if (meter_on(0)) meter[0] = meter_cap(0);
+        if (meter_on(1)) meter[1] = meter_cap(1);
+        if (meter_on(2)) meter[2] = meter_cap(2);
+    }
 }
 static void pickups(void)
 {
@@ -1786,7 +1792,7 @@ static void pickups(void)
         her_box(&hx0, &hy0, &hx1, &hy1);
         if (overlap(hx0, hy0, hx1, hy1, b->x - 8, b->fy, b->x + 8, b->fy + 22)) detonate(i);
     }
-    if (!jumping && rainbow_left <= 0 && surf == 0) {
+    if (!jumping && rainbow_left <= 0 && !(cheats & 4) && surf == 0) {
         int back = x - face, front = x + face * 38;
         int lo = back < front ? back : front, hi = back > front ? back : front;
         for (i = 0; i < (int)m->npit; i++) {
@@ -2285,7 +2291,22 @@ static void hud(int down)
     mark(440, 356, "L2", down & PAD_L2);
     mark(480, 356, "R2", down & PAD_R2);
     mark(530, 356, "ST", down & PAD_START);
-    if (paused) hw_text(120, 180, "PAUSED  A RESUME  B SHOP  Y SAVES", COL_GOLD, 1);
+    if (paused) {
+        hw_text(200, 150, "PAUSED", COL_GOLD, 1);
+        hw_text(120, 180, "A RESUME   B SHOP   Y SAVES", COL_INK, 1);
+        if (cheats_on) {
+            static const char *row[5] = {"GOD MODE", "INFINITE METER", "LEVEL UNLOCK", "MASTER UNLOCK", "NO PITFALLS"};
+            int r;
+            hw_text(120, 210, "CHEATS", COL_GOLD, 1);
+            for (r = 0; r < 5; r++) {
+                hw_text(120, 230 + r * 16, cheat_i == r ? ">" : " ", COL_INK, 1);
+                hw_text(140, 230 + r * 16, row[r], COL_INK, 1);
+                if (r == 0) hw_text(360, 230, (cheats & 1) ? "ON" : "OFF", COL_DIM, 1);
+                if (r == 1) hw_text(360, 246, (cheats & 2) ? "ON" : "OFF", COL_DIM, 1);
+                if (r == 4) hw_text(360, 294, (cheats & 4) ? "ON" : "OFF", COL_DIM, 1);
+            }
+        }
+    }
     if (mode == MODE_DEAD) hw_text(148, 180, ankhs > 0 ? "DOWN  A SPENDS AN ANKH" : "OUT OF ANKHS  A RETRIES", COL_RED, 1);
     if (mode == MODE_END) hw_text(168, 180, "END OF THE TRAIL", COL_GOLD, 1);
 }
@@ -2461,7 +2482,18 @@ void game_main(void)
         } else if (mode == MODE_PLAY) {
             if (pressed & PAD_START) {
                 paused = !paused;
-                if (!paused) rd_reset();
+                if (!paused) { rd_reset(); cheats_on = 0; }
+            }
+            if (paused && (down & (PAD_L1 | PAD_R1 | PAD_L2 | PAD_R2)) == (PAD_L1 | PAD_R1 | PAD_L2 | PAD_R2))
+                cheats_on = 1;
+            if (paused && cheats_on && (pressed & PAD_UP) && cheat_i > 0) cheat_i--;
+            if (paused && cheats_on && (pressed & PAD_DOWN) && cheat_i < 4) cheat_i++;
+            if (paused && cheats_on && (pressed & PAD_A)) {
+                if (cheat_i == 0) cheats ^= 1;
+                else if (cheat_i == 1) cheats ^= 2;
+                else if (cheat_i == 2) { levels_unlocked = NLEVELS; }
+                else if (cheat_i == 3) { unlocked = (1u << NUNLOCKS) - 1u; btn_mask = 0x0f00; meters_on = 7; levels_unlocked = NLEVELS; }
+                else cheats ^= 4;
             }
             if (paused && (pressed & PAD_Y)) save_game();
             if (paused && (pressed & PAD_B)) {

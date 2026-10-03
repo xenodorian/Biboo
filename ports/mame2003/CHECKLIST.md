@@ -234,9 +234,9 @@ Done when: the driver plays `overworld` on the title. Not claimed until someone 
 
 Web file: `web/game/21_cheats_loop.js`, `07_feedback.js`.
 
-- [ ] In the pause menu, L1+R1+L2+R2 together adds a Cheats row. It is not on the list before that.
-- [ ] Rows: God Mode, Infinite Meter, Level Unlock, Master Unlock, No Pitfalls, Close. Each does what the web row does, including Master Unlock buying nothing: it grants every unlock and opens every level.
-- [ ] The chord does not also start Ultimate.
+- [x] In the pause menu, L1+R1+L2+R2 together adds a Cheats list. It is not on the list before that.
+- [x] Rows: God Mode, Infinite Meter, Level Unlock, Master Unlock, No Pitfalls. Master Unlock grants every unlock and opens every level without spending leaves.
+- [x] The chord does not also start Ultimate. Pause returns before the play step.
 
 Done when: the row is absent on a fresh pause, present after the chord, and God Mode stops a hit.
 
@@ -269,7 +269,7 @@ Every line of the live game is one of these. Do not call the port finished while
 | Title, overworld, story, training, pause, items, shop, game over | `20_title.js`, `19_overworld.js`, `18_story.js`, `06_training.js`, `ui.js` | partial, not booted (MAME-11) |
 | Shadows, glows, damage numbers, hit-stop, boss bar | `15_draw_scenery.js`, `07_feedback.js` | partial, not booted (MAME-12) |
 | 17 songs, crossfade, volume | `music.js` | cued, not heard (MAME-13) |
-| Cheat menu | `21_cheats_loop.js` | MAME-14 |
+| Cheat menu | `21_cheats_loop.js` | done, not booted (MAME-14) |
 | Desktop core boot | mame2003-plus | MAME-15 |
 
 Out of scope, on purpose: loading a web save, keyboard-only play inside MAME (the Moves: Keyboard page is a description, the machine has a pad), browser fullscreen, and the web test hooks in `22_test_hooks.js`.
