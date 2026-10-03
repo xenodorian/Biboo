@@ -100,11 +100,15 @@
     }
     // steering in the air: hold Left or Right while a jump is up or she is falling
     const steer = (isDown.has('Right') ? 1 : 0) - (isDown.has('Left') ? 1 : 0);
-    if (steer && (fall || (cur && (cur.kind === 'fall' || (cur.kind === 'action' && cur.id === 'jump' && rootOf(cur)[1] > 0))))) {
-      x += steer * AIR_SPEED * dt; facing = steer; if (cur) cur.face = steer;
+    if (steer && !flight && (fall || (cur && (cur.kind === 'fall' || (cur.kind === 'action' && cur.id === 'jump' && rootOf(cur)[1] > 0))))) {
+      const speed = dblUsed ? DOUBLE_AIR_SPEED : AIR_SPEED;
+      x += steer * speed * dt; facing = steer; if (cur) cur.face = steer;
+      if (cur && cur.id === 'jump' && cur.kind === 'action' && cur.phys && cur.phys.xRange != null) {
+        x = Math.max(cur.phys.x0 - cur.phys.xRange, Math.min(cur.phys.x0 + cur.phys.xRange, x));
+      }
     }
-    if (fall) {                                                  // simple gravity, px/ms^2
-      fall.v += 0.0018 * WORLD_Y_SCALE * dt;
+    if (fall) {
+      fall.v += JUMP_G * dt;
       fall.y -= fall.v * dt;
       if (fall.y <= 0) { fall = null; cur = { id: 'jump', k: LAND_K, t: 0, kind: 'land', face: cur ? cur.face : facing }; }
       return;
