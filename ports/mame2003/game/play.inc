@@ -61,7 +61,8 @@ typedef struct {
     short path0, path1, dir, hop, shot_k, sight;
     unsigned short seen;
     int seen_t;
-    unsigned char on, hit_done;
+    int land_at;
+    unsigned char on, hit_done, scale, flags;
 } En;
 static En en[MAX_EN];
 static unsigned char leaf_on[MAX_LEAF], crate_on[MAX_CRATE], bomb_on[MAX_BOMB];
@@ -362,6 +363,7 @@ static void eplay(En *e, int anim)
     e->k = 0;
     e->t = 0;
     e->hit_done = 0;
+    e->land_at = 0;
     e->shot_k = -1;
     f = ef(e);
     g = e->face < 0 ? f->ground : -f->ground;
@@ -417,15 +419,8 @@ static void hurt_enemy(En *e, int dmg, int dir)
     else if (mv == MV_energy_burst) { dist = 70; ms = 320; }
     if (e->hp == 0) {
         e->state = ST_DEAD;
-        if (ENEMIES[e->type].boss) {
-            leaves += 15;
-            ankhs = clampi(ankhs + 1, 0, 9);
-            gem[0] = clampi(gem[0] + 1, 0, 99);
-            hp = clampi(hp + 20, 0, maxhp);
-        } else {
-            leaves += 2;
-            if ((rng() % 3) == 0) hp = clampi(hp + 8, 0, maxhp);
-        }
+        e->land_at = 0;
+        e->hit_done = 1;
         if ((int)ENEMIES[e->type].a_death >= 0) eplay(e, ENEMIES[e->type].a_death);
         return;
     }
@@ -535,36 +530,38 @@ static void step_enemy(En *e)
         return;
     }
     if (e->state == ST_ATK) {
+        int x0, y0, x1, y1, hx0, hy0, hx1, hy1, touching;
         f = ef(e);
+        her_box(&hx0, &hy0, &hx1, &hy1);
+        touching = 0;
+        if (f->flags & 2) {
+            ebox(e->face, e->base, e->fy, &f->ax0, &x0, &y0, &x1, &y1);
+            touching = overlap(x0, y0, x1, y1, hx0, hy0, hx1, hy1);
+        }
+        if (mv == MV_parry && kind == K_ACTION && fr <= 2 && (touching || (e->land_at && !e->hit_done))) {
+            e->hit_done = 1;
+            e->land_at = 0;
+            hurt_enemy(e, 10, -e->face);
+            if (e->hp > 0) {
+                e->state = ST_STUN;
+                e->stun = d->parry_ms > 0 ? d->parry_ms : 400;
+                e_knock(e, 100, e->stun, -e->face);
+            }
+            return;
+        }
         if ((f->flags & 2) && !e->hit_done) {
-            int x0, y0, x1, y1, hx0, hy0, hx1, hy1, hit_now = 0;
-            if (f->flags & 8) hit_now = e->shot_k != e->k;
-            else hit_now = 1;
-            if (hit_now) {
-                ebox(e->face, e->base, e->fy, &f->ax0, &x0, &y0, &x1, &y1);
-                her_box(&hx0, &hy0, &hx1, &hy1);
-                if (overlap(x0, y0, x1, y1, hx0, hy0, hx1, hy1)) {
-                    int ai = e->atk;
-                    int dmg, r;
-                    if (ai < 0 || ai > 3) ai = 0;
-                    dmg = d->atk_dmg[ai];
-                    r = hurt_her(dmg, e->face);
-                    if (r == 2) {
-                        hurt_enemy(e, d->parry_d, -e->face);
-                        if (e->hp > 0) {
-                            e->state = ST_STUN;
-                            e->stun = d->parry_ms;
-                            e_knock(e, d->parry_d > 0 ? 30 : 20, d->parry_ms > 0 ? d->parry_ms : 300, -e->face);
-                        }
-                    }
-                }
-                e->shot_k = e->k;
-                if (!(f->flags & 8)) e->hit_done = 1;
+            if (!e->land_at) {
+                if (touching) e->land_at = now + 200;
+            } else if (now >= e->land_at) {
+                if (touching) hurt_her(d->atk_dmg[e->atk < 0 || e->atk > 3 ? 0 : e->atk], e->face);
+                e->hit_done = 1;
+                e->land_at = 0;
             }
         }
         if (ended) {
             e->state = ST_CHASE;
             e->rest = d->rest0;
+            e->land_at = 0;
             eplay(e, d->a_idle >= 0 ? d->a_idle : d->a_walk);
         }
         return;
@@ -826,29 +823,48 @@ static void resolve_hits(void)
 static void beam_tick(void)
 {
     const Frame *f = mf(mv, fr);
-    int b, k, cost, x, y, x0, x1, y0, y1, i;
+    int b, k, cost, dmg, push, x0, y0, y1, reach, i, el = 0, j;
     static int beam_clock;
     if (kind != K_ACTION || f->beam < 0) { beam_clock = 0; return; }
     b = (int)f->beam;
+    if (b < 0 || b > 3) return;
     k = b == 3 ? 1 : 0;
     cost = b == 1 ? 3 : (b >= 2 ? 5 : 1);
+    dmg = b == 0 ? 5 : (b == 1 || b == 2 ? 15 : 0);
+    push = b == 1 ? 5 : (b == 2 ? 20 : (b == 3 ? 30 : 0));
     beam_clock += DT;
     if (beam_clock < 100) return;
     beam_clock = 0;
-    if (!can_pay(k, cost)) { deny(k); return; }
+    if (!can_pay(k, cost)) {
+        deny(k);
+        for (j = fr; j < (int)MOVES[mv].n; j++)
+            if ((int)FRAMES[MOVES[mv].f0 + j].beam < 0) break;
+        if (j > fr) { fr = j < (int)MOVES[mv].n ? j : (int)MOVES[mv].n - 1; acc = 0; }
+        return;
+    }
     spend(k, cost);
-    x = vis_x();
-    y = feet_h();
-    x0 = x + face * 18;
-    x1 = x + face * 120;
-    if (x0 > x1) { int t = x0; x0 = x1; x1 = t; }
-    y0 = y + 18;
-    y1 = y + 40;
+    for (j = fr; j > 0; j--) {
+        if ((int)FRAMES[MOVES[mv].f0 + j - 1].beam < 0) break;
+        el += (int)FRAMES[MOVES[mv].f0 + j - 1].ms;
+    }
+    el += acc;
+    reach = 40 + el * 8;
+    if (reach > 500) reach = 500;
+    x0 = vis_x() + face * 29;
+    y0 = feet_h() + 24 - (int)BEAM_WH[b * 2 + 1] * 7 / 20;
+    y1 = feet_h() + 24 + (int)BEAM_WH[b * 2 + 1] * 7 / 20;
     for (i = 0; i < MAX_EN; i++) {
-        int box[4];
+        int box[4], was;
         if (!e_hurt(&en[i], &box[0], &box[1], &box[2], &box[3])) continue;
-        if (overlap(x0, y0, x1, y1, box[0], box[1], box[2], box[3]))
-            hurt_enemy(&en[i], 8 + cost, face);
+        if (b == 3 && ENEMIES[en[i].type].boss) continue;
+        if (!overlap(x0 < x0 + face * reach ? x0 : x0 + face * reach, y0,
+                     x0 > x0 + face * reach ? x0 : x0 + face * reach, y1,
+                     box[0], box[1], box[2], box[3])) continue;
+        was = en[i].hp;
+        if (b == 3) { en[i].scale = 16; en[i].flags = (unsigned char)(en[i].flags | 1); }
+        hurt_enemy(&en[i], dmg, face);
+        if (push && en[i].hp > 0) e_move(&en[i], face > 0 ? push : -push);
+        (void)was;
     }
 }
 
@@ -884,7 +900,6 @@ static int can_afford(int id)
 static void start(int id, int knd, int via, int k0)
 {
     int charged = (mv == MV_charge) ? charge_ms : 0;
-    int bk, bn;
     if (id < 0 || id >= MV_COUNT) return;
     if (knd == K_ACTION && !can_afford(id) && via != VIA_CHAIN) { deny(0); return; }
     px += face * (int)mf(mv, fr)->rx;
@@ -908,7 +923,6 @@ static void start(int id, int knd, int via, int k0)
         power_pct = 50 + (charged > FULL_CHARGE ? 50 : 50 * charged / FULL_CHARGE);
     if (knd == K_ACTION && id == MV_jump_crash) spend(0, 30);
     if (knd == K_ACTION && (id == MV_earthquake || id == MV_meteor_shower)) spend(2, 100);
-    if (knd == K_ACTION && beam_need(id, &bk, &bn)) spend(bk, bn);
     if (id == MV_taunt) taunt_all();
     jumping = 0;
     want_crash = 0;
@@ -1750,6 +1764,9 @@ static void spawn_map(void)
         e->sacc = 0;
         e->seen = 0;
         e->knock_left = 0;
+        e->land_at = 0;
+        e->scale = 10;
+        e->flags = 0;
         e->sight = s->sight > 0 ? s->sight : 80;
         set_range(e);
         eplay(e, d->a_idle >= 0 ? d->a_idle : 0);
@@ -1965,14 +1982,25 @@ static void draw_world(void)
             hw_sprite(PF_X + en[i].base, PF_Y + FEET_ROW - y, f->spr, en[i].face > 0);
     }
     if (kind == K_ACTION && mf(mv, fr)->beam >= 0) {
-        int x0 = vis_x() + face * 18;
-        int x1 = vis_x() + face * 120;
-        u16 col = COL_BLUE;
         int b = (int)mf(mv, fr)->beam;
-        if (b == 1) col = COL_RED;
-        else if (b == 2) col = COL_YELLOW;
-        else if (b == 3) col = RGB565(180, 80, 220);
-        rect_w(x0, feet_h() + 18, x1, feet_h() + 36, col);
+        int el = acc, j, reach, bw, bh, off, xx, tip;
+        if (b >= 0 && b <= 3) {
+            for (j = fr; j > 0; j--) {
+                if ((int)FRAMES[MOVES[mv].f0 + j - 1].beam < 0) break;
+                el += (int)FRAMES[MOVES[mv].f0 + j - 1].ms;
+            }
+            reach = 40 + el * 8;
+            if (reach > 500) reach = 500;
+            bw = (int)BEAM_WH[b * 2];
+            bh = (int)BEAM_WH[b * 2 + 1];
+            if (bw < 1) bw = 1;
+            tip = vis_x() + face * 29;
+            off = (now * 45 / 100) % bw;
+            for (xx = off - bw; xx < reach; xx += bw) {
+                int sx = face > 0 ? tip + xx : tip - xx - bw;
+                hw_sprite(PF_X + sx, PF_Y + FEET_ROW - (feet_h() + 24 + bh / 2), (int)BEAM_SPR[b], face < 0);
+            }
+        }
     }
     if (boom_t > 0) {
         rect_w(boom_x - 20, boom_y - 20, boom_x + 20, boom_y + 20, COL_YELLOW);

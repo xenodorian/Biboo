@@ -85,6 +85,7 @@ static const short GEM_SPR[NGEMS] = {721,722,723,724,725};
 #define SPR_BOAT 737
 #define MAP_TRAINING 61
 static const short BEAM_SPR[4] = {727,728,729,730};
+static const short BEAM_WH[8] = {98,44, 98,39, 160,59, 160,54};
 enum { ST_CALM, ST_FIRE, ST_CROWD, ST_SEA, ST_DOUBLE, ST_ALTAR, ST_REWIND, ST_MEDITATE, ST_SUNRISE, ST_COUNT };
 static const short STORY_SPR[ST_COUNT] = {732,733,732,734,735,736,734,734,734};
 #endif

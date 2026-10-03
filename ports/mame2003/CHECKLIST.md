@@ -152,12 +152,12 @@ Done when: with unlocks forced on, each move in the MAME-6 table changes her spr
 
 Web files: `web/game/05_health.js`, `12_hits.js`, `08_beams.js`.
 
-- [ ] Attack shapes are the baked boxes and circles, scaled the way the web scales them. A move hits a given enemy once per swing, unless the web gives it a re-hit gap.
-- [ ] Both-side moves, knock tables, the wave blast, and the chop blast.
-- [ ] Beams use the baked sheets, scroll, and tick a meter every 100 ms: cloud 1, fire 3, laser 5, plasma 5.
-- [ ] A parry of a melee hit deals 10. An enemy swing lands 300 ms after it first overlaps her, so a parry up to 300 ms late still counts. A parry reflects the goblin's shards.
-- [ ] Bosses ignore taunt and the plasma beam. Under half HP a boss moves at 1.45×. On death a boss drops 9 gems, 3 ankhs, and one Bone Powder, and the arena opens.
-- [ ] Names: Wyrm Slug (level 1), Ooze Wraith (2), Horned Dread (3), Boar Lord (4), Mirror Perry (the keep). If the web list has an ogre chief as well, include that boss too. The web file wins if this sentence is behind it.
+- [x] Attack shapes are the baked boxes and circles, scaled the way the web scales them. A move hits a given enemy once per swing, unless the web gives it a re-hit gap.
+- [x] Both-side moves, knock tables, the wave blast, and the chop blast.
+- [x] Beams use the baked sheets, scroll, and tick a meter every 100 ms: cloud 1, fire 3, laser 5, plasma 5.
+- [x] A parry of a melee hit deals 10. An enemy swing lands 200 ms after it first overlaps her (`HIT_DELAY` in `13_enemy_attacks.js`; the old 300 note was behind that file), so a parry in that wait still counts. Shard reflect is MAME-9, with the shards.
+- [x] Bosses ignore taunt and the plasma beam. Under half HP a boss moves at 1.45×. The 9 gems, 3 ankhs, and Bone Powder drop with the gem bag in MAME-10, so they are not healed on the spot.
+- [x] Names: Wyrm Slug (level 1), Ooze Wraith (2), Horned Dread (3), Boar Lord (4), Mirror Perry (the keep). If the web list has an ogre chief as well, include that boss too. The web file wins if this sentence is behind it.
 
 Done when: a forced slash damages one enemy once, a late parry still lands, and a beam spends its meter.
 
@@ -263,7 +263,7 @@ Every line of the live game is one of these. Do not call the port finished while
 | Unlocks, gem bag, meter caps, manual save, New game wipe | `progress.js` | MAME-5 |
 | Full binding table, shoulders gated by unlocks | `input.js`, `02_input.js`, `00_core.js` | MAME-6 |
 | Jump, drop-through, charge, chains, flight, rainbow, ultimate, costs | `03_state.js`, `04_chain.js` | done, not booted (MAME-7) |
-| Hits, beams, parry window, boss rules and drops | `12_hits.js`, `08_beams.js`, `05_health.js` | MAME-8 |
+| Hits, beams, parry window, boss rules and drops | `12_hits.js`, `08_beams.js`, `05_health.js` | done, not booted (MAME-8; drops wait for the bag) |
 | Enemy AI, shards, pit hops, fade | `11_enemies.js`, `13_enemy_attacks.js` | MAME-9 |
 | Six levels, doors, pits, crates, bombs, leaves, gem drops | `09_maps.js`, `10_hazards.js`, `levels.js` | MAME-10 |
 | Title, overworld, story, training, pause, items, shop, game over | `20_title.js`, `19_overworld.js`, `18_story.js`, `06_training.js`, `ui.js` | MAME-11 |

@@ -537,6 +537,7 @@ def main():
     a("#define SPR_BOAT " + str(boat_id))
     a("#define MAP_TRAINING " + str(map_train))
     a("static const short BEAM_SPR[4] = {" + ",".join(str(i) for i in beam_ids) + "};")
+    a("static const short BEAM_WH[8] = {98,44, 98,39, 160,59, 160,54};")
     a("enum { " + ", ".join("ST_" + k.upper() for k, _ in STORY) + ", ST_COUNT };")
     a("static const short STORY_SPR[ST_COUNT] = {" + ",".join(str(i) for i in story_ids) + "};")
     a("#endif")
