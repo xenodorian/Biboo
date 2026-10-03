@@ -10,7 +10,7 @@
     return cur.id === 'duck' ? top - DUCK_TRIM : top;
   }
   const RED = '#ff2b2b', WHITE = '#ffffff';
-  const DASH_HOP = 5, DASH_MOVES = new Set(['dash', 'dash_thrust', 'energy_dash_thrust', 'push_kick', 'energy_kick']);
+  const DASH_HOP = 5 * WORLD_Y_SCALE, DASH_MOVES = new Set(['dash', 'dash_thrust', 'energy_dash_thrust', 'push_kick', 'energy_kick']);
   function dashHop() {                  // the dash, its thrusts and the push kicks rise 5 px and settle again over the move
     if (!cur || !DASH_MOVES.has(cur.id) || cur.kind === 'fall') return 0;
     const F = D.moves[cur.id].frames; let tot = 0, at = 0;
