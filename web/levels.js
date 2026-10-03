@@ -207,7 +207,7 @@
       } else {                                                               // a line on the ground
         const n = 3 + Math.floor(r() * 3);
         for (let t = 0; t < 14; t++) {
-          const x0 = Math.round(40 + r() * (300 - n * 13));
+          const x0 = Math.round(40 + r() * (MAP_W - 80 - n * 13));
           const xs = Array.from({ length: n }, (_, j) => x0 + j * 13);
           if (!xs.every(clearGround) || xs.some(x => m.leaves.some(l => l.fy === 0 && l.h <= 14 && Math.abs(l.x - x) < 12))) continue;
           xs.forEach(x => m.leaves.push({ x, fy: 0, h: 12 })); break;
@@ -226,7 +226,7 @@
 
   // Sunset Training: an optional level outside the six, one closed screen with a heavy bag and Slime Bunny. It never changes progress.
   const training = { n: 0, name: 'Sunset Training', blurb: 'Optional. Hit the heavy bag with any move you own.', bg: 'training', training: true, tint: null,
-    maps: [{ id: 'T', solids: [], plats: [], pits: [], bombs: [], crates: [], enemies: [{ type: 'heavybag', x: 140, fy: 12 * MAP_Y_SCALE }], arena: true }] };
+    maps: [{ id: 'T', solids: [], plats: [], pits: [], bombs: [], crates: [], enemies: [{ type: 'heavybag', x: 140 * MAP_X_SCALE, fy: 12 * MAP_Y_SCALE }], arena: true }] };
 
   root.BIBOO_LEVELS = { MAP_W, MAPS_PER_LEVEL, levels, training };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.BIBOO_LEVELS;
