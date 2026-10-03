@@ -21,7 +21,7 @@
  */
 (function (root) {
   'use strict';
-  const MAP_W = 384, MAPS_PER_LEVEL = 10;
+  const MAP_W = 640, LEGACY_MAP_W = 384, MAP_X_SCALE = MAP_W / LEGACY_MAP_W, MAPS_PER_LEVEL = 10;
   const S = (x0, x1, top) => ({ x0, x1, top });
   const P = (x0, x1, top) => ({ x0, x1, top });
   const X = (x0, x1) => ({ x0, x1 });                     // a pit in the ground
@@ -168,6 +168,18 @@
   levels[3].maps.push(bossMap('ogrechief', 'tide', { plats: [P(40, 110, 60), P(274, 344, 60)], crates: [C(75, 60), C(330)] }));
   levels[4].maps.push(bossMap('boarlord', 'ember', { plats: [P(150, 234, 70)], crates: [C(192, 70)] }));
   levels[5].maps.push(bossMap('mirrormax', 'keep', { plats: [P(150, 234, 70)] }));      // 6.11 the final boss: an enemy Max
+  // Expand the authored 384px world layout to the native 640px gameplay width.
+  // This changes world coordinates only; source sprite artwork remains at native pixel size.
+  const scaleMapX = m => {
+    for (const s of m.solids || []) { s.x0 *= MAP_X_SCALE; s.x1 *= MAP_X_SCALE; }
+    for (const p of m.plats || []) { p.x0 *= MAP_X_SCALE; p.x1 *= MAP_X_SCALE; }
+    for (const p of m.pits || []) { p.x0 *= MAP_X_SCALE; p.x1 *= MAP_X_SCALE; }
+    for (const b of m.bombs || []) b.x *= MAP_X_SCALE;
+    for (const c of m.crates || []) c.x *= MAP_X_SCALE;
+    for (const e of m.enemies || []) { e.x *= MAP_X_SCALE; e.path = e.path.map(v => v * MAP_X_SCALE); e.sight *= MAP_X_SCALE; }
+    return m;
+  };
+  levels.forEach(L => L.maps.forEach(scaleMapX));
   // Leaves (gold coins) lying on every map in a few groups: a line on the ground or a platform, or an arc over a pit. Some crates hold a cache of
   // leaves and some an ankh (ankhs are no longer lying about). Placed with their own seeded generator so terrain and enemies are unchanged.
   levels.forEach(L => L.maps.forEach((m, i) => {
