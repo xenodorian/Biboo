@@ -110,7 +110,7 @@
   // triggered it falls back to the plain move (Down+A is just a slash until the upswing is unlocked).
   const BASE_MOVES = new Set(['idle', 'walk_right', 'walk_left', 'duck', 'block', 'parry', 'jump', 'dash', 'slash', 'spin_attack']);
   const moveOpen = move => BASE_MOVES.has(move) || P.hasMove(move);
-  const SPRITE_SCALE = 0.5;
+  const SPRITE_SCALE = 1.0;
   if (D.moves.beam_plasma) D.moves.beam_plasma.title = 'Empowerment Beam';
   if (D.moves.jump) D.moves.jump.title = 'Jump (floaty; hold Left or Right to steer)';
   // Energy (blue) and empower (orange) meters. Gems dropped by defeated enemies fill them: taunted enemies
