@@ -1,5 +1,7 @@
 # Parry Perry, Dreamcast port
 
+**PAUSED, 2026-10-03.** The owner moved the port to MAME 2003 (`ports/mame2003/`). Do not keep building this disc unless asked. The code stays, because the MAME port is reusing its lessons (C runtime, baked data, 384×216 maps, RGB565, no false hardware claims).
+
 **ON-DEMAND ONLY.** This port is not part of the permanent pipeline. No CI builds it, nothing in the web game depends on it,
 and a Dreamcast disc image (`.cdi`) is built and delivered only when the project owner asks for one. Do not wire it into
 `python -m swingkit`, the web build or any workflow. (Owner's instruction, 2026-10-02.)
