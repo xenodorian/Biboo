@@ -15,6 +15,13 @@ def test_input_reader_handles_every_binding():
     assert r.returncode == 0, r.stdout + r.stderr
 
 
+def test_web_canvas_is_native_640x480():
+    src = (ROOT / 'web' / 'index.html').read_text()
+    assert '<canvas id="view" width="640" height="480"' in src
+    assert 'aspect-ratio: 4 / 3;' in src
+    assert '384 / 216' not in src
+
+
 def test_web_data_covers_every_binding():
     src = (ROOT / 'web' / 'assets' / 'data.js').read_text()
     data = json.loads(src[src.index('=') + 1:].strip().rstrip(';'))
