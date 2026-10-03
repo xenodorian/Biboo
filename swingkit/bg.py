@@ -1,5 +1,5 @@
 """Original sunset side-scroller scene, drawn at 1:1 pixel scale.
-Every layer is 384 px wide and periodic (tiles horizontally) for parallax scrolling.
+Every layer is native 640x480 artwork and periodic (tiles horizontally) for parallax scrolling.
 Layers are rendered with a vertical margin (M rows above and below the 216-px view)
 so camera shake never exposes an edge.
 """
@@ -7,7 +7,9 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-W, VH, M = 384, 216, 8
+W, VH, M = 640, 480, 16
+BASE_W, BASE_VH = 384, 216
+SX, SY = W / BASE_W, VH / BASE_VH
 H = VH + 2 * M                      # layer height incl. margins; layer row = view row + M
 rng = np.random.default_rng(7)
 
@@ -70,11 +72,11 @@ def remove_islands(idx, min_size=6):
 SKY = np.array([(116, 58, 108), (149, 76, 117), (188, 76, 95), (219, 91, 77),
                 (232, 106, 63), (241, 128, 65), (245, 146, 71), (248, 166, 81),
                 (251, 190, 102)], float)
-SUN_CX, SUN_CY = 262, 148 + M      # glow centre (behind mountains)
+SUN_CX, SUN_CY = round(262 * SX), round(148 * SY) + M      # glow centre (behind mountains)
 
 def make_sky():
     y = np.arange(H)[:, None].astype(float); x = np.arange(W)[None, :].astype(float)
-    t = np.clip((y - 0) / (158 + M), 0, 1)
+    t = np.clip((y - 0) / (round(158 * SY) + M), 0, 1)
     base = 7.6 * t ** 0.85
     n = (periodic_noise(5, 16, 11) * 1.0 + periodic_noise(11, 8, 12) * 0.55 +
          periodic_noise(23, 4, 13) * 0.25)
@@ -168,8 +170,9 @@ def mountain_layer(peaks, seed, cols, base_y, haze_col, rim_rows=1):
     rgb = np.array([cols[n] for n in names[:5]] + [haze_col], float)
     return lay, rgb
 
-FAR_PEAKS = [(14, 106 + M, 0.62, 0.7), (78, 118 + M, 0.66, 0.6), (140, 100 + M, 0.7, 0.66),
-             (212, 116 + M, 0.6, 0.72), (268, 92 + M, 0.64, 0.6), (338, 110 + M, 0.7, 0.62)]
+FAR_PEAKS = [(round(14 * SX), round(106 * SY) + M, 0.62, 0.7), (round(78 * SX), round(118 * SY) + M, 0.66, 0.6),
+              (round(140 * SX), round(100 * SY) + M, 0.7, 0.66), (round(212 * SX), round(116 * SY) + M, 0.6, 0.72),
+              (round(268 * SX), round(92 * SY) + M, 0.64, 0.6), (round(338 * SX), round(110 * SY) + M, 0.7, 0.62)]
 FAR_COLS = dict(shadow=(152, 74, 114), shadow2=(170, 80, 106), lit2=(194, 80, 90),
                 lit=(214, 90, 80), rim=(240, 142, 74))
 NEAR_PEAKS = [(40, 132 + M, 0.72, 0.62), (118, 140 + M, 0.6, 0.7), (190, 128 + M, 0.66, 0.6),
@@ -211,8 +214,8 @@ TREE_FRONT_COLS = [(48, 43, 76), (66, 48, 88), (98, 58, 104)]
 # ---------------------------------------------------------------- GROUND
 GRASS = [(49, 46, 52), (61, 61, 37), (84, 82, 40), (104, 100, 42), (136, 124, 46), (172, 160, 72)]
 DIRT = [(56, 30, 44), (70, 33, 47), (93, 33, 45), (112, 40, 46), (132, 50, 50), (156, 70, 58)]
-GROUND_TOP = 183          # view row of grass surface
-GRASS_BOTTOM = 194        # view row where dirt begins (ragged)
+GROUND_TOP = round(183 * SY)          # view row of grass surface
+GRASS_BOTTOM = round(194 * SY)        # view row where dirt begins (ragged)
 
 def ground_layer():
     r = np.random.default_rng(21)
@@ -299,13 +302,13 @@ def to_rgba(lay, pal):
 def build_all():
     layers = {}
     sky = make_sky(); layers['sky'] = to_rgba(sky, SKY)
-    far, farc = mountain_layer(FAR_PEAKS, 51, FAR_COLS, 172 + M, (164, 82, 108))
+    far, farc = mountain_layer(FAR_PEAKS, 51, FAR_COLS, round(172 * SY) + M, (164, 82, 108))
     layers['mountains_far'] = to_rgba(far, farc)
-    near, nearc = mountain_layer(NEAR_PEAKS, 61, NEAR_COLS, 180 + M, (112, 60, 104))
+    near, nearc = mountain_layer(NEAR_PEAKS, 61, NEAR_COLS, round(180 * SY) + M, (112, 60, 104))
     layers['mountains_near'] = to_rgba(near, nearc)
-    tb, tbc = tree_layer(71, 171 + M, 4, 9, 9, TREE_BACK_COLS)
+    tb, tbc = tree_layer(71, round(171 * SY) + M, 4, 9, 9, TREE_BACK_COLS)
     layers['trees_back'] = to_rgba(tb, tbc)
-    tf, tfc = tree_layer(81, 178 + M, 3, 7, 7, TREE_FRONT_COLS)
+    tf, tfc = tree_layer(81, round(178 * SY) + M, 3, 7, 7, TREE_FRONT_COLS)
     layers['trees_front'] = to_rgba(tf, tfc)
     gl, glc, top = ground_layer(); layers['ground'] = to_rgba(gl, glc)
     ff, ffc = front_fringe(top); layers['fringe'] = to_rgba(ff, ffc)
