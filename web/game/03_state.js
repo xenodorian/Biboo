@@ -1,13 +1,8 @@
-/* st121: load prior 03_state and ungated double jump */
+window.__stParts = window.__stParts || [];
 (function () {
-  const xhr = new XMLHttpRequest();
-  xhr.open('GET', 'https://cdn.jsdelivr.net/gh/xenodorian/Biboo@9d1dbdd61847901658ebd45dd250bbd627f5c5fd/web/game/03_state.js', false);
-  xhr.send(null);
-  if (xhr.status !== 200) throw new Error('failed to load 03_state');
-  let src = xhr.responseText;
-  src = src.replace(
-    "if (!P.has('double_jump') || dblUsed || stun) return false;",
-    "if (dblUsed || stun) return false;"
-  );
-  (0, eval)(src);
+  const src = (window.__stParts || []).join('');
+  if (!src) throw new Error('03_state parts missing');
+  const s = document.createElement('script');
+  s.text = src;
+  document.documentElement.appendChild(s);
 })();
