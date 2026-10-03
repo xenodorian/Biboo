@@ -1,8 +1,2 @@
-window.__stParts = window.__stParts || [];
-(function () {
-  const src = (window.__stParts || []).join('');
-  if (!src) throw new Error('03_state parts missing');
-  const s = document.createElement('script');
-  s.text = src;
-  document.documentElement.appendChild(s);
-})();
+/* st122: inject prior 03_state.js as a classic script (double jump gated by progress.has which is always true) */
+document.write('<script src="https://cdn.jsdelivr.net/gh/xenodorian/Biboo@9d1dbdd61847901658ebd45dd250bbd627f5c5fd/web/game/03_state.js"><\/script>');
