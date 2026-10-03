@@ -75,8 +75,8 @@
         g.textBaseline = 'middle';
       } }
     // Max stands on the selected node and bobs a little
-    const [mx, my] = ow.sel === n + 1 ? [MERCHANT_AT[0] + 44, MERCHANT_AT[1] + 4] : nodeAt(ow.sel), im = D.moves.idle, sc = 0.4, bob = Math.sin(clock / 260) * 1.5;
-    g.save(); g.translate(Math.round(mx), Math.round(my - 14 + bob));
+    const [mx, my] = ow.sel === n + 1 ? [MERCHANT_AT[0] + 44, MERCHANT_AT[1] + 4] : nodeAt(ow.sel), im = D.moves.idle, sc = 1.0, bob = Math.sin(clock / 260) * 1.5;
+    g.save(); g.translate(Math.round(mx), Math.round(my + bob));
     blit(img[im.sheet].im, 0, im.cell[0], im.cell[1], -im.anchor[0] * sc, -im.anchor[1] * sc, null, sc);
     g.restore();
     // header and the info strip for the selected level
