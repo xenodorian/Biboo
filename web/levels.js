@@ -21,7 +21,12 @@
  */
 (function (root) {
   'use strict';
-  const MAP_W = 640, LEGACY_MAP_W = 384, MAP_X_SCALE = MAP_W / LEGACY_MAP_W, LEGACY_VIEW_H = 216, MAP_Y_SCALE = 480 / LEGACY_VIEW_H, MAPS_PER_LEVEL = 10;
+  const MAP_W = 640, LEGACY_MAP_W = 384, MAP_X_SCALE = MAP_W / LEGACY_MAP_W;
+  // The authored game used a 384x216 view with the character's feet at Y=188. In the native
+  // 640x480 view Perry's existing, correct feet row is Y=418. Preserve that exact ground-to-feet
+  // relationship when moving platforms, crates and enemies into the new coordinate space.
+  const LEGACY_VIEW_H = 216, LEGACY_FEET_ROW = 188, NATIVE_FEET_ROW = 418;
+  const WORLD_Y_SCALE = NATIVE_FEET_ROW / LEGACY_FEET_ROW, MAP_Y_SCALE = WORLD_Y_SCALE, MAPS_PER_LEVEL = 10;
   const S = (x0, x1, top) => ({ x0, x1, top });
   const P = (x0, x1, top) => ({ x0, x1, top });
   const X = (x0, x1) => ({ x0, x1 });                     // a pit in the ground
@@ -169,6 +174,7 @@
   levels[4].maps.push(bossMap('boarlord', 'ember', { plats: [P(150, 234, 70)], crates: [C(192, 70)] }));
   levels[5].maps.push(bossMap('mirrormax', 'keep', { plats: [P(150, 234, 70)] }));      // 6.11 the final boss: an enemy Max
   // Expand the authored 384x216 world layout into the native 640x480 gameplay space.
+  // Y heights are measured upward from the ground, whose screen row is NATIVE_FEET_ROW (418).
   // World coordinates move with the new canvas; source sprite artwork and sprite-relative
   // hit/hurt boxes remain at their native pixel size.
   const scaleMapX = m => {
