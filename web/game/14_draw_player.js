@@ -70,7 +70,7 @@
     if (level && level.def.tint && !TH) {
       g.save(); g.globalCompositeOperation = 'multiply'; g.globalAlpha = level.def.tint.alpha; g.fillStyle = level.def.tint.color; g.fillRect(0, 0, V.w, V.h); g.restore();
     }
-    if (curMap) { drawPits(sx, sy); drawGeometry(sx, sy); drawCrates(sx, sy); drawBombs(sx, sy); }
+    if (curMap) { drawPits(sx, sy); drawGeometry(sx, sy); drawCrates(sx, sy); drawBombs(sx, sy); drawMageReticles(sx, sy); }
     const cw = m.cell[0], ch = m.cell[1];
     const ax = V.anchorX + (px - camX) + sx;
     const ay = V.feetRow - (ry - camY) + sy;
@@ -104,6 +104,7 @@
     g.restore();
     drawBeam(sx, sy);
     drawExplosions(sx, sy);
+    drawMageBlasts(sx, sy);
     drawParticles(sx, sy);
     drawFlashes(sx, sy);
     drawShots(sx, sy);

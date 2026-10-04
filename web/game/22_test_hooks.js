@@ -47,6 +47,7 @@
       respawnOn = false; paused = false; hideMenu();
     },
     addShot: (sx, sy, vx, vy) => shots.push({ x: sx, y: sy, vx, vy, from: 'foe', t0: clock }),
+    spawnMage: x => spawn('firemage', x), mageBlasts: () => mageBlasts.length,
     maxHp: () => maxHp(), addGem: (kind, x, fy) => spawnGem(x, kind, fy || 0), lootPool: () => lootPool(),
     doubleUsed: () => dblUsed, spinning: () => !!(cur && cur.spin && clock - cur.spin < SPIN_MS),
     smash: i => { if (curMap && curMap.crates[i]) breakCrate(curMap.crates[i]); },
