@@ -40,6 +40,7 @@ html.fs-fit #stage{position:fixed;inset:0;z-index:9999;display:flex;align-items:
 html.fs-fit main>h1,html.fs-fit .row,html.fs-fit #inputmon{display:none!important}
 html.fs-fit main{max-width:none;padding:0;margin:0}
 html.fs-fit #stage canvas{width:min(100vw,calc(100vh * 4 / 3))!important;height:min(100vh,calc(100vw * 3 / 4))!important}
+@media (pointer:coarse){main>h1,.row,#inputmon{display:none!important}main{padding:0;max-width:none}#stage{border:none;min-height:100dvh}}
 </style>
 </head>
 <body>
@@ -55,46 +56,46 @@ html.fs-fit #stage canvas{width:min(100vw,calc(100vh * 4 / 3))!important;height:
   <div class="row one"><section><h2>Last moves</h2><ol id="log"></ol></section></div>
   <section id="inputmon"><h2>Input monitor</h2><label class="note"><input type="checkbox" id="monitor-on"> Show raw key and controller events</label><pre id="monitor"></pre></section>
 </main>
-<script>window.BIBOO_VER='st129';window.bibooLoad={set:function(msg,pct){var m=document.getElementById('loading-msg'),f=document.getElementById('loading-fill'),p=document.getElementById('loading-pct');if(m&&msg)m.textContent=msg;if(f&&pct!=null)f.style.width=Math.max(0,Math.min(100,pct))+'%';if(p&&pct!=null)p.textContent=Math.round(Math.max(0,Math.min(100,pct)))+'%';}};window.bibooLoad.set('Loading scripts…',8);</script>
-<script src="assets/data.js?v=st129"></script>
-<script src="mobile_bindings.js?v=st129"></script>
-<script src="assets/moves_extra.js?v=st129"></script>
-<script src="assets/creatures.js?v=st129"></script>
-<script src="assets/arenas.js?v=st129"></script>
-<script src="assets/bgs.js?v=st129"></script>
-<script src="assets/training.js?v=st129"></script>
-<script src="assets/items.js?v=st129"></script>
-<script src="assets/story.js?v=st129"></script>
-<script src="assets/music.js?v=st129"></script>
-<script src="music.js?v=st129"></script>
-<script src="input.js?v=st129"></script>
-<script src="progress.js?v=st129"></script>
-<script src="ui.js?v=st129"></script>
-<script src="mobile_menu.js?v=st129"></script>
-<script src="levels.js?v=st129"></script>
-<script src="game/00_core.js?v=st129"></script>
-<script src="game/01_assets.js?v=st129"></script>
-<script src="game/02_input.js?v=st129"></script>
-<script src="game/03_state.js?v=st129"></script>
-<script src="game/04_chain.js?v=st129"></script>
-<script src="game/05_health.js?v=st129"></script>
-<script src="game/06_training.js?v=st129"></script>
-<script src="game/07_feedback.js?v=st129"></script>
-<script src="game/08_beams.js?v=st129"></script>
-<script src="game/09_maps.js?v=st129"></script>
-<script src="game/10_hazards.js?v=st129"></script>
-<script src="game/11_enemies.js?v=st129"></script>
-<script src="game/12_hits.js?v=st129"></script>
-<script src="game/13_enemy_attacks.js?v=st129"></script>
-<script src="game/14_draw_player.js?v=st129"></script>
-<script src="game/15_draw_scenery.js?v=st129"></script>
-<script src="game/16_hud.js?v=st129"></script>
-<script src="game/17_menus.js?v=st129"></script>
-<script src="game/18_story.js?v=st129"></script>
-<script src="game/19_overworld.js?v=st129"></script>
-<script src="game/20_title.js?v=st129"></script>
-<script src="game/21_cheats_loop.js?v=st129"></script>
-<script src="game/22_test_hooks.js?v=st129"></script>
-<script src="mobile.js?v=st129"></script>
+<script>window.BIBOO_VER='st130';window.bibooLoad={set:function(msg,pct){var m=document.getElementById('loading-msg'),f=document.getElementById('loading-fill'),p=document.getElementById('loading-pct');if(m&&msg)m.textContent=msg;if(f&&pct!=null)f.style.width=Math.max(0,Math.min(100,pct))+'%';if(p&&pct!=null)p.textContent=Math.round(Math.max(0,Math.min(100,pct)))+'%';}};window.bibooLoad.set('Loading scripts…',8);</script>
+<script src="assets/data.js?v=st130"></script>
+<script src="mobile_bindings.js?v=st130"></script>
+<script src="assets/moves_extra.js?v=st130"></script>
+<script src="assets/creatures.js?v=st130"></script>
+<script src="assets/arenas.js?v=st130"></script>
+<script src="assets/bgs.js?v=st130"></script>
+<script src="assets/training.js?v=st130"></script>
+<script src="assets/items.js?v=st130"></script>
+<script src="assets/story.js?v=st130"></script>
+<script src="assets/music.js?v=st130"></script>
+<script src="music.js?v=st130"></script>
+<script src="input.js?v=st130"></script>
+<script src="progress.js?v=st130"></script>
+<script src="ui.js?v=st130"></script>
+<script src="mobile_menu.js?v=st130"></script>
+<script src="levels.js?v=st130"></script>
+<script src="game/00_core.js?v=st130"></script>
+<script src="game/01_assets.js?v=st130"></script>
+<script src="game/02_input.js?v=st130"></script>
+<script src="game/03_state.js?v=st130"></script>
+<script src="game/04_chain.js?v=st130"></script>
+<script src="game/05_health.js?v=st130"></script>
+<script src="game/06_training.js?v=st130"></script>
+<script src="game/07_feedback.js?v=st130"></script>
+<script src="game/08_beams.js?v=st130"></script>
+<script src="game/09_maps.js?v=st130"></script>
+<script src="game/10_hazards.js?v=st130"></script>
+<script src="game/11_enemies.js?v=st130"></script>
+<script src="game/12_hits.js?v=st130"></script>
+<script src="game/13_enemy_attacks.js?v=st130"></script>
+<script src="game/14_draw_player.js?v=st130"></script>
+<script src="game/15_draw_scenery.js?v=st130"></script>
+<script src="game/16_hud.js?v=st130"></script>
+<script src="game/17_menus.js?v=st130"></script>
+<script src="game/18_story.js?v=st130"></script>
+<script src="game/19_overworld.js?v=st130"></script>
+<script src="game/20_title.js?v=st130"></script>
+<script src="game/21_cheats_loop.js?v=st130"></script>
+<script src="game/22_test_hooks.js?v=st130"></script>
+<script src="mobile.js?v=st130"></script>
 </body>
 </html>
