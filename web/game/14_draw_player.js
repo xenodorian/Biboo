@@ -63,7 +63,8 @@
       g.drawImage(still, -Math.round(range * 0.5) + Math.round(sx * 0.3), Math.round(sy * 0.3) - Math.max(0, still.height - V.h), still.width, still.height);
     } else for (const l of TH ? TH.layers : D.layers) {
       const src = l.frames ? l.frames[Math.floor(clock / (l.ms || 140)) % l.frames.length] : l.src;       // an animated layer cycles its frames
-      drawLayer(TH && TH.fit ? fitLayer(img[src].im) : img[src].im, ((l.fixedX != null ? l.fixedX : TH && TH.fixedX) ? 0 : -bgx * l.parallax) + sx * l.shake, camY * l.parallax + sy * l.shake + (l.offsetY || 0));       // offsetY: slides the picture up or down; fixedX: stuck to the screen sideways, still follows the camera up and down
+      const lim = TH && TH.fit ? fitLayer(img[src].im) : img[src].im, fitX = TH && TH.fit ? Math.round((V.w - lim.width) / 2) : 0;   // fit: show the middle of the picture
+      drawLayer(lim, fitX + ((l.fixedX != null ? l.fixedX : TH && TH.fixedX) ? 0 : -bgx * l.parallax) + sx * l.shake, camY * l.parallax + sy * l.shake + (l.offsetY || 0));       // offsetY: slides the picture up or down; fixedX: stuck to the screen sideways, still follows the camera up and down
     }
     drawGrade();
     if (level && level.def.tint && !TH) {
@@ -109,7 +110,7 @@
     g.save();                                                     // the foreground grass is cut away over the pits
     if (curMap && curMap.pits.length) { g.beginPath(); g.rect(0, 0, V.w, V.h); for (const p of curMap.pits) g.rect(Math.round(p.x0 + sx), 0, p.x1 - p.x0, V.h); g.clip('evenodd'); }
     const fringeSrc = TH ? TH.fringe : D.fringe.src;                                      // a theme may have no foreground
-    if (!still && fringeSrc) drawLayer(TH && TH.fit ? fitLayer(img[fringeSrc].im) : img[fringeSrc].im, (TH && TH.fixedX ? 0 : -bgx) + sx, camY + sy);
+    if (!still && fringeSrc) { const fim = TH && TH.fit ? fitLayer(img[fringeSrc].im) : img[fringeSrc].im; drawLayer(fim, (TH && TH.fit ? Math.round((V.w - fim.width) / 2) : 0) + (TH && TH.fixedX ? 0 : -bgx) + sx, camY + sy); }
     g.restore();
     drawGems(sx, sy);
     drawBars(sx, sy);
