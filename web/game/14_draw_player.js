@@ -60,7 +60,7 @@
     if (still) {                                                  // a boss arena picture: one fixed crop of a wider picture, locked to the screen like the arena itself (no scrolling, no parallax)
       const range = Math.max(0, still.width - V.w);
       g.imageSmoothingEnabled = false;
-      g.drawImage(still, -Math.round(range * 0.5) + Math.round(sx * 0.3), Math.round(sy * 0.3) - Math.max(0, still.height - V.h), still.width, still.height);
+      g.drawImage(still, -Math.round(range * 0.5) + Math.round(sx * 0.3), Math.round(sy * 0.3) - Math.round(Math.max(0, still.height - V.h) / 2), still.width, still.height);   // a 512 row picture shows its middle 480 rows, like the other layers
     } else for (const l of TH ? TH.layers : D.layers) {
       const src = l.frames ? l.frames[Math.floor(clock / (l.ms || 140)) % l.frames.length] : l.src;       // an animated layer cycles its frames
       const lim = TH && TH.fit ? fitLayer(img[src].im) : img[src].im, fitX = TH && TH.fit ? Math.round((V.w - lim.width) / 2) : 0;   // fit: show the middle of the picture
