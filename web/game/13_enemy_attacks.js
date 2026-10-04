@@ -14,13 +14,16 @@
     return cur.id === 'duck' ? top - DUCK_TRIM : top;
   }
   const RED = '#ff2b2b', WHITE = '#ffffff';
+  // The hop: a smooth rise and settle over the whole move. The push kicks hop DASH_HOP (5 px). The three long dashes (dash, dash_thrust,
+  // energy_dash_thrust) hop LONG_DASH_HOP (10 px) so she stays above the pit check (feet over 1.5 px) while crossing a gap.
   const DASH_HOP = 5 * WORLD_Y_SCALE, DASH_MOVES = new Set(['dash', 'dash_thrust', 'energy_dash_thrust', 'push_kick', 'energy_kick']);
-  function dashHop() {                  // the dash, its thrusts and the push kicks rise 5 px and settle again over the move
+  const LONG_DASH_HOP = 10 * WORLD_Y_SCALE, LONG_DASH_MOVES = new Set(['dash', 'dash_thrust', 'energy_dash_thrust']);
+  function dashHop() {                  // the dash, its thrusts and the push kicks rise and settle again over the move
     if (!cur || !DASH_MOVES.has(cur.id) || cur.kind === 'fall') return 0;
     const F = D.moves[cur.id].frames; let tot = 0, at = 0;
     for (let i = 0; i < F.length; i++) { if (i === cur.k) at = tot + Math.min(cur.t || 0, F[i].ms); tot += F[i].ms; }
     const u = Math.min(1, at / tot);
-    return 4 * DASH_HOP * u * (1 - u);
+    return 4 * (LONG_DASH_MOVES.has(cur.id) ? LONG_DASH_HOP : DASH_HOP) * u * (1 - u);
   }
   const heightAbove = () => (stun ? stun.y : (fall ? fall.y : (cur && cur.kind !== 'fall' ? rootOf(cur)[1] : 0)) + (slide ? slide.y : 0) + (stun ? 0 : dashHop()));   // above the surface she stands on
   function herY() { return floorY + heightAbove() - pitSink(); }                                                              // world height of her feet
