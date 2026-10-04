@@ -1,13 +1,19 @@
+# HARD RULE: DISPLAY, UI, RESOLUTION AND BACKGROUND IMAGES (set by the project owner, 2026-10-03, never override)
+**The display and the first level look exactly the way the project owner wants them. Nothing in them is broken. Do not try to fix, tidy, improve, revert, roll back, restore or "put back" any earlier version of them.**
+
+Do NOT change any of the following unless the project owner gives explicit and unambiguous consent, in so many words, for that specific change:
+- **Any UI element:** the page layout and CSS in `web/index.html`, the fullscreen layout, the touch controls in `web/mobile.js` (their size, position and shape), menus, the HUD, the Menu button, anything drawn on screen around or over the game.
+- **The resolution:** the game canvas is 640x480. Do not resize, rescale, letterbox differently, or move it to any other size (including 384x216).
+- **The size or format of the background images:** the level layers `web/assets/layers/*.png` (each 640x512, the 640x480 view plus a 16 row margin above and below, exactly what `python -m swingkit --web` draws) and every other background image under `web/assets`. Do not crop, resize, resample, re-filter, re-export or hand edit them.
+
+A refactor, migration, cleanup, "fix", optimisation, device or camera accommodation, fullscreen tweak, resolution change, art change, gameplay change or rollback is NOT consent. If something about the display looks wrong to you, stop and tell the project owner; do not change it.
+
+How the art is kept consistent (so this stays true): the committed files in `web/assets` equal what the generator draws. After any change to `swingkit/`, run `python -m swingkit --web` and commit `web/assets`. The deploy (`.github/workflows/pages.yml`) rebuilds art only when `swingkit/`, `tools/` or `requirements.txt` changed (or on a manual run); otherwise it publishes the committed files as they are.
+
 # Terms (set by the project owner, use these in chat and notes)
 - **Hitbox**: where a character can be hit and receive damage (the vulnerable area).
 - **Hurtbox**: the parts of a character that cause damage (the attack area).
 - Note: the code and data use the opposite words. In `data.js` and game.js a frame's `hurt` is the vulnerable box (a hitbox here) and its `hit` / `hits` is the attack shape (a hurtbox here), and `herBox()` / `hurtOf()` return vulnerable boxes. They are not renamed; translate when talking about them.
-
-# HARD RULE: THE BACKGROUND IMAGE (set by the project owner, 2026-10-03, never override)
-- The level background is the default layer set `web/assets/layers/*.png` (sky, mountains_far, mountains_near, trees_back, trees_front, fringe, ground). Its approved look is what `python -m swingkit --web` draws: each layer is **640x512**, which is the 640x480 view plus a 16 row margin above and below (so camera shake never shows an edge; `data.js` says `view.margin = 16`). The committed files are that exact output (st141), so the repo, the deploy and every device show the same image. The earlier 21:22 crop of these files to 640x480 was wrong (it had no margin rows, so the game drew it 16 rows off) and was replaced in st141.
-- This image must NEVER be cropped, resized, rescaled, re-filtered, hand edited or otherwise reformatted by any agent, under any circumstances, unless the project owner specifically and unambiguously asks for that change in so many words. A refactor, migration, resolution change, cleanup, "fix" or rollback is NOT a request. Change it only through the generator (`swingkit/bg.py`), and then only when asked.
-- Never leave two versions: after any change to `swingkit/`, run `python -m swingkit --web` and commit `web/assets` so the committed files equal what the generator draws. The deploy (`.github/workflows/pages.yml`) rebuilds art only when `swingkit/`, `tools/` or `requirements.txt` changed (or on a manual run); otherwise it publishes the committed files as they are.
-- Other levels' backgrounds (`web/assets/bgs/*`) are not covered by this rule and must not be touched by work on this one.
 
 # Current Work
 
@@ -19,20 +25,10 @@ Read the rules first, claim a step before starting it, and sign off when it is d
 See repository history for full rules. Work on main, claim steps.
 
 **Do not run tests or verification unless the user asks for it.** It is too time consuming. Make the change, note it here, push. (This replaces the old "run checks before push" rule.)
-**Cache stamp:** after any change to the game or its assets, bump `window.BIBOO_VER` and every `?v=` in `web/index.html` (now st108): `sed -i "s/BIBOO_VER = 'stN'/BIBOO_VER = 'stN+1'/; s/v=stN/v=stN+1/g" web/index.html`.
+**Cache stamp:** after any change to the game or its assets, bump `window.BIBOO_VER` and every `?v=` in `web/index.html`: `sed -i "s/BIBOO_VER = 'stN'/BIBOO_VER = 'stN+1'/; s/v=stN/v=stN+1/g" web/index.html`.
 
 **Git rules (project owner):** work only on main, never create branches, `git pull --rebase` then push to main after every successful step, and end commit messages with the Co-Authored-By and Claude-Session lines.
 
-
-## Return point (do not lose this)
-
-st138 is the live game again. Commit `89afc38` put st108 back and that was the wrong tree: it is not a saved fix. The return commit is `73dfddc`.
-
-What was actually on origin when this session fetched it (`bc72aaf`, st137), and is in `73dfddc` except for the Heavy Horizontal change:
-
-- st124 letterboxes fullscreen to 4:3.
-- st125 crops the overworld picture.
-- Level layers are still the Oct 2 files, 384×232. `drawLayer` is unchanged since then and stretches the bottom row to fill 480. No commit replaces those PNGs.
 
 *This file was condensed on 2026-10-01 (st97). The full step by step log, including every old stage, request and test count, is in git history: `git show a0a3b03:Current_Work.md`.*
 
@@ -49,7 +45,7 @@ What was actually on origin when this session fetched it (`bc72aaf`, st137), and
 
 ## Project state (what exists)
 
-**Game:** "Perry Riposte", a 2D side scroller, canvas 384x216 shown with `image-rendering: pixelated`. Live site: https://xenodorian.github.io/Biboo/web/ . Hero is Perry (full name Peregrine "Perry" Riposte; the opening line uses the full name, the title screen says Perry Riposte, all other text says Perry).
+**Game:** "Perry Riposte", a 2D side scroller, canvas 640x480 shown with `image-rendering: pixelated`. Live site: https://xenodorian.github.io/Biboo/web/ . Hero is Perry (full name Peregrine "Perry" Riposte; the opening line uses the full name, the title screen says Perry Riposte, all other text says Perry).
 
 **Code layout:** `web/index.html`, `web/ui.js` (menus, shop, move lists with row cursor and Y descriptions), `web/progress.js` (saves, unlocks, ankhs without a cap), `web/levels.js` (map generator, leaves, boss maps), `web/input.js`, `web/music.js`, and the engine split into `web/game/00_core.js` to `22_test_hooks.js` (core and menus, assets, health, training, hazards, enemies in `11_enemies.js`, enemy attacks in `13_enemy_attacks.js`, player drawing, HUD, menus, story in `18_story.js`, title and overworld in `20_title.js`, test hooks in `22_test_hooks.js` which exposes `window.bibooGame`). Art and data generators are in `tools/` (creatures, arenas, backgrounds, items, music, training). Generated data: `web/assets/data.js`, `creatures.js`, `arenas.js`, `items.js`, `training.js`, `story.js`.
 
@@ -171,7 +167,3 @@ What was actually on origin when this session fetched it (`bc72aaf`, st137), and
 - tool (no game change, the stamp stays st108): `tools/edge/spriteedge.py`, the sprite outline finder described under "Tools any agent can use". Built from the black boar outline test: exact-colour outside (backdrop and shadow), boundary, ink filter, skipped pixels, report, GIF frames, cutout and masks, a tolerance mode for JPEG, a built-in self-test and `tests/test_spriteedge.py`.
 - st120 (Claude): boot crash fix. `WORLD_Y_SCALE` was a const private to the `levels.js` IIFE, but game parts 03, 04, 10, 11 and 13 use it as a bare name, so the game threw ReferenceError at load and never reached the title. `levels.js` now exports it on `BIBOO_LEVELS` and `03_state.js` declares it. New `web/tests/boot.test.js` fails on any page error. NOT DONE (for the next agent): many browser tests still fail because they hold pre-640x480 expectations (e.g. enemy_jump_dash_hop and maxhp_kick_hop expect a ~5 px hop, now ~11 px; enemy_reach, goblin_pattern, enemy_ai, boss_arena, browser, chain, combat, creatures, hazards fail). Decide per test whether the code or the expectation is stale. Also `13_enemy_attacks.js` ~line 94 uses `overSurf` where `gravityOverSurf` is probably meant. Tests after hazards alphabetically (meters onward) were not run.
 - st138: Heavy Horizontal steps Perry 50 px forward over the swing (copied slash frames, so the plain slash does not move) and does not stun her. The enemy is still pushed 50 px over 100 ms, then stays stunned until 200 ms, tipped 30° clockwise on screen for that stun only. Not playtested.
-- st139 (Claude): fullscreen touch pad fix. In fullscreen `#biboo-touch` was a 100%-wide item of the `#stage` grid, so it got its own column: the canvas was pushed off the left edge and the pad off the right, and the pause menu was covered. `web/mobile.js` now adds a second style block that makes the pad an absolute overlay in fullscreen with each column in the letterbox beside the canvas, and anchors `#start-menu`, `#loading`, the Menu button and the Kills readout to the canvas box. VERIFIED in emulated 1000x452 landscape (pad layout, canvas centered, no page errors). NOT visually verified: the pause menu, Menu button and Kills positions (art loading stalled in the sandbox). Note: on main `web/levels.js` and `web/game/03_state.js` are CDN stubs pinned to 9d1dbdd.
-- Hard rule (no game change): canvas stays 640×480. Do not change the resolution, the UI, or the background images unless the owner explicitly asks for that change.
-- st140 (Claude): fullscreen mobile pad columns are now sized to the letterbox minus the phone's safe-area padding and a 10 px gap, so they no longer reach into the game screen (left column was overlapping by about 60 px because of the left safe-area inset); buttons shrink only as much as needed. The "Level x.y Kills n" box (`#kills`) is removed from `web/index.html` and its CSS removed from `web/mobile.js`; `16_hud.js` still writes to it only if it exists, so nothing breaks. That box also showed the cheat tags [GOD] [INF] [NOPIT]; they no longer show anywhere. Not tested on a device.
-- st141 (Claude): one version of the generated art. Ran `python -m swingkit --web` and committed the result (23 files: the 7 background layers now 640x512 with the 16 row margin, `data.js`, and stale move sheets and bw frames: dash, dash_thrust, energy_*, heavy, jump, jump_crash, meteor_shower, sky_dash, earthquake_05, heavy_06, jump_crash_07). Before this the committed layers were my 640x480 crops while `data.js` already said margin 16, so the branch build drew the background 16 rows off and the Actions build (which regenerated) did not: the two deployments raced and the live background flipped. Deploy now rebuilds art only when art code changed (see the hard rule). `tools/prepare_story_assets.py` could not run here (it downloads from the network), so the story pictures were not touched. Not tested in a browser.
