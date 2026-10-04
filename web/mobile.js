@@ -1,4 +1,4 @@
-/* st132: mobile pad below the canvas; same clusters; no side overlay */
+/* st133: pad below canvas; do not alter game/canvas sizing */
 (function () {
   'use strict';
   if (typeof matchMedia === 'undefined' || !matchMedia('(pointer: coarse)').matches) return;
@@ -44,7 +44,7 @@
   document.head.appendChild(hide);
 
   const style = document.createElement('style');
-  style.textContent = '#biboo-touch{position:relative;width:100%;box-sizing:border-box;pointer-events:none;z-index:20;display:none;background:#0c0c12;padding:8px 8px max(10px, env(safe-area-inset-bottom))}#biboo-touch.on{display:flex;flex-direction:row;align-items:stretch;gap:10px;min-height:min(42vh, 320px);height:min(42vh, 42dvh)}#biboo-touch .col{flex:1 1 0;min-width:0;pointer-events:none;display:flex;flex-direction:column;align-items:stretch;gap:8px}#biboo-touch .sq{position:relative;width:100%;flex:1 1 auto;min-height:0;border:2px solid rgba(255,255,255,.35);border-radius:12px;background:rgba(28,28,36,.9)}#biboo-touch .tri{position:absolute;pointer-events:auto;touch-action:none;display:flex;align-items:center;justify-content:center;color:#fff;font:700 20px system-ui,sans-serif;user-select:none}#biboo-touch .tri:active,#biboo-touch .btn:active{background:rgba(240,180,76,.4)}#biboo-touch .tri.u{left:0;right:0;top:0;height:50%;clip-path:polygon(0 0,100% 0,50% 100%)}#biboo-touch .tri.d{left:0;right:0;bottom:0;height:50%;clip-path:polygon(50% 0,100% 100%,0 100%)}#biboo-touch .tri.l{left:0;top:0;bottom:0;width:50%;clip-path:polygon(0 0,100% 50%,0 100%)}#biboo-touch .tri.r{right:0;top:0;bottom:0;width:50%;clip-path:polygon(100% 0,100% 100%,0 50%)}#biboo-touch .xline{position:absolute;inset:0;pointer-events:none}#biboo-touch .xline::before,#biboo-touch .xline::after{content:"";position:absolute;left:50%;top:0;width:2px;height:100%;background:rgba(255,255,255,.25);transform-origin:center}#biboo-touch .xline::before{transform:translateX(-50%) rotate(45deg)}#biboo-touch .xline::after{transform:translateX(-50%) rotate(-45deg)}#biboo-touch .stack{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:8px}#biboo-touch .btn{flex:1 1 0;min-height:0;border-radius:12px;border:2px solid rgba(255,255,255,.35);background:rgba(28,28,36,.9);color:#fff;font:700 22px system-ui,sans-serif;pointer-events:auto;touch-action:none;user-select:none;display:flex;align-items:center;justify-content:center}#biboo-touch .sh{flex:0.55 1 0}#stage:fullscreen,#stage:-webkit-full-screen{flex-direction:column !important;justify-content:flex-start !important}#stage:fullscreen #biboo-touch,#stage:-webkit-full-screen #biboo-touch{flex:1 1 auto;min-height:0;height:auto}#stage:fullscreen canvas,#stage:-webkit-full-screen canvas{flex:0 0 auto;width:min(100vw, calc(100vh * 4 / 3 * 0.58)) !important;height:auto !important;max-height:58vh !important}';
+  style.textContent = '#biboo-touch{position:relative;width:100%;box-sizing:border-box;pointer-events:none;z-index:20;display:none;background:#0c0c12;padding:8px 8px max(10px, env(safe-area-inset-bottom))}#biboo-touch.on{display:flex;flex-direction:row;align-items:stretch;gap:10px;height:max(180px, calc(100dvh - 100vw * 3 / 4 - 8px));max-height:46vh}#biboo-touch .col{flex:1 1 0;min-width:0;pointer-events:none;display:flex;flex-direction:column;align-items:stretch;gap:8px}#biboo-touch .sq{position:relative;width:100%;flex:1 1 auto;min-height:0;border:2px solid rgba(255,255,255,.35);border-radius:12px;background:rgba(28,28,36,.9)}#biboo-touch .tri{position:absolute;pointer-events:auto;touch-action:none;display:flex;align-items:center;justify-content:center;color:#fff;font:700 20px system-ui,sans-serif;user-select:none}#biboo-touch .tri:active,#biboo-touch .btn:active{background:rgba(240,180,76,.4)}#biboo-touch .tri.u{left:0;right:0;top:0;height:50%;clip-path:polygon(0 0,100% 0,50% 100%)}#biboo-touch .tri.d{left:0;right:0;bottom:0;height:50%;clip-path:polygon(50% 0,100% 100%,0 100%)}#biboo-touch .tri.l{left:0;top:0;bottom:0;width:50%;clip-path:polygon(0 0,100% 50%,0 100%)}#biboo-touch .tri.r{right:0;top:0;bottom:0;width:50%;clip-path:polygon(100% 0,100% 100%,0 50%)}#biboo-touch .xline{position:absolute;inset:0;pointer-events:none}#biboo-touch .xline::before,#biboo-touch .xline::after{content:"";position:absolute;left:50%;top:0;width:2px;height:100%;background:rgba(255,255,255,.25);transform-origin:center}#biboo-touch .xline::before{transform:translateX(-50%) rotate(45deg)}#biboo-touch .xline::after{transform:translateX(-50%) rotate(-45deg)}#biboo-touch .stack{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:8px}#biboo-touch .btn{flex:1 1 0;min-height:0;border-radius:12px;border:2px solid rgba(255,255,255,.35);background:rgba(28,28,36,.9);color:#fff;font:700 22px system-ui,sans-serif;pointer-events:auto;touch-action:none;user-select:none;display:flex;align-items:center;justify-content:center}#biboo-touch .sh{flex:0.55 1 0}#stage:fullscreen #biboo-touch,#stage:-webkit-full-screen #biboo-touch{height:max(160px,32vh);max-height:36vh;flex:0 0 auto}';
   document.head.appendChild(style);
 
   const root = document.createElement('div');
@@ -52,9 +52,9 @@
   root.innerHTML = '<div class="col left"><div class="sq"><div class="xline"></div><div class="tri u" data-btn="Up">\u25b2</div><div class="tri d" data-btn="Down">\u25bc</div><div class="tri l" data-btn="Left">\u25c0</div><div class="tri r" data-btn="Right">\u25b6</div></div><div class="btn sh" data-sh="L">L</div><div class="btn sh" data-sh="R">R</div></div><div class="col right"><div class="stack"><div class="btn" data-btn="A">A</div><div class="btn" data-btn="B">B</div><div class="btn" data-btn="X">X</div><div class="btn" data-btn="Y">Y</div></div></div>';
 
   const stage = document.getElementById('stage') || document.body;
-  stage.appendChild(root);
-  stage.style.display = 'flex';
-  stage.style.flexDirection = 'column';
+  /* Sibling after #stage so absolute menu/hud/loading still size to the canvas-only stage */
+  if (stage.parentNode) stage.parentNode.insertBefore(root, stage.nextSibling);
+  else document.body.appendChild(root);
 
   function bind(el, onDown, onUp) {
     el.addEventListener('pointerdown', e => { e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (_) {} onDown(e); });
@@ -76,8 +76,10 @@
   function syncFs() {
     root.classList.add('on');
     const fs = document.fullscreenElement || document.webkitFullscreenElement;
-    if (fs && root.parentElement !== fs && (fs.id === 'stage' || fs.id === 'view')) {
-      (fs.id === 'view' ? (document.getElementById('stage') || fs) : fs).appendChild(root);
+    if (fs && (fs.id === 'stage' || fs === stage)) {
+      if (root.parentNode !== stage) stage.appendChild(root);
+    } else if (root.parentNode === stage && stage.parentNode) {
+      stage.parentNode.insertBefore(root, stage.nextSibling);
     }
   }
   document.addEventListener('fullscreenchange', syncFs);
