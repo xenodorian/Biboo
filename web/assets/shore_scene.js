@@ -1,7 +1,7 @@
 // Level 4, Sunset Shore: one animated 640x512 sunset-sea painting (8 frames, the format of the level 1 layers: the 640x480 view plus a
-// 16 row margin above and below) fixed to the screen sideways, and a tiled stone ground layer that scrolls with the world and acts as the
-// floor. Its top edge is row 432 of the 512, just above the row where Perry's feet stand (418 + 16). No foreground layer.
-// Hand authored, not generated: it overrides the generated `shore` theme from bgs.js.
+// 16 row margin above and below) fixed to the screen sideways, and a sandy shore layer in the BACKGROUND (behind the sprites) that wraps
+// every 640 px and scrolls with the world. Its sea foam line is at about row 404 of the 512 and Perry's feet stand on row 434, so the ground
+// level is on the sand below the foam. Hand authored, not generated: it overrides the generated `shore` theme from bgs.js.
 window.BIBOO.themes = window.BIBOO.themes || {};
 window.BIBOO.themes.shore = {
   layers: [
