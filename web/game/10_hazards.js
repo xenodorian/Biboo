@@ -9,7 +9,7 @@
   // (turning at most HOME_TURN rad/ms) until it hits, is blocked, or is reflected. Parry is generous: a parry pressed up to
   // PARRY_EARLY ms before a shard arrives counts, and a shard that has reached her waits PARRY_LATE ms for a parry before it hurts.
   const COMBO_SHOT_AT = [3, 4, 6], COMBO_ANGLES = [28, 48, 72], COMBO_SHOT_DMG = 10;
-  const COMBO_SPEED = 0.2, HOME_SPEED = 0.17, HOME_DELAY = 500, HOME_TURN = 0.0035, PARRY_EARLY = 450, PARRY_LATE = 200;
+  const COMBO_SPEED = 0.2, HOME_SPEED = 0.17, HOME_DELAY = 500, HOME_TURN = 0.03, PARRY_EARLY = 450, PARRY_LATE = 200;
   let lastParryT = -1e9;
   function fireComboShard(e, n) {
     const a = COMBO_ANGLES[n] * Math.PI / 180, ox = e.x + e.face * 10, oy = (e.fy || 0) + 44;
@@ -24,7 +24,7 @@
     for (let i = shots.length - 1; i >= 0; i--) {
       const sh = shots[i];
       if (sh.home && sh.from === 'foe' && clock - sh.t0 > HOME_DELAY && !sh.contactAt) {          // after the delay: curve toward her body
-        const ta = Math.atan2(herY() + herTop() * SPRITE_SCALE * 0.5 - sh.y, herMidX() - sh.x), ca = Math.atan2(sh.vy, sh.vx);
+        const ta = Math.atan2(herY() - sh.y, playerX() - sh.x), ca = Math.atan2(sh.vy, sh.vx);
         let d = ta - ca; d = Math.atan2(Math.sin(d), Math.cos(d));
         const na = ca + Math.max(-HOME_TURN * dt, Math.min(HOME_TURN * dt, d));
         sh.vx = Math.cos(na) * HOME_SPEED; sh.vy = Math.sin(na) * HOME_SPEED;
@@ -38,11 +38,14 @@
         if (!sh.contactAt) sh.contactAt = clock;
         const reflect = parrying() || lastParryT >= sh.contactAt - PARRY_EARLY;
         if (!reflect && !blocking() && clock - sh.contactAt < PARRY_LATE) continue;       // wait out the late-parry window
-        if (reflect) {                                          // reflected: straight forward, a little faster
-          sh.from = 'her'; sh.home = false; sh.contactAt = 0; sh.vx = hf() * SHOT_SPEED * 1.5; sh.vy = 0; sh.x = playerX() + hf() * 22; sh.t0 = clock;
+        if (reflect) {                                          // parried: the goblin's shard is deleted and she throws a new one of the same colour
+          shots.splice(i, 1);                                   // straight ahead from the middle of her sprite, a little faster
+          const ns = { x: playerX() + hf() * 22, y: herY() + herTop() * SPRITE_SCALE * 0.5, vx: hf() * SHOT_SPEED * 1.5, vy: 0, from: 'her', t0: clock, foeColor: true };
+          if (sh.streak) ns.streak = true;
+          shots.push(ns);
           tint = { color: WHITE, alpha: 0.75, until: clock + 150 }; parries++;
           floater(bodyX(), herY() + herTop() * SPRITE_SCALE + 10, 'Reflect', '#8fd0ff');
-          burst(sh.x, sh.y, 8, ['#ffffff', '#8fd0ff']);
+          burst(ns.x, ns.y, 8, ['#ffffff', '#8fd0ff']);
         } else if (blocking()) {                                   // blocked: no damage
           const p = push(8, 120); slide = newSlide(p, dir); lastPushT = clock;
           tint = { color: WHITE, alpha: 0.75, until: clock + 150 }; blocks++;
@@ -69,7 +72,7 @@
   }
   function drawShots(sx, sy) {
     for (const sh of shots) {
-      const X = V.anchorX + (sh.x - camX) + sx, Y = V.feetRow + camY + sy - sh.y, a = Math.atan2(-sh.vy, sh.vx), mine = sh.from === 'her';
+      const X = V.anchorX + (sh.x - camX) + sx, Y = V.feetRow + camY + sy - sh.y, a = Math.atan2(-sh.vy, sh.vx), mine = sh.from === 'her' && !sh.foeColor;
       g.save();
       g.translate(Math.round(X), Math.round(Y)); g.rotate(a);
       if (sh.streak) {                                                  // a combo shard: the long white and blue streak drawn in the backflip
