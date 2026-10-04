@@ -33,6 +33,13 @@
     chainGo('energy_burst');
     return true;
   }
+  // Dash distance: dash, dash_thrust and energy_dash_thrust each cover DASH_DIST px forward (a 100 px pit plus a 20 px buffer).
+  // Their frame motion is scaled up from the original end distances (92, 84, 84), so each move keeps its shape and timing.
+  const DASH_DIST = 120;
+  for (const id of ['dash', 'dash_thrust', 'energy_dash_thrust']) {
+    const fr = D.moves[id].frames, end = fr[fr.length - 1].root[0];
+    if (end > 0 && Math.abs(end - DASH_DIST) > 0.01) fr.forEach(f => { f.root = [(f.root[0] * DASH_DIST) / end, f.root[1]]; });
+  }
   // Air crash gates (A in the air). Height is measured above the surface she stands on.
   // Below SKY_CRASH_MIN px: A does nothing in the air. From SKY_CRASH_MIN up: a light crash (no quake, no black-and-white frame).
   // From SKY_CRASH_HEAVY up: a heavy crash. The double jump peaks at 200 px and the sky dash at 300 px.
