@@ -24,9 +24,11 @@
       if (now.B && !navPrev.B) UI.back();
       if (now.Y && !navPrev.Y) UI.info();
     } else if (screen === 'overworld' && !paused && !devOpen) {
-      const n = LV.levels.length + 2;                                  // the six levels, Sunset Training and the Bone Merchant
-      if ((now.Left && !navPrev.Left) || (now.Up && !navPrev.Up)) ow.sel = (ow.sel + n - 1) % n;
-      if ((now.Right && !navPrev.Right) || (now.Down && !navPrev.Down)) ow.sel = (ow.sel + 1) % n;
+      const n = LV.levels.length, TR = n, MR = n + 1;                  // the levels, Sunset Training and the Bone Merchant
+      const l = now.Left && !navPrev.Left, r = now.Right && !navPrev.Right, u = now.Up && !navPrev.Up, d = now.Down && !navPrev.Down;
+      if (ow.sel < n) { if (l) ow.sel = (ow.sel + n - 1) % n; if (r) ow.sel = (ow.sel + 1) % n; if (u) ow.sel = MR; }   // Up from a level: the Bone Merchant
+      else if (ow.sel === MR) { if (r) ow.sel = TR; if (d) ow.sel = 0; }     // Right: Sunset Training; Down: level 1
+      else { if (l) ow.sel = MR; if (d) ow.sel = 0; }                        // Training: Left is the merchant, Down is level 1
       if (now.A && !navPrev.A) enterLevel(ow.sel + 1);
     }
     Object.assign(navPrev, now);
