@@ -33,6 +33,11 @@
     chainGo('energy_burst');
     return true;
   }
+  // Air crash gates (A in the air). Height is measured above the surface she stands on.
+  // Below SKY_CRASH_MIN px: A does nothing in the air. From SKY_CRASH_MIN up: a light crash (no quake, no black-and-white frame).
+  // From SKY_CRASH_HEAVY up: a heavy crash. The double jump peaks at 200 px and the sky dash at 300 px.
+  const SKY_CRASH_MIN = 180, SKY_CRASH_HEAVY = 270;
+  const crashHeight = () => fall ? fall.y : (cur ? rootOf(cur)[1] : 0);
   function request(move, via) {
     if (!D.moves[move] || stun || !moveOpen(move)) return;
     if (move === 'jump' && tryDoubleJump()) return;
@@ -49,11 +54,12 @@
       return;
     }
     if (air && inAir && !moveOpen('jump_crash')) return;      // A in the air does nothing until the crash is unlocked
-    if (air) {
-      if ((airborne() || (cur && cur.id === 'jump' && cur.kind === 'action')) && !canAfford('jump_crash')) { deny('jump_crash'); return; }
-      if (airborne()) { airCrash(via); return; }
-      // pressed during the jump's crouch: crash as soon as she leaves the ground
-      if (cur && cur.id === 'jump' && cur.kind === 'action') { cur.crash = true; return; }
+    if (air && inAir) {
+      if (crashHeight() < SKY_CRASH_MIN) return;               // below 180 px up: A does nothing in the air
+      if (!canAfford('jump_crash')) { deny('jump_crash'); return; }
+      airCrash(via);
+      if (cur && cur.id === 'jump_crash') cur.lite = cur.height < SKY_CRASH_HEAVY;   // light below 270 px, heavy from 270 px up
+      return;
     }
     if (fall || (cur && cur.kind === 'land')) { queued = { move, via }; return; }
     const busy = cur && cur.kind === 'action';
