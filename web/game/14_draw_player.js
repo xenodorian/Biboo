@@ -49,7 +49,7 @@
       g.drawImage(still, -Math.round(range * 0.5) + Math.round(sx * 0.3), Math.round(sy * 0.3) - Math.max(0, still.height - V.h), still.width, still.height);
     } else for (const l of TH ? TH.layers : D.layers) {
       const src = l.frames ? l.frames[Math.floor(clock / (l.ms || 140)) % l.frames.length] : l.src;       // an animated layer cycles its frames
-      drawLayer(img[src].im, ((l.fixedX != null ? l.fixedX : TH && TH.fixedX) ? 0 : -bgx * l.parallax) + sx * l.shake, camY * l.parallax + sy * l.shake);       // fixedX: stuck to the screen sideways, still follows the camera up and down
+      drawLayer(img[src].im, ((l.fixedX != null ? l.fixedX : TH && TH.fixedX) ? 0 : -bgx * l.parallax) + sx * l.shake, camY * l.parallax + sy * l.shake + (l.offsetY || 0));       // offsetY: slides the picture up or down; fixedX: stuck to the screen sideways, still follows the camera up and down
     }
     drawGrade();
     if (level && level.def.tint && !TH) {
