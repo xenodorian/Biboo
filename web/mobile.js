@@ -51,10 +51,10 @@
      canvas off the left edge and the pad off the right). It overlays the stage and each column sits in the letterbox. */
   const fsfix = document.createElement('style');
   fsfix.textContent = '#stage:fullscreen #biboo-touch,#stage:-webkit-full-screen #biboo-touch{position:absolute;left:0;top:0;right:0;bottom:0;width:auto;height:auto;max-height:none;background:transparent;justify-content:space-between;padding:8px max(8px,env(safe-area-inset-right)) 8px max(8px,env(safe-area-inset-left))}' +
-    '#stage:fullscreen #biboo-touch .col,#stage:-webkit-full-screen #biboo-touch .col{flex:0 0 clamp(120px,calc((100vw - 100vh * 4 / 3) / 2 - 16px),38vw)}';
+    '#stage:fullscreen #biboo-touch .col.left,#stage:-webkit-full-screen #biboo-touch .col.left{flex:0 0 clamp(80px,calc((100vw - 100vh * 4 / 3) / 2 - max(8px,env(safe-area-inset-left)) - 10px),38vw)}' +
+    '#stage:fullscreen #biboo-touch .col.right,#stage:-webkit-full-screen #biboo-touch .col.right{flex:0 0 clamp(80px,calc((100vw - 100vh * 4 / 3) / 2 - max(8px,env(safe-area-inset-right)) - 10px),38vw)}';
   fsfix.textContent += '#stage:fullscreen #start-menu,#stage:-webkit-full-screen #start-menu,#stage:fullscreen #loading,#stage:-webkit-full-screen #loading{left:50%;right:auto;width:min(100vw,calc(100vh * 4 / 3));transform:translateX(-50%)}' +
-    '#stage:fullscreen #btn-hud-start,#stage:-webkit-full-screen #btn-hud-start{left:calc(50% - min(50vw,calc(100vh * 2 / 3)) + 10px)}' +
-    '#stage:fullscreen #kills,#stage:-webkit-full-screen #kills{right:calc(50% - min(50vw,calc(100vh * 2 / 3)) + 10px)}';
+    '#stage:fullscreen #btn-hud-start,#stage:-webkit-full-screen #btn-hud-start{left:calc(50% - min(50vw,calc(100vh * 2 / 3)) + 10px)}';
   document.head.appendChild(fsfix);
 
   const root = document.createElement('div');
