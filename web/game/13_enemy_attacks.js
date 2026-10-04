@@ -3,6 +3,10 @@
   // her hurtbox: x from her anchor, up to the top of her drawn body on this frame (hair, head and
   // arms, not the sword); while ducking it stops DUCK_TRIM px under the top of her head
   const HURT = [10 * SPRITE_SCALE, 0, 60 * SPRITE_SCALE];
+  // Native 132x93 Perry frame: the supplied 79-pixel toe-tip-to-heel line is x=53..131
+  // in the sprite, with the sprite anchor at x=40. Keep that exact pixel footprint for gravity.
+  // In anchor-relative world coordinates its continuous collision span is +13..+92 (79 px).
+  const GRAVITY_FOOT_BACK = 13, GRAVITY_FOOT_FRONT = 92, GRAVITY_FOOT_WIDTH = 79;
   const DUCK_TRIM = 5;
   function herTop() {
     if (!cur) return D.moves.idle.frames[0].top;
@@ -10,13 +14,16 @@
     return cur.id === 'duck' ? top - DUCK_TRIM : top;
   }
   const RED = '#ff2b2b', WHITE = '#ffffff';
-  const DASH_HOP = 5, DASH_MOVES = new Set(['dash', 'dash_thrust', 'energy_dash_thrust', 'push_kick', 'energy_kick']);
-  function dashHop() {                  // the dash, its thrusts and the push kicks rise 5 px and settle again over the move
+  // The hop: a smooth rise and settle over the whole move. The push kicks hop DASH_HOP (5 px). The three long dashes (dash, dash_thrust,
+  // energy_dash_thrust) hop LONG_DASH_HOP (10 px) so she stays above the pit check (feet over 1.5 px) while crossing a gap.
+  const DASH_HOP = 5 * WORLD_Y_SCALE, DASH_MOVES = new Set(['dash', 'dash_thrust', 'energy_dash_thrust', 'push_kick', 'energy_kick']);
+  const LONG_DASH_HOP = 10 * WORLD_Y_SCALE, LONG_DASH_MOVES = new Set(['dash', 'dash_thrust', 'energy_dash_thrust']);
+  function dashHop() {                  // the dash, its thrusts and the push kicks rise and settle again over the move
     if (!cur || !DASH_MOVES.has(cur.id) || cur.kind === 'fall') return 0;
     const F = D.moves[cur.id].frames; let tot = 0, at = 0;
     for (let i = 0; i < F.length; i++) { if (i === cur.k) at = tot + Math.min(cur.t || 0, F[i].ms); tot += F[i].ms; }
     const u = Math.min(1, at / tot);
-    return 4 * DASH_HOP * u * (1 - u);
+    return 4 * (LONG_DASH_MOVES.has(cur.id) ? LONG_DASH_HOP : DASH_HOP) * u * (1 - u);
   }
   const heightAbove = () => (stun ? stun.y : (fall ? fall.y : (cur && cur.kind !== 'fall' ? rootOf(cur)[1] : 0)) + (slide ? slide.y : 0) + (stun ? 0 : dashHop()));   // above the surface she stands on
   function herY() { return floorY + heightAbove() - pitSink(); }                                                              // world height of her feet
@@ -49,12 +56,13 @@
     e.state = 'stunned';
     play(e, T.ai.stun || 'idle');
     e.push = { v: p.v * (e.x >= herMidX() ? 1 : -1), a: p.a };
+    e.stunUntil = 0; e.tilt = 0;
     e.tint = { color: WHITE, alpha: 0.75, until: clock + ms };
     parries++;
     flashes.push({ wx: (bodyX() + e.x) / 2, wy: herY() + 24, t0: clock, ms: 240, r: 22, c: '#bfe8ff' }); hitStop(90); screenFlash = { c: '#ffffff', a: 0.3, t0: clock, ms: 110 };
   }
-  const KNOCK_UP = 5;
-  const newSlide = (p, dir) => ({ v: p.v * dir, a: p.a, y: 0, vy: -Math.sqrt(2 * 0.0018 * KNOCK_UP) });   // a block or a shot hit: slid back and up KNOCK_UP px
+  const KNOCK_UP = 5 * WORLD_Y_SCALE;
+  const newSlide = (p, dir) => ({ v: p.v * dir, a: p.a, y: 0, vy: -Math.sqrt(2 * 0.0018 * WORLD_Y_SCALE * KNOCK_UP) });   // a block or a shot hit: slid back and up KNOCK_UP px
   function knocked(e) {                 // a clean hit: red, pushed away from the enemy, stunned
     const AT = (EN[e.type].ai.atk || {})[e.anim];                      // per-attack damage and knockback (new creatures)
     const [d, ms] = (AT && AT.knock) || EN[e.type].ai.knock, p = push(d, ms);
@@ -62,7 +70,7 @@
     const y = heightAbove();
     if (cur && !fall && cur.kind !== 'fall') x += rootOf(cur)[0];
     fall = null; queued = null; slide = null;
-    stun = { v: p.v * dir, a: p.a, y, vy: -Math.sqrt(2 * 0.0018 * KNOCK_UP) }; lastPushT = clock;   // knocked back and up KNOCK_UP px (so she clears the ground and ledge edges)
+    stun = { v: p.v * dir, a: p.a, y, vy: -Math.sqrt(2 * 0.0018 * WORLD_Y_SCALE * KNOCK_UP) }; lastPushT = clock;   // knocked back and up KNOCK_UP px (so she clears the ground and ledge edges)
     cur = { id: 'heavy', k: HIGH_K, t: 0, kind: 'stun', from: x, face: cur ? cur.face : facing };
     tint = { color: RED, alpha: 0.6, until: clock + ms };
     invuln = clock + ms + 400;
@@ -84,9 +92,9 @@
     stun.v = Math.sign(v) === Math.sign(stun.v) ? v : 0;
     if (stun.y > 0 || stun.vy < 0) {
       const f0 = floorY + stun.y;
-      stun.vy += 0.0018 * dt; stun.y = Math.max(0, stun.y - stun.vy * dt);
+      stun.vy += 0.0018 * WORLD_Y_SCALE * dt; stun.y = Math.max(0, stun.y - stun.vy * dt);
       if (curMap) {                                   // knocked while in the air: land on a platform or block she falls through, not below it
-        let T = -1; const sp = span(playerX());
+        let T = -1; const sp = gravitySpan(playerX());
         for (const sf of surfaces(curMap)) if (sf.top > floorY && overSurf(sf, sp) && f0 > sf.top && floorY + stun.y <= sf.top && sf.top > T) T = sf.top;
         if (T >= 0) { floorY = T; stun.y = 0; }
       }

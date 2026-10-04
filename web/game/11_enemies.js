@@ -190,7 +190,7 @@
   }
   // They try any gap up to ENEMY_JUMP_MAX wide, but the orc's jump only carries ENEMY_JUMP_DIST px (70), so wherever that falls short of
   // the far edge it lands in the pit and is lost (a goblin always makes the 140 it attempts).
-  const ENEMY_JUMP_H = 22, ENEMY_JUMP_MAX = 140, ENEMY_JUMP_DIST = { goblin: 200, orc: 70, hobgoblin: 130, skullraider: 150, dusksaur: 110, darkknight: 90, ogre: 60, clubogre: 60 }, ENEMY_LAND_OFF = { goblin: 10, orc: 4 };     // arc height, widest gap an enemy will leap
+  const ENEMY_JUMP_H = 22 * WORLD_Y_SCALE, ENEMY_JUMP_MAX = 140, ENEMY_JUMP_DIST = { goblin: 200, orc: 70, hobgoblin: 130, skullraider: 150, dusksaur: 110, darkknight: 90, ogre: 60, clubogre: 60 }, ENEMY_LAND_OFF = { goblin: 10, orc: 4 };     // arc height, widest gap an enemy will leap
   function setRange(e) {                          // the stretch of surface that holds the enemy where it stands: a platform, or the ground between pits
     if ((e.fy || 0) > 0) {
       const sf = surfaceAt(curMap, e.x, e.fy);
@@ -271,17 +271,22 @@
         return;
       }
     }
-    if (e.state === 'stunned') {        // parried: slides back, no control until it stops
-      e.x += e.push.v * dt; e.base += e.push.v * dt;
-      const v = e.push.v - Math.sign(e.push.v) * e.push.a * dt;
-      if (Math.sign(v) === Math.sign(e.push.v)) { e.push.v = v; return; }
+    if (e.state === 'stunned') {        // slides back, then stays down until stunUntil if this hit asked for a longer stun
+      if (e.push && e.push.v) {
+        e.x += e.push.v * dt; e.base += e.push.v * dt;
+        const v = e.push.v - Math.sign(e.push.v) * e.push.a * dt;
+        if (Math.sign(v) === Math.sign(e.push.v) && v !== 0) { e.push.v = v; return; }
+        e.push.v = 0;
+      }
+      if (e.stunUntil && clock < e.stunUntil) return;
+      e.stunUntil = 0; e.tilt = 0;
       e.state = 'idle'; e.rest = ai.rest[0]; play(e, 'idle');
       return;
     }
     if (e.state === 'patrol') { patrol(e, dt); return; }
     const d = herMidX() - e.x, dist = Math.abs(d);
     if (e.path && (e.state === 'idle' || e.state === 'walk')) {       // chasing: give up when she is gone for a while
-      e.far = dist > e.sight * 2.5 || Math.abs(herY() - e.fy) > 110 * SIGHT_MUL ? e.far + dt : 0;
+      e.far = dist > e.sight * 2.5 || Math.abs(herY() - e.fy) > 110 * WORLD_Y_SCALE * SIGHT_MUL ? e.far + dt : 0;
       if (e.far > 3500) { e.state = 'patrol'; e.far = 0; e.pause = 0; e.dir = e.x < (e.path[0] + e.path[1]) / 2 ? 1 : -1; play(e, 'walk'); return; }
     }
     // wait behind another enemy that is already closer to her
@@ -330,8 +335,8 @@
         const at = Math.abs(e.x - plan.launch) <= 3 || (dir > 0 && e.x >= e.hi - 1 && plan.launch >= e.hi - 1) || (dir < 0 && e.x <= e.lo + 1 && plan.launch <= e.lo + 1);
         if (at) {
           const dy = plan.fy1 - (e.fy || 0), fall = plan.kind === 'drop';
-          e.jump = { x0: e.x, x1: plan.land, fy0: e.fy || 0, fy1: plan.fy1, fall, H: plan.kind === 'up' ? 16 : ENEMY_JUMP_H,
-                     t: 0, dur: fall ? Math.sqrt(2 * Math.abs(dy) / 0.0018) + 80 : 420 + Math.abs(plan.land - e.x) * 3 + Math.max(0, dy) * 2 };
+          e.jump = { x0: e.x, x1: plan.land, fy0: e.fy || 0, fy1: plan.fy1, fall, H: plan.kind === 'up' ? 16 * WORLD_Y_SCALE : ENEMY_JUMP_H,
+                     t: 0, dur: fall ? Math.sqrt(2 * Math.abs(dy) / (0.0018 * WORLD_Y_SCALE)) + 80 : 420 + Math.abs(plan.land - e.x) * 3 + Math.max(0, dy) * 2 };
           return;
         }
         turn(e, dir); if (e.anim !== 'walk') play(e, 'walk');
@@ -351,7 +356,7 @@
         if (e.hopAt == null) e.hopAt = 3 + Math.random() * 10;                 // how close to the edge it takes off (rerolled after each jump)
         const q = curMap.pits.find(p => e.face > 0 ? (p.x0 - e.x >= -2 && p.x0 - e.x < e.hopAt && herMidX() > p.x1)
                                                     : (e.x - p.x1 >= -2 && e.x - p.x1 < e.hopAt && herMidX() < p.x0));
-        if (q && q.x1 - q.x0 <= ENEMY_JUMP_MAX && Math.abs(herY() - e.fy) < 40) {
+        if (q && q.x1 - q.x0 <= ENEMY_JUMP_MAX && Math.abs(herY() - e.fy) < 40 * WORLD_Y_SCALE) {
           const off = ENEMY_LAND_OFF[e.type] || 10, want = e.face > 0 ? q.x1 + off : q.x0 - off;     // where it means to land
           if (!curMap.pits.some(o => want > o.x0 - 4 && want < o.x1 + 4)) {
             const far = ENEMY_JUMP_DIST[e.type] || 200, reach = Math.min(Math.abs(want - e.x), far), tx = e.x + e.face * reach;

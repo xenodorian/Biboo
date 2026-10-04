@@ -33,6 +33,18 @@
     chainGo('energy_burst');
     return true;
   }
+  // Dash distance: dash, dash_thrust and energy_dash_thrust each cover DASH_DIST px forward (a 100 px pit plus a 20 px buffer).
+  // Their frame motion is scaled up from the original end distances (92, 84, 84), so each move keeps its shape and timing.
+  const DASH_DIST = 120;
+  for (const id of ['dash', 'dash_thrust', 'energy_dash_thrust']) {
+    const fr = D.moves[id].frames, end = fr[fr.length - 1].root[0];
+    if (end > 0 && Math.abs(end - DASH_DIST) > 0.01) fr.forEach(f => { f.root = [(f.root[0] * DASH_DIST) / end, f.root[1]]; });
+  }
+  // Air crash gates (A in the air). Height is measured above the surface she stands on.
+  // Below SKY_CRASH_MIN px: A does nothing in the air. From SKY_CRASH_MIN up: a light crash (no quake, no black-and-white frame).
+  // From SKY_CRASH_HEAVY up: a heavy crash. The double jump peaks at 200 px and the sky dash at 300 px.
+  const SKY_CRASH_MIN = 180, SKY_CRASH_HEAVY = 270;
+  const crashHeight = () => fall ? fall.y : (cur ? rootOf(cur)[1] : 0);
   function request(move, via) {
     if (!D.moves[move] || stun || !moveOpen(move)) return;
     if (move === 'jump' && tryDoubleJump()) return;
@@ -49,11 +61,12 @@
       return;
     }
     if (air && inAir && !moveOpen('jump_crash')) return;      // A in the air does nothing until the crash is unlocked
-    if (air) {
-      if ((airborne() || (cur && cur.id === 'jump' && cur.kind === 'action')) && !canAfford('jump_crash')) { deny('jump_crash'); return; }
-      if (airborne()) { airCrash(via); return; }
-      // pressed during the jump's crouch: crash as soon as she leaves the ground
-      if (cur && cur.id === 'jump' && cur.kind === 'action') { cur.crash = true; return; }
+    if (air && inAir) {
+      if (crashHeight() < SKY_CRASH_MIN) return;               // below 180 px up: A does nothing in the air
+      if (!canAfford('jump_crash')) { deny('jump_crash'); return; }
+      airCrash(via);
+      if (cur && cur.id === 'jump_crash') cur.lite = cur.height < SKY_CRASH_HEAVY;   // light below 270 px, heavy from 270 px up
+      return;
     }
     if (fall || (cur && cur.kind === 'land')) { queued = { move, via }; return; }
     const busy = cur && cur.kind === 'action';
@@ -95,16 +108,20 @@
       x += slide.v * dt;
       const v = slide.v - Math.sign(slide.v) * slide.a * dt;
       slide.v = Math.sign(v) === Math.sign(slide.v) ? v : 0;
-      slide.vy += 0.0018 * dt; slide.y = Math.max(0, slide.y - slide.vy * dt);      // the KNOCK_UP hop
+      slide.vy += 0.0018 * WORLD_Y_SCALE * dt; slide.y = Math.max(0, slide.y - slide.vy * dt);      // the KNOCK_UP hop
       if (slide.v === 0 && slide.y === 0 && slide.vy >= 0) slide = null;
     }
     // steering in the air: hold Left or Right while a jump is up or she is falling
     const steer = (isDown.has('Right') ? 1 : 0) - (isDown.has('Left') ? 1 : 0);
-    if (steer && (fall || (cur && (cur.kind === 'fall' || (cur.kind === 'action' && cur.id === 'jump' && rootOf(cur)[1] > 0))))) {
-      x += steer * AIR_SPEED * dt; facing = steer; if (cur) cur.face = steer;
+    if (steer && !flight && (fall || (cur && (cur.kind === 'fall' || (cur.kind === 'action' && cur.id === 'jump' && rootOf(cur)[1] > 0))))) {
+      const speed = dblUsed ? DOUBLE_AIR_SPEED : AIR_SPEED;
+      x += steer * speed * dt; facing = steer; if (cur) cur.face = steer;
+      if (cur && cur.id === 'jump' && cur.kind === 'action' && cur.phys && cur.phys.xRange != null) {
+        x = Math.max(cur.phys.x0 - cur.phys.xRange, Math.min(cur.phys.x0 + cur.phys.xRange, x));
+      }
     }
-    if (fall) {                                                  // simple gravity, px/ms^2
-      fall.v += 0.0018 * dt;
+    if (fall) {
+      fall.v += JUMP_G * dt;
       fall.y -= fall.v * dt;
       if (fall.y <= 0) { fall = null; cur = { id: 'jump', k: LAND_K, t: 0, kind: 'land', face: cur ? cur.face : facing }; }
       return;
@@ -113,7 +130,7 @@
     if (cur.id === 'jump' && cur.kind === 'action') {            // the plain jump: crouch, then physics until she lands
       if (cur.phys) { stepJump(dt); return; }
       cur.t += dt;
-      if (cur.t >= msOf(cur, 0)) { cur.phys = { y: 0, v: JUMP_V0 }; cur.k = 1; cur.t = 0; }
+      if (cur.t >= msOf(cur, 0)) { cur.phys = { y: 0, v: JUMP_V0, v0: JUMP_V0, t: 0, baseY: 0, x0: x, xRange: AIR_JUMP_WIDTH }; cur.k = 1; cur.t = 0; }
       return;
     }
     if (cur.kind === 'hold') {

@@ -17,14 +17,18 @@ See repository history for full rules. Work on main, claim steps.
 
 **Git rules (project owner):** work only on main, never create branches, `git pull --rebase` then push to main after every successful step, and end commit messages with the Co-Authored-By and Claude-Session lines.
 
-*This file was condensed on 2026-10-01 (st97). The full step by step log, including every old stage, request and test count, is in git history: `git show a0a3b03:Current_Work.md`.*
 
 ## Return point (do not lose this)
 
-The live web tree was temporarily put back so the owner can diagnose the uncropped level background and the broken fullscreen touch UI. No commit in the repo was labeled as a safe snapshot. The restore used the last commit whose canvas still matched the scenery art.
+st138 is the live game again. Commit `89afc38` put st108 back and that was the wrong tree: it is not a saved fix. The return commit is `73dfddc`.
 
-- **Come back to:** `73dfddc` (st138). Heavy Horizontal steps 50 px and stuns the enemy 200 ms total with a 30° tip. Dash moves cover 120 px and hop 10 px. Air crash starts at 180 px. Canvas is 640×480. Scenery PNGs are still 384×232, so `drawLayer` stretches the bottom row. Mobile pad is the st133 layout.
-- **Temporarily live:** `2ffa281` (st108, 384×216), the commit immediately before `82d047d` set the canvas to 640×480. Restore with `git checkout 73dfddc -- web` and commit, or reset the web tree from that commit. Do not leave this temporary tree in place once the diagnosis is done.
+What was actually on origin when this session fetched it (`bc72aaf`, st137), and is in `73dfddc` except for the Heavy Horizontal change:
+
+- st124 letterboxes fullscreen to 4:3.
+- st125 crops the overworld picture.
+- Level layers are still the Oct 2 files, 384×232. `drawLayer` is unchanged since then and stretches the bottom row to fill 480. No commit replaces those PNGs.
+
+*This file was condensed on 2026-10-01 (st97). The full step by step log, including every old stage, request and test count, is in git history: `git show a0a3b03:Current_Work.md`.*
 
 ## Notes for Grok (read these first)
 
