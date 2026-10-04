@@ -25,14 +25,9 @@
   }
 
   // ---- the overworld: five level nodes on a path; a level opens when the one before it is beaten
-  // Overworld authored for 384x216 (16:9). Fit uniformly into 640x480 (4:3) so the path is not stretched.
-  const OW_NODES_BASE = [[36, 150], [90, 112], [144, 146], [198, 106], [252, 144], [306, 108], [348, 60]];
-  const OW_SCALE = Math.min(V.w / 384, V.h / 216);
-  const OW_OX = Math.round((V.w - 384 * OW_SCALE) / 2);
-  const OW_OY = Math.round((V.h - 216 * OW_SCALE) / 2);
-  const OW_NODES = OW_NODES_BASE.map(([x, y]) => [Math.round(OW_OX + x * OW_SCALE), Math.round(OW_OY + y * OW_SCALE)]);
+  const OW_NODES = [[36, 150], [90, 112], [144, 146], [198, 106], [252, 144], [306, 108], [348, 60]];   // six levels, then the optional training node
   const nodeAt = i => i === LV.levels.length + 1 ? MERCHANT_AT : OW_NODES[i % OW_NODES.length];
-  const MERCHANT_AT = [Math.round(OW_OX + 50 * OW_SCALE), Math.round(OW_OY + 92 * OW_SCALE)];
+  const MERCHANT_AT = [50, 92];                                     // the Bone Merchant's feet; selection index levels+1
   function openShop() {
     if (!UI) return;
     UI.open('shop', { msg: 'Spend your Leaves. Press B to leave.', back: () => { UI.close(); ignoreHeldButtons(); canvas.focus(); } });

@@ -45,8 +45,6 @@
             const p = push(dist, ms), dir = BOTH_SIDES_PUSH.has(h.mv.id) ? (e.x >= h.px ? 1 : -1) : h.face;
             e.state = 'stunned'; play(e, (EN[e.type].ai.stun || 'idle'));
             e.push = { v: p.v * dir, a: p.a };
-            e.stunUntil = h.mv.id === 'heavy_horizontal' ? clock + HH_STUN_MS : 0;
-            e.tilt = h.mv.id === 'heavy_horizontal' ? HH_TILT : 0;
           }
           if (h.mv.id === 'energy_wave') {                          // impact: the wave explodes on the spot
             const b = hurtOf(e) || box;
@@ -71,7 +69,6 @@
             const [dist, ms] = KNOCK.heavy, p = push(dist, ms);
             o.state = 'stunned'; play(o, (EN[o.type].ai.stun || 'idle'));
             o.push = { v: p.v * h.face, a: p.a };
-            o.stunUntil = 0; o.tilt = 0;
           }
         }
       }

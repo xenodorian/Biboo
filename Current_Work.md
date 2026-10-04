@@ -19,6 +19,13 @@ See repository history for full rules. Work on main, claim steps.
 
 *This file was condensed on 2026-10-01 (st97). The full step by step log, including every old stage, request and test count, is in git history: `git show a0a3b03:Current_Work.md`.*
 
+## Return point (do not lose this)
+
+The live web tree was temporarily put back so the owner can diagnose the uncropped level background and the broken fullscreen touch UI. No commit in the repo was labeled as a safe snapshot. The restore used the last commit whose canvas still matched the scenery art.
+
+- **Come back to:** `73dfddc` (st138). Heavy Horizontal steps 50 px and stuns the enemy 200 ms total with a 30° tip. Dash moves cover 120 px and hop 10 px. Air crash starts at 180 px. Canvas is 640×480. Scenery PNGs are still 384×232, so `drawLayer` stretches the bottom row. Mobile pad is the st133 layout.
+- **Temporarily live:** `2ffa281` (st108, 384×216), the commit immediately before `82d047d` set the canvas to 640×480. Restore with `git checkout 73dfddc -- web` and commit, or reset the web tree from that commit. Do not leave this temporary tree in place once the diagnosis is done.
+
 ## Notes for Grok (read these first)
 
 1. **`web/game/00_core.js` keeps getting overwritten with a one-line placeholder** (`PLACEHOLDER_AGAIN is not defined` is the symptom; the game then fails to load). It has been restored four times (commits 0233308, 30fa4e9, 342ea7a, 20a1437). The good file is about 25,987 bytes. Before every push run `wc -c web/game/00_core.js`; if it is tiny, restore it with `git show 20a1437:web/game/00_core.js > web/game/00_core.js`. Always `git pull --rebase` before pushing so you do not push over someone else's work.

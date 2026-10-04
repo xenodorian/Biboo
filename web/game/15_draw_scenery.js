@@ -287,7 +287,7 @@
   // meters under the health bar: ENG (blue) and EMP (orange); a bar flashes white when a move was refused
   function drawMeters() {
     g.font = 'bold 7px monospace'; g.textBaseline = 'top'; g.textAlign = 'left'; g.lineWidth = 2; g.lineJoin = 'round';
-    let y = 34;                                                    // only the meters the player has unlocked are drawn
+    let y = 24;                                                    // only the meters the player has unlocked are drawn
     for (const [lab, k, v, max, col] of [['ENG', 'energy', energyMeter, maxOf('energy'), '#4af'], ['EMP', 'empower', empowerMeter, maxOf('empower'), '#fa4'], ['SUP', 'super', superMeter, maxOf('super'), '#c6f']]) {
       if (!P.meterOn(k)) continue;
       g.strokeStyle = '#000'; g.fillStyle = '#fff';
@@ -323,23 +323,22 @@
     g.font = 'bold 7px monospace'; g.textBaseline = 'top'; g.lineWidth = 2; g.lineJoin = 'round';
     g.strokeStyle = '#000'; g.fillStyle = '#fff';
     g.strokeText('MAX', 8, 14); g.fillText('MAX', 8, 14);
-    const healthW = Math.min(320, V.w - 300);
-    bar(28, 15, healthW, 8, hp / maxHp());
+    bar(28, 15, 200, 6, hp / maxHp());
     if (level) {                                                     // Leaves counter
-      const IT = D.items, leafX = V.w - 152; g.drawImage(img[IT.leaf].im, 0, 0, IT.cell, IT.cell, leafX, 12, 16, 16);
-      g.strokeText('x' + P.state.leaves, leafX + 18, 14); g.fillText('x' + P.state.leaves, leafX + 18, 14);
+      const IT = D.items; g.drawImage(img[IT.leaf].im, 0, 0, IT.cell, IT.cell, 318, 12, 10, 10);
+      g.strokeText('x' + P.state.leaves, 330, 14); g.fillText('x' + P.state.leaves, 330, 14);
     }
     if (level && level.n > 0) {                                      // ankh counter
-      drawAnkh(V.w - 74, 20, 1.0);
-      g.strokeText('x' + P.state.ankhs, V.w - 58, 14); g.fillText('x' + P.state.ankhs, V.w - 58, 14);
+      drawAnkh(284, 17, 0.8);
+      g.strokeText('x' + P.state.ankhs, 291, 14); g.fillText('x' + P.state.ankhs, 291, 14);
     }
     const bo = enemies.find(e => EN[e.type].ai.boss && alive(e));
     if (bo) {                                                         // boss bar along the bottom
-      g.textAlign = 'center'; g.strokeText(EN[bo.type].ai.bossName || EN[bo.type].title, V.w / 2, V.h - 34); g.fillText(EN[bo.type].ai.bossName || EN[bo.type].title, V.w / 2, V.h - 34); g.textAlign = 'left';
-      bar(64, V.h - 24, V.w - 128, 8, bo.hp / bo.maxHp);
+      g.textAlign = 'center'; g.strokeText(EN[bo.type].ai.bossName || EN[bo.type].title, V.w / 2, 196); g.fillText(EN[bo.type].ai.bossName || EN[bo.type].title, V.w / 2, 196); g.textAlign = 'left';
+      bar(64, 206, 256, 6, bo.hp / bo.maxHp);
     }
     const t = `${hp}/${maxHp()}`;
-    g.strokeText(t, 34 + healthW, 14); g.fillText(t, 34 + healthW, 14);
+    g.strokeText(t, 232, 14); g.fillText(t, 232, 14);
   }
   function drawFloaters(sx, sy) {
     const X = wx => V.anchorX + (wx - camX) + sx, Y = wy => V.feetRow + camY + sy - wy;
@@ -387,7 +386,6 @@
       if (e.sinkAt && curMap) pitClip(sx, sy);
       g.globalAlpha = alpha;
       g.translate(vx, Math.round(gy - (e.fy || 0) - (e.jy || 0) + (e.sinkAt ? PIT_GRAV * (clock - e.sinkAt) * (clock - e.sinkAt) : 0)));
-      if (e.state === 'stunned' && e.tilt) g.rotate(e.tilt);   // screen-clockwise, before the facing flip so both directions tip the same way
       if (e.face > 0) g.scale(-1, 1);
       if (e.type === 'heavybag' && e.sw) { const top = ay * SPRITE_SCALE; g.translate(0, -top); g.rotate(e.sw.a); g.translate(0, top); }   // it swings from its top
       const Lm = sceneLight();

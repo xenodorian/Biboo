@@ -137,7 +137,7 @@
   const inPit = px => (curMap && curMap.pits.find(p => px > p.x0 + 2 && px < p.x1 - 2)) || null;
   let lastPushT = -1e9;                  // when she was last pushed by an enemy or shot
   let pitFall = null;                    // {t0}: she is falling
-  const PIT_GRAV = 0.0006 * WORLD_Y_SCALE;                // px/ms^2: she drops out of the bottom of the view; only then does the run end
+  const PIT_GRAV = 0.0006;                // px/ms^2: she drops out of the bottom of the view; only then does the run end
   const pitSink = () => pitFall ? PIT_GRAV * (clock - pitFall.t0) * (clock - pitFall.t0) : 0;
   const pitOffScreen = () => pitSink() > V.h - V.feetRow + herTop() * SPRITE_SCALE + 8;   // her head has left the bottom of the view
   // She falls only when BOTH feet are over the gap: the feet span from 1 px behind to 38 px ahead of the anchor (measured from

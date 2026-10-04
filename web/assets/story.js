@@ -1,4 +1,4 @@
-// Full-scene story backgrounds are normalized to native 640x480 copies in assets/story/view/ before deployment.
+// Backgrounds cut from the supplied scene grid (originals in assets/story/, view-sized 216 px tall copies in assets/story/view/).
 // STORY_BGS: the cutscene pages. ARENA_STILLS: boss arena themes that use one picture in place of the layered scenery.
 window.STORY_BGS = {
   calm: 'assets/story/view/village_meadow.png',
