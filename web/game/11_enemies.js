@@ -271,10 +271,15 @@
         return;
       }
     }
-    if (e.state === 'stunned') {        // parried: slides back, no control until it stops
-      e.x += e.push.v * dt; e.base += e.push.v * dt;
-      const v = e.push.v - Math.sign(e.push.v) * e.push.a * dt;
-      if (Math.sign(v) === Math.sign(e.push.v)) { e.push.v = v; return; }
+    if (e.state === 'stunned') {        // slides back, then stays down until stunUntil if this hit asked for a longer stun
+      if (e.push && e.push.v) {
+        e.x += e.push.v * dt; e.base += e.push.v * dt;
+        const v = e.push.v - Math.sign(e.push.v) * e.push.a * dt;
+        if (Math.sign(v) === Math.sign(e.push.v) && v !== 0) { e.push.v = v; return; }
+        e.push.v = 0;
+      }
+      if (e.stunUntil && clock < e.stunUntil) return;
+      e.stunUntil = 0; e.tilt = 0;
       e.state = 'idle'; e.rest = ai.rest[0]; play(e, 'idle');
       return;
     }

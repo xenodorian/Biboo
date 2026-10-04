@@ -8,6 +8,8 @@
                    chain2: 15, chain3: 18, chain4: 22 };      // the chain strikes (no knockback: they are not in KNOCK)
   // knockback of the moves that push an enemy: [distance px, duration ms]
   const KNOCK = { heavy: [25, 100], slash: [25, 100], heavy_horizontal: [50, 100], push_kick: [100, 200], energy_kick: [200, 300], energy_burst: [100, 500] };
+  const HH_STUN_MS = 200;                                    // heavy horizontal: the 50 px slide still takes 100 ms; the enemy stays stunned after it stops
+  const HH_TILT = Math.PI / 6;                               // 30 degrees clockwise, drawn while that stun lasts
   const BOTH_SIDES_PUSH = new Set(['energy_burst']);
   const PARRY_DMG = 10;                                              // damage a parried melee attacker takes
   const PARRY_KNOCK = [100, 400];                                    // an enemy parried: pushed back this far, stunned this long

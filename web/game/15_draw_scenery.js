@@ -387,6 +387,7 @@
       if (e.sinkAt && curMap) pitClip(sx, sy);
       g.globalAlpha = alpha;
       g.translate(vx, Math.round(gy - (e.fy || 0) - (e.jy || 0) + (e.sinkAt ? PIT_GRAV * (clock - e.sinkAt) * (clock - e.sinkAt) : 0)));
+      if (e.state === 'stunned' && e.tilt) g.rotate(e.tilt);   // screen-clockwise, before the facing flip so both directions tip the same way
       if (e.face > 0) g.scale(-1, 1);
       if (e.type === 'heavybag' && e.sw) { const top = ay * SPRITE_SCALE; g.translate(0, -top); g.rotate(e.sw.a); g.translate(0, top); }   // it swings from its top
       const Lm = sceneLight();

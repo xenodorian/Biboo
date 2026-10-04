@@ -56,6 +56,7 @@
     e.state = 'stunned';
     play(e, T.ai.stun || 'idle');
     e.push = { v: p.v * (e.x >= herMidX() ? 1 : -1), a: p.a };
+    e.stunUntil = 0; e.tilt = 0;
     e.tint = { color: WHITE, alpha: 0.75, until: clock + ms };
     parries++;
     flashes.push({ wx: (bodyX() + e.x) / 2, wy: herY() + 24, t0: clock, ms: 240, r: 22, c: '#bfe8ff' }); hitStop(90); screenFlash = { c: '#ffffff', a: 0.3, t0: clock, ms: 110 };

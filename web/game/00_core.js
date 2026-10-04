@@ -98,9 +98,17 @@
   // Energy burst is L2 on its own. L1+R1 is no longer a burst: holding both charges the meters (see metersHeld).
   D.input.bindings = D.input.bindings.filter(b => b.move !== 'energy_burst');
   D.input.bindings.push({ input: 'L2', type: 'press', move: 'energy_burst' });
-  // Heavy Horizontal: hold B, tap A. It plays the horizontal slash animation with its own damage and pushback.
-  if (!D.moves.heavy_horizontal)
-    D.moves.heavy_horizontal = Object.assign({}, D.moves.slash, { title: 'Heavy Horizontal', input: 'A+B', inputType: 'chord' });
+  // Heavy Horizontal: hold B, tap A. Same swing as the slash, but she steps HH_STEP px
+  // forward across the move and is not stunned. Frames are copied so the slash stays in place.
+  const HH_STEP = 50;
+  {
+    const src = D.moves.slash;
+    const frames = src.frames.map(f => Object.assign({}, f, { root: [0, f.root[1]] }));
+    const total = frames.reduce((s, f) => s + f.ms, 0) || 1;
+    let acc = 0;
+    for (const f of frames) { acc += f.ms; f.root[0] = HH_STEP * acc / total; }
+    D.moves.heavy_horizontal = Object.assign({}, src, { title: 'Heavy Horizontal', input: 'A+B', inputType: 'chord', frames });
+  }
   D.input.bindings.push({ input: 'A+B', type: 'chord', move: 'heavy_horizontal', held: ['B'] });
   D.input.bindings.push({ input: 'A-A-A-A-R1+R2+L1+L2', type: 'sequence', move: 'ultimate' });   // the Ultimate Chain
   const V = D.view;
@@ -141,7 +149,7 @@
     duck: 'Crouch under high attacks. Double tap Down on a platform to drop through it.', block: 'Hold B to raise the guard. A blocked hit does no damage but slides you back.',
     parry: 'Tap B just before a melee hit lands. A parry deals 10 damage, pushes the enemy back and stuns it. It also reflects shards.', jump: 'Jump. Hold Left or Right in the air to steer.',
     dash: 'A quick burst of speed along the ground. Double tap forward.', slash: 'Your basic sword attack. Fast, light damage.', spin_attack: 'A spinning slash that hits both sides.',
-    heavy_horizontal: 'A slow, hard horizontal swing. More damage than a slash, with a longer wind up.', dash_thrust: 'A running stab that crosses the screen and hits hard at the end.',
+    heavy_horizontal: 'A hard horizontal swing. She steps 50 px forward and is not stunned. The enemy is stunned and tipped.', dash_thrust: 'A running stab that crosses the screen and hits hard at the end.',
     energy_dash_thrust: 'The dash thrust charged with energy: longer, harder and it costs energy.', taunt: 'Provoke every enemy on screen so they rush you and drop gems when they fall.',
     double_jump: 'Press Up again in the air for a second, spinning jump. Reaches high ledges.', sky_dash: 'An air dash: press Down, then Up. Covers pits.',
     jump_crash: 'Slam down from a jump. Costs 30 energy and hits what is below you.', heavy: 'The overhead chop. Hold A to charge it, release to swing. Costs energy.',
