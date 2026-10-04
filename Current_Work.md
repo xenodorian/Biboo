@@ -3,6 +3,12 @@
 - **Hurtbox**: the parts of a character that cause damage (the attack area).
 - Note: the code and data use the opposite words. In `data.js` and game.js a frame's `hurt` is the vulnerable box (a hitbox here) and its `hit` / `hits` is the attack shape (a hurtbox here), and `herBox()` / `hurtOf()` return vulnerable boxes. They are not renamed; translate when talking about them.
 
+# HARD RULE: THE BACKGROUND IMAGE (set by the project owner, 2026-10-03, never override)
+- The level background is the default layer set `web/assets/layers/*.png` (sky, mountains_far, mountains_near, trees_back, trees_front, fringe, ground). Its approved look is the committed state in `57d9bfa`: each layer cropped to exactly 4:3 (308x231, centered horizontally, bottom rows kept) and resized to 640x480 with nearest-neighbor, so it fills the 640x480 native view with no stretching or smearing.
+- This image must NEVER be cropped, resized, rescaled, re-filtered, re-generated, re-exported, stretched or otherwise reformatted in any other way, by any agent, under any circumstances, unless the project owner specifically and unambiguously asks for that change in so many words. A refactor, migration, resolution change, cleanup, "fix" or rollback is NOT a request.
+- That includes the generators: `swingkit/bg.py`, `swingkit/webexport.py` (writes `web/assets/layers`) and the GitHub Pages workflow step `python -m swingkit --web`. Do not change anything that alters these files' output or size. If a build, regeneration or deploy overwrites these PNGs, restore them with `git checkout 57d9bfa -- web/assets/layers` and tell the owner.
+- Other levels' backgrounds (`web/assets/bgs/*`) are not covered by this rule and must not be touched by work on this one.
+
 # Current Work
 
 Shared task board for everyone working on this repo, humans and agents.
