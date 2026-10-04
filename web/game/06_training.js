@@ -17,17 +17,13 @@
     train.total += dmg;
     if (!beamTick) { train.last = dmg; train.hits++; train.combo = clock - train.comboAt < 1400 ? train.combo + 1 : 1; train.comboAt = clock; }
     const dir = bodyX() <= e.x ? 1 : -1;
-    e.sw = e.sw || { a: 0, v: 0 };
-    e.sw.v += dir * Math.min(0.012, 0.0025 + dmg * 0.00007);
+    e.bagAnim = { t0: clock, flip: dir < 0 };                      // frames 1 to 5 of the bag sheet; mirrored when hit from the right
     floater(cx, (b ? b[3] : 60) + 4, '-' + dmg, RED);
     if (!beamTick) impact(cx, cy, dmg, null, false);
     e.tint = { color: WHITE, alpha: 0.5, until: clock + 70 };
   }
-  function stepBag(e, dt) {                                        // a pendulum: it swings back and settles
+  function stepBag(e, dt) {                                        // the swing itself is the bag sheet's hit animation
     e.hp = e.maxHp; e.scale = 1; e.state = 'idle'; e.taunted = false;
-    const w = e.sw = e.sw || { a: 0, v: 0 };
-    w.v += (-0.00016 * w.a - 0.0035 * w.v) * dt * 4; w.a += w.v * dt;
-    w.a = Math.max(-1.2, Math.min(1.2, w.a));
   }
   function drawTraining(sx, sy) {                                  // Slime Bunny: bobbing on the right
     const B = D.training && D.training.bunny; if (!B || !level || !level.def.training) return;

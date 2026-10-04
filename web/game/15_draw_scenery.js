@@ -380,7 +380,8 @@
         if (!T.ai.death && !e.sinkAt && e.dead < DIE_MS - fade && Math.floor(e.dead / 60) % 2) continue;   // no death art: flicker
         alpha = Math.max(0, Math.min(1, (DIE_MS - e.dead) / fade));
       }
-      const cell = T.anims[e.anim].frames[e.k];
+      let cell = T.anims[e.anim].frames[e.k];
+      if (e.type === 'heavybag') { const t = e.bagAnim ? Math.floor((clock - e.bagAnim.t0) / 100) : 99; cell = t >= 0 && t < 5 ? 1 + t : 0; }   // idle on frame 0, the hit animation on frames 1 to 5
       const [cw, ch] = T.cell, [ax, ay] = T.anchor;
       const vx = Math.round(V.anchorX + (e.base - camX) + sx);
       g.save();
@@ -388,8 +389,7 @@
       g.globalAlpha = alpha;
       g.translate(vx, Math.round(gy - (e.fy || 0) - (e.jy || 0) + (e.sinkAt ? PIT_GRAV * (clock - e.sinkAt) * (clock - e.sinkAt) : 0)));
       if (e.state === 'stunned' && e.tilt) g.rotate(e.tilt);   // screen-clockwise, before the facing flip so both directions tip the same way
-      if (e.face > 0) g.scale(-1, 1);
-      if (e.type === 'heavybag' && e.sw) { const top = ay * SPRITE_SCALE; g.translate(0, -top); g.rotate(e.sw.a); g.translate(0, top); }   // it swings from its top
+      if (e.type === 'heavybag' ? (e.bagAnim && e.bagAnim.flip) : e.face > 0) g.scale(-1, 1);   // the bag is drawn for a hit from the left and mirrored for a hit from the right
       const Lm = sceneLight();
       blit(img[T.sheet].im, cell * cw, cw, ch, -ax * SPRITE_SCALE * (e.scale||1), -ay * SPRITE_SCALE * (e.scale||1), e.tint && clock < e.tint.until ? e.tint : null, SPRITE_SCALE * (e.scale||1));
       if (Lm.water && (e.fy || 0) < 2 && (e.jy || 0) < 8 && !e.sinkAt && !inPit(e.x)) {
