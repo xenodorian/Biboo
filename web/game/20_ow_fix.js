@@ -1,4 +1,4 @@
-/* st126: ensure strip at bottom even if base drawOverworld was cached */
+/* st134: drawOverworld with info strip pinned to bottom of the 4:3 canvas — do not move this */
   function drawOverworld() {
     const n = LV.levels.length;
     g.fillStyle = '#10151c'; g.fillRect(0, 0, V.w, V.h);
@@ -62,6 +62,7 @@
     g.textAlign = 'center'; g.textBaseline = 'top'; g.lineJoin = 'round'; g.lineWidth = 3;
     g.font = 'bold 12px monospace'; g.strokeStyle = '#000'; g.fillStyle = '#ffe14d';
     g.strokeText('OVERWORLD', V.w / 2, 10); g.fillText('OVERWORLD', V.w / 2, 10);
+    /* FIXED bottom of canvas — never mid-screen */
     const stripY = V.h - 48;
     g.fillStyle = 'rgba(12,10,18,0.85)'; g.fillRect(24, stripY, V.w - 48, 38);
     g.strokeStyle = '#ffd24a'; g.lineWidth = 1; g.strokeRect(24.5, stripY + 0.5, V.w - 49, 37);
