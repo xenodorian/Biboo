@@ -47,7 +47,10 @@
       const range = Math.max(0, still.width - V.w);
       g.imageSmoothingEnabled = false;
       g.drawImage(still, -Math.round(range * 0.5) + Math.round(sx * 0.3), Math.round(sy * 0.3) - Math.max(0, still.height - V.h), still.width, still.height);
-    } else for (const l of TH ? TH.layers : D.layers) drawLayer(img[l.src].im, -bgx * l.parallax + sx * l.shake, camY * l.parallax + sy * l.shake);
+    } else for (const l of TH ? TH.layers : D.layers) {
+      const src = l.frames ? l.frames[Math.floor(clock / (l.ms || 140)) % l.frames.length] : l.src;       // an animated layer cycles its frames
+      drawLayer(img[src].im, (TH && TH.fixedX ? 0 : -bgx * l.parallax) + sx * l.shake, camY * l.parallax + sy * l.shake);
+    }
     drawGrade();
     if (level && level.def.tint && !TH) {
       g.save(); g.globalCompositeOperation = 'multiply'; g.globalAlpha = level.def.tint.alpha; g.fillStyle = level.def.tint.color; g.fillRect(0, 0, V.w, V.h); g.restore();
@@ -91,7 +94,7 @@
     drawShots(sx, sy);
     g.save();                                                     // the foreground grass is cut away over the pits
     if (curMap && curMap.pits.length) { g.beginPath(); g.rect(0, 0, V.w, V.h); for (const p of curMap.pits) g.rect(Math.round(p.x0 + sx), 0, p.x1 - p.x0, V.h); g.clip('evenodd'); }
-    if (!still) drawLayer(img[TH ? TH.fringe : D.fringe.src].im, -bgx + sx, camY + sy);
+    if (!still) drawLayer(img[TH ? TH.fringe : D.fringe.src].im, (TH && TH.fixedX ? 0 : -bgx) + sx, camY + sy);
     g.restore();
     drawGems(sx, sy);
     drawBars(sx, sy);

@@ -32,7 +32,7 @@
   }
   const THEMES = D.themes || {};
   const srcs = [...D.layers.map(l => l.src), D.fringe.src];
-  for (const t of Object.values(THEMES)) { for (const l of t.layers) srcs.push(l.src); srcs.push(t.fringe); }
+  for (const t of Object.values(THEMES)) { for (const l of t.layers) { srcs.push(l.src); if (l.frames) srcs.push(...l.frames); } srcs.push(t.fringe); }
   for (const m of Object.values(D.moves)) {
     srcs.push(m.sheet);
     if (m.fxSheet) srcs.push(m.fxSheet);
