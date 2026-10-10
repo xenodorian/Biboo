@@ -2,12 +2,9 @@
   // Percy walks in from the left once the first door of a level opens (every enemy on map 1 is down).
   // He walks into melee, slashes three times, then walks off through the door on the right.
   // The frame Perry starts a melee attack, if that attack can reach him, he moves in and blocks.
-  // A beam, a projectile, or an explosion makes him jump before it arrives.
+  // A beam, a shot, or a blast: he jumps with Perry's arc, up and back down, timed so the top of the jump meets it.
   const DUEL_SPEED = 0.048;          // px per ms, a walk
-  const DUEL_HOP_MS = 460;
   const DUEL_BLOCK_MS = 340;
-  const DUEL_JUMP_H = 96;            // how high the jump carries him, reached at the end of the up animation
-  const DUEL_FALL_MS = 180;
   let duelMap = null, duelArmed = false;
 
   function duelistWatch() {
@@ -24,8 +21,8 @@
   }
   function duelistShow(e, anim) { if (e.anim !== anim) play(e, anim); }
   function duelistHop(e) {
-    if (!e.duel) return;
-    e.duel.hop = Math.max(e.duel.hop || 0, clock + DUEL_HOP_MS);
+    if (!e.duel || e.duel.arc) return;
+    e.duel.arc = { t: 0 };
   }
   function duelistTouch(e) {
     if (!e.duel) return;
@@ -79,31 +76,6 @@
     const ahead = face > 0 ? eb[0] - her : her - eb[2];
     return ahead <= reach;
   }
-  function shotComing(sh, body) {
-    const x1 = sh.x + (sh.vx || 0) * 420, y1 = sh.y + (sh.vy || 0) * 420;
-    for (let i = 0; i <= 8; i++) {
-      const u = i / 8, px = sh.x + (x1 - sh.x) * u, py = sh.y + (y1 - sh.y) * u;
-      if (px >= body[0] - 18 && px <= body[2] + 18 && py >= body[1] - 12 && py <= body[3] + 28) return true;
-    }
-    return false;
-  }
-  function duelJumpThreat(e) {
-    if (duelistHazard(e)) return true;
-    const body = duelistBody(e);
-    if (!body) return false;
-    if (cur && cur.kind === 'action' && DUEL_JUMP.has(cur.id) && duelInReach(e, cur.id.indexOf('beam') === 0 || cur.id === 'beam_cloud' ? 500 : (duelReach(cur.id) || 400))) return true;
-    const beam = typeof beamNow === 'function' ? beamNow() : null;
-    if (beam) {
-      const y = (beam.box[1] + beam.box[3]) / 2;
-      if (y >= body[1] - 24 && y <= body[3] + 36 && duelInReach(e, 500)) return true;
-    }
-    if (typeof shots !== 'undefined' && shots.some(sh => shotComing(sh, body))) return true;
-    if (typeof explosions !== 'undefined' && explosions.some(ex => {
-      const dx = Math.max(body[0] - ex.wx, 0, ex.wx - body[2]), dy = Math.max(body[1] - ex.wy, 0, ex.wy - body[3]);
-      return dx * dx + dy * dy <= (ex.r || 40) * (ex.r || 40);
-    })) return true;
-    return false;
-  }
   function duelMeleeThreat(e) {
     if (!cur || cur.kind !== 'action' || DUEL_JUMP.has(cur.id)) return false;
     if (cur.id === 'jump' || cur.id === 'dash' || cur.id === 'block' || cur.id === 'parry' || cur.id === 'duck' || cur.id === 'taunt' || cur.id === 'sky_dash') return false;
@@ -131,24 +103,76 @@
     if (!eb) return 999;
     return e.face < 0 ? eb[0] - me[2] : me[0] - eb[2];
   }
-  // 0 at the first up frame, 1 when that animation finishes. The height follows these frames instead of snapping.
-  function duelUpU(e) {
-    const T = EN.duelist, frames = T.anims.up.frames;
-    let elapsed = e.t || 0, total = 0;
-    for (let i = 0; i < frames.length; i++) {
-      const ms = T.frames[frames[i]].ms;
-      total += ms;
-      if (i < e.k) elapsed += ms;
+  // Milliseconds until a beam, shot, or blast reaches him. Null if nothing is coming.
+  function duelThreatEta(e) {
+    const body = duelistBody(e);
+    if (!body) return null;
+    let eta = null;
+    const take = ms => { if (ms == null || ms < 0) return; eta = eta == null ? ms : Math.min(eta, ms); };
+    if (duelistHazard(e)) take(0);
+    const beam = typeof beamNow === 'function' ? beamNow() : null;
+    if (beam) {
+      const crosses = beam.box[3] >= body[1] - 8 && beam.box[1] <= body[3] + JUMP_H;
+      if (crosses) {
+        const ahead = beam.face > 0 ? body[0] - beam.box[2] : beam.box[0] - body[2];
+        if (ahead < BEAM_LEN) take(ahead <= 8 ? 0 : ahead / BEAM_GROW);
+      }
+    } else if (cur && cur.kind === 'action' && DUEL_JUMP.has(cur.id) && cur.id.indexOf('beam') === 0 && !D.moves[cur.id].frames[cur.k].beam) {
+      const m = D.moves[cur.id];
+      let pre = 0, i = 0;
+      for (; i < m.frames.length && !m.frames[i].beam; i++) pre += m.frames[i].ms;
+      let spent = cur.k < i ? cur.t : 0;
+      for (let k = 0; k < cur.k && k < i; k++) spent += m.frames[k].ms;
+      const her = playerX(), face = cur.face || facing, ox = her + face * 58;
+      const ahead = face > 0 ? body[0] - ox : ox - body[2];
+      if (cur.k < i && ahead < BEAM_LEN) take(Math.max(0, pre - spent) + Math.max(0, ahead - 40) / BEAM_GROW);
+    } else if (cur && cur.kind === 'action' && DUEL_JUMP.has(cur.id) && duelInReach(e, duelReach(cur.id) || 400)) take(0);
+    if (typeof shots !== 'undefined') {
+      for (const sh of shots) {
+        const vx = sh.vx || 0, vy = sh.vy || 0;
+        if (!vx && !vy) continue;
+        let x = sh.x, y = sh.y;
+        for (let t = 0; t <= 640; t += 20) {
+          if (x >= body[0] - 18 && x <= body[2] + 18 && y >= body[1] - 12 && y <= body[3] + JUMP_H) { take(t); break; }
+          x += vx * 20; y += vy * 20;
+        }
+      }
     }
-    return total ? Math.max(0, Math.min(1, elapsed / total)) : 1;
+    if (typeof explosions !== 'undefined') {
+      for (const ex of explosions) {
+        const dx = Math.max(body[0] - ex.wx, 0, ex.wx - body[2]), dy = Math.max(body[1] - ex.wy, 0, ex.wy - body[3]);
+        const dist = Math.hypot(dx, dy), full = ex.r || 40;
+        if (dist <= full) take(Math.max(0, (dist / full) * 180 - (clock - ex.t0)));
+      }
+    }
+    return eta;
+  }
+  // Same arc as Perry: 100px, 280ms up, 280ms down. The up frames follow the speed, including the fall.
+  function duelArcPose(v) {
+    if (v > 0.6 * JUMP_V0) return 0;
+    if (v > 0.15 * JUMP_V0) return 1;
+    if (v > -0.15 * JUMP_V0) return 2;
+    return 1;
+  }
+  function duelStepArc(e, dt) {
+    const a = e.duel.arc;
+    a.t += dt;
+    const y = JUMP_V0 * a.t - 0.5 * JUMP_G * a.t * a.t;
+    const v = JUMP_V0 - JUMP_G * a.t;
+    if (y <= 0 && v < 0) { e.jy = 0; e.duel.arc = null; return false; }
+    e.jy = y;
+    e.anim = 'up'; e.k = duelArcPose(v); e.t = 0; e.state = 'walk';
+    return true;
   }
   function duelistStep(e, dt) {
     const d = e.duel || (e.duel = { mode: 'approach', strikes: 0, hop: 0, block: 0, next: clock + 700 });
-    if (duelJumpThreat(e)) duelistHop(e);
-    const hopping = d.hop > clock;
-    if (!hopping && duelMeleeThreat(e)) d.block = Math.max(d.block || 0, clock + DUEL_BLOCK_MS);
-    const guarding = d.block > clock;
-    const airborne = hopping || (d.apex || 0) > 1;
+    if (!d.arc) {
+      const eta = duelThreatEta(e);
+      if (eta != null && eta <= JUMP_APEX_MS) duelistHop(e);
+    }
+    if (!d.arc && duelMeleeThreat(e)) d.block = Math.max(d.block || 0, clock + DUEL_BLOCK_MS);
+    const guarding = d.block > clock && !d.arc;
+    const airborne = !!d.arc;
     const ended = duelistAdvance(e, dt);
     if (e.state === 'attack' && ended) {
       d.strikes++;
@@ -176,22 +200,9 @@
       if (i >= 0) enemies.splice(i, 1);
       return;
     }
-    if ((hopping || guarding) && e.state === 'attack') { e.state = 'walk'; e.hitDone = false; }
-    if (hopping) {
-      if (d.dropping || (e.anim !== 'up' && e.anim !== 'upHold')) play(e, 'up');
-      else if (e.anim === 'up' && ended) duelistShow(e, 'upHold');
-      e.jy = DUEL_JUMP_H * (e.anim === 'up' ? duelUpU(e) : 1);
-      d.apex = e.jy; d.drop = 0; d.dropping = false;
-      e.state = 'walk';
-      return;
-    }
-    if ((d.apex || 0) > 1) {
-      d.dropping = true;
-      d.drop = (d.drop || 0) + dt;
-      e.jy = d.apex * (1 - Math.min(1, d.drop / DUEL_FALL_MS));
-      if (e.jy <= 1) { e.jy = 0; d.apex = 0; d.drop = 0; d.dropping = false; }
-      else { duelistShow(e, 'upHold'); e.state = 'walk'; return; }
-    } else e.jy = 0;
+    if (airborne && e.state === 'attack') { e.state = 'walk'; e.hitDone = false; }
+    if (d.arc && duelStepArc(e, dt)) return;
+    e.jy = 0;
     if (e.state === 'attack') return;
     if (d.mode === 'melee' && d.strikes < 3 && clock >= d.next && d.block <= clock) {
       e.state = 'attack';
