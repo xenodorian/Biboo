@@ -1,8 +1,11 @@
-// Percy, from BeelzSpriteAnim @ 1254493. The sheet cells are 132x200. He is drawn 100px tall.
+// Percy, from BeelzSpriteAnim @ 1254493. The sheet cells are 132x200.
+// He is scaled so the energy burst, still dropped 5px from its spot on his body, is centered on Perry's eyes.
 // The energy burst uses that same scale, then its thickness is 10% of the height it has at that scale.
-// That burst is then doubled in both width and height, and its center sits 5px lower. The slash hit box is the burst.
+// That burst is then doubled in both width and height. The slash hit box is the burst.
 (function () {
-  const TALL = 100;
+  const EYE = 52; // Perry's eyes, plow guard, px above her feet
+  const k = (189 / 200 * 730 - (0.397 * 730 + 17)) / 730;
+  const TALL = (EYE + 5) / k;
   const SCALE = TALL / 200;
   const fromSrc = TALL / 730;
   const scaledH = 340 * fromSrc;
