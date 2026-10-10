@@ -196,3 +196,4 @@ See repository history for full rules. Work on main, claim steps.
 - **st169:** Percy is not mirrored when he is drawn. Other enemies are stored facing left and flipped to face right. His sheet faces the way he walks, so the facing flip was turning him around.
 - **st170:** Percy's foot anchor is the boot sole (row 139 of the 150px cell), the same ground line Perry stands on. His ground shadow uses that sole and is not mirrored, so it sits on his feet while he is on the ground.
 - **st171:** Percy blocks the frame Perry starts a melee attack, if that swing can reach him, and he keeps walking in while the block comes up. Beams, shots, and explosions make him jump as soon as they are coming, not after they are already on him.
+- **st172:** Percy's jump plays the up frames on the way up and lands over 180ms, instead of snapping to the top. He does not walk while he is jumping or blocking.

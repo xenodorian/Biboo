@@ -6,6 +6,8 @@
   const DUEL_SPEED = 0.048;          // px per ms, a walk
   const DUEL_HOP_MS = 460;
   const DUEL_BLOCK_MS = 340;
+  const DUEL_JUMP_H = 96;            // how high the jump carries him, reached at the end of the up animation
+  const DUEL_FALL_MS = 180;
   let duelMap = null, duelArmed = false;
 
   function duelistWatch() {
@@ -129,10 +131,24 @@
     if (!eb) return 999;
     return e.face < 0 ? eb[0] - me[2] : me[0] - eb[2];
   }
+  // 0 at the first up frame, 1 when that animation finishes. The height follows these frames instead of snapping.
+  function duelUpU(e) {
+    const T = EN.duelist, frames = T.anims.up.frames;
+    let elapsed = e.t || 0, total = 0;
+    for (let i = 0; i < frames.length; i++) {
+      const ms = T.frames[frames[i]].ms;
+      total += ms;
+      if (i < e.k) elapsed += ms;
+    }
+    return total ? Math.max(0, Math.min(1, elapsed / total)) : 1;
+  }
   function duelistStep(e, dt) {
     const d = e.duel || (e.duel = { mode: 'approach', strikes: 0, hop: 0, block: 0, next: clock + 700 });
     if (duelJumpThreat(e)) duelistHop(e);
     const hopping = d.hop > clock;
+    if (!hopping && duelMeleeThreat(e)) d.block = Math.max(d.block || 0, clock + DUEL_BLOCK_MS);
+    const guarding = d.block > clock;
+    const airborne = hopping || (d.apex || 0) > 1;
     const ended = duelistAdvance(e, dt);
     if (e.state === 'attack' && ended) {
       d.strikes++;
@@ -151,7 +167,7 @@
       if (room > 0) { d.mode = 'approach'; dir = toward; }
       else { d.mode = 'melee'; }
     }
-    if (dir) {
+    if (dir && !airborne && !guarding) {
       const step = d.mode === 'approach' ? Math.min(DUEL_SPEED * dt, Math.max(0, room)) : DUEL_SPEED * dt;
       e.x += dir * step; e.base = e.x;
     }
@@ -160,11 +176,22 @@
       if (i >= 0) enemies.splice(i, 1);
       return;
     }
-    e.jy = hopping ? 96 : 0;
-    if (!hopping && duelMeleeThreat(e)) d.block = Math.max(d.block, clock + DUEL_BLOCK_MS);
-    if ((hopping || d.block > clock) && e.state === 'attack') { e.state = 'walk'; e.hitDone = false; }
-    if (hopping) { duelistShow(e, e.anim === 'up' && !ended ? 'up' : 'upHold'); e.state = 'walk'; return; }
-    e.jy = 0;
+    if ((hopping || guarding) && e.state === 'attack') { e.state = 'walk'; e.hitDone = false; }
+    if (hopping) {
+      if (d.dropping || (e.anim !== 'up' && e.anim !== 'upHold')) play(e, 'up');
+      else if (e.anim === 'up' && ended) duelistShow(e, 'upHold');
+      e.jy = DUEL_JUMP_H * (e.anim === 'up' ? duelUpU(e) : 1);
+      d.apex = e.jy; d.drop = 0; d.dropping = false;
+      e.state = 'walk';
+      return;
+    }
+    if ((d.apex || 0) > 1) {
+      d.dropping = true;
+      d.drop = (d.drop || 0) + dt;
+      e.jy = d.apex * (1 - Math.min(1, d.drop / DUEL_FALL_MS));
+      if (e.jy <= 1) { e.jy = 0; d.apex = 0; d.drop = 0; d.dropping = false; }
+      else { duelistShow(e, 'upHold'); e.state = 'walk'; return; }
+    } else e.jy = 0;
     if (e.state === 'attack') return;
     if (d.mode === 'melee' && d.strikes < 3 && clock >= d.next && d.block <= clock) {
       e.state = 'attack';
