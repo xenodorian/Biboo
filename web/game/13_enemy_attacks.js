@@ -129,7 +129,7 @@
       if (!e.landAt) {
         const h = boxOf(e, frameOf(e).hit);
         if (!h || !overlap(h, me)) continue;
-        e.landAt = clock + HIT_DELAY;   // contact: the hit lands shortly, parry still possible
+        e.landAt = clock + (e.type === 'duelist' ? 0 : HIT_DELAY);   // Percy already winds up; the burst hits the frame it touches her
       }
       if (clock < e.landAt) continue;
       { const h = boxOf(e, frameOf(e).hit); if (!h || !overlap(h, me)) { e.hitDone = true; continue; } }   // she slipped out of the held strike: a miss

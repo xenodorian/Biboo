@@ -370,9 +370,10 @@
     g.drawImage(wash, 0, 0, w, h, dx, dy, dw, dh);
   }
 
-  function drawEnemies(sx, sy) {
+  function drawEnemies(sx, sy, front) {
     const gy = V.feetRow + camY + sy;
     for (const e of enemies) {
+      if ((e.type === 'duelist') !== !!front) continue;   // Percy draws in front of Perry; everyone else behind her
       const T = EN[e.type];
       let alpha = 1;
       if (e.state === 'dying') {

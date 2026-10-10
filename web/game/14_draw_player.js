@@ -102,6 +102,7 @@
       dampMirrorLocal(img[m.sheet].im, cur.k * cw, cw, ch, -m.anchor[0] * SPRITE_SCALE, -m.anchor[1] * SPRITE_SCALE, cw * SPRITE_SCALE, ch * SPRITE_SCALE, Lm.water);
     }
     g.restore();
+    drawEnemies(sx, sy, true);   // Percy, in front of Perry
     drawBeam(sx, sy);
     drawExplosions(sx, sy);
     drawMageBlasts(sx, sy);
