@@ -1,5 +1,5 @@
 'use strict';
-  // The duelist walks in from the left once the first door of a level opens (every enemy on map 1 is down).
+  // Percy walks in from the left once the first door of a level opens (every enemy on map 1 is down).
   // He walks into melee and blocks. He slashes three times, then walks off through the door on the right.
   // Beams, shots and explosions get the up-arrow hop. Player swings are blocked and do not hurt him.
   const DUEL_SPEED = 0.048;          // px per ms, a walk
@@ -13,6 +13,7 @@
     if (curMap !== duelMap) { duelMap = curMap; duelArmed = !doorOpen(); return; }
     if (!duelArmed || !doorOpen() || enemies.some(e => e.type === 'duelist')) return;
     const e = spawn('duelist', -80, { fy: 0 });
+    e.scale = window.BIBOO.duelist.scale;
     e.duel = { mode: 'approach', strikes: 0, hop: 0, block: 0, next: clock + 700 };
     e.face = 1;
     e.state = 'walk';
@@ -110,5 +111,5 @@
     const im = E && img[E.src] && img[E.src].im;
     if (!im) return;
     const f = Math.floor(clock / 25) % E.frames;
-    g.drawImage(im, f * E.cell[0], 0, E.cell[0], E.cell[1], -150, -128, E.cell[0], E.cell[1]);
+    g.drawImage(im, f * E.cell[0], 0, E.cell[0], E.cell[1], -E.w / 2, -(E.above + E.h / 2), E.w, E.h);
   }
