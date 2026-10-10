@@ -390,7 +390,7 @@
       g.globalAlpha = alpha;
       g.translate(vx, Math.round(gy - (e.fy || 0) - (e.jy || 0) + (e.sinkAt ? PIT_GRAV * (clock - e.sinkAt) * (clock - e.sinkAt) : 0)));
       if (e.state === 'stunned' && e.tilt) g.rotate(e.tilt);   // screen-clockwise, before the facing flip so both directions tip the same way
-      if (e.type === 'heavybag' ? (e.bagAnim && e.bagAnim.flip) : e.face > 0) g.scale(-1, 1);   // the bag is drawn for a hit from the left and mirrored for a hit from the right
+      if (e.type === 'heavybag' ? (e.bagAnim && e.bagAnim.flip) : (e.face > 0 && e.type !== 'duelist')) g.scale(-1, 1);   // enemies are drawn facing left and mirrored to face right. Percy is not. His sheet already faces the way he walks.
       const Lm = sceneLight();
       blit(img[T.sheet].im, cell * cw, cw, ch, -ax * SPRITE_SCALE * (e.scale||1), -ay * SPRITE_SCALE * (e.scale||1), e.tint && clock < e.tint.until ? e.tint : null, SPRITE_SCALE * (e.scale||1));
       if (e.type === 'duelist' && typeof drawDuelistEnergy === 'function') drawDuelistEnergy(e);
