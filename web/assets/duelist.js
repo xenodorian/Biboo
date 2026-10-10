@@ -1,14 +1,14 @@
 // Percy, from BeelzSpriteAnim @ 1254493. The sheet cells are 132x200. He is drawn 100px tall.
 // The energy burst uses that same scale, then its thickness is 10% of the height it has at that scale.
-// The slash hit box is that thinner burst. 0 idle, 1-6 walk, 7-9 block-in, 10-11 recover, 12-16 slash, 17-19 jump.
+// That burst is then doubled in both width and height, and its center sits 5px lower. The slash hit box is the burst.
 (function () {
   const TALL = 100;
   const SCALE = TALL / 200;
   const fromSrc = TALL / 730;
   const scaledH = 340 * fromSrc;
-  const thick = scaledH * 0.1;
-  const burstW = 960 * fromSrc;
-  const above = (189 / 200 * 730 - (0.397 * 730 + 17)) * fromSrc;
+  const thick = scaledH * 0.1 * 2;
+  const burstW = 960 * fromSrc * 2;
+  const above = (189 / 200 * 730 - (0.397 * 730 + 17)) * fromSrc - 5;
   const HIT = [-(burstW / 2) / SCALE, (above - thick / 2) / SCALE, (burstW / 2) / SCALE, (above + thick / 2) / SCALE];
   const H = [-28, 0, 26, 178];
   const ms = [400, 120, 120, 120, 120, 120, 120, 50, 50, 80, 50, 50, 50, 50, 100, 100, 50, 50, 50, 80];
