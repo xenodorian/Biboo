@@ -14,7 +14,7 @@
   const frames = ms.map((t, i) => ({ src: i, ms: t, hurt: H, hit: (i === 14 || i === 15) ? HIT : null, ground: 0 }));
   window.BIBOO.enemies = window.BIBOO.enemies || {};
   window.BIBOO.enemies.duelist = {
-    title: 'Percy', sheet: 'assets/duelist/sheet.png', cell: [99, 150], anchor: [50, 142],
+    title: 'Percy', sheet: 'assets/duelist/sheet.png', cell: [99, 150], anchor: [50, 139],
     frames,
     anims: {
       idle: { frames: [0], loop: true },

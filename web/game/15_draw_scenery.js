@@ -123,7 +123,7 @@
       contactBlob(ex, ey, Math.max(8, Math.round(T.cell[0] * sc * 0.22)), airE, planted);
       if (!planted || !img[T.sheet]) continue;
       const cell = T.anims[e.anim].frames[e.k], [cw, ch] = T.cell, [ax0, ay0] = T.anchor;
-      const dw = Math.round(cw * sc), dh = Math.round(ch * sc), faceR = e.face > 0;
+      const dw = Math.round(cw * sc), dh = Math.round(ch * sc), faceR = e.face > 0 && e.type !== 'duelist';
       const left = faceR ? Math.round(ex - dw + ax0 * sc) : Math.round(ex - ax0 * sc);
       const top = Math.round(ey - ay0 * sc);
       let alpha = 1;
