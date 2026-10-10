@@ -3,7 +3,6 @@
   // He walks into melee and blocks. He slashes three times, then walks off through the door on the right.
   // Beams, shots and explosions get the up-arrow hop. Player swings are blocked and do not hurt him.
   const DUEL_SPEED = 0.048;          // px per ms, a walk
-  const DUEL_MELEE = 88;
   const DUEL_HOP_MS = 460;
   const DUEL_BLOCK_MS = 340;
   let duelMap = null, duelArmed = false;
@@ -68,6 +67,13 @@
     }
     return ended;
   }
+  // How much clear ground is left before Percy's body box meets her hitbox. Positive means he has not reached her yet.
+  // He does not stop at her sword or at a fixed melee range.
+  function duelRoom(e) {
+    const me = herBox(), eb = hurtOf(e);
+    if (!eb) return 999;
+    return e.face < 0 ? eb[0] - me[2] : me[0] - eb[2];
+  }
   function duelistStep(e, dt) {
     const d = e.duel || (e.duel = { mode: 'approach', strikes: 0, hop: 0, block: 0, next: clock + 700 });
     if (duelistHazard(e)) duelistHop(e);
@@ -81,11 +87,19 @@
       d.next = clock + 520;
     }
     const her = herMidX();
-    let dir = 0;
+    let dir = 0, room = 0;
     if (d.mode === 'leave') { dir = 1; e.face = 1; }
-    else if (Math.abs(her - e.x) > DUEL_MELEE) { d.mode = 'approach'; dir = her > e.x ? 1 : -1; e.face = dir; }
-    else { d.mode = 'melee'; e.face = her >= e.x ? 1 : -1; }
-    if (dir) { e.x += dir * DUEL_SPEED * dt; e.base = e.x; }
+    else {
+      const toward = her >= e.x ? 1 : -1;
+      e.face = toward;
+      room = duelRoom(e);
+      if (room > 0) { d.mode = 'approach'; dir = toward; }
+      else { d.mode = 'melee'; }
+    }
+    if (dir) {
+      const step = d.mode === 'approach' ? Math.min(DUEL_SPEED * dt, Math.max(0, room)) : DUEL_SPEED * dt;
+      e.x += dir * step; e.base = e.x;
+    }
     if (e.x > MAP_W + 36) {
       const i = enemies.indexOf(e);
       if (i >= 0) enemies.splice(i, 1);

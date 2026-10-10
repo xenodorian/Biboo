@@ -10,14 +10,10 @@
   const TAUNT_TINT = { color: '#e22', alpha: 0.55, until: Infinity };     // taunted enemies stay red
   const BODY = 32;                      // her body centre, px ahead of her anchor
   const LEGS = 19;                      // the point between her legs, px ahead of her anchor (measured from the sprite: feet at -1..8 and 27..38): she turns about this point
-  // An enemy walks in until it is APPROACH x its reach from her body centre. Her plow guard holds the blade
-  // out in front of her body, but only her body (herBox) is hit, so the enemy has to close in far enough
-  // that its swing overlaps the body on the first hitting frames, not just the last ones (0.65 left the
-  // orc 3 px inside and the goblin's first slash frames out of reach).
-  const APPROACH = 0.5;
-  // Enemy reach: how far ahead of its ground point the longest attack hurtbox (the damaging box) of an enemy's attack animations
-  // extends, measured from where it stands when the attack starts (goblin slash 63.5, orc 39). An enemy starts attacking once the
-  // gap from its ground point to her hitbox is under that reach (by 1 px), and until then walks on until its hitbox touches hers.
+  // Policy: an enemy does not stop at Perry's sword, and it does not stop at the end of its weapon reach.
+  // It keeps walking until its own body box meets her hitbox (herBox, the vulnerable body, not the blade), and only then attacks.
+  // Enemy reach: how far ahead of its ground point the longest attack box extends. Used only to notice when she has
+  // left melee after a goblin combo, not as a place to stop.
   const ENEMY_REACH = {};
   for (const t of Object.keys(EN)) {
     let r = 0;
@@ -228,7 +224,8 @@
     }
     clampEnemy(e, free);
   }
-  // The attacks whose damage box would touch her hurtbox on one of its hitting frames, from where the enemy stands now.
+  // Which attacks would touch her hitbox from where the enemy already stands. Not used to stop the walk:
+  // an enemy keeps walking until its body box meets hers, then it swings. Do not go back to swinging at weapon range.
   function strikeAttacks(e, me) {
     const T = EN[e.type], out = [];
     for (const a of T.ai.attacks) {
@@ -321,13 +318,7 @@
         return;
       }
     }
-    // An attack goes out as soon as the damage box of one of its attacks would reach her hurtbox from where the enemy stands.
-    const strike = strikeAttacks(e, me);
-    if (strike.length) {
-      e.state = 'attack'; e.meleeSeen = true;
-      play(e, strike[Math.floor(Math.random() * strike.length)]);
-      return;
-    }
+    // Policy: do not swing from weapon range. That stop lands on her sword. Walk on until the body boxes meet, then swing.
     // Every enemy that has noticed her climbs up onto a platform she is on, drops off the edge of its own toward her,
     // and hops the gap between two platforms of the same height.
     if (curMap && (!sameLevel || (e.fy || 0) > 0)) {
@@ -369,7 +360,7 @@
           }
         }
       }
-      const eb = hurtOf(e), room = eb ? (e.face < 0 ? eb[0] - me[2] : me[0] - eb[2]) : gap;   // free ground until its hitbox meets hers
+      const eb = hurtOf(e), room = eb ? (e.face < 0 ? eb[0] - me[2] : me[0] - eb[2]) : gap;   // free ground until its body box meets her hitbox, not her sword
       const mv = e.face * Math.max(0, Math.min(espeed(e, ai) * dt / 1000, room));
       if (mv === 0 && sameLevel && !pitBetween) {                    // its body is against hers and nothing reached: swing anyway
         const melee = ai.attacks.filter(a => a !== 'combo'), pool = melee.length ? melee : ai.attacks;
