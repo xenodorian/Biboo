@@ -1,6 +1,6 @@
 // Percy, from BeelzSpriteAnim @ 1254493. The HD frames are 480x730.
-// This sheet is those frames downscaled to 150px tall, then drawn 1:1. Not an upscale of the old 200px sheet.
-// The energy burst is the HD beam downscaled the same way, doubled in width and thickness, and 5px below its spot on his body.
+// This sheet is those frames scaled once to 150px tall and drawn 1:1. Not flipped. Not a resize of the old 200px sheet.
+// The energy burst is the HD beam scaled once the same way, doubled in width and thickness, and 5px below its spot on his body.
 (function () {
   const TALL = 150;
   const SCALE = 1;
