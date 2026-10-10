@@ -6,12 +6,11 @@
   const DUEL_MELEE = 88;
   const DUEL_HOP_MS = 460;
   const DUEL_BLOCK_MS = 340;
-  let duelMapKey = '', duelArmed = false;
+  let duelMap = null, duelArmed = false;
 
   function duelistWatch() {
-    if (typeof level === 'undefined' || !level || level.idx !== 0) { duelMapKey = ''; return; }
-    const key = level.n + ':' + level.idx;
-    if (key !== duelMapKey) { duelMapKey = key; duelArmed = !doorOpen(); return; }
+    if (typeof level === 'undefined' || !level || level.idx !== 0 || !curMap) { duelMap = null; return; }
+    if (curMap !== duelMap) { duelMap = curMap; duelArmed = !doorOpen(); return; }
     if (!duelArmed || !doorOpen() || enemies.some(e => e.type === 'duelist')) return;
     const e = spawn('duelist', -80, { fy: 0 });
     e.duel = { mode: 'approach', strikes: 0, hop: 0, block: 0, next: clock + 700 };
