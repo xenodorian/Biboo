@@ -39,6 +39,7 @@
     for (const f of m.frames) if (f.bw) srcs.push(f.bw);
   }
   if (D.mage) srcs.push(D.mage.blast.src, D.mage.reticle.src);
+  if (D.duelist && D.duelist.energy) srcs.push(D.duelist.energy.src);
   for (const b of Object.values(D.beams || {})) srcs.push(b.src);
   const EN = D.enemies || {};
   for (const e of Object.values(EN)) srcs.push(e.sheet);

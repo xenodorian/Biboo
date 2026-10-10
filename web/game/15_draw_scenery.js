@@ -392,6 +392,7 @@
       if (e.type === 'heavybag' ? (e.bagAnim && e.bagAnim.flip) : e.face > 0) g.scale(-1, 1);   // the bag is drawn for a hit from the left and mirrored for a hit from the right
       const Lm = sceneLight();
       blit(img[T.sheet].im, cell * cw, cw, ch, -ax * SPRITE_SCALE * (e.scale||1), -ay * SPRITE_SCALE * (e.scale||1), e.tint && clock < e.tint.until ? e.tint : null, SPRITE_SCALE * (e.scale||1));
+      if (e.type === 'duelist' && typeof drawDuelistEnergy === 'function') drawDuelistEnergy(e);
       if (Lm.water && (e.fy || 0) < 2 && (e.jy || 0) < 8 && !e.sinkAt && !inPit(e.x)) {
         const sc = SPRITE_SCALE * (e.scale || 1);
         dampMirrorLocal(img[T.sheet].im, cell * cw, cw, ch, -ax * sc, -ay * sc, cw * sc, ch * sc, Lm.water * alpha);

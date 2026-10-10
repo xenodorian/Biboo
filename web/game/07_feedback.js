@@ -19,6 +19,7 @@
   function hurtEnemy(e, dmg) {
     if (!alive(e)) return;
     if (e.type === 'heavybag') { bagHit(e, dmg); return; }
+    if (e.type === 'duelist') return;
     aggro(e, false);                                  // being hit wakes a patrolling enemy, even for 0 damage
     if (dmg <= 0) return;
     e.hp = Math.max(0, e.hp - dmg);

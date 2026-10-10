@@ -35,6 +35,7 @@
         for (const e of enemies) {
           const box = hurtOf(e);
           if (!box || !touches(w, box)) continue;
+          if (e.type === 'duelist') { duelistTouch(e); continue; }
           const last = seen.get(e);
           if (last !== undefined && !(gap && clock - last >= gap)) continue;
           seen.set(e, clock);

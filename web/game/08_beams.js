@@ -39,6 +39,7 @@
     bombsInBox(b.box);
   }
   function beamHit(e, b) {
+    if (e.type === 'duelist') { duelistHop(e); return; }
     if (b.kind === 'plasma' && isBoss(e)) return;                  // bosses are immune to the Empowerment Beam (no growing, no shove)
     if (b.kind === 'plasma') {
       e.scale = Math.max(e.scale || 1, 1.6);

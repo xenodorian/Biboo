@@ -49,6 +49,7 @@
   const blocking = () => cur && cur.id === 'block';
 
   function parried(e) {
+    if (e.type === 'duelist') { e.hitDone = true; parries++; tint = { color: WHITE, alpha: 0.75, until: clock + 150 }; return; }
     const T = EN[e.type], [d, ms] = PARRY_KNOCK, p = push(d, ms);
     e.hitDone = true;
     hurtEnemy(e, PARRY_DMG);                                          // a successful parry of a melee attack also hurts the attacker
@@ -158,6 +159,7 @@
   }
 
   function stepEnemies(dt) {
+    if (typeof duelistWatch === 'function') duelistWatch();
     for (const e of enemies) stepEnemy(e, dt);
     for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].state === 'dying' && enemies[i].dead > DIE_MS) enemies.splice(i, 1);
     if (!respawnOn) respawns.length = 0;

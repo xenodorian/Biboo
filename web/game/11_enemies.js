@@ -213,6 +213,7 @@
   function stepEnemy(e, dt) {
     if (e.type === 'heavybag') { stepBag(e, dt); return; }
     if (EN[e.type].ai.mage) { mageStep(e, dt); return; }
+    if (EN[e.type].ai.duelist) { duelistStep(e, dt); return; }
     stepEnemyCore(e, dt);
     if (e.anim === 'combo' && e.state === 'attack') {        // the backflip's streaks of light also leave as homing shards
       while (e.shotK < e.k) { e.shotK++; const n = COMBO_SHOT_AT.indexOf(e.shotK); if (n >= 0) fireComboShard(e, n); }

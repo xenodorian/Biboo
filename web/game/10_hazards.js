@@ -61,7 +61,12 @@
         }
       } else {
         let hit = false;
-        for (const e of enemies) { const hb = hurtOf(e); if (hb && overlap(box, hb)) { hurtEnemy(e, SHOT_DMG); hit = true; break; } }
+        for (const e of enemies) {
+          const hb = hurtOf(e);
+          if (!hb || !overlap(box, hb)) continue;
+          if (e.type === 'duelist') { duelistHop(e); continue; }
+          hurtEnemy(e, SHOT_DMG); hit = true; break;
+        }
         if (!hit && curMap) {
           for (const c of curMap.crates) if (!c.broken && overlap(box, crateBox(c))) { breakCrate(c); hit = true; break; }
           for (const b of curMap.bombs) if (!b.gone && overlap(box, bombBox(b))) { detonate(b); hit = true; break; }
