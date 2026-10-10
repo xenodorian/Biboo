@@ -1,7 +1,8 @@
 'use strict';
   // Percy walks in from the left once the first door of a level opens (every enemy on map 1 is down).
-  // He walks into melee and blocks. He slashes three times, then walks off through the door on the right.
-  // Beams, shots and explosions get the up-arrow hop. Player swings are blocked and do not hurt him.
+  // He walks into melee, slashes three times, then walks off through the door on the right.
+  // The frame Perry starts a melee attack, if that attack can reach him, he moves in and blocks.
+  // A beam, a projectile, or an explosion makes him jump before it arrives.
   const DUEL_SPEED = 0.048;          // px per ms, a walk
   const DUEL_HOP_MS = 460;
   const DUEL_BLOCK_MS = 340;
@@ -55,6 +56,60 @@
     if (curMap && curMap.pits.some(p => e.x > p.x0 - 8 && e.x < p.x1 + 8)) return true;
     return false;
   }
+  // Beams and blasts are jumped. Everything else she swings is a melee attack and is blocked.
+  const DUEL_JUMP = new Set(['beam_cloud', 'beam_fire', 'beam_laser', 'beam_plasma', 'energy_wave', 'earthquake', 'energy_burst', 'meteor_shower']);
+  function duelReach(id) {
+    const m = D.moves[id];
+    if (!m || !m.frames) return 0;
+    let reach = 0;
+    for (const f of m.frames) {
+      if (!f.hits) continue;
+      for (const h of f.hits) for (const p of [h.a, h.b, h.c]) if (p) reach = Math.max(reach, p[0] + (h.radius || h.r || 0));
+    }
+    return reach;
+  }
+  function duelInReach(e, reach) {
+    const eb = hurtOf(e);
+    if (!eb || reach <= 0) return false;
+    const her = playerX(), face = (cur && cur.face) || facing;
+    const both = cur && (cur.id === 'spin_attack');
+    if (both) return her - eb[2] <= reach && eb[0] - her <= reach;
+    const ahead = face > 0 ? eb[0] - her : her - eb[2];
+    return ahead <= reach;
+  }
+  function shotComing(sh, body) {
+    const x1 = sh.x + (sh.vx || 0) * 420, y1 = sh.y + (sh.vy || 0) * 420;
+    for (let i = 0; i <= 8; i++) {
+      const u = i / 8, px = sh.x + (x1 - sh.x) * u, py = sh.y + (y1 - sh.y) * u;
+      if (px >= body[0] - 18 && px <= body[2] + 18 && py >= body[1] - 12 && py <= body[3] + 28) return true;
+    }
+    return false;
+  }
+  function duelJumpThreat(e) {
+    if (duelistHazard(e)) return true;
+    const body = duelistBody(e);
+    if (!body) return false;
+    if (cur && cur.kind === 'action' && DUEL_JUMP.has(cur.id) && duelInReach(e, cur.id.indexOf('beam') === 0 || cur.id === 'beam_cloud' ? 500 : (duelReach(cur.id) || 400))) return true;
+    const beam = typeof beamNow === 'function' ? beamNow() : null;
+    if (beam) {
+      const y = (beam.box[1] + beam.box[3]) / 2;
+      if (y >= body[1] - 24 && y <= body[3] + 36 && duelInReach(e, 500)) return true;
+    }
+    if (typeof shots !== 'undefined' && shots.some(sh => shotComing(sh, body))) return true;
+    if (typeof explosions !== 'undefined' && explosions.some(ex => {
+      const dx = Math.max(body[0] - ex.wx, 0, ex.wx - body[2]), dy = Math.max(body[1] - ex.wy, 0, ex.wy - body[3]);
+      return dx * dx + dy * dy <= (ex.r || 40) * (ex.r || 40);
+    })) return true;
+    return false;
+  }
+  function duelMeleeThreat(e) {
+    if (!cur || cur.kind !== 'action' || DUEL_JUMP.has(cur.id)) return false;
+    if (cur.id === 'jump' || cur.id === 'dash' || cur.id === 'block' || cur.id === 'parry' || cur.id === 'duck' || cur.id === 'taunt' || cur.id === 'sky_dash') return false;
+    const id = cur.id === 'charge' ? 'slash' : cur.id;
+    const reach = duelReach(id);
+    if (!reach) return false;
+    return duelInReach(e, reach);
+  }
   function duelistAdvance(e, dt) {
     const T = EN[e.type], A = T.anims[e.anim];
     let ended = false;
@@ -76,7 +131,7 @@
   }
   function duelistStep(e, dt) {
     const d = e.duel || (e.duel = { mode: 'approach', strikes: 0, hop: 0, block: 0, next: clock + 700 });
-    if (duelistHazard(e)) duelistHop(e);
+    if (duelJumpThreat(e)) duelistHop(e);
     const hopping = d.hop > clock;
     const ended = duelistAdvance(e, dt);
     if (e.state === 'attack' && ended) {
@@ -106,18 +161,20 @@
       return;
     }
     e.jy = hopping ? 96 : 0;
+    if (!hopping && duelMeleeThreat(e)) d.block = Math.max(d.block, clock + DUEL_BLOCK_MS);
+    if ((hopping || d.block > clock) && e.state === 'attack') { e.state = 'walk'; e.hitDone = false; }
     if (hopping) { duelistShow(e, e.anim === 'up' && !ended ? 'up' : 'upHold'); e.state = 'walk'; return; }
     e.jy = 0;
     if (e.state === 'attack') return;
-    if (d.mode === 'melee' && d.strikes < 3 && clock >= d.next) {
+    if (d.mode === 'melee' && d.strikes < 3 && clock >= d.next && d.block <= clock) {
       e.state = 'attack';
       play(e, 'slash');
       return;
     }
-    if ((d.block > clock && d.mode !== 'approach') || d.mode === 'melee') {
+    if (d.block > clock) {
       if (e.anim === 'blockIn' && !ended) duelistShow(e, 'blockIn');
       else if (e.anim !== 'block') duelistShow(e, e.anim === 'blockIn' ? 'block' : 'blockIn');
-    } else duelistShow(e, 'walk');
+    } else duelistShow(e, d.mode === 'melee' ? 'idle' : 'walk');
   }
   function drawDuelistEnergy(e) {
     if (e.type !== 'duelist' || e.anim !== 'slash' || (e.k !== 3 && e.k !== 4)) return;
