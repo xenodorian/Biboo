@@ -78,7 +78,12 @@
     const d = e.duel || (e.duel = { mode: 'approach', strikes: 0, hop: 0, block: 0, next: clock + 700 });
     if (duelistHazard(e)) duelistHop(e);
     const hopping = d.hop > clock;
-    const ended = duelistAdvance(e, dt);
+    // Same rule as every other enemy: once the burst touches her, hold that frame until the hit
+    // lands. The two hitting frames are 200ms and the hit waits 200ms, so without the hold the
+    // frame is gone when the damage is applied and the swing always misses.
+    let stepDt = dt;
+    if (e.state === 'attack' && e.landAt && !e.hitDone && clock < e.landAt) stepDt = 0;
+    const ended = duelistAdvance(e, stepDt);
     if (e.state === 'attack' && ended) {
       d.strikes++;
       e.state = 'walk';
